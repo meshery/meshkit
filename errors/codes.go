@@ -10,8 +10,9 @@ var (
 
 	// Config specific codes
 	// Range 700-799
-	ErrLocal = "700"
-	ErrViper = "701"
+	ErrEmptyConfig = "700"
+	ErrLocal       = "701"
+	ErrViper       = "702"
 
 	// Mesh specific codes
 	// Range 1000-1500

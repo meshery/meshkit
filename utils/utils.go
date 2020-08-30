@@ -3,6 +3,9 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -51,4 +54,25 @@ func Filepath() string {
 	_, fn, line, _ := runtime.Caller(0)
 
 	return fmt.Sprintf("file: %s, line: %d", fn, line)
+}
+
+func DownloadFile(filepath string, url string) error {
+
+	// Get the data
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Create the file
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
