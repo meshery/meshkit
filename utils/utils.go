@@ -76,3 +76,9 @@ func DownloadFile(filepath string, url string) error {
 	_, err = io.Copy(out, resp.Body)
 	return err
 }
+
+// GetHome returns the home path
+func GetHome() string {
+	usr, _ := user.Current()
+	return usr.HomeDir
+}
