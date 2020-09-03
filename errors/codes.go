@@ -27,5 +27,5 @@ var (
 	ErrConnectSmi   = "1009"
 	ErrRunSmi       = "1010"
 	ErrDeleteSmi    = "1011"
-	ErrSmiTest      = "1012"
+	ErrSmiInit      = "1012"
 )

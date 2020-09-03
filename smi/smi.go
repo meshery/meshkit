@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/layer5io/gokit/errors"
 	"github.com/layer5io/gokit/utils"
 )
 
@@ -26,6 +25,7 @@ var (
 )
 
 type SmiTest struct {
+	adaptorName    string
 	ctx            context.Context
 	kubeClient     *kubernetes.Clientset
 	kubeConfigPath string
@@ -59,11 +59,11 @@ type SingleResponse struct {
 func New(ctx context.Context, name string, client *kubernetes.Clientset) (*SmiTest, error) {
 
 	if len(name) < 2 {
-		return nil, errors.New(errors.ErrSmiTest, "Adaptor name is nil")
+		return nil, ErrSmiInit("Adaptor name is nil")
 	}
 
 	if client == nil {
-		return nil, errors.New(errors.ErrSmiTest, "Client set is nil")
+		return nil, ErrSmiInit("Client set is nil")
 	}
 
 	test := &SmiTest{
@@ -91,7 +91,7 @@ func (test *SmiTest) Run(labels, annotations map[string]string) (ConformanceResp
 	response := ConformanceResponse{
 		Tests:    "None",
 		Failures: "None",
-		Results:  make([]*SingleConformanceResponse, 0),
+		Results:  make([]*SingleResponse, 0),
 		Status:   "deploying",
 	}
 
@@ -107,7 +107,7 @@ func (test *SmiTest) Run(labels, annotations map[string]string) (ConformanceResp
 		return response, ErrConnectSmi(err)
 	}
 
-	err = test.runConformanceTest(test.adaptorName, &response)
+	err = test.runConformanceTest(&response)
 	if err != nil {
 		response.Status = "running"
 		return response, ErrRunSmi(err)
