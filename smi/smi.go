@@ -54,28 +54,6 @@ type Detail struct {
 	Reason           string `json:"reason,omitempty"`
 }
 
-// ConformanceResponse holds the response object of the test
-type ConformanceResponse struct {
-	Tests    string            `json:"tests,omitempty"`
-	Failures string            `json:"failures,omitempty"`
-	Results  []*SingleResponse `json:"results,omitempty"`
-	Status   string            `json:"status,omitempty"`
-}
-
-// Failure is the failure response object
-type Failure struct {
-	Text    string `json:"text,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
-// SingleResponse holds the result of one particular test case
-type SingleResponse struct {
-	Name       string   `json:"name,omitempty"`
-	Time       string   `json:"time,omitempty"`
-	Assertions string   `json:"assertions,omitempty"`
-	Failure    *Failure `json:"failure,omitempty"`
-}
-
 func New(ctx context.Context, id string, version string, name string, client *kubernetes.Clientset) (*SmiTest, error) {
 
 	if len(name) < 2 {
@@ -264,10 +242,10 @@ func (test *SmiTest) runConformanceTest(response *Response) error {
 		return err
 	}
 
-	respose.CasesPassed = result.Casespassed
-	respose.ConformanceCapability = result.Capability
+	response.CasesPassed = result.Casespassed
+	response.ConformanceCapability = result.Capability
 
-	details = make(*[]Detail, 0)
+	details := make([]*Detail, 0)
 
 	for _, d := range result.Details {
 		details = append(details, &Detail{
