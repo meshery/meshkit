@@ -25,6 +25,8 @@ var (
 )
 
 type SmiTest struct {
+	id             string
+	adaptorVersion string
 	adaptorName    string
 	ctx            context.Context
 	kubeClient     *kubernetes.Clientset
@@ -32,6 +34,24 @@ type SmiTest struct {
 	smiAddress     string
 	annotations    map[string]string
 	labels         map[string]string
+}
+
+type Response struct {
+	Id                    string    `json:"id,omitempty"`
+	MeshName              string    `json:"mesh_name,omitempty"`
+	MeshVersion           string    `json:"mesh_version,omitempty"`
+	CasesPassed           string    `json:"cases_passed,omitempty"`
+	ConformanceCapability string    `json:"conformance_capability,omitempty"`
+	Status                string    `json:"status,omitempty"`
+	MoreDetails           []*Detail `json:"more_details,omitempty"`
+}
+
+type Detail struct {
+	SmiSpecification string `json:"smi_specification,omitempty"`
+	Time             string `json:"time,omitempty"`
+	Assertions       string `json:"assertions,omitemtpy"`
+	Result           string `json:"result,omitempty"`
+	Reason           string `json:"reason,omitempty"`
 }
 
 // ConformanceResponse holds the response object of the test
@@ -56,7 +76,7 @@ type SingleResponse struct {
 	Failure    *Failure `json:"failure,omitempty"`
 }
 
-func New(ctx context.Context, name string, client *kubernetes.Clientset) (*SmiTest, error) {
+func New(ctx context.Context, id string, version string, name string, client *kubernetes.Clientset) (*SmiTest, error) {
 
 	if len(name) < 2 {
 		return nil, ErrSmiInit("Adaptor name is nil")
@@ -68,6 +88,8 @@ func New(ctx context.Context, name string, client *kubernetes.Clientset) (*SmiTe
 
 	test := &SmiTest{
 		ctx:            ctx,
+		id:             id,
+		adaptorVersion: version,
 		kubeClient:     client,
 		kubeConfigPath: fmt.Sprintf("%s/.kube/config", utils.GetHome()),
 		adaptorName:    name,
@@ -78,7 +100,7 @@ func New(ctx context.Context, name string, client *kubernetes.Clientset) (*SmiTe
 	return test, nil
 }
 
-func (test *SmiTest) Run(labels, annotations map[string]string) (ConformanceResponse, error) {
+func (test *SmiTest) Run(labels, annotations map[string]string) (Response, error) {
 
 	if labels != nil {
 		test.labels = labels
@@ -88,11 +110,13 @@ func (test *SmiTest) Run(labels, annotations map[string]string) (ConformanceResp
 		test.annotations = annotations
 	}
 
-	response := ConformanceResponse{
-		Tests:    "None",
-		Failures: "None",
-		Results:  make([]*SingleResponse, 0),
-		Status:   "deploying",
+	response := Response{
+		Id:                    test.id,
+		MeshName:              test.adaptorName,
+		MeshVersion:           test.adaptorVersion,
+		CasesPassed:           "0",
+		ConformanceCapability: "0",
+		Status:                "deploying",
 	}
 
 	err := test.installConformanceTool()
@@ -222,7 +246,7 @@ func tcpCheck(ip string, port int32) bool {
 }
 
 // runConformanceTest runs the conformance test
-func (test *SmiTest) runConformanceTest(response *ConformanceResponse) error {
+func (test *SmiTest) runConformanceTest(response *Response) error {
 
 	cClient, err := conformance.CreateClient(context.TODO(), test.smiAddress)
 	if err != nil {
@@ -234,29 +258,28 @@ func (test *SmiTest) runConformanceTest(response *ConformanceResponse) error {
 		Annotations: test.annotations,
 		Labels:      test.labels,
 		Meshname:    test.adaptorName,
+		Meshversion: test.adaptorVersion,
 	})
 	if err != nil {
 		return err
 	}
 
-	if result == nil {
-		return err
-	}
+	respose.CasesPassed = result.Casespassed
+	respose.ConformanceCapability = result.Capability
 
-	response.Tests = result.Tests
-	response.Failures = result.Failures
+	details = make(*[]Detail, 0)
 
-	for _, res := range result.SingleTestResult {
-		response.Results = append(response.Results, &SingleResponse{
-			Name:       res.Name,
-			Time:       res.Time,
-			Assertions: res.Assertions,
-			Failure: &Failure{
-				Text:    res.Failure.Test,
-				Message: res.Failure.Message,
-			},
+	for _, d := range result.Details {
+		details = append(details, &Detail{
+			SmiSpecification: d.Smispec,
+			Time:             d.Time,
+			Assertions:       d.Assertions,
+			Result:           d.Result,
+			Reason:           d.Reason,
 		})
 	}
+
+	response.MoreDetails = details
 
 	return nil
 }
