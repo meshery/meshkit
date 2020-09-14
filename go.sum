@@ -475,8 +475,8 @@ github.com/lann/builder v0.0.0-20180802200727-47ae307949d0/go.mod h1:dXGbAdH5GtB
 github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 h1:P6pPBnrTSX3DEVR4fDembhRWSsG5rVo6hYhAB/ADZrk=
 github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0/go.mod h1:vmVJ0l/dxyfGW6FmdpVm2joNMFikkuWg0EoCKLGUMNw=
 github.com/layer5io/kuttl v0.4.1-0.20200806180306-b7e46afd657f/go.mod h1:UmrVd7x+bNVKrpmKgTtfRiTKHZeNPcMjQproJ0vGwhE=
-github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20200912040630-f4ba68e3ec83 h1:80VmRaVJ8eXA7jmETzJHrRd7It3CUJgcDVix8E1NppI=
-github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20200912040630-f4ba68e3ec83/go.mod h1:LpewBZnN0QDRcC2fDiBVK+iByfFyf2HJM1B2h0rTMZo=
+github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20200913201401-0f858241cca4 h1:w/Fj7YfGHWXjcgzW7U3G/ezA2q9AcaXpxlEvjEPSzCA=
+github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20200913201401-0f858241cca4/go.mod h1:LpewBZnN0QDRcC2fDiBVK+iByfFyf2HJM1B2h0rTMZo=
 github.com/lib/pq v1.0.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
 github.com/lib/pq v1.2.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
 github.com/lib/pq v1.7.0 h1:h93mCPfUSkaul3Ka/VG8uZdmW1uMHDGxzu0NWHuJmHY=
