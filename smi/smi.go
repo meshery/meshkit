@@ -94,7 +94,7 @@ func (test *SmiTest) Run(labels, annotations map[string]string) (Response, error
 
 	response := Response{
 		Id:                test.id,
-		Date:              time.Now.String(),
+		Date:              time.Now().String(),
 		MeshName:          test.adaptorName,
 		MeshVersion:       test.adaptorVersion,
 		CasesPassed:       "0",
