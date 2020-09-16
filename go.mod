@@ -6,7 +6,7 @@ replace github.com/kudobuilder/kuttl => github.com/layer5io/kuttl v0.4.1-0.20200
 
 require (
 	github.com/google/uuid v1.1.1
-	github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20200913201401-0f858241cca4
+	github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20200916172547-79cf11334bd7
 	github.com/sirupsen/logrus v1.6.0
 	helm.sh/helm/v3 v3.3.1
 	k8s.io/api v0.18.8

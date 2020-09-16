@@ -37,21 +37,25 @@ type SmiTest struct {
 }
 
 type Response struct {
-	Id                    string    `json:"id,omitempty"`
-	MeshName              string    `json:"mesh_name,omitempty"`
-	MeshVersion           string    `json:"mesh_version,omitempty"`
-	CasesPassed           string    `json:"cases_passed,omitempty"`
-	ConformanceCapability string    `json:"conformance_capability,omitempty"`
-	Status                string    `json:"status,omitempty"`
-	MoreDetails           []*Detail `json:"more_details,omitempty"`
+	Id                string    `json:"id,omitempty"`
+	Date              string    `json:"date,omitempty"`
+	MeshName          string    `json:"mesh_name,omitempty"`
+	MeshVersion       string    `json:"mesh_version,omitempty"`
+	CasesPassed       string    `json:"cases_passed,omitempty"`
+	PassingPercentage string    `json:"passing_percentage,omitempty"`
+	Status            string    `json:"status,omitempty"`
+	MoreDetails       []*Detail `json:"more_details,omitempty"`
 }
 
 type Detail struct {
 	SmiSpecification string `json:"smi_specification,omitempty"`
+	SmiVersion       string `json:"smi_version,omitempty"`
 	Time             string `json:"time,omitempty"`
 	Assertions       string `json:"assertions,omitemtpy"`
 	Result           string `json:"result,omitempty"`
 	Reason           string `json:"reason,omitempty"`
+	Capability       string `json:"capability,omitempty"`
+	Status           string `json:"status,omitempty"`
 }
 
 func New(ctx context.Context, id string, version string, name string, client *kubernetes.Clientset) (*SmiTest, error) {
@@ -89,12 +93,13 @@ func (test *SmiTest) Run(labels, annotations map[string]string) (Response, error
 	}
 
 	response := Response{
-		Id:                    test.id,
-		MeshName:              test.adaptorName,
-		MeshVersion:           test.adaptorVersion,
-		CasesPassed:           "0",
-		ConformanceCapability: "0",
-		Status:                "deploying",
+		Id:                test.id,
+		Date:              time.Now.String(),
+		MeshName:          test.adaptorName,
+		MeshVersion:       test.adaptorVersion,
+		CasesPassed:       "0",
+		PassingPercentage: "0",
+		Status:            "deploying",
 	}
 
 	err := test.installConformanceTool()
@@ -243,7 +248,7 @@ func (test *SmiTest) runConformanceTest(response *Response) error {
 	}
 
 	response.CasesPassed = result.Casespassed
-	response.ConformanceCapability = result.Capability
+	response.PassingPercentage = result.Passpercent
 
 	details := make([]*Detail, 0)
 
@@ -254,6 +259,8 @@ func (test *SmiTest) runConformanceTest(response *Response) error {
 			Assertions:       d.Assertions,
 			Result:           d.Result,
 			Reason:           d.Reason,
+			Capability:       d.Capability,
+			Status:           d.Status,
 		})
 	}
 
