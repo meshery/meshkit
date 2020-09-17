@@ -20,7 +20,7 @@ import (
 
 var (
 	name      = "smi-conformance"
-	helmPath  = "https://github.com/layer5io/learn-layer5/raw/master/charts/smi-conformance-0.1.0.tgz"
+	helmPath  = "https://github.com/layer5io/learn-layer5/raw/75a6b26cf5a5defaa0629e9bd55780fa52a82d2b/charts/smi-conformance-0.1.2.tgz"
 	namespace = "meshery"
 )
 
