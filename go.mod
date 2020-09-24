@@ -5,14 +5,10 @@ go 1.13
 replace github.com/kudobuilder/kuttl => github.com/layer5io/kuttl v0.4.1-0.20200806180306-b7e46afd657f
 
 require (
-	github.com/fvbommel/sortorder v1.0.1
-	github.com/fvbommel/util v0.0.2
 	github.com/google/uuid v1.1.1
-	github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20200916172547-79cf11334bd7
+	github.com/kr/pretty v0.2.1 // indirect
 	github.com/sirupsen/logrus v1.6.0
-	helm.sh/helm/v3 v3.3.1
-	k8s.io/api v0.18.8
-	k8s.io/apimachinery v0.18.8
-	k8s.io/client-go v0.18.8
-	rsc.io/letsencrypt v0.0.3 // indirect
+	github.com/stretchr/testify v1.6.1 // indirect
+	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 )
