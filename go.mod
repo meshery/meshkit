@@ -13,7 +13,7 @@ require (
 	github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20201022191033-40468652a54f
 	github.com/sirupsen/logrus v1.6.0
 	golang.org/x/sys v0.0.0-20200803210538-64077c9b5642 // indirect
-	helm.sh/helm/v3 v3.3.4
+	helm.sh/helm/v3 v3.3.1
 	k8s.io/api v0.18.8
 	k8s.io/apimachinery v0.18.8
 	k8s.io/client-go v0.18.8
