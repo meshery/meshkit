@@ -1,4 +1,4 @@
-# gokit for Layer5 projects
+# meshkit for Layer5 projects
 A toolkit for Layer5's microservices
 
 <div>&nbsp;</div>
