@@ -50,6 +50,6 @@ type Kubeconfig struct {
 			ClientCertificateData string `yaml:"client-certificate-data,omitempty" json:"client-certificate-data,omitempty"`
 			ClientKeyData         string `yaml:"client-key-data,omitempty" json:"client-key-data,omitempty"`
 			Token                 string `yaml:"token,omitempty" json:"token,omitempty"`
-		} `yaml:"user,omitempty,omitempty" json:"user,omitempty,omitempty"`
+		} `yaml:"user,omitempty" json:"user,omitempty"`
 	} `yaml:"users,omitempty" json:"users,omitempty"`
 }

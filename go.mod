@@ -1,4 +1,4 @@
-module github.com/layer5io/gokit
+module github.com/layer5io/meshkit
 
 go 1.13
 
@@ -8,6 +8,7 @@ replace (
 )
 
 require (
+	github.com/go-kit/kit v0.10.0
 	github.com/google/uuid v1.1.1
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20201022191033-40468652a54f

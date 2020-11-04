@@ -23,5 +23,5 @@ type Stats struct {
 	Port      string    `json:"port"`
 	Proxy     string    `json:"proxy"`
 	Version   string    `json:"version"`
-	StartedAt time.Time `json:"startedat,string"`
+	StartedAt time.Time `json:"startedat"`
 }
