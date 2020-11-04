@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/layer5io/gokit/utils"
+	"github.com/layer5io/meshkit/utils"
 )
 
 var (
@@ -51,7 +51,7 @@ type Detail struct {
 	SmiSpecification string `json:"smi_specification,omitempty"`
 	SmiVersion       string `json:"smi_version,omitempty"`
 	Time             string `json:"time,omitempty"`
-	Assertions       string `json:"assertions,omitemtpy"`
+	Assertions       string `json:"assertions,omitempty"`
 	Result           string `json:"result,omitempty"`
 	Reason           string `json:"reason,omitempty"`
 	Capability       string `json:"capability,omitempty"`
@@ -75,8 +75,8 @@ func New(ctx context.Context, id string, version string, name string, client *ku
 		kubeClient:     client,
 		kubeConfigPath: fmt.Sprintf("%s/.kube/config", utils.GetHome()),
 		adaptorName:    name,
-		labels:         make(map[string]string, 0),
-		annotations:    make(map[string]string, 0),
+		labels:         make(map[string]string),
+		annotations:    make(map[string]string),
 	}
 
 	return test, nil
@@ -201,7 +201,7 @@ func (test *SmiTest) connectConformanceTool() error {
 	if err != nil {
 		return err
 	}
-	addresses := make(map[string]string, 0)
+	addresses := make(map[string]string)
 	for _, addr := range nodes.Items[0].Status.Addresses {
 		addresses[string(addr.Type)] = addr.Address
 	}

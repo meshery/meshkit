@@ -7,11 +7,6 @@ import (
 	"strings"
 )
 
-const (
-	ok          = "ok"
-	unavailable = "unavailable"
-)
-
 var (
 	// gitVersionFilePath determines git generated version path
 	gitVersionFilePath = "./version"

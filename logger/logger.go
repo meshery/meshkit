@@ -2,64 +2,77 @@ package logger
 
 import (
 	"os"
-	"time"
 
-	"github.com/sirupsen/logrus"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/layer5io/meshkit/errors"
 )
 
-var logger *Logger
-
 type Handler interface {
-	Err(code string, des string)
-	Debug(des string)
-	Info(des string)
-	EnableDebug(b bool)
+	Info(description ...string)
+	Debug(description ...string)
+	Warn(err error)
+	Error(err error)
 }
 
 type Logger struct {
-	handler *logrus.Logger
-	debug   bool
+	handler kitlog.Logger
 }
 
-func New(appname string) (Handler, error) {
+func New(appname string, opts Options) (Handler, error) {
 
-	log := logrus.New()
+	// Log Writers
+	// errw := kitlog.NewSyncWriter(os.Stderr)
+	infow := kitlog.NewSyncWriter(os.Stdout)
+	logger := kitlog.NewLogfmtLogger(infow)
 
-	log.SetFormatter(&logrus.JSONFormatter{})
-	log.Out = os.Stdout
-
-	host, _ := os.Hostname()
-	log.WithFields(logrus.Fields{
-		"host": host,
-		"app":  appname,
-		"ts":   time.Now().String(),
-	})
-
-	logger = &Logger{handler: log}
-
-	return logger, nil
-}
-
-func Log(description string) {
-	logger.Info(description)
-}
-
-func (l *Logger) EnableDebug(b bool) {
-	l.debug = b
-}
-
-func (l *Logger) Err(code string, description string) {
-	l.handler.WithFields(logrus.Fields{
-		"code": code,
-	}).Error(description)
-}
-
-func (l *Logger) Info(description string) {
-	l.handler.Info(description)
-}
-
-func (l *Logger) Debug(description string) {
-	if l.debug {
-		l.handler.Debug(description)
+	// Formatter
+	switch opts.Format {
+	case JsonLogFormat:
+		logger = kitlog.NewJSONLogger(infow)
+	case SyslogLogFormat:
+		logger = kitlog.NewLogfmtLogger(infow)
 	}
+
+	logger = level.NewFilter(logger, level.AllowAll())
+	if !opts.DebugLevel {
+		logger = level.NewFilter(logger, level.AllowInfo())
+		logger = level.NewFilter(logger, level.AllowError())
+		logger = level.NewFilter(logger, level.AllowWarn())
+	}
+	// Default fields
+	logger = kitlog.WithPrefix(logger, "app", appname)
+	logger = kitlog.WithPrefix(logger, "ts", kitlog.DefaultTimestamp)
+
+	return &Logger{
+		handler: logger,
+	}, nil
+}
+
+func (l *Logger) Error(err error) {
+	l.handler = kitlog.With(l.handler,
+		"severity", errors.GetSeverity(err),
+		"caller", kitlog.DefaultCaller,
+		"code", errors.GetCode(err),
+		"remedy", errors.GetRemedy(err),
+	)
+	_ = level.Error(l.handler).Log(err.Error())
+}
+
+func (l *Logger) Info(description ...string) {
+	_ = level.Info(l.handler).Log(description)
+}
+
+func (l *Logger) Debug(description ...string) {
+	_ = level.Debug(l.handler).Log(description)
+}
+
+func (l *Logger) Warn(err error) {
+	l.handler = kitlog.With(l.handler,
+		"severity", errors.GetSeverity(err),
+		"caller", kitlog.DefaultCaller,
+		"code", errors.GetCode(err),
+		"remedy", errors.GetRemedy(err),
+	)
+	_ = level.Warn(l.handler).Log(err.Error())
 }
