@@ -2,10 +2,12 @@ package errors
 
 type (
 	Error struct {
-		Code        string
-		Severity    Severity
-		Description []string
-		Remedy      []string
+		Code                 string
+		Severity             Severity
+		ShortDescription     []string
+		LongDescription      []string
+		ProbableCause        []string
+		SuggestedRemediation []string
 	}
 )
 

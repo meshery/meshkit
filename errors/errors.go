@@ -2,27 +2,29 @@ package errors
 
 import "strings"
 
-func NewDefault(code string, description ...string) *Error {
+func NewDefault(code string, sdescription ...string) *Error {
 
 	return &Error{
-		Code:        code,
-		Severity:    None,
-		Description: description,
-		Remedy:      []string{"None"},
+		Code:                 code,
+		Severity:             None,
+		ShortDescription:     sdescription,
+		LongDescription:      []string{"None"},
+		ProbableCause:        []string{"None"},
+		SuggestedRemediation: []string{"None"},
 	}
 }
 
-func New(code string, severity Severity, description []string, remedy []string) *Error {
+func New(code string, severity Severity, sdescription []string, ldescription []string, probablecause []string, remedy []string) *Error {
 
 	return &Error{
-		Code:        code,
-		Severity:    severity,
-		Description: description,
-		Remedy:      remedy,
+		Code:                 code,
+		Severity:             severity,
+		ShortDescription:     sdescription,
+		LongDescription:      ldescription,
+		ProbableCause:        probablecause,
+		SuggestedRemediation: remedy,
 	}
 }
-
-func (e *Error) Error() string { return strings.Join(e.Description[:], ",") }
 
 func GetCode(err error) string {
 
@@ -40,13 +42,13 @@ func GetSeverity(err error) Severity {
 	return None
 }
 
-func GetRemedy(err error) []string {
+func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ",") }
 
-	if obj := err.(*Error); obj != nil && obj.Remedy != nil {
-		return obj.Remedy
-	}
-	return []string{"None"}
-}
+func GetSDescription(err error) string { return strings.Join(err.(*Error).ShortDescription[:], ",") }
+
+func GetCause(err error) string { return strings.Join(err.(*Error).ProbableCause[:], ",") }
+
+func GetRemedy(err error) string { return strings.Join(err.(*Error).SuggestedRemediation[:], ",") }
 
 func Is(err error) (*Error, bool) {
 	if err != nil {

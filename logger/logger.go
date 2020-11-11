@@ -16,63 +16,89 @@ type Handler interface {
 }
 
 type Logger struct {
-	handler kitlog.Logger
+	infoHandler kitlog.Logger
+	errHandler  kitlog.Logger
 }
 
 func New(appname string, opts Options) (Handler, error) {
 
 	// Log Writers
-	// errw := kitlog.NewSyncWriter(os.Stderr)
 	infow := kitlog.NewSyncWriter(os.Stdout)
-	logger := kitlog.NewLogfmtLogger(infow)
+	errw := kitlog.NewSyncWriter(os.Stderr)
+	infoLogger := kitlog.NewLogfmtLogger(infow)
+	errLogger := kitlog.NewLogfmtLogger(errw)
 
 	// Formatter
 	switch opts.Format {
 	case JsonLogFormat:
-		logger = kitlog.NewJSONLogger(infow)
+		infoLogger = kitlog.NewJSONLogger(infow)
+		errLogger = kitlog.NewJSONLogger(errw)
 	case SyslogLogFormat:
-		logger = kitlog.NewLogfmtLogger(infow)
+		infoLogger = kitlog.NewLogfmtLogger(infow)
+		errLogger = kitlog.NewLogfmtLogger(errw)
 	}
 
-	logger = level.NewFilter(logger, level.AllowAll())
-	if !opts.DebugLevel {
-		logger = level.NewFilter(logger, level.AllowInfo())
-		logger = level.NewFilter(logger, level.AllowError())
-		logger = level.NewFilter(logger, level.AllowWarn())
-	}
 	// Default fields
-	logger = kitlog.WithPrefix(logger, "app", appname)
-	logger = kitlog.WithPrefix(logger, "ts", kitlog.DefaultTimestamp)
+	infoLogger = kitlog.WithPrefix(infoLogger, "app", appname, "ts", kitlog.DefaultTimestamp)
+	infoLogger = level.NewFilter(infoLogger, level.AllowAll())
+	if !opts.DebugLevel {
+		infoLogger = level.NewFilter(infoLogger, level.AllowInfo())
+	}
+
+	errLogger = kitlog.WithPrefix(errLogger,
+		"app", appname,
+		"ts", kitlog.DefaultTimestamp,
+		"caller", kitlog.DefaultCaller,
+	)
+	errLogger = level.NewFilter(errLogger, level.AllowError())
+	errLogger = level.NewFilter(errLogger, level.AllowWarn())
 
 	return &Logger{
-		handler: logger,
+		infoHandler: infoLogger,
+		errHandler:  errLogger,
 	}, nil
 }
 
 func (l *Logger) Error(err error) {
-	l.handler = kitlog.With(l.handler,
-		"severity", errors.GetSeverity(err),
-		"caller", kitlog.DefaultCaller,
+	l.errHandler = kitlog.With(l.errHandler,
 		"code", errors.GetCode(err),
-		"remedy", errors.GetRemedy(err),
+		"severity", errors.GetSeverity(err),
+		"short-description", errors.GetSDescription(err),
+		"probable-cause", errors.GetCause(err),
+		"suggested-remediation", errors.GetRemedy(err),
 	)
-	_ = level.Error(l.handler).Log(err.Error())
+
+	er := level.Error(l.errHandler).Log(err.Error())
+	if er != nil {
+		_ = l.errHandler.Log("Internal Logger Error")
+	}
 }
 
 func (l *Logger) Info(description ...string) {
-	_ = level.Info(l.handler).Log(description)
+	err := level.Info(l.infoHandler).Log(description)
+	if err != nil {
+		_ = l.errHandler.Log("Internal Logger Error")
+	}
 }
 
 func (l *Logger) Debug(description ...string) {
-	_ = level.Debug(l.handler).Log(description)
+	err := level.Debug(l.infoHandler).Log(description)
+	if err != nil {
+		_ = l.errHandler.Log("Internal Logger Error")
+	}
 }
 
 func (l *Logger) Warn(err error) {
-	l.handler = kitlog.With(l.handler,
-		"severity", errors.GetSeverity(err),
-		"caller", kitlog.DefaultCaller,
+	l.errHandler = kitlog.With(l.errHandler,
 		"code", errors.GetCode(err),
-		"remedy", errors.GetRemedy(err),
+		"severity", errors.GetSeverity(err),
+		"short-description", errors.GetSDescription(err),
+		"probable-cause", errors.GetCause(err),
+		"suggested-remediation", errors.GetRemedy(err),
 	)
-	_ = level.Warn(l.handler).Log(err.Error())
+
+	er := level.Warn(l.errHandler).Log(err.Error())
+	if er != nil {
+		_ = l.errHandler.Log("Internal Logger Error")
+	}
 }
