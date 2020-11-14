@@ -8,9 +8,9 @@ func NewDefault(code string, sdescription ...string) *Error {
 		Code:                 code,
 		Severity:             None,
 		ShortDescription:     sdescription,
-		LongDescription:      []string{"None"},
-		ProbableCause:        []string{"None"},
-		SuggestedRemediation: []string{"None"},
+		LongDescription:      NoneString,
+		ProbableCause:        NoneString,
+		SuggestedRemediation: NoneString,
 	}
 }
 
@@ -26,12 +26,14 @@ func New(code string, severity Severity, sdescription []string, ldescription []s
 	}
 }
 
+func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ",") }
+
 func GetCode(err error) string {
 
 	if obj := err.(*Error); obj != nil && obj.Code != " " {
 		return obj.Code
 	}
-	return " "
+	return strings.Join(NoneString[:], ",")
 }
 
 func GetSeverity(err error) Severity {
@@ -42,13 +44,29 @@ func GetSeverity(err error) Severity {
 	return None
 }
 
-func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ",") }
+func GetSDescription(err error) string {
 
-func GetSDescription(err error) string { return strings.Join(err.(*Error).ShortDescription[:], ",") }
+	if obj := err.(*Error); obj != nil {
+		return strings.Join(err.(*Error).ShortDescription[:], ",")
+	}
+	return strings.Join(NoneString[:], ",")
+}
 
-func GetCause(err error) string { return strings.Join(err.(*Error).ProbableCause[:], ",") }
+func GetCause(err error) string {
 
-func GetRemedy(err error) string { return strings.Join(err.(*Error).SuggestedRemediation[:], ",") }
+	if obj := err.(*Error); obj != nil {
+		return strings.Join(err.(*Error).ProbableCause[:], ",")
+	}
+	return strings.Join(NoneString[:], ",")
+}
+
+func GetRemedy(err error) string {
+
+	if obj := err.(*Error); obj != nil {
+		return strings.Join(err.(*Error).SuggestedRemediation[:], ",")
+	}
+	return strings.Join(NoneString[:], ",")
+}
 
 func Is(err error) (*Error, bool) {
 	if err != nil {

@@ -19,4 +19,9 @@ const (
 	Alert            // Immediate action needed
 	Critical         // Critical condition—default level
 	Fatal            // Fatal condition
+
+)
+
+var (
+	NoneString = []string{"None"}
 )

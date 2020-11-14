@@ -12,11 +12,11 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20201022191033-40468652a54f
-	github.com/sirupsen/logrus v1.6.0
 	golang.org/x/sys v0.0.0-20200803210538-64077c9b5642 // indirect
 	helm.sh/helm/v3 v3.3.1
-	k8s.io/api v0.18.8
-	k8s.io/apimachinery v0.18.8
-	k8s.io/client-go v0.18.8
+	k8s.io/api v0.19.4
+	k8s.io/apimachinery v0.19.4
+	k8s.io/cli-runtime v0.19.4
+	k8s.io/client-go v0.19.4
 	rsc.io/letsencrypt v0.0.3 // indirect
 )
