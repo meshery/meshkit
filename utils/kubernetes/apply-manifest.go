@@ -1,6 +1,8 @@
 package kubernetes
 
 import (
+	"strings"
+
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -28,12 +30,12 @@ func (cfg *Config) ApplyManifest(contents []byte, options ApplyOptions) error {
 			Delete:    false,
 		}
 	}
-	manifests := strings.Split(contents, "---")[1:]
+	manifests := strings.Split(string(contents), "---")[1:]
 	for _, manifest := range manifests {
 		// decode YAML into unstructured.Unstructured
 		obj := &unstructured.Unstructured{}
 		dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-		object, _, err := dec.Decode(manifest, nil, obj)
+		object, _, err := dec.Decode([]byte(manifest), nil, obj)
 		if err != nil {
 			return ErrApplyManifest(err)
 		}
