@@ -100,14 +100,17 @@ func extractNodePortEndpoint(svc *coreV1.Service, nl *coreV1.NodeList) *utils.En
 
 	for _, node := range nl.Items {
 		for _, addressData := range node.Status.Addresses {
-			if addressData.Type == "internalIP" {
+			if addressData.Type == "InternalIP" {
 				address := addressData.Address
 
 				for _, port := range ports {
-					return &utils.Endpoint{
-						Name:    svc.GetName(),
-						Address: address,
-						Port:    port.Port,
+					// nodeport 0 is an invalid nodeport
+					if port.NodePort != 0 {
+						return &utils.Endpoint{
+							Name:    svc.GetName(),
+							Address: address,
+							Port:    port.NodePort,
+						}
 					}
 				}
 			}
