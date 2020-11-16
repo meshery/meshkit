@@ -35,15 +35,16 @@ var (
 
 	// Meshkit specific codes
 	// Range 10200 to 10299
-	ErrSmiInit       = "kit_10200"
-	ErrInstallSmi    = "kit_10201"
-	ErrConnectSmi    = "kit_10202"
-	ErrRunSmi        = "kit_10203"
-	ErrDeleteSmi     = "kit_10204"
-	ErrUnmarshal     = "kit_10205"
-	ErrMarshal       = "kit_10205"
-	ErrGetBool       = "kit_10205"
-	ErrApplyManifest = "kit_10206"
+	ErrSmiInit          = "kit_10200"
+	ErrInstallSmi       = "kit_10201"
+	ErrConnectSmi       = "kit_10202"
+	ErrRunSmi           = "kit_10203"
+	ErrDeleteSmi        = "kit_10204"
+	ErrUnmarshal        = "kit_10205"
+	ErrMarshal          = "kit_10205"
+	ErrGetBool          = "kit_10205"
+	ErrApplyManifest    = "kit_10206"
+	ErrServiceDiscovery = "kit_10207"
 
 	// Istio Service mesh specific codes
 	// Range 11000 to 11099
