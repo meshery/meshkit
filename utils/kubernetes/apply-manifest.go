@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,30 +28,32 @@ func (cfg *Config) ApplyManifest(contents []byte, options ApplyOptions) error {
 			Delete:    false,
 		}
 	}
-
-	// decode YAML into unstructured.Unstructured
-	obj := &unstructured.Unstructured{}
-	dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	object, _, err := dec.Decode(contents, nil, obj)
-	if err != nil {
-		return ErrApplyManifest(err)
-	}
-
-	helper, err := constructObject(cfg.Clientset, cfg.RestConfig, object)
-	if err != nil {
-		return ErrApplyManifest(err)
-	}
-
-	if options.Delete {
-		_, err = deleteObject(helper, options.Namespace, object)
+	manifests := strings.Split(contents, "---")[1:]
+	for _, manifest := range manifests {
+		// decode YAML into unstructured.Unstructured
+		obj := &unstructured.Unstructured{}
+		dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+		object, _, err := dec.Decode(manifest, nil, obj)
 		if err != nil {
 			return ErrApplyManifest(err)
 		}
-	}
 
-	_, err = createObject(helper, options.Namespace, object, options.Update)
-	if err != nil {
-		return ErrApplyManifest(err)
+		helper, err := constructObject(cfg.Clientset, cfg.RestConfig, object)
+		if err != nil {
+			return ErrApplyManifest(err)
+		}
+
+		if options.Delete {
+			_, err = deleteObject(helper, options.Namespace, object)
+			if err != nil {
+				return ErrApplyManifest(err)
+			}
+		}
+
+		_, err = createObject(helper, options.Namespace, object, options.Update)
+		if err != nil && !kubeerror.IsAlreadyExists(err) {
+			return ErrApplyManifest(err)
+		}
 	}
 
 	return nil
