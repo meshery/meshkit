@@ -27,18 +27,7 @@ func New(clientset kubernetes.Interface, cfg rest.Config) (*Config, error) {
 func (cfg *Config) GetServiceEndpoint(ctx context.Context, svcName, namespace string) (*utils.Endpoint, error) {
 	svc, err := cfg.Clientset.CoreV1().Services(namespace).Get(ctx, svcName, v1.GetOptions{})
 	if err != nil {
-		return nil, errors.New(
-			errors.ErrServiceDiscovery,
-			errors.None,
-			[]string{"Error finding the service" + err.Error()},
-			errors.NoneString,
-			[]string{
-				"incorrect service name",
-				"incorrect namespace",
-				"service does not exist",
-			},
-			errors.NoneString,
-		)
+		return nil, errors.NewDefault(errors.ErrServiceDiscovery, "Error finding the service"+err.Error())
 	}
 
 	// Try loadbalancer endpoint
