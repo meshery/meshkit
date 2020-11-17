@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"context"
 
-	"github.com/layer5io/meshkit/errors"
 	"github.com/layer5io/meshkit/utils"
 	coreV1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +26,7 @@ func New(clientset kubernetes.Interface, cfg rest.Config) (*Config, error) {
 func (cfg *Config) GetServiceEndpoint(ctx context.Context, svcName, namespace string) (*utils.Endpoint, error) {
 	svc, err := cfg.Clientset.CoreV1().Services(namespace).Get(ctx, svcName, v1.GetOptions{})
 	if err != nil {
-		return nil, errors.NewDefault(errors.ErrServiceDiscovery, "Error finding the service"+err.Error())
+		return nil, ErrServiceDiscovery(err)
 	}
 
 	// Try loadbalancer endpoint
@@ -38,7 +37,7 @@ func (cfg *Config) GetServiceEndpoint(ctx context.Context, svcName, namespace st
 	// Try nodeport endpoint
 	nodes, err := cfg.Clientset.CoreV1().Nodes().List(ctx, v1.ListOptions{})
 	if err != nil {
-		return nil, errors.NewDefault(errors.ErrServiceDiscovery, "Error getting the cluster nodes"+err.Error())
+		return nil, ErrServiceDiscovery(err)
 	}
 	if endpoint := extractNodePortEndpoint(svc, nodes); endpoint != nil {
 		return endpoint, nil
