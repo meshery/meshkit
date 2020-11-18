@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -104,4 +105,21 @@ func CreateFile(contents []byte, filename string, location string) error {
 	}
 
 	return nil
+}
+
+func ReadRemoteFile(url string) (string, error) {
+	response, err := http.Get(url)
+	if err != nil {
+		return " ", err
+	}
+
+	defer response.Body.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, response.Body)
+	if err != nil {
+		return " ", err
+	}
+
+	return buf.String(), nil
 }
