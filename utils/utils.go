@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/user"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -82,4 +83,25 @@ func DownloadFile(filepath string, url string) error {
 func GetHome() string {
 	usr, _ := user.Current()
 	return usr.HomeDir
+}
+
+// CreateFile creates a file with the given content on the given location with
+// the given filename
+func CreateFile(contents []byte, filename string, location string) error {
+	// Create file in -rw-r--r-- mode
+	fd, err := os.OpenFile(path.Join(location, filename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	if _, err = fd.Write(contents); err != nil {
+		fd.Close()
+		return err
+	}
+
+	if err = fd.Close(); err != nil {
+		return err
+	}
+
+	return nil
 }
