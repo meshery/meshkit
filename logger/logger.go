@@ -2,6 +2,7 @@ package logger
 
 import (
 	"os"
+	"strings"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -64,25 +65,26 @@ func (l *Logger) Error(err error) {
 		"code", errors.GetCode(err),
 		"severity", errors.GetSeverity(err),
 		"short-description", errors.GetSDescription(err),
+		"long-description", err.Error(),
 		"probable-cause", errors.GetCause(err),
 		"suggested-remediation", errors.GetRemedy(err),
 	)
 
-	er := level.Error(l.errHandler).Log(err.Error())
+	er := level.Error(l.errHandler).Log()
 	if er != nil {
 		_ = l.errHandler.Log("Internal Logger Error")
 	}
 }
 
 func (l *Logger) Info(description ...string) {
-	err := level.Info(l.infoHandler).Log(description)
+	err := level.Info(l.infoHandler).Log("message", strings.Join(description, ","))
 	if err != nil {
 		_ = l.errHandler.Log("Internal Logger Error")
 	}
 }
 
 func (l *Logger) Debug(description ...string) {
-	err := level.Debug(l.infoHandler).Log(description)
+	err := level.Debug(l.infoHandler).Log("message", strings.Join(description, ","))
 	if err != nil {
 		_ = l.errHandler.Log("Internal Logger Error")
 	}
@@ -93,11 +95,12 @@ func (l *Logger) Warn(err error) {
 		"code", errors.GetCode(err),
 		"severity", errors.GetSeverity(err),
 		"short-description", errors.GetSDescription(err),
+		"long-description", err.Error(),
 		"probable-cause", errors.GetCause(err),
 		"suggested-remediation", errors.GetRemedy(err),
 	)
 
-	er := level.Warn(l.errHandler).Log(err.Error())
+	er := level.Warn(l.errHandler).Log()
 	if er != nil {
 		_ = l.errHandler.Log("Internal Logger Error")
 	}
