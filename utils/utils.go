@@ -21,25 +21,19 @@ func Unmarshal(obj string, result interface{}) error {
 	err := json.Unmarshal([]byte(obj), result)
 	if err != nil {
 		if e, ok := err.(*json.SyntaxError); ok {
-			ErrUnmarshalSyntax(err, e.Offset)
-		}
-		if e, ok := err.(*json.UnmarshalFieldError); ok {
-			ErrUnmarshalField(err, e.Key)
+			return ErrUnmarshalSyntax(err, e.Offset)
 		}
 		if e, ok := err.(*json.UnmarshalTypeError); ok {
-			ErrUnmarshalType(err, e.Value)
+			return ErrUnmarshalType(err, e.Value)
 		}
 		if e, ok := err.(*json.UnsupportedTypeError); ok {
-			ErrUnmarshalUnsupportedType(err, e.Type)
+			return ErrUnmarshalUnsupportedType(err, e.Type)
 		}
 		if e, ok := err.(*json.UnsupportedValueError); ok {
-			ErrUnmarshalUnsupportedValue(err, e.Value)
+			return ErrUnmarshalUnsupportedValue(err, e.Value)
 		}
 		if e, ok := err.(*json.InvalidUnmarshalError); ok {
-			ErrUnmarshalInvalid(err, e.Type)
-		}
-		if e, ok := err.(*json.InvalidUTF8Error); ok {
-			ErrUnmarshalUTF(err, e.S)
+			return ErrUnmarshalInvalid(err, e.Type)
 		}
 		return ErrUnmarshal(err)
 	}

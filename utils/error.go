@@ -15,16 +15,8 @@ func ErrUnmarshalInvalid(err error, typ reflect.Type) error {
 	return errors.NewDefault(errors.ErrUnmarshal, fmt.Sprintf("Unmarshal invalid error for type:%v, Error:%s", typ, err.Error()))
 }
 
-func ErrUnmarshalUTF(err error, val string) error {
-	return errors.NewDefault(errors.ErrUnmarshal, fmt.Sprintf("Unmarshal invalid utf8 error for string:%s, Error:%s", val, err.Error()))
-}
-
 func ErrUnmarshalSyntax(err error, offset int64) error {
 	return errors.NewDefault(errors.ErrUnmarshal, fmt.Sprintf("Unmarshal syntax error at offest: %d. Error: %s", offset, err.Error()))
-}
-
-func ErrUnmarshalField(err error, key string) error {
-	return errors.NewDefault(errors.ErrUnmarshal, fmt.Sprintf("Unmarshal field error at key: %s. Error: %s", key, err.Error()))
 }
 
 func ErrUnmarshalType(err error, value string) error {
