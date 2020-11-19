@@ -20,7 +20,28 @@ func Unmarshal(obj string, result interface{}) error {
 	obj = strings.TrimSpace(obj)
 	err := json.Unmarshal([]byte(obj), result)
 	if err != nil {
-		return ErrUnmarshal(obj, err)
+		if e, ok := err.(*json.SyntaxError); ok {
+			ErrUnmarshalSyntax(err, e.Offset)
+		}
+		if e, ok := err.(*json.UnmarshalFieldError); ok {
+			ErrUnmarshalField(err, e.Key)
+		}
+		if e, ok := err.(*json.UnmarshalTypeError); ok {
+			ErrUnmarshalType(err, e.Value)
+		}
+		if e, ok := err.(*json.UnsupportedTypeError); ok {
+			ErrUnmarshalUnsupportedType(err, e.Type)
+		}
+		if e, ok := err.(*json.UnsupportedValueError); ok {
+			ErrUnmarshalUnsupportedValue(err, e.Value)
+		}
+		if e, ok := err.(*json.InvalidUnmarshalError); ok {
+			ErrUnmarshalInvalid(err, e.Type)
+		}
+		if e, ok := err.(*json.InvalidUTF8Error); ok {
+			ErrUnmarshalUTF(err, e.S)
+		}
+		return ErrUnmarshal(err)
 	}
 	return nil
 }

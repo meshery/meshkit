@@ -45,6 +45,11 @@ func (cfg *Config) ApplyManifest(contents []byte, options ApplyOptions) error {
 			return ErrApplyManifest(err)
 		}
 
+		val, err := meta.NewAccessor().Namespace(object)
+		if err == nil {
+			options.Namespace = val
+		}
+
 		if options.Delete {
 			_, err = deleteObject(helper, options.Namespace, object)
 			if err != nil {
@@ -73,11 +78,6 @@ func constructObject(kubeClientset kubernetes.Interface, restConfig rest.Config,
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	gk := schema.GroupKind{Group: gvk.Group, Kind: gvk.Kind}
 	mapping, err := rm.RESTMapping(gk, gvk.Version)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = meta.NewAccessor().Name(obj)
 	if err != nil {
 		return nil, err
 	}

@@ -77,14 +77,14 @@ func (l *Logger) Error(err error) {
 }
 
 func (l *Logger) Info(description ...string) {
-	err := level.Info(l.infoHandler).Log("message", strings.Join(description, ","))
+	err := level.Info(l.infoHandler).Log("message", strings.Join(description, ""))
 	if err != nil {
 		_ = l.errHandler.Log("Internal Logger Error")
 	}
 }
 
 func (l *Logger) Debug(description ...string) {
-	err := level.Debug(l.infoHandler).Log("message", strings.Join(description, ","))
+	err := level.Debug(l.infoHandler).Log("message", strings.Join(description, ""))
 	if err != nil {
 		_ = l.errHandler.Log("Internal Logger Error")
 	}

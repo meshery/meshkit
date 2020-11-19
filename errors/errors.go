@@ -2,13 +2,13 @@ package errors
 
 import "strings"
 
-func NewDefault(code string, sdescription ...string) *Error {
+func NewDefault(code string, ldescription ...string) *Error {
 
 	return &Error{
 		Code:                 code,
 		Severity:             None,
-		ShortDescription:     sdescription,
-		LongDescription:      NoneString,
+		ShortDescription:     NoneString,
+		LongDescription:      ldescription,
 		ProbableCause:        NoneString,
 		SuggestedRemediation: NoneString,
 	}
@@ -26,14 +26,14 @@ func New(code string, severity Severity, sdescription []string, ldescription []s
 	}
 }
 
-func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ",") }
+func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ".") }
 
 func GetCode(err error) string {
 
 	if obj := err.(*Error); obj != nil && obj.Code != " " {
 		return obj.Code
 	}
-	return strings.Join(NoneString[:], ",")
+	return strings.Join(NoneString[:], "")
 }
 
 func GetSeverity(err error) Severity {
@@ -47,25 +47,25 @@ func GetSeverity(err error) Severity {
 func GetSDescription(err error) string {
 
 	if obj := err.(*Error); obj != nil {
-		return strings.Join(err.(*Error).ShortDescription[:], ",")
+		return strings.Join(err.(*Error).ShortDescription[:], ".")
 	}
-	return strings.Join(NoneString[:], ",")
+	return strings.Join(NoneString[:], "")
 }
 
 func GetCause(err error) string {
 
 	if obj := err.(*Error); obj != nil {
-		return strings.Join(err.(*Error).ProbableCause[:], ",")
+		return strings.Join(err.(*Error).ProbableCause[:], ".")
 	}
-	return strings.Join(NoneString[:], ",")
+	return strings.Join(NoneString[:], "")
 }
 
 func GetRemedy(err error) string {
 
 	if obj := err.(*Error); obj != nil {
-		return strings.Join(err.(*Error).SuggestedRemediation[:], ",")
+		return strings.Join(err.(*Error).SuggestedRemediation[:], ".")
 	}
-	return strings.Join(NoneString[:], ",")
+	return strings.Join(NoneString[:], "")
 }
 
 func Is(err error) (*Error, bool) {

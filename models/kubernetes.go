@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// Kubeconfig is structure of the kubeconfig file
 type Kubeconfig struct {
 	APIVersion string `yaml:"apiVersion,omitempty" json:"apiVersion,omitempty"`
 	Clusters   []struct {
