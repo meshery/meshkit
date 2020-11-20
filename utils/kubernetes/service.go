@@ -9,8 +9,8 @@ import (
 )
 
 // GetServiceEndpoint returns the endpoint for the given service
-func (cfg *Config) GetServiceEndpoint(ctx context.Context, svcName, namespace string) (*utils.Endpoint, error) {
-	svc, err := cfg.Clientset.CoreV1().Services(namespace).Get(ctx, svcName, v1.GetOptions{})
+func (client *Client) GetServiceEndpoint(ctx context.Context, svcName, namespace string) (*utils.Endpoint, error) {
+	svc, err := client.Clientset.CoreV1().Services(namespace).Get(ctx, svcName, v1.GetOptions{})
 	if err != nil {
 		return nil, ErrServiceDiscovery(err)
 	}
@@ -21,7 +21,7 @@ func (cfg *Config) GetServiceEndpoint(ctx context.Context, svcName, namespace st
 	}
 
 	// Try nodeport endpoint
-	nodes, err := cfg.Clientset.CoreV1().Nodes().List(ctx, v1.ListOptions{})
+	nodes, err := client.Clientset.CoreV1().Nodes().List(ctx, v1.ListOptions{})
 	if err != nil {
 		return nil, ErrServiceDiscovery(err)
 	}

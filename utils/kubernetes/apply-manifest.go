@@ -21,7 +21,7 @@ type ApplyOptions struct {
 	Delete    bool
 }
 
-func (cfg *Config) ApplyManifest(contents []byte, options ApplyOptions) error {
+func (client *Client) ApplyManifest(contents []byte, options ApplyOptions) error {
 
 	if options == (ApplyOptions{}) {
 		options = ApplyOptions{
@@ -40,7 +40,7 @@ func (cfg *Config) ApplyManifest(contents []byte, options ApplyOptions) error {
 			return ErrApplyManifest(err)
 		}
 
-		helper, err := constructObject(cfg.Clientset, cfg.RestConfig, object)
+		helper, err := constructObject(client.Clientset, client.RestConfig, object)
 		if err != nil {
 			return ErrApplyManifest(err)
 		}
