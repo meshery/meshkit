@@ -1,9 +1,9 @@
 package kubernetes
 
 import (
+	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
-	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,6 +21,9 @@ type ApplyOptions struct {
 	Delete    bool
 }
 
+// ApplyManifest applies, updates or deletes resources as specified in ApplyOptions.
+// The namespace specified in ApplyOptions is used if there is no namespace specified in the manifest, default value is "default".
+// The namespace has to exist.
 func (client *Client) ApplyManifest(contents []byte, options ApplyOptions) error {
 
 	if options == (ApplyOptions{}) {
@@ -46,7 +49,7 @@ func (client *Client) ApplyManifest(contents []byte, options ApplyOptions) error
 		}
 
 		val, err := meta.NewAccessor().Namespace(object)
-		if err == nil {
+		if err == nil && len(val) > 0 {
 			options.Namespace = val
 		}
 
@@ -55,11 +58,11 @@ func (client *Client) ApplyManifest(contents []byte, options ApplyOptions) error
 			if err != nil {
 				return ErrApplyManifest(err)
 			}
-		}
-
-		_, err = createObject(helper, options.Namespace, object, options.Update)
-		if err != nil && !kubeerror.IsAlreadyExists(err) {
-			return ErrApplyManifest(err)
+		} else {
+			_, err = createObject(helper, options.Namespace, object, options.Update)
+			if err != nil && !kubeerror.IsAlreadyExists(err) {
+				return ErrApplyManifest(err)
+			}
 		}
 	}
 
