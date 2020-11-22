@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package controller;
+
+option go_package = "github.com/layer5io/meshkit/protobuf/controller;controller";
+
+message ControllerInfo {
+    string name = 1;
+    string version = 2;
+}
