@@ -1,10 +1,14 @@
 package kubernetes
 
 import (
-	kubeerror "k8s.io/apimachinery/pkg/api/errors"
+	"context"
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -51,6 +55,10 @@ func (client *Client) ApplyManifest(contents []byte, options ApplyOptions) error
 		val, err := meta.NewAccessor().Namespace(object)
 		if err == nil && len(val) > 0 {
 			options.Namespace = val
+		}
+
+		if err = createNamespaceIfNotExist(client.Clientset, context.TODO(), options.Namespace); err != nil {
+			return ErrApplyManifest(err)
 		}
 
 		if options.Delete {
@@ -117,4 +125,14 @@ func deleteObject(restHelper *resource.Helper, namespace string, obj runtime.Obj
 		return nil, err
 	}
 	return restHelper.Delete(namespace, name)
+}
+
+func createNamespaceIfNotExist(kubeClientset kubernetes.Interface, ctx context.Context, namespace string) error {
+	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	_, err := kubeClientset.CoreV1().Namespaces().Create(ctx, nsSpec, metav1.CreateOptions{})
+	if !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	return nil
 }
