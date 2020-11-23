@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"reflect"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -30,14 +31,20 @@ type ApplyOptions struct {
 // The namespace has to exist.
 func (client *Client) ApplyManifest(contents []byte, options ApplyOptions) error {
 
-	if options == (ApplyOptions{}) {
+	if reflect.DeepEqual(options, (ApplyOptions{})) {
 		options = ApplyOptions{
 			Namespace: "default",
 			Update:    true,
 			Delete:    false,
 		}
 	}
-	manifests := strings.Split(string(contents), "---")[1:]
+
+	manifests := strings.Split(string(contents), "---")
+	manifests = manifests[1:]
+	if len(manifests) > 0 && manifests[len(manifests)-1] == "\n" {
+		manifests = manifests[:len(manifests)-1]
+	}
+
 	for _, manifest := range manifests {
 		// decode YAML into unstructured.Unstructured
 		obj := &unstructured.Unstructured{}
@@ -52,18 +59,27 @@ func (client *Client) ApplyManifest(contents []byte, options ApplyOptions) error
 			return ErrApplyManifest(err)
 		}
 
+		// Default to namespace from the UI. If no namespace is passed, use the namespace used in the manifest.
 		val, err := meta.NewAccessor().Namespace(object)
-		if err == nil && len(val) > 0 {
-			options.Namespace = val
+		if err == nil && len(val) > 1 {
+			if len(options.Namespace) > 1 {
+				er := meta.NewAccessor().SetNamespace(object, options.Namespace)
+				if er != nil {
+					return ErrApplyManifest(er)
+				}
+			} else {
+				options.Namespace = val
+			}
 		}
 
+		// Create namespace if it doesnt already exist
 		if err = createNamespaceIfNotExist(client.Clientset, context.TODO(), options.Namespace); err != nil {
 			return ErrApplyManifest(err)
 		}
 
 		if options.Delete {
 			_, err = deleteObject(helper, options.Namespace, object)
-			if err != nil {
+			if err != nil && !kubeerror.IsNotFound(err) {
 				return ErrApplyManifest(err)
 			}
 		} else {
@@ -133,6 +149,5 @@ func createNamespaceIfNotExist(kubeClientset kubernetes.Interface, ctx context.C
 	if !errors.IsAlreadyExists(err) {
 		return err
 	}
-
 	return nil
 }
