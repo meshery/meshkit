@@ -26,14 +26,18 @@ var (
 
 type SmiTest struct {
 	id             string
-	adaptorVersion string
-	adaptorName    string
+	mesh           ServiceMesh
 	ctx            context.Context
 	kubeClient     *kubernetes.Clientset
 	kubeConfigPath string
 	smiAddress     string
 	annotations    map[string]string
 	labels         map[string]string
+}
+
+type ServiceMesh struct {
+	name    string
+	version string
 }
 
 type Response struct {
@@ -43,18 +47,18 @@ type Response struct {
 	MeshVersion       string    `json:"mesh_version,omitempty"`
 	CasesPassed       string    `json:"cases_passed,omitempty"`
 	PassingPercentage string    `json:"passing_percentage,omitempty"`
-	Status            string    `json:"status,omitempty"`
+	Capability        string    `json:"capability,omitempty"`
+	Status            string    `json:"status,omitempty`
 	MoreDetails       []*Detail `json:"more_details,omitempty"`
 }
 
 type Detail struct {
 	SmiSpecification string `json:"smi_specification,omitempty"`
 	SmiVersion       string `json:"smi_version,omitempty"`
-	Time             string `json:"time,omitempty"`
+	Duration         string `json:"duration,omitempty"`
 	Assertions       string `json:"assertions,omitempty"`
 	Result           string `json:"result,omitempty"`
 	Reason           string `json:"reason,omitempty"`
-	Capability       string `json:"capability,omitempty"`
 	Status           string `json:"status,omitempty"`
 }
 
@@ -68,13 +72,17 @@ func New(ctx context.Context, id string, version string, name string, client *ku
 		return nil, ErrSmiInit("Client set is nil")
 	}
 
+	mesh := ServiceMesh{
+		name:    name,
+		version: version,
+	}
+
 	test := &SmiTest{
 		ctx:            ctx,
 		id:             id,
-		adaptorVersion: version,
 		kubeClient:     client,
+		mesh:           mesh,
 		kubeConfigPath: fmt.Sprintf("%s/.kube/config", utils.GetHome()),
-		adaptorName:    name,
 		labels:         make(map[string]string),
 		annotations:    make(map[string]string),
 	}
@@ -95,10 +103,11 @@ func (test *SmiTest) Run(labels, annotations map[string]string) (Response, error
 	response := Response{
 		Id:                test.id,
 		Date:              time.Now().Format(time.RFC3339),
-		MeshName:          test.adaptorName,
-		MeshVersion:       test.adaptorVersion,
+		MeshName:          test.mesh.name,
+		MeshVersion:       test.mesh.version,
 		CasesPassed:       "0",
 		PassingPercentage: "0",
+		Capability:        "NONE",
 		Status:            "deploying",
 	}
 
@@ -224,10 +233,9 @@ func (test *SmiTest) runConformanceTest(response *Response) error {
 	}
 
 	result, err := cClient.CClient.RunTest(context.TODO(), &conformance.Request{
+		Mesh:        test.mesh,
 		Annotations: test.annotations,
 		Labels:      test.labels,
-		Meshname:    test.adaptorName,
-		Meshversion: test.adaptorVersion,
 	})
 	if err != nil {
 		return err
@@ -235,17 +243,18 @@ func (test *SmiTest) runConformanceTest(response *Response) error {
 
 	response.CasesPassed = result.Casespassed
 	response.PassingPercentage = result.Passpercent
+	response.Capability = result.Capability
 
 	details := make([]*Detail, 0)
 
 	for _, d := range result.Details {
 		details = append(details, &Detail{
 			SmiSpecification: d.Smispec,
-			Time:             d.Time,
+			SmiVersion:       d.specversion,
+			Duration:         d.Duration,
 			Assertions:       d.Assertions,
-			Result:           d.Result,
-			Reason:           d.Reason,
-			Capability:       d.Capability,
+			Result:           d.Result.Status,
+			Reason:           d.Result.Reason,
 			Status:           d.Status,
 		})
 	}
