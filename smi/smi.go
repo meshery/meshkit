@@ -6,7 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/layer5io/learn-layer5/smi-conformance/conformance"
+	conformance "github.com/layer5io/learn-layer5/smi-conformance"
+	"github.com/layer5io/learn-layer5/smi-conformance/proto"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/kube"
@@ -14,7 +15,6 @@ import (
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
 	"github.com/layer5io/meshkit/utils"
 )
 
@@ -26,7 +26,7 @@ var (
 
 type SmiTest struct {
 	id             string
-	mesh           ServiceMesh
+	mesh           *ServiceMesh
 	ctx            context.Context
 	kubeClient     *kubernetes.Clientset
 	kubeConfigPath string
@@ -72,16 +72,14 @@ func New(ctx context.Context, id string, version string, name string, client *ku
 		return nil, ErrSmiInit("Client set is nil")
 	}
 
-	mesh := ServiceMesh{
-		name:    name,
-		version: version,
-	}
-
 	test := &SmiTest{
-		ctx:            ctx,
-		id:             id,
-		kubeClient:     client,
-		mesh:           mesh,
+		ctx:        ctx,
+		id:         id,
+		kubeClient: client,
+		mesh: &ServiceMesh{
+			name:    name,
+			version: version,
+		},
 		kubeConfigPath: fmt.Sprintf("%s/.kube/config", utils.GetHome()),
 		labels:         make(map[string]string),
 		annotations:    make(map[string]string),
@@ -232,10 +230,13 @@ func (test *SmiTest) runConformanceTest(response *Response) error {
 		return err
 	}
 
-	result, err := cClient.CClient.RunTest(context.TODO(), &conformance.Request{
-		Mesh:        test.mesh,
-		Annotations: test.annotations,
-		Labels:      test.labels,
+	result, err := cClient.CClient.RunTest(context.TODO(), &proto.Request{
+		Mesh: &proto.ServiceMesh{
+				Name: test.mesh.name,
+				Version: test.mesh.version,
+				Annotations: test.annotations,
+				Labels:      test.labels,
+			}
 	})
 	if err != nil {
 		return err
