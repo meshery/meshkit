@@ -8,6 +8,7 @@ import (
 
 	conformance "github.com/layer5io/learn-layer5/smi-conformance"
 	"github.com/layer5io/learn-layer5/smi-conformance/proto"
+	"github.com/layer5io/meshkit/utils"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/kube"
@@ -15,7 +16,6 @@ import (
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"github.com/layer5io/meshkit/utils"
 )
 
 var (
@@ -232,11 +232,11 @@ func (test *SmiTest) runConformanceTest(response *Response) error {
 
 	result, err := cClient.CClient.RunTest(context.TODO(), &proto.Request{
 		Mesh: &proto.ServiceMesh{
-				Name: test.mesh.name,
-				Version: test.mesh.version,
-				Annotations: test.annotations,
-				Labels:      test.labels,
-			}
+			Name:        test.mesh.name,
+			Version:     test.mesh.version,
+			Annotations: test.annotations,
+			Labels:      test.labels,
+		},
 	})
 	if err != nil {
 		return err
