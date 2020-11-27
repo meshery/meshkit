@@ -5,8 +5,8 @@ import (
 	"html/template"
 )
 
-// Merge merges data into the template tpl and returns the result.
-func Merge(tpl []byte, data interface{}) ([]byte, error) {
+// MergeToTemplate merges data into the template tpl and returns the result.
+func MergeToTemplate(tpl []byte, data interface{}) ([]byte, error) {
 	t, err := template.New("template").Parse(bytes.NewBuffer(tpl).String())
 	if err != nil {
 		return nil, err

@@ -7,33 +7,33 @@ import (
 
 func TestSimplestTemplate(t *testing.T) {
 	template := []byte("{{.namespace}}")
-	result, err := Merge(template, map[string]string{"namespace": "meshery"})
+	result, err := MergeToTemplate(template, map[string]string{"namespace": "meshery"})
 	if err != nil {
 		t.Errorf("err = %v; want 'nil'", err)
 	}
-	if bytes.Compare(result, []byte("meshery")) != 0 {
+	if !bytes.Equal(result, []byte("meshery")) {
 		t.Errorf("result = %s; want 'meshery'", result)
 	}
 }
 
 func TestEmptyTemplate(t *testing.T) {
 	template := []byte("")
-	result, err := Merge(template, map[string]string{"namespace": "meshery"})
+	result, err := MergeToTemplate(template, map[string]string{"namespace": "meshery"})
 	if err != nil {
 		t.Errorf("err = %v; want 'nil'", err)
 	}
-	if bytes.Compare(result, []byte("")) != 0 {
+	if !bytes.Equal(result, []byte("")) {
 		t.Errorf("result = %s; want '' (empty string)", result)
 	}
 }
 
 func TestEmptyDataMap(t *testing.T) {
 	template := []byte("{{.namespace}}")
-	result, err := Merge(template, map[string]string{})
+	result, err := MergeToTemplate(template, map[string]string{})
 	if err != nil {
 		t.Errorf("err = %v; want 'nil'", err)
 	}
-	if bytes.Compare(result, []byte("")) != 0 {
+	if !bytes.Equal(result, []byte("")) {
 		t.Errorf("result = %s; want '' (empty string)", result)
 	}
 }
@@ -45,11 +45,11 @@ best`
 	expected := `Layer5
 Meshery is
 best`
-	result, err := Merge([]byte(template), map[string]string{"project": "Meshery"})
+	result, err := MergeToTemplate([]byte(template), map[string]string{"project": "Meshery"})
 	if err != nil {
 		t.Errorf("err = %v; want 'nil'", err)
 	}
-	if bytes.Compare(result, []byte(expected)) != 0 {
+	if !bytes.Equal(result, []byte(expected)) {
 		t.Errorf("result = %s; want '%s'", result, expected)
 	}
 }
