@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"reflect"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -27,30 +26,28 @@ type ApplyOptions struct {
 }
 
 // ApplyManifest applies, updates or deletes resources as specified in ApplyOptions.
-// The namespace specified in ApplyOptions is used if there is no namespace specified in the manifest, default value is "default".
-// The namespace has to exist.
-func (client *Client) ApplyManifest(contents []byte, options ApplyOptions) error {
-
-	if reflect.DeepEqual(options, (ApplyOptions{})) {
-		options = ApplyOptions{
-			Namespace: "default",
-			Update:    true,
-			Delete:    false,
-		}
-	}
-
-	manifests := strings.Split(string(contents), "---")
+// The namespace specified in ApplyOptions is used, if no namespace is specified then
+// the namespace from manifest is used.
+// If the the namespace does not exists, it will be created.
+func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) error {
+	manifests := strings.Split(string(contents), "\n---\n")
 	manifests = manifests[1:]
 	if len(manifests) > 0 && manifests[len(manifests)-1] == "\n" {
 		manifests = manifests[:len(manifests)-1]
 	}
 
 	for _, manifest := range manifests {
+		// create a fresh options var at each run
+		options := recvOptions
+
 		// decode YAML into unstructured.Unstructured
 		obj := &unstructured.Unstructured{}
 		dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 		object, _, err := dec.Decode([]byte(manifest), nil, obj)
 		if err != nil {
+			if len(obj.GetObjectKind().GroupVersionKind().Kind) < 1 {
+				continue
+			}
 			return ErrApplyManifest(err)
 		}
 
@@ -73,7 +70,7 @@ func (client *Client) ApplyManifest(contents []byte, options ApplyOptions) error
 		}
 
 		// Create namespace if it doesnt already exist
-		if err = createNamespaceIfNotExist(client.Clientset, context.TODO(), options.Namespace); err != nil {
+		if err = createNamespaceIfNotExist(context.TODO(), client.Clientset, options.Namespace); err != nil {
 			return ErrApplyManifest(err)
 		}
 
@@ -143,7 +140,11 @@ func deleteObject(restHelper *resource.Helper, namespace string, obj runtime.Obj
 	return restHelper.Delete(namespace, name)
 }
 
-func createNamespaceIfNotExist(kubeClientset kubernetes.Interface, ctx context.Context, namespace string) error {
+func createNamespaceIfNotExist(ctx context.Context, kubeClientset kubernetes.Interface, namespace string) error {
+	if namespace == "" {
+		return nil
+	}
+
 	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	_, err := kubeClientset.CoreV1().Namespaces().Create(ctx, nsSpec, metav1.CreateOptions{})
 	if !errors.IsAlreadyExists(err) {
