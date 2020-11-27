@@ -31,7 +31,6 @@ type ApplyOptions struct {
 // If the the namespace does not exists, it will be created.
 func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) error {
 	manifests := strings.Split(string(contents), "\n---\n")
-	manifests = manifests[1:]
 	if len(manifests) > 0 && manifests[len(manifests)-1] == "\n" {
 		manifests = manifests[:len(manifests)-1]
 	}
