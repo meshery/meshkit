@@ -3,3 +3,6 @@ check:
 
 check-clean-cache:
 	golangci-lint cache clean
+
+test:
+	go test ./...
