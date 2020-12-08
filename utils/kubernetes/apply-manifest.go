@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -128,7 +129,20 @@ func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interfa
 }
 
 func createObject(restHelper *resource.Helper, namespace string, obj runtime.Object, update bool) (runtime.Object, error) {
-	return restHelper.Create(namespace, update, obj)
+	name, err := meta.NewAccessor().Name(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	object, err := restHelper.Create(namespace, update, obj)
+	if err != nil {
+		if !kubeerror.IsAlreadyExists(err) {
+			return restHelper.Replace(namespace, name, update, obj)
+		}
+		return nil, err
+	}
+
+	return object, nil
 }
 
 func deleteObject(restHelper *resource.Helper, namespace string, obj runtime.Object) (runtime.Object, error) {
