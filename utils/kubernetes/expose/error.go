@@ -8,40 +8,40 @@ import (
 
 var (
 	// ErrGettingResourceCode is generated when there is an error getting the kubernetes resource
-	ErrGettingResourceCode = "linkerd_test_code"
+	ErrGettingResourceCode = "meshkit_test_code"
 
 	// ErrTraverserCode is a collection of errors generated during traversing the resources
-	ErrTraverserCode = "linkerd_test_code"
+	ErrTraverserCode = "meshkit_test_code"
 
 	// ErrResourceCannotBeExposedCode is generated when the given resource cannot be exposed
-	ErrResourceCannotBeExposedCode = "linkerd_test_code"
+	ErrResourceCannotBeExposedCode = "meshkit_test_code"
 
 	// ErrSelectorBasedMapCode is generated when the given resource's selectors can't
 	// be parsed to a map
-	ErrSelectorBasedMapCode = "linkerd_test_code"
+	ErrSelectorBasedMapCode = "meshkit_test_code"
 
 	// ErrProtocolBasedMapCode is generated when the given resource's protocol can't
 	// be parsed to a map
-	ErrProtocolBasedMapCode = "linkerd_test_code"
+	ErrProtocolBasedMapCode = "meshkit_test_code"
 
 	// ErrLableBasedMapCode is generated when the given resource's protocol can't
 	// be parsed to a map
-	ErrLableBasedMapCode = "linkerd_test_code"
+	ErrLableBasedMapCode = "meshkit_test_code"
 
 	// ErrPortParsingCode is generated when the given resource's ports can't
 	// be parsed to a slice
-	ErrPortParsingCode = "linkerd_test_code"
+	ErrPortParsingCode = "meshkit_test_code"
 
 	// ErrGenerateServiceCode is generated when a service cannot be generated
 	// for the given resource
-	ErrGenerateServiceCode = "linkerd_test_code"
+	ErrGenerateServiceCode = "meshkit_test_code"
 
 	// ErrConstructingRestHelperCode is generated when a rest helper cannot be generated
 	// for the generated service
-	ErrConstructingRestHelperCode = "linkerd_test_code"
+	ErrConstructingRestHelperCode = "meshkit_test_code"
 
 	// ErrCreatingServiceCode is generated when there is an error deploying the service
-	ErrCreatingServiceCode = "linkerd_test_code"
+	ErrCreatingServiceCode = "meshkit_test_code"
 )
 
 // ErrGettingResource is the error when there is an error getting the kubernetes resource
