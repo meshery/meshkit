@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/user"
@@ -122,10 +123,32 @@ func CreateFile(contents []byte, filename string, location string) error {
 	return nil
 }
 
+// ReadFileSource supports "http", "https" and "file" protocols.
+// it takes in the location as a uri and returns the contents of
+// file as a string.
+//
+func ReadFileSource(uri string) (string, error) {
+	if strings.HasPrefix(uri, "http") {
+		return ReadRemoteFile(uri)
+	}
+	if strings.HasPrefix(uri, "file") {
+		return ReadLocalFile(uri)
+	}
+
+	return "", fmt.Errorf("invalid protocol: only http, https and file are valid protocols")
+}
+
+// ReadRemoteFile takes in the location of a remote file
+// in the format 'http://location/of/file' or 'https://location/file'
+// and returns the content of the file if the location is valid and
+// no error occurs
 func ReadRemoteFile(url string) (string, error) {
 	response, err := http.Get(url)
 	if err != nil {
 		return " ", err
+	}
+	if response.StatusCode == http.StatusNotFound {
+		return " ", fmt.Errorf("remote file not found at %s", url)
 	}
 
 	defer response.Body.Close()
@@ -137,4 +160,22 @@ func ReadRemoteFile(url string) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// ReadLocalFile takes in the location of a local file
+// in the format `file://location/of/file` and returns
+// the content of the file if the path is valid and no
+// error occurs
+func ReadLocalFile(location string) (string, error) {
+	// remove the protocol prefix
+	location = strings.TrimPrefix(location, "file://")
+
+	// Need to support variable file locations hence
+	// #nosec
+	data, err := ioutil.ReadFile(location)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
 }
