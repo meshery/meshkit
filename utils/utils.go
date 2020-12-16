@@ -126,7 +126,6 @@ func CreateFile(contents []byte, filename string, location string) error {
 // ReadFileSource supports "http", "https" and "file" protocols.
 // it takes in the location as a uri and returns the contents of
 // file as a string.
-//
 func ReadFileSource(uri string) (string, error) {
 	if strings.HasPrefix(uri, "http") {
 		return ReadRemoteFile(uri)
@@ -135,7 +134,7 @@ func ReadFileSource(uri string) (string, error) {
 		return ReadLocalFile(uri)
 	}
 
-	return "", fmt.Errorf("invalid protocol: only http, https and file are valid protocols")
+	return "", ErrInvalidProtocol()
 }
 
 // ReadRemoteFile takes in the location of a remote file
@@ -148,7 +147,7 @@ func ReadRemoteFile(url string) (string, error) {
 		return " ", err
 	}
 	if response.StatusCode == http.StatusNotFound {
-		return " ", fmt.Errorf("remote file not found at %s", url)
+		return " ", ErrRemoteFileNotFound(url)
 	}
 
 	defer response.Body.Close()
@@ -156,7 +155,7 @@ func ReadRemoteFile(url string) (string, error) {
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, response.Body)
 	if err != nil {
-		return " ", err
+		return " ", ErrReadingRemoteFile(err)
 	}
 
 	return buf.String(), nil
@@ -174,7 +173,7 @@ func ReadLocalFile(location string) (string, error) {
 	// #nosec
 	data, err := ioutil.ReadFile(location)
 	if err != nil {
-		return "", err
+		return "", ErrReadingLocalFile(err)
 	}
 
 	return string(data), nil
