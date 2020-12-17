@@ -38,3 +38,19 @@ func ErrMarshal(err error) error {
 func ErrGetBool(key string, err error) error {
 	return errors.NewDefault(errors.ErrGetBool, fmt.Sprintf("Error while getting Boolean value for key: %s, error: %s", key, err.Error()))
 }
+
+func ErrInvalidProtocol() error {
+	return errors.NewDefault(errors.ErrLoadFile, "invalid protocol: only http, https and file are valid protocols")
+}
+
+func ErrRemoteFileNotFound(url string) error {
+	return errors.NewDefault(errors.ErrLoadFile, fmt.Sprintf("remote file not found at %s", url))
+}
+
+func ErrReadingRemoteFile(err error) error {
+	return errors.NewDefault(errors.ErrLoadFile, fmt.Sprintf("error reading remote file: %s", err))
+}
+
+func ErrReadingLocalFile(err error) error {
+	return errors.NewDefault(errors.ErrLoadFile, fmt.Sprintf("error reading local file: %s", err))
+}
