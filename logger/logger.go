@@ -6,6 +6,7 @@ import (
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/go-logr/logr"
 	"github.com/layer5io/meshkit/errors"
 )
 
@@ -14,6 +15,9 @@ type Handler interface {
 	Debug(description ...string)
 	Warn(err error)
 	Error(err error)
+
+	// Kubernetes Controller compliant logger
+	ControllerLogger() logr.Logger
 }
 
 type Logger struct {
