@@ -204,6 +204,10 @@ func checkIfInstallable(ch *chart.Chart) error {
 
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
 func createHelmActionConfig(restConfig rest.Config, cfg ApplyHelmChartConfig) (*action.Configuration, error) {
+	// Set the environment variable needed by the Init method
+	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
+
+	// KubeConfig setup
 	kubeConfig := genericclioptions.NewConfigFlags(false)
 	kubeConfig.APIServer = &restConfig.Host
 	kubeConfig.BearerToken = &restConfig.BearerToken
