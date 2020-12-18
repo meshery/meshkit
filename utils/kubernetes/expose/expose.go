@@ -84,8 +84,8 @@ type Config struct {
 	// It will not effect the target resource
 	Annotations map[string]string
 
-	// Logger that would be used for logging
-	Logger logger.Handler
+	// Log is the logger that would be used for logging
+	Log logger.Handler
 }
 
 // serviceConfig extends the Config and is meant to be
@@ -113,7 +113,7 @@ func Expose(
 	tr := Traverser{
 		Client:    clientSet,
 		Resources: resources,
-		Logger:    config.Logger,
+		Logger:    config.Log,
 	}
 	createdSvc, err := tr.Visit(func(info Object, err error) (*v1.Service, error) {
 		if config.Namespace == "" {
@@ -171,14 +171,14 @@ func Expose(
 		if err != nil {
 			return nil, ErrGenerateService(err)
 		}
-		config.Logger.Debug("Generated service object", service.Name, "in namespace", service.Namespace)
+		config.Log.Debug("Generated service object", service.Name, "in namespace", service.Namespace)
 		helper, err := constructObject(clientSet, restConfig, service)
 		if err != nil {
 			return nil, ErrConstructingRestHelper(err)
 		}
 
 		_, err = helper.Create(config.Namespace, false, service)
-		config.Logger.Debug("Service deployed")
+		config.Log.Debug("Service deployed")
 		if err != nil {
 			return nil, ErrCreatingService(err)
 		}
