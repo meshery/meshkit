@@ -54,49 +54,55 @@ var (
 // with more common and generic meshkit errors
 
 var (
-	// errPodHasNoLabels is the error for pods with no labels
-	errPodHasNoLabels = fmt.Errorf("the pod has no labels and cannot be exposed")
+	// ErrPodHasNoLabels is the error for pods with no labels
+	ErrPodHasNoLabels = fmt.Errorf("the pod has no labels and cannot be exposed")
 
-	// errServiceHasNoSelectors is the error for service with no selectors
-	errServiceHasNoSelectors = fmt.Errorf("the service has no pod selector set")
+	// ErrServiceHasNoSelectors is the error for service with no selectors
+	ErrServiceHasNoSelectors = fmt.Errorf("the service has no pod selector set")
 
-	// errInvalidDeploymentNoSelectorsLabels is the error for deployment (v1beta1) with no selectors and labels
-	errInvalidDeploymentNoSelectorsLabels = fmt.Errorf("the deployment has no labels or selectors and cannot be exposed")
+	// ErrInvalidDeploymentNoSelectorsLabels is the error for deployment (v1beta1) with no selectors and labels
+	ErrInvalidDeploymentNoSelectorsLabels = fmt.Errorf("the deployment has no labels or selectors and cannot be exposed")
 
-	// errInvalidDeploymentNoSelectors is the error for deployment (v1) with no selectors
-	errInvalidDeploymentNoSelectors = fmt.Errorf("invalid deployment: no selectors, therefore cannot be exposed")
+	// ErrInvalidDeploymentNoSelectors is the error for deployment (v1) with no selectors
+	ErrInvalidDeploymentNoSelectors = fmt.Errorf("invalid deployment: no selectors, therefore cannot be exposed")
 
-	// errInvalidReplicaNoSelectorsLabels is the error for replicaset (v1beta1) with no selectors and labels
-	errInvalidReplicaNoSelectorsLabels = fmt.Errorf("the replica set has no labels or selectors and cannot be exposed")
+	// ErrInvalidReplicaNoSelectorsLabels is the error for replicaset (v1beta1) with no selectors and labels
+	ErrInvalidReplicaNoSelectorsLabels = fmt.Errorf("the replica set has no labels or selectors and cannot be exposed")
 
-	// errInvalidReplicaSetNoSelectors is the error for replicaset (v1) with no selectors
-	errInvalidReplicaSetNoSelectors = fmt.Errorf("invalid replicaset: no selectors, therefore cannot be exposed")
+	// ErrInvalidReplicaSetNoSelectors is the error for replicaset (v1) with no selectors
+	ErrInvalidReplicaSetNoSelectors = fmt.Errorf("invalid replicaset: no selectors, therefore cannot be exposed")
 
-	// errNoPortsFoundForHeadlessResource is the error when no ports are found for non headless resource
-	errNoPortsFoundForHeadlessResource = fmt.Errorf("no ports found for the non headless resource")
+	// ErrNoPortsFoundForHeadlessResource is the error when no ports are found for non headless resource
+	ErrNoPortsFoundForHeadlessResource = fmt.Errorf("no ports found for the non headless resource")
 )
 
-func generateUnknownSessionAffinityErr(sa SessionAffinity) error {
+// ErrUnknownSessionAffinityErr is the error for unknown session affinity
+func ErrUnknownSessionAffinityErr(sa SessionAffinity) error {
 	return fmt.Errorf("unknown session affinity: %s", sa)
 }
 
-func generateMatchExpressionsConvertionErr(me []metav1.LabelSelectorRequirement) error {
+// ErrMatchExpressionsConvertionErr is the error for failed match expression conversion
+func ErrMatchExpressionsConvertionErr(me []metav1.LabelSelectorRequirement) error {
 	return fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", me)
 }
 
-func generateFailedToExtractPodSelectorErr(object runtime.Object) error {
+// ErrFailedToExtractPodSelectorErr is the error for failed to extract pod selector
+func ErrFailedToExtractPodSelectorErr(object runtime.Object) error {
 	return fmt.Errorf("cannot extract pod selector from %T", object)
 }
 
-func generateFailedToExtractPorts(object runtime.Object) error {
+// ErrFailedToExtractPorts is the error for failed to extract ports
+func ErrFailedToExtractPorts(object runtime.Object) error {
 	return fmt.Errorf("cannot extract ports from %T", object)
 }
 
-func generateFailedToExtractProtocolsErr(object runtime.Object) error {
+// ErrFailedToExtractProtocolsErr is the error for extracting ports
+func ErrFailedToExtractProtocolsErr(object runtime.Object) error {
 	return fmt.Errorf("cannot extract protocols from %T", object)
 }
 
-func generateCannotExposeObjectErr(kind schema.GroupKind) error {
+// ErrCannotExposeObjectErr is the error if the given object cannot be exposed
+func ErrCannotExposeObjectErr(kind schema.GroupKind) error {
 	return fmt.Errorf("cannot expose a %s", kind)
 }
 

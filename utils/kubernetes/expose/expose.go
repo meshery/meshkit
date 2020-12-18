@@ -158,7 +158,7 @@ func Expose(
 			return nil, ErrPortParsing(err)
 		}
 		if len(ports) == 0 && !isHeadlessService {
-			return nil, ErrPortParsing(errNoPortsFoundForHeadlessResource)
+			return nil, ErrPortParsing(ErrNoPortsFoundForHeadlessResource)
 		}
 
 		service, err := generateService(serviceConfig{
@@ -258,7 +258,7 @@ func generateService(serviceConfig serviceConfig) (*corev1.Service, error) {
 		case corev1.ServiceAffinityClientIP:
 			service.Spec.SessionAffinity = corev1.ServiceAffinityClientIP
 		default:
-			return nil, generateUnknownSessionAffinityErr(serviceConfig.SessionAffinity)
+			return nil, ErrUnknownSessionAffinityErr(serviceConfig.SessionAffinity)
 		}
 	}
 
@@ -286,7 +286,7 @@ func canBeExposed(kind schema.GroupKind) error {
 		extensionsv1beta1.SchemeGroupVersion.WithKind("Deployment").GroupKind(),
 		extensionsv1beta1.SchemeGroupVersion.WithKind("ReplicaSet").GroupKind():
 	default:
-		return generateCannotExposeObjectErr(kind)
+		return ErrCannotExposeObjectErr(kind)
 	}
 	return nil
 }
@@ -301,13 +301,13 @@ func mapBasedSelectorForObject(object runtime.Object) (map[string]string, error)
 
 	case *corev1.Pod:
 		if len(t.Labels) == 0 {
-			return map[string]string{}, errPodHasNoLabels
+			return map[string]string{}, ErrPodHasNoLabels
 		}
 		return t.Labels, nil
 
 	case *corev1.Service:
 		if t.Spec.Selector == nil {
-			return map[string]string{}, errServiceHasNoSelectors
+			return map[string]string{}, ErrServiceHasNoSelectors
 		}
 		return t.Spec.Selector, nil
 
@@ -316,44 +316,44 @@ func mapBasedSelectorForObject(object runtime.Object) (map[string]string, error)
 		var labels map[string]string
 		if t.Spec.Selector != nil {
 			if len(t.Spec.Selector.MatchExpressions) > 0 {
-				return map[string]string{}, generateMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
+				return map[string]string{}, ErrMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
 			}
 			labels = t.Spec.Selector.MatchLabels
 		} else {
 			labels = t.Spec.Template.Labels
 		}
 		if len(labels) == 0 {
-			return map[string]string{}, errInvalidDeploymentNoSelectorsLabels
+			return map[string]string{}, ErrInvalidDeploymentNoSelectorsLabels
 		}
 		return labels, nil
 
 	case *appsv1.Deployment:
 		// "apps" deployments must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, errInvalidDeploymentNoSelectors
+			return map[string]string{}, ErrInvalidDeploymentNoSelectors
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, generateMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
 	case *appsv1beta2.Deployment:
 		// "apps" deployments must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, errInvalidDeploymentNoSelectors
+			return map[string]string{}, ErrInvalidDeploymentNoSelectors
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, generateMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
 	case *appsv1beta1.Deployment:
 		// "apps" deployments must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, errInvalidDeploymentNoSelectors
+			return map[string]string{}, ErrInvalidDeploymentNoSelectors
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, generateMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
@@ -362,39 +362,39 @@ func mapBasedSelectorForObject(object runtime.Object) (map[string]string, error)
 		var labels map[string]string
 		if t.Spec.Selector != nil {
 			if len(t.Spec.Selector.MatchExpressions) > 0 {
-				return map[string]string{}, generateMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
+				return map[string]string{}, ErrMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
 			}
 			labels = t.Spec.Selector.MatchLabels
 		} else {
 			labels = t.Spec.Template.Labels
 		}
 		if len(labels) == 0 {
-			return map[string]string{}, errInvalidReplicaNoSelectorsLabels
+			return map[string]string{}, ErrInvalidReplicaNoSelectorsLabels
 		}
 		return labels, nil
 
 	case *appsv1.ReplicaSet:
 		// "apps" replicasets must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, errInvalidReplicaSetNoSelectors
+			return map[string]string{}, ErrInvalidReplicaSetNoSelectors
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, generateMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
 	case *appsv1beta2.ReplicaSet:
 		// "apps" replicasets must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, errInvalidReplicaSetNoSelectors
+			return map[string]string{}, ErrInvalidReplicaSetNoSelectors
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, generateMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrMatchExpressionsConvertionErr(t.Spec.Selector.MatchExpressions)
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
 	default:
-		return map[string]string{}, generateFailedToExtractPodSelectorErr(object)
+		return map[string]string{}, ErrFailedToExtractPodSelectorErr(object)
 	}
 }
 
@@ -426,7 +426,7 @@ func protocolsForObject(object runtime.Object) (map[string]string, error) {
 		return getProtocols(t.Spec.Template.Spec), nil
 
 	default:
-		return nil, generateFailedToExtractProtocolsErr(object)
+		return nil, ErrFailedToExtractProtocolsErr(object)
 	}
 }
 
@@ -484,7 +484,7 @@ func portsForObject(object runtime.Object) ([]string, error) {
 	case *appsv1beta2.ReplicaSet:
 		return getPorts(t.Spec.Template.Spec), nil
 	default:
-		return nil, generateFailedToExtractPorts(object)
+		return nil, ErrFailedToExtractPorts(object)
 	}
 }
 
