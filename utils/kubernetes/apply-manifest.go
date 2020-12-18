@@ -39,14 +39,9 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		// create a fresh options var at each run
 		options := recvOptions
 
-		// decode YAML into unstructured.Unstructured
-		obj := &unstructured.Unstructured{}
-		dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-		object, _, err := dec.Decode([]byte(manifest), nil, obj)
+		// get the runtime.Object
+		object, _, err := client.GetObjectFromManifest(manifest)
 		if err != nil {
-			if len(obj.GetObjectKind().GroupVersionKind().Kind) < 1 {
-				continue
-			}
 			return ErrApplyManifest(err)
 		}
 
@@ -89,6 +84,17 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 	return nil
 }
 
+func (client *Client) GetObjectFromManifest(manifest string) (runtime.Object, *unstructured.Unstructured, error) {
+	// decode YAML into unstructured.Unstructured
+	obj := &unstructured.Unstructured{}
+	dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+	object, _, err := dec.Decode([]byte(manifest), nil, obj)
+	if err != nil && len(obj.GetObjectKind().GroupVersionKind().Kind) > 1 {
+		return nil, nil, ErrApplyManifest(err)
+	}
+	return object, obj, nil
+}
+
 func constructObject(kubeClientset kubernetes.Interface, restConfig rest.Config, obj runtime.Object) (*resource.Helper, error) {
 	// Create a REST mapper that tracks information about the available resources in the cluster.
 	groupResources, err := restmapper.GetAPIGroupResources(kubeClientset.Discovery())
@@ -128,7 +134,17 @@ func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interfa
 }
 
 func createObject(restHelper *resource.Helper, namespace string, obj runtime.Object, update bool) (runtime.Object, error) {
-	return restHelper.Create(namespace, update, obj)
+
+	if update {
+		_, _ = deleteObject(restHelper, namespace, obj)
+	}
+
+	object, err := restHelper.Create(namespace, update, obj)
+	if err != nil {
+		return nil, err
+	}
+
+	return object, nil
 }
 
 func deleteObject(restHelper *resource.Helper, namespace string, obj runtime.Object) (runtime.Object, error) {
