@@ -23,6 +23,27 @@ import (
 	"k8s.io/client-go/restmapper"
 )
 
+// SessionAffinity is the type for Kubernetes resources' SessionAffinity
+type SessionAffinity string
+
+const (
+	// None is the "None" type SessionAffinity
+	None SessionAffinity = "None"
+
+	// ClientIP is the "ClientIP" type SessionAffinity
+	ClientIP SessionAffinity = "ClientIP"
+)
+
+// ServiceType us the type for Kubernetes resources' Type
+type ServiceType string
+
+// Supported service type
+const (
+	ClusterIP    ServiceType = "ClusterIP"
+	NodePort     ServiceType = "NodePort"
+	LoadBalancer ServiceType = "LoadBalancer"
+)
+
 // Config is a the struct for Expose configuration
 type Config struct {
 	// Type is the type of the service
@@ -30,7 +51,7 @@ type Config struct {
 	// or LoadBalancer. If an empty is string
 	// is provided then "ClusterIP" type service
 	// is created
-	Type string
+	Type ServiceType
 
 	// LoadBalancerIP is the IP address that would
 	// be used if the service type is "loadBalancer"
@@ -54,7 +75,7 @@ type Config struct {
 
 	// SessionAffinity of the service
 	// could be "None" or "ClientIP"
-	SessionAffinity string
+	SessionAffinity SessionAffinity
 
 	// Name of the service
 	Name string
