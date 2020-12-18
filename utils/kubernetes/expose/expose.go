@@ -59,6 +59,11 @@ type Config struct {
 	// Name of the service
 	Name string
 
+	// Annotations will be used to annotate the generated service
+	//
+	// It will not effect the target resource
+	Annotations map[string]string
+
 	// Logger that would be used for logging
 	Logger logger.Handler
 }
@@ -101,7 +106,7 @@ func Expose(
 		// Check if the resource can be exposed or not
 		gk := info.GetObjectKind().GroupVersionKind().GroupKind()
 		if err := canBeExposed(gk); err != nil {
-			return nil, ErrResourceCannotBeExposed(err, gk.Kind)
+			return nil, ErrExposeResource(err)
 		}
 
 		if len(config.Name) > validation.DNS1035LabelMaxLength {
@@ -111,7 +116,7 @@ func Expose(
 		// Map for selectors of the current object
 		selectorsMap, err := mapBasedSelectorForObject(info)
 		if err != nil {
-			return nil, ErrSelectorBasedMap(err)
+			return nil, ErrExposeResource(err)
 		}
 
 		isHeadlessService := config.ClusterIP == "None"
@@ -119,21 +124,21 @@ func Expose(
 		// protocolsMap stores the protocols for the current object
 		protocolsMap, err := protocolsForObject(info)
 		if err != nil {
-			return nil, ErrProtocolBasedMap(err)
+			return nil, ErrExposeResource(err)
 		}
 
 		// labelsMap stores the lables for the current object
 		labelsMap, err := meta.NewAccessor().Labels(info)
 		if err != nil {
-			return nil, ErrLableBasedMap(err)
+			return nil, ErrExposeResource(ErrLabelBasedMap(err))
 		}
 
 		ports, err := portsForObject(info)
 		if err != nil {
-			return nil, ErrPortParsing(err)
+			return nil, ErrExposeResource(err)
 		}
 		if len(ports) == 0 && !isHeadlessService {
-			return nil, ErrPortParsing(fmt.Errorf("no ports found for the non headless resource"))
+			return nil, ErrExposeResource(ErrPortParsing(fmt.Errorf("no ports found for the non headless resource")))
 		}
 
 		service, err := generateService(serviceConfig{
@@ -144,26 +149,24 @@ func Expose(
 			Config:       config,
 		})
 		if err != nil {
-			return nil, ErrGenerateService(err)
+			return nil, ErrExposeResource(err)
 		}
 		config.Logger.Debug(fmt.Sprintf("Generated service object %s in namespace %s", service.Name, service.Namespace))
 		helper, err := constructObject(clientSet, restConfig, service)
 		if err != nil {
-			return nil, ErrConstructingRestHelper(err)
+			return nil, ErrExposeResource(err)
 		}
 
 		_, err = helper.Create(config.Namespace, false, service)
 		config.Logger.Debug("Service deployed")
 		if err != nil {
-			return nil, ErrCreatingService(err)
+			return nil, ErrExposeResource(ErrCreatingService(err))
 		}
 
 		return service, nil
 	}, continueOnError)
 
-	// This err is already generated
-	// from ErrTraverser
-	return createdSvc, err
+	return createdSvc, ErrExposeResource(err)
 }
 
 func generateService(serviceConfig serviceConfig) (*corev1.Service, error) {
@@ -196,9 +199,10 @@ func generateService(serviceConfig serviceConfig) (*corev1.Service, error) {
 
 	service := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceConfig.Name,
-			Labels:    serviceConfig.labelsMap,
-			Namespace: serviceConfig.Namespace,
+			Name:        serviceConfig.Name,
+			Labels:      serviceConfig.labelsMap,
+			Namespace:   serviceConfig.Namespace,
+			Annotations: serviceConfig.Annotations,
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: serviceConfig.selectorsMap,
@@ -234,7 +238,7 @@ func generateService(serviceConfig serviceConfig) (*corev1.Service, error) {
 		case corev1.ServiceAffinityClientIP:
 			service.Spec.SessionAffinity = corev1.ServiceAffinityClientIP
 		default:
-			return nil, fmt.Errorf("unknown session affinity: %s", serviceConfig.SessionAffinity)
+			return nil, ErrGenerateService(fmt.Errorf("unknown session affinity: %s", serviceConfig.SessionAffinity))
 		}
 	}
 
@@ -262,7 +266,7 @@ func canBeExposed(kind schema.GroupKind) error {
 		extensionsv1beta1.SchemeGroupVersion.WithKind("Deployment").GroupKind(),
 		extensionsv1beta1.SchemeGroupVersion.WithKind("ReplicaSet").GroupKind():
 	default:
-		return fmt.Errorf("cannot expose a %s", kind)
+		return ErrResourceCannotBeExposed(fmt.Errorf("cannot expose a %s", kind), kind.Kind)
 	}
 	return nil
 }
@@ -277,13 +281,13 @@ func mapBasedSelectorForObject(object runtime.Object) (map[string]string, error)
 
 	case *corev1.Pod:
 		if len(t.Labels) == 0 {
-			return map[string]string{}, fmt.Errorf("the pod has no labels and cannot be exposed")
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("the pod has no labels and cannot be exposed"))
 		}
 		return t.Labels, nil
 
 	case *corev1.Service:
 		if t.Spec.Selector == nil {
-			return map[string]string{}, fmt.Errorf("the service has no pod selector set")
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("the service has no pod selector set"))
 		}
 		return t.Spec.Selector, nil
 
@@ -292,44 +296,44 @@ func mapBasedSelectorForObject(object runtime.Object) (map[string]string, error)
 		var labels map[string]string
 		if t.Spec.Selector != nil {
 			if len(t.Spec.Selector.MatchExpressions) > 0 {
-				return map[string]string{}, fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions)
+				return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions))
 			}
 			labels = t.Spec.Selector.MatchLabels
 		} else {
 			labels = t.Spec.Template.Labels
 		}
 		if len(labels) == 0 {
-			return map[string]string{}, fmt.Errorf("the deployment has no labels or selectors and cannot be exposed")
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("the deployment has no labels or selectors and cannot be exposed"))
 		}
 		return labels, nil
 
 	case *appsv1.Deployment:
 		// "apps" deployments must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, fmt.Errorf("invalid deployment: no selectors, therefore cannot be exposed")
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("invalid deployment: no selectors, therefore cannot be exposed"))
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions))
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
 	case *appsv1beta2.Deployment:
 		// "apps" deployments must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, fmt.Errorf("invalid deployment: no selectors, therefore cannot be exposed")
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("invalid deployment: no selectors, therefore cannot be exposed"))
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions))
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
 	case *appsv1beta1.Deployment:
 		// "apps" deployments must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, fmt.Errorf("invalid deployment: no selectors, therefore cannot be exposed")
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("invalid deployment: no selectors, therefore cannot be exposed"))
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions))
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
@@ -338,39 +342,39 @@ func mapBasedSelectorForObject(object runtime.Object) (map[string]string, error)
 		var labels map[string]string
 		if t.Spec.Selector != nil {
 			if len(t.Spec.Selector.MatchExpressions) > 0 {
-				return map[string]string{}, fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions)
+				return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions))
 			}
 			labels = t.Spec.Selector.MatchLabels
 		} else {
 			labels = t.Spec.Template.Labels
 		}
 		if len(labels) == 0 {
-			return map[string]string{}, fmt.Errorf("the replica set has no labels or selectors and cannot be exposed")
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("the replica set has no labels or selectors and cannot be exposed"))
 		}
 		return labels, nil
 
 	case *appsv1.ReplicaSet:
 		// "apps" replicasets must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, fmt.Errorf("invalid replicaset: no selectors, therefore cannot be exposed")
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("invalid replicaset: no selectors, therefore cannot be exposed"))
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions))
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
 	case *appsv1beta2.ReplicaSet:
 		// "apps" replicasets must have the selector set.
 		if t.Spec.Selector == nil || len(t.Spec.Selector.MatchLabels) == 0 {
-			return map[string]string{}, fmt.Errorf("invalid replicaset: no selectors, therefore cannot be exposed")
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("invalid replicaset: no selectors, therefore cannot be exposed"))
 		}
 		if len(t.Spec.Selector.MatchExpressions) > 0 {
-			return map[string]string{}, fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions)
+			return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("couldn't convert expressions - \"%+v\" to map-based selector format", t.Spec.Selector.MatchExpressions))
 		}
 		return t.Spec.Selector.MatchLabels, nil
 
 	default:
-		return map[string]string{}, fmt.Errorf("cannot extract pod selector from %T", object)
+		return map[string]string{}, ErrSelectorBasedMap(fmt.Errorf("cannot extract pod selector from %T", object))
 	}
 }
 
@@ -402,7 +406,7 @@ func protocolsForObject(object runtime.Object) (map[string]string, error) {
 		return getProtocols(t.Spec.Template.Spec), nil
 
 	default:
-		return nil, fmt.Errorf("cannot extract protocols from %T", object)
+		return nil, ErrProtocolBasedMap(fmt.Errorf("cannot extract protocols from %T", object))
 	}
 }
 
@@ -460,7 +464,7 @@ func portsForObject(object runtime.Object) ([]string, error) {
 	case *appsv1beta2.ReplicaSet:
 		return getPorts(t.Spec.Template.Spec), nil
 	default:
-		return nil, fmt.Errorf("cannot extract ports from %T", object)
+		return nil, ErrPortParsing(fmt.Errorf("cannot extract ports from %T", object))
 	}
 }
 
@@ -486,7 +490,7 @@ func constructObject(kubeClientset kubernetes.Interface, restConfig rest.Config,
 	// Create a REST mapper that tracks information about the available resources in the cluster.
 	groupResources, err := restmapper.GetAPIGroupResources(kubeClientset.Discovery())
 	if err != nil {
-		return nil, err
+		return nil, ErrConstructingRestHelper(err)
 	}
 	rm := restmapper.NewDiscoveryRESTMapper(groupResources)
 
@@ -495,13 +499,13 @@ func constructObject(kubeClientset kubernetes.Interface, restConfig rest.Config,
 	gk := schema.GroupKind{Group: gvk.Group, Kind: gvk.Kind}
 	mapping, err := rm.RESTMapping(gk, gvk.Version)
 	if err != nil {
-		return nil, err
+		return nil, ErrConstructingRestHelper(err)
 	}
 
 	// Create a client specifically for creating the object.
 	restClient, err := newRestClient(restConfig, mapping.GroupVersionKind.GroupVersion())
 	if err != nil {
-		return nil, err
+		return nil, ErrConstructingRestHelper(err)
 	}
 
 	// Use the REST helper to create the object in the "default" namespace.

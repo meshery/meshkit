@@ -7,6 +7,9 @@ import (
 )
 
 var (
+	// ErrExposeResourceCode is generated while exposing the kubernetes resource
+	ErrExposeResourceCode = "meshkit_test_code"
+
 	// ErrGettingResourceCode is generated when there is an error getting the kubernetes resource
 	ErrGettingResourceCode = "meshkit_test_code"
 
@@ -44,6 +47,11 @@ var (
 	ErrCreatingServiceCode = "meshkit_test_code"
 )
 
+// ErrExposeResource is the error when there is an error exposing the kubernetes resource
+func ErrExposeResource(err error) error {
+	return errors.NewDefault(ErrExposeResourceCode, err.Error())
+}
+
 // ErrGettingResource is the error when there is an error getting the kubernetes resource
 func ErrGettingResource(err error) error {
 	return errors.NewDefault(ErrGettingResourceCode, err.Error())
@@ -74,9 +82,9 @@ func ErrProtocolBasedMap(err error) error {
 	return errors.NewDefault(ErrProtocolBasedMapCode, err.Error())
 }
 
-// ErrLableBasedMap is the error when the given resource's labels can't
+// ErrLabelBasedMap is the error when the given resource's labels can't
 // be parsed to a map
-func ErrLableBasedMap(err error) error {
+func ErrLabelBasedMap(err error) error {
 	return errors.NewDefault(ErrLableBasedMapCode, err.Error())
 }
 
