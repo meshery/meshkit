@@ -46,6 +46,7 @@ var (
 	ErrApplyManifest    = "kit_10206"
 	ErrServiceDiscovery = "kit_10207"
 	ErrLoadFile         = "kit_10208"
+	ErrApplyHelmChart   = "kit_10209"
 
 	// Istio Service mesh specific codes
 	// Range 11000 to 11099
