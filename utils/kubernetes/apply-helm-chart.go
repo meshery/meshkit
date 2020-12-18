@@ -39,6 +39,9 @@ const (
 const (
 	// Stable is the default repository for helm v3
 	Stable = "https://charts.helm.sh/stable"
+
+	// Latest is the default version for helm charts
+	Latest = ">0.0.0-0"
 )
 
 var (
@@ -60,6 +63,12 @@ type HelmChartLocation struct {
 	// to be installed. This chart must me present in the
 	// https://REPOSITORY/index.yaml
 	Chart string
+
+	// Version is the chart version. This version
+	// must be present in the https://REPOSITORY/index.yaml
+	//
+	// Defaults to Latest
+	Version string
 }
 
 // ApplyHelmChartConfig defines the options that ApplyHelmChart
@@ -149,8 +158,13 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 
 // setupDefaults adds the default value to the configuration
 func setupDefaults(cfg *ApplyHelmChartConfig) {
-	if cfg.URL == "" && cfg.ChartLocation.Repository == "" {
-		cfg.ChartLocation.Repository = Stable
+	if cfg.URL == "" {
+		if cfg.ChartLocation.Repository == "" {
+			cfg.ChartLocation.Repository = Stable
+		}
+		if cfg.ChartLocation.Version == "" {
+			cfg.ChartLocation.Version = Latest
+		}
 	}
 	if cfg.HelmDriver == "" {
 		cfg.HelmDriver = Secret
@@ -261,7 +275,7 @@ func createHelmPathFromHelmChartLocation(loc HelmChartLocation) (string, error) 
 		return "", ErrApplyHelmChart(fmt.Errorf("\"Chart\" cannot be empty"))
 	}
 
-	chartURL, err := repo.FindChartInRepoURL(loc.Repository, loc.Chart, ">0.0.0-0", "", "", "", getter.Providers{
+	chartURL, err := repo.FindChartInRepoURL(loc.Repository, loc.Chart, loc.Version, "", "", "", getter.Providers{
 		getter.Provider{
 			Schemes: []string{"http", "https"},
 			New:     getter.NewHTTPGetter,
