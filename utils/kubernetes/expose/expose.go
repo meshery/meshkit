@@ -82,7 +82,7 @@ func Expose(
 	config Config,
 	resources []Resource,
 ) ([]*v1.Service, error) {
-	// continueOnError not only controls if the traversal should continue even after errors
+	// continueOnError controls if the traversal should continue even after errors
 	continueOnError := true
 
 	tr := Traverser{
@@ -122,7 +122,7 @@ func Expose(
 			return nil, ErrProtocolBasedMap(err)
 		}
 
-		// protocolsMap stores the protocols for the current object
+		// labelsMap stores the lables for the current object
 		labelsMap, err := meta.NewAccessor().Labels(info)
 		if err != nil {
 			return nil, ErrLableBasedMap(err)
@@ -146,14 +146,14 @@ func Expose(
 		if err != nil {
 			return nil, ErrGenerateService(err)
 		}
-		config.Logger.Info(fmt.Sprintf("Generated service object %s in namespace %s", service.Name, service.Namespace))
+		config.Logger.Debug(fmt.Sprintf("Generated service object %s in namespace %s", service.Name, service.Namespace))
 		helper, err := constructObject(clientSet, restConfig, service)
 		if err != nil {
 			return nil, ErrConstructingRestHelper(err)
 		}
 
 		_, err = helper.Create(config.Namespace, false, service)
-		config.Logger.Info("Service deployed")
+		config.Logger.Debug("Service deployed")
 		if err != nil {
 			return nil, ErrCreatingService(err)
 		}
