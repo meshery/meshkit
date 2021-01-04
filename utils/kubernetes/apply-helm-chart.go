@@ -122,6 +122,59 @@ type ApplyHelmChartConfig struct {
 
 // ApplyHelmChart takes in the url for the helm chart
 // and applies that chart as per the ApplyHelmChartOptions
+//
+// The Helm library requires the environment variable KUBECONFIG to be set.
+//
+// ApplyHelmChart supports:
+//
+// - Installation and uninstallation of charts.
+//
+// - All storage drivers.
+//
+// - Chart location as a url as well as in form of repository (url) and chart name.
+//
+// - Override values (equivalent to --set, --set-file, --values in helm).
+//
+// Examples:
+//
+// Install Traefik Mesh using URL:
+//    err = client.ApplyHelmChart(k8s.ApplyHelmChartConfig{
+//            Namespace:       "traefik-mesh",
+//            CreateNamespace: true,
+//            URL:             "https://helm.traefik.io/mesh/traefik-mesh-3.0.6.tgz",
+//    })
+//
+// Install Traefik Mesh using repository:
+//    err = cl.ApplyHelmChart(k8s.ApplyHelmChartConfig{
+//            ChartLocation: k8s.HelmChartLocation{
+//                Repository: "https://helm.traefik.io/mesh",
+//                Chart:      "traefik-mesh",
+//            },
+//            Namespace:       "traefik-mesh",
+//            CreateNamespace: true,
+//    })
+//
+// Install Consul Service Mesh overriding values using a values file (equivalent to -f/--values in helm):
+//
+//	p := getter.All(cli.New())
+//	valueOpts := &values.Options{}
+//	if valuesFile, ok := operation.AdditionalProperties[config.HelmChartValuesFileKey]; ok {
+//		valueOpts.ValueFiles = []string{path.Join("consul", "config_templates", valuesFile)}
+//	}
+//	vals, err := valueOpts.MergeValues(p)
+//
+//	err = kubeClient.ApplyHelmChart(mesherykube.ApplyHelmChartConfig{
+//		Namespace:       request.Namespace,
+//		CreateNamespace: true,
+//		Delete:          request.IsDeleteOperation,
+//		ChartLocation: mesherykube.HelmChartLocation{
+//			Repository: operation.AdditionalProperties[config.HelmChartRepositoryKey],
+//			Chart:      operation.AdditionalProperties[config.HelmChartChartKey],
+//			Version:    operation.AdditionalProperties[config.HelmChartVersionKey],
+//		},
+//		OverrideValues: vals,
+//	})
+//
 func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	setupDefaults(&cfg)
 
