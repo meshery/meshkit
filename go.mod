@@ -16,6 +16,8 @@ require (
 	github.com/layer5io/learn-layer5/smi-conformance v0.0.0-20201022191033-40468652a54f
 	golang.org/x/sys v0.0.0-20200803210538-64077c9b5642 // indirect
 	google.golang.org/protobuf v1.23.0
+	gorm.io/driver/sqlite v1.1.4
+	gorm.io/gorm v1.20.10
 	helm.sh/helm/v3 v3.3.1
 	k8s.io/api v0.18.12
 	k8s.io/apimachinery v0.18.12

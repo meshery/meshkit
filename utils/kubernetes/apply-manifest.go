@@ -40,9 +40,9 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		options := recvOptions
 
 		// get the runtime.Object
-		object, obj, err := client.GetObjectFromManifest(manifest)
+		object, _, err := GetObjectFromManifest(manifest)
 		if err != nil {
-			if len(obj.GetObjectKind().GroupVersionKind().Kind) < 1 {
+			if len(object.GetObjectKind().GroupVersionKind().Kind) < 1 {
 				continue
 			}
 			return ErrApplyManifest(err)
@@ -87,7 +87,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 	return nil
 }
 
-func (client *Client) GetObjectFromManifest(manifest string) (runtime.Object, *unstructured.Unstructured, error) {
+func GetObjectFromManifest(manifest string) (runtime.Object, *unstructured.Unstructured, error) {
 	// decode YAML into unstructured.Unstructured
 	obj := &unstructured.Unstructured{}
 	dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
