@@ -40,9 +40,9 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		options := recvOptions
 
 		// get the runtime.Object
-		object, _, err := GetObjectFromManifest(manifest)
+		object, obj, err := GetObjectFromManifest(manifest)
 		if err != nil {
-			if len(object.GetObjectKind().GroupVersionKind().Kind) < 1 {
+			if len(obj.GetObjectKind().GroupVersionKind().Kind) < 1 {
 				continue
 			}
 			return ErrApplyManifest(err)
