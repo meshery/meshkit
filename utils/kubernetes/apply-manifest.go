@@ -137,13 +137,23 @@ func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interfa
 }
 
 func createObject(restHelper *resource.Helper, namespace string, obj runtime.Object, update bool) (runtime.Object, error) {
-
-	if update {
-		_, _ = deleteObject(restHelper, namespace, obj)
+	name, err := meta.NewAccessor().Name(obj)
+	if err != nil {
+		return nil, err
 	}
 
 	object, err := restHelper.Create(namespace, update, obj)
 	if err != nil {
+		if kubeerror.IsAlreadyExists(err) && update {
+			object, er := restHelper.Replace(namespace, name, update, obj)
+			if er != nil {
+				if kubeerror.IsInvalid(er) && strings.Contains(er.Error(), "field is immutable") {
+					return object, nil
+				}
+				return nil, er
+			}
+			return object, nil
+		}
 		return nil, err
 	}
 
