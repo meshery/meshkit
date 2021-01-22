@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/layer5io/learn-layer5/smi-conformance/conformance"
+	smp "github.com/layer5io/service-mesh-performance/spec"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/kube"
@@ -26,8 +27,8 @@ var (
 
 type SmiTest struct {
 	id             string
-	adaptorVersion string
-	adaptorName    string
+	meshVersion    string
+	meshType       smp.ServiceMesh_Type
 	ctx            context.Context
 	kubeClient     *kubernetes.Clientset
 	kubeConfigPath string
@@ -58,7 +59,7 @@ type Detail struct {
 	Status           string `json:"status,omitempty"`
 }
 
-func New(ctx context.Context, id string, version string, name string, client *kubernetes.Clientset) (*SmiTest, error) {
+func New(ctx context.Context, id string, version string, meshType smp.ServiceMesh_Type, client *kubernetes.Clientset) (*SmiTest, error) {
 
 	if len(name) < 2 {
 		return nil, ErrSmiInit("Adaptor name is nil")
@@ -71,10 +72,10 @@ func New(ctx context.Context, id string, version string, name string, client *ku
 	test := &SmiTest{
 		ctx:            ctx,
 		id:             id,
-		adaptorVersion: version,
+		meshVersion:    version,
 		kubeClient:     client,
 		kubeConfigPath: fmt.Sprintf("%s/.kube/config", utils.GetHome()),
-		adaptorName:    name,
+		meshType:       meshType,
 		labels:         make(map[string]string),
 		annotations:    make(map[string]string),
 	}
@@ -95,8 +96,8 @@ func (test *SmiTest) Run(labels, annotations map[string]string) (Response, error
 	response := Response{
 		Id:                test.id,
 		Date:              time.Now().Format(time.RFC3339),
-		MeshName:          test.adaptorName,
-		MeshVersion:       test.adaptorVersion,
+		MeshName:          test.meshType.String(),
+		MeshVersion:       test.meshVersion,
 		CasesPassed:       "0",
 		PassingPercentage: "0",
 		Status:            "deploying",
@@ -224,10 +225,12 @@ func (test *SmiTest) runConformanceTest(response *Response) error {
 	}
 
 	result, err := cClient.CClient.RunTest(context.TODO(), &conformance.Request{
-		Annotations: test.annotations,
-		Labels:      test.labels,
-		Meshname:    test.adaptorName,
-		Meshversion: test.adaptorVersion,
+		Mesh: &smp.ServiceMesh{
+			Version:     test.meshVersion,
+			Labels:      test.labels,
+			Annotations: test.annotations,
+			Type:        test.meshType,
+		},
 	})
 	if err != nil {
 		return err
@@ -239,14 +242,25 @@ func (test *SmiTest) runConformanceTest(response *Response) error {
 	details := make([]*Detail, 0)
 
 	for _, d := range result.Details {
+		result := ""
+		reason := ""
+
+		if d.Result.GetMessage() != "" {
+			result = d.Result.GetMessage()
+			reason = ""
+		} else {
+			result = d.Result.GetError().ShortDescription
+			reason = d.Result.GetError().LongDescription
+		}
 		details = append(details, &Detail{
 			SmiSpecification: d.Smispec,
-			Time:             d.Time,
-			Assertions:       d.Assertions,
-			Result:           d.Result,
-			Reason:           d.Reason,
-			Capability:       d.Capability,
-			Status:           d.Status,
+			SmiVersion:       d.Specversion,
+			Time:             d.Duration,
+			Assertions:       d.Assertion,
+			Result:           result,
+			Reason:           reason,
+			Capability:       d.Capability.String(),
+			Status:           d.Status.String(),
 		})
 	}
 
