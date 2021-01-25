@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/layer5io/learn-layer5/smi-conformance/conformance"
@@ -96,7 +97,7 @@ func (test *SmiTest) Run(labels, annotations map[string]string) (Response, error
 	response := Response{
 		Id:                test.id,
 		Date:              time.Now().Format(time.RFC3339),
-		MeshName:          test.meshType.String(),
+		MeshName:          strings.Title(strings.ToLower(strings.ReplaceAll(test.meshType.String(), "_", " "))),
 		MeshVersion:       test.meshVersion,
 		CasesPassed:       "0",
 		PassingPercentage: "0",
