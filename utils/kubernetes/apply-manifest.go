@@ -48,7 +48,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 			return ErrApplyManifest(err)
 		}
 
-		helper, err := constructObject(client.Clientset, client.RestConfig, object)
+		helper, err := constructObject(client.KubeClient, client.RestConfig, object)
 		if err != nil {
 			return ErrApplyManifest(err)
 		}
@@ -67,7 +67,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		}
 
 		// Create namespace if it doesnt already exist
-		if err = createNamespaceIfNotExist(context.TODO(), client.Clientset, options.Namespace); err != nil {
+		if err = createNamespaceIfNotExist(context.TODO(), client.KubeClient, options.Namespace); err != nil {
 			return ErrApplyManifest(err)
 		}
 

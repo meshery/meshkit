@@ -10,7 +10,14 @@ import (
 )
 
 // DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it
-func DetectKubeConfig() (config *rest.Config, err error) {
+func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
+
+	if len(configfile) > 0 {
+		if config, err = clientcmd.RESTConfigFromKubeConfig(configfile); err == nil {
+			return config, err
+		}
+	}
+
 	// If deployed within the cluster
 	if config, err = rest.InClusterConfig(); err == nil {
 		return config, err

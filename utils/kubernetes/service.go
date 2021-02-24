@@ -10,7 +10,7 @@ import (
 
 // GetServiceEndpoint returns the endpoint for the given service
 func (client *Client) GetServiceEndpoint(ctx context.Context, svcName, namespace string) (*utils.Endpoint, error) {
-	svc, err := client.Clientset.CoreV1().Services(namespace).Get(ctx, svcName, v1.GetOptions{})
+	svc, err := client.KubeClient.CoreV1().Services(namespace).Get(ctx, svcName, v1.GetOptions{})
 	if err != nil {
 		return nil, ErrServiceDiscovery(err)
 	}
@@ -21,7 +21,7 @@ func (client *Client) GetServiceEndpoint(ctx context.Context, svcName, namespace
 	}
 
 	// Try nodeport endpoint
-	nodes, err := client.Clientset.CoreV1().Nodes().List(ctx, v1.ListOptions{})
+	nodes, err := client.KubeClient.CoreV1().Nodes().List(ctx, v1.ListOptions{})
 	if err != nil {
 		return nil, ErrServiceDiscovery(err)
 	}
