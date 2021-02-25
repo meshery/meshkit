@@ -16,6 +16,7 @@ package provider
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/layer5io/meshkit/config"
 	"github.com/spf13/viper"
@@ -30,6 +31,7 @@ const (
 // Type Viper implements the config interface Handler for a Viper configuration registry.
 type Viper struct {
 	instance *viper.Viper
+	mutex    sync.Mutex
 }
 
 // NewViper returns a new instance of a Viper configuration provider using the provided Options opts.
@@ -40,7 +42,7 @@ func NewViper(opts Options) (config.Handler, error) {
 	v.SetConfigName(opts.FileName)
 	v.AutomaticEnv()
 
-	if err := viper.ReadInConfig(); err != nil {
+	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; ignore error
 			// Hack until viper issue #433 is fixed
@@ -61,18 +63,24 @@ func NewViper(opts Options) (config.Handler, error) {
 }
 
 func (v *Viper) SetKey(key string, value string) {
+	v.mutex.Lock()
 	v.instance.Set(key, value)
 	_ = v.instance.WriteConfig()
+	v.mutex.Unlock()
 }
 
 func (v *Viper) GetKey(key string) string {
+	v.mutex.Lock()
 	_ = v.instance.ReadInConfig()
+	defer v.mutex.Unlock()
 	return v.instance.Get(key).(string)
 }
 
 func (v *Viper) GetObject(key string, result interface{}) error {
+	v.mutex.Lock()
 	_ = v.instance.ReadInConfig()
 	err := v.instance.UnmarshalKey(key, &result)
+	defer v.mutex.Unlock()
 	if err != nil {
 		return config.ErrViper(err)
 	}
@@ -80,8 +88,10 @@ func (v *Viper) GetObject(key string, result interface{}) error {
 }
 
 func (v *Viper) SetObject(key string, value interface{}) error {
+	v.mutex.Lock()
 	v.instance.Set(key, value)
 	err := v.instance.WriteConfig()
+	defer v.mutex.Unlock()
 	if err != nil {
 		return config.ErrViper(err)
 	}
