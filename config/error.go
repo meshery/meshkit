@@ -25,10 +25,10 @@ var (
 
 // ErrViper returns a MeshKit error wrapping err in case of an (initialization) error in the Viper provider.
 func ErrViper(err error) error {
-	return errors.NewDefault(errors.ErrViper, "Viper initialization failed with error: ", err.Error())
+	return errors.NewDefault(errors.ErrViper, "Viper initialization failed with error", err.Error())
 }
 
 // ErrViper returns a MeshKit error wrapping err in case of an (initialization) error in the in-memory provider.
 func ErrInMem(err error) error {
-	return errors.NewDefault(errors.ErrInMem, "InMem initialization failed with error: ", err.Error())
+	return errors.NewDefault(errors.ErrInMem, "InMem initialization failed with error", err.Error())
 }
