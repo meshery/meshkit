@@ -15,6 +15,8 @@
 package provider
 
 import (
+	"sync"
+
 	"github.com/layer5io/meshkit/config"
 	"github.com/layer5io/meshkit/utils"
 )
