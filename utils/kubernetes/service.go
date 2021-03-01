@@ -10,11 +10,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// ServiceOptions give control of which service to discover and which port to discover.
 type ServiceOptions struct {
-	Name         string
-	Namespace    string
+	Name         string // Name of the kubernetes service
+	Namespace    string // Namespace of the kubernetes service
 	PortSelector string // To specify the name of the kubernetes service port
-	APIServerURL string
+	APIServerURL string // Kubernetes api-server URL (Used in-case of minikube)
 }
 
 // GetServiceEndpoint returns the endpoint for the given service
@@ -27,6 +28,7 @@ func GetServiceEndpoint(ctx context.Context, client *kubernetes.Clientset, opts 
 	return GetEndpoint(ctx, opts, obj)
 }
 
+// GetEndpoint returns those endpoints in the given service which match the selector. Eg: service name = "client"
 func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service) (*utils.Endpoint, error) {
 	var nodePort, clusterPort int32
 	endpoint := utils.Endpoint{}
