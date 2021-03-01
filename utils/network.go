@@ -8,7 +8,12 @@ import (
 
 // Endpoint represents the structure for an endpoint
 type Endpoint struct {
-	Name    string
+	Name     string
+	Internal *HostPort
+	External *HostPort
+}
+
+type HostPort struct {
 	Address string
 	Port    int32
 }
