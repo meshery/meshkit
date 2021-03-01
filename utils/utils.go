@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/user"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -106,7 +106,7 @@ func GetHome() string {
 // the given filename
 func CreateFile(contents []byte, filename string, location string) error {
 	// Create file in -rw-r--r-- mode
-	fd, err := os.OpenFile(path.Join(location, filename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	fd, err := os.OpenFile(filepath.Join(location, filename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
