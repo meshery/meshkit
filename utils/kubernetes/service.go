@@ -61,7 +61,11 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 
 	if obj.Status.Size() > 0 && obj.Status.LoadBalancer.Size() > 0 && len(obj.Status.LoadBalancer.Ingress) > 0 && obj.Status.LoadBalancer.Ingress[0].Size() > 0 {
 		if obj.Status.LoadBalancer.Ingress[0].IP == "" {
-			endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].Hostname
+			if obj.Status.LoadBalancer.Ingress[0].Hostname == "localhost" {
+				endpoint.External.Address = "host.docker.internal"
+			} else {
+				endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].Hostname
+			}
 		} else if obj.Status.LoadBalancer.Ingress[0].IP == obj.Spec.ClusterIP {
 			endpoint.External.Port = nodePort
 			address := strings.SplitAfter(strings.SplitAfter(opts.APIServerURL, "://")[1], ":")[0]
