@@ -13,8 +13,7 @@ import (
 type ServiceOptions struct {
 	Name         string
 	Namespace    string
-	PortSelector string
-	PortNumber   *int32
+	PortSelector string // To specify the name of the kubernetes service port
 	APIServerURL string
 }
 
@@ -32,16 +31,9 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 	var nodePort, clusterPort int32
 	endpoint := utils.Endpoint{}
 
-	if opts.PortNumber == nil {
+	if opts.PortSelector != "" {
 		for _, port := range obj.Spec.Ports {
 			if port.Name == opts.PortSelector {
-				nodePort = port.NodePort
-				clusterPort = port.Port
-			}
-		}
-	} else {
-		for _, port := range obj.Spec.Ports {
-			if &port.Port == opts.PortNumber {
 				nodePort = port.NodePort
 				clusterPort = port.Port
 			}
