@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/layer5io/meshkit/utils"
 	"k8s.io/client-go/rest"
@@ -32,7 +32,7 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	}
 
 	// Look for kubeconfig at the default path
-	path := path.Join(utils.GetHome(), ".kube", "config")
+	path := filepath.Join(utils.GetHome(), ".kube", "config")
 	if config, err = clientcmd.BuildConfigFromFlags("", path); err == nil {
 		return config, err
 	}

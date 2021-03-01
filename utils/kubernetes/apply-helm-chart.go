@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 
 	"github.com/layer5io/meshkit/utils"
@@ -244,7 +243,7 @@ func getHelmChartURL(cfg ApplyHelmChartConfig) (string, error) {
 // then the download is skipped
 func fetchHelmChart(chartURL string) (string, error) {
 	filename := filepath.Base(chartURL)
-	downloadPath := path.Join(downloadLocation, filename)
+	downloadPath := filepath.Join(downloadLocation, filename)
 
 	// Skip the download if chart already exists
 	if _, err := os.Stat(downloadPath); err == nil {
