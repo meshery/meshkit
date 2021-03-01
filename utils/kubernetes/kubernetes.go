@@ -18,6 +18,8 @@ func New(kubeconfig []byte) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	restConfig.QPS = float32(50)
+	restConfig.Burst = int(100)
 
 	// Configure kubeclient
 	kclient, err := kubernetes.NewForConfig(restConfig)
