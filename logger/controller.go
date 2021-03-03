@@ -1,8 +1,8 @@
 package logger
 
 import (
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-logr/logr"
+	"github.com/sirupsen/logrus"
 )
 
 type Controller struct {
@@ -34,13 +34,11 @@ func (c *Controller) V(level int) logr.InfoLogger {
 }
 
 func (c *Controller) WithValues(keysAndValues ...interface{}) logr.Logger {
-	c.base.infoHandler = kitlog.With(c.base.infoHandler, keysAndValues)
-	c.base.errHandler = kitlog.With(c.base.errHandler, keysAndValues)
+	c.base.handler.Log(logrus.InfoLevel, keysAndValues...)
 	return c
 }
 
 func (c *Controller) WithName(name string) logr.Logger {
-	c.base.infoHandler = kitlog.With(c.base.infoHandler, "name", name)
-	c.base.errHandler = kitlog.With(c.base.errHandler, "name", name)
+	c.base.handler.WithField("name", name)
 	return c
 }
