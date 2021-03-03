@@ -1,6 +1,7 @@
 package database
 
 import (
+	"github.com/layer5io/meshkit/logger"
 	sqlite "gorm.io/driver/sqlite"
 	gormpkg "gorm.io/gorm"
 )
@@ -13,6 +14,7 @@ const (
 type Options struct {
 	Filename string `json:"filename,omitempty"`
 	Engine   string `json:"engine,omitempty"`
+	Logger   logger.Handler
 }
 
 type Model struct {
@@ -32,7 +34,9 @@ func New(opts Options) (Handler, error) {
 	case POSTGRES:
 		return Handler{}, ErrNoneDatabase
 	case SQLITE:
-		db, err := gormpkg.Open(sqlite.Open(opts.Filename), &gormpkg.Config{})
+		db, err := gormpkg.Open(sqlite.Open(opts.Filename), &gormpkg.Config{
+			Logger: opts.Logger.DatabaseLogger(),
+		})
 		if err != nil {
 			return Handler{}, ErrDatabaseOpen(err)
 		}

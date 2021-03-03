@@ -2,110 +2,85 @@ package logger
 
 import (
 	"os"
-	"strings"
+	"time"
 
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/go-logr/logr"
 	"github.com/layer5io/meshkit/errors"
+	"github.com/sirupsen/logrus"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 type Handler interface {
-	Info(description ...string)
-	Debug(description ...string)
+	Info(description ...interface{})
+	Debug(description ...interface{})
 	Warn(err error)
 	Error(err error)
 
 	// Kubernetes Controller compliant logger
 	ControllerLogger() logr.Logger
+	DatabaseLogger() gormlogger.Interface
 }
 
 type Logger struct {
-	infoHandler kitlog.Logger
-	errHandler  kitlog.Logger
+	handler *logrus.Entry
 }
 
 func New(appname string, opts Options) (Handler, error) {
 
-	// Log Writers
-	infow := kitlog.NewSyncWriter(os.Stdout)
-	errw := kitlog.NewSyncWriter(os.Stderr)
-	infoLogger := kitlog.NewLogfmtLogger(infow)
-	errLogger := kitlog.NewLogfmtLogger(errw)
+	log := logrus.New()
 
-	// Formatter
 	switch opts.Format {
 	case JsonLogFormat:
-		infoLogger = kitlog.NewJSONLogger(infow)
-		errLogger = kitlog.NewJSONLogger(errw)
+		log.SetFormatter(&logrus.JSONFormatter{
+			TimestampFormat: time.RFC3339,
+			FullTimestamp:   true,
+		})
 	case SyslogLogFormat:
-		infoLogger = kitlog.NewLogfmtLogger(infow)
-		errLogger = kitlog.NewLogfmtLogger(errw)
+		log.SetFormatter(&logrus.TextFormatter{
+			TimestampFormat: time.RFC3339,
+			FullTimestamp:   true,
+		})
 	}
 
-	// Default fields
-	infoLogger = kitlog.WithPrefix(infoLogger, "app", appname, "ts", kitlog.DefaultTimestamp)
-	infoLogger = level.NewFilter(infoLogger, level.AllowAll())
-	if !opts.DebugLevel {
-		infoLogger = level.NewFilter(infoLogger, level.AllowInfo())
-	}
-
-	errLogger = kitlog.WithPrefix(errLogger,
-		"app", appname,
-		"ts", kitlog.DefaultTimestamp,
-		"caller", kitlog.DefaultCaller,
-	)
-	errLogger = level.NewFilter(errLogger, level.AllowError())
-	errLogger = level.NewFilter(errLogger, level.AllowWarn())
+	// log.SetReportCaller(true)
+	log.SetOutput(os.Stdout)
+	entry := log.WithFields(logrus.Fields{
+		"app": appname,
+	})
 
 	return &Logger{
-		infoHandler: infoLogger,
-		errHandler:  errLogger,
+		handler: entry,
 	}, nil
 }
 
 func (l *Logger) Error(err error) {
-	l.errHandler = kitlog.With(l.errHandler,
-		"code", errors.GetCode(err),
-		"severity", errors.GetSeverity(err),
-		"short-description", errors.GetSDescription(err),
-		"long-description", err.Error(),
-		"probable-cause", errors.GetCause(err),
-		"suggested-remediation", errors.GetRemedy(err),
+	l.handler.WithFields(logrus.Fields{
+		"code":                  errors.GetCode(err),
+		"severity":              errors.GetSeverity(err),
+		"short-description":     errors.GetSDescription(err),
+		"probable-cause":        errors.GetCause(err),
+		"suggested-remediation": errors.GetRemedy(err),
+	}).Log(logrus.ErrorLevel, err.Error())
+}
+
+func (l *Logger) Info(description ...interface{}) {
+	l.handler.Log(logrus.InfoLevel,
+		description...,
 	)
-
-	er := level.Error(l.errHandler).Log()
-	if er != nil {
-		_ = l.errHandler.Log("Internal Logger Error")
-	}
 }
 
-func (l *Logger) Info(description ...string) {
-	err := level.Info(l.infoHandler).Log("message", strings.Join(description, ""))
-	if err != nil {
-		_ = l.errHandler.Log("Internal Logger Error")
-	}
-}
-
-func (l *Logger) Debug(description ...string) {
-	err := level.Debug(l.infoHandler).Log("message", strings.Join(description, ""))
-	if err != nil {
-		_ = l.errHandler.Log("Internal Logger Error")
-	}
+func (l *Logger) Debug(description ...interface{}) {
+	l.handler.Log(logrus.DebugLevel,
+		description...,
+	)
 }
 
 func (l *Logger) Warn(err error) {
-	l.errHandler = kitlog.With(l.errHandler,
-		"code", errors.GetCode(err),
-		"severity", errors.GetSeverity(err),
-		"short-description", errors.GetSDescription(err),
-		"long-description", err.Error(),
-		"probable-cause", errors.GetCause(err),
-		"suggested-remediation", errors.GetRemedy(err),
-	)
-
-	er := level.Warn(l.errHandler).Log()
-	if er != nil {
-		_ = l.errHandler.Log("Internal Logger Error")
-	}
+	l.handler.WithFields(logrus.Fields{
+		"code":                  errors.GetCode(err),
+		"severity":              errors.GetSeverity(err),
+		"short-description":     errors.GetSDescription(err),
+		"probable-cause":        errors.GetCause(err),
+		"suggested-remediation": errors.GetRemedy(err),
+	}).Log(logrus.WarnLevel, err.Error())
 }
