@@ -33,7 +33,6 @@ func New(appname string, opts Options) (Handler, error) {
 	case JsonLogFormat:
 		log.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: time.RFC3339,
-			FullTimestamp:   true,
 		})
 	case SyslogLogFormat:
 		log.SetFormatter(&logrus.TextFormatter{
