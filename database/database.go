@@ -34,9 +34,12 @@ func New(opts Options) (Handler, error) {
 	case POSTGRES:
 		return Handler{}, ErrNoneDatabase
 	case SQLITE:
-		db, err := gormpkg.Open(sqlite.Open(opts.Filename), &gormpkg.Config{
-			Logger: opts.Logger.DatabaseLogger(),
-		})
+		config := &gormpkg.Config{}
+		if opts.Logger != nil {
+			config.Logger = opts.Logger.DatabaseLogger()
+		}
+
+		db, err := gormpkg.Open(sqlite.Open(opts.Filename), config)
 		if err != nil {
 			return Handler{}, ErrDatabaseOpen(err)
 		}
