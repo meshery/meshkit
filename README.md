@@ -1,5 +1,5 @@
 # meshkit for Layer5 projects
-A toolkit for Layer5's microservices
+A toolkit for Layer5's microservices. Learn more: [Introducing MeshKit and the Meshery Adapter Library](https://layer5.io/blog/meshery/introducing-meshkit-and-the-meshery-adapter-library)
 
 <div>&nbsp;</div>
 
