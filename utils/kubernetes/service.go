@@ -62,7 +62,11 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 			}
 		} else if obj.Status.LoadBalancer.Ingress[0].IP == obj.Spec.ClusterIP {
 			endpoint.External.Port = nodePort
-			address := strings.SplitAfter(strings.SplitAfter(opts.APIServerURL, "://")[1], ":")[0]
+			url := strings.SplitAfter(opts.APIServerURL, "://")
+			address := ""
+			if len(url) > 0 {
+				address = strings.SplitAfter(url[1], ":")[0]
+			}
 			endpoint.External.Address = address[:len(address)-1]
 		} else {
 			endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].IP
