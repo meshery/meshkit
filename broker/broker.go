@@ -1,13 +1,14 @@
 package broker
 
 var (
-	List   ObjectType = "list"
-	Single ObjectType = "single"
+	MeshSync    ObjectType = "meshsync"
+	SMI         ObjectType = "smi"
+	ErrorObject ObjectType = "error"
 
-	Add    EventType = "ADDED"
-	Update EventType = "MODIFIED"
-	Delete EventType = "DELETED"
-	Error  EventType = "ERROR"
+	Add        EventType = "ADDED"
+	Update     EventType = "MODIFIED"
+	Delete     EventType = "DELETED"
+	ErrorEvent EventType = "ERROR"
 )
 
 type ObjectType string
