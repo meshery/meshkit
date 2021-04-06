@@ -73,5 +73,20 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 		}
 	}
 
+	if !utils.TcpCheck(endpoint.External) {
+		if len(strings.SplitAfter(opts.APIServerURL, "://")) > 1 {
+			endpoint.External.Address = strings.SplitAfter(strings.SplitAfter(opts.APIServerURL, "://")[1], ":")[0]
+			if len(endpoint.External.Address) > 0 {
+				endpoint.External.Address = endpoint.External.Address[:len(endpoint.External.Address)-1]
+			}
+		}
+		if !utils.TcpCheck(endpoint.External) {
+			endpoint.External.Port = nodePort
+			if !utils.TcpCheck(endpoint.External) {
+				return nil, ErrEndpointNotFound
+			}
+		}
+	}
+
 	return &endpoint, nil
 }

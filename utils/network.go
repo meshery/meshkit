@@ -18,9 +18,9 @@ type HostPort struct {
 	Port    int32
 }
 
-func TcpCheck(ip string, port int32) bool {
+func TcpCheck(hp *HostPort) bool {
 	timeout := 5 * time.Second
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), timeout)
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", hp.Address, hp.Port), timeout)
 	if err != nil {
 		return false
 	}
