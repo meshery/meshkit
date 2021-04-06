@@ -33,12 +33,14 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 	var nodePort, clusterPort int32
 	endpoint := utils.Endpoint{}
 
-	if opts.PortSelector != "" {
-		for _, port := range obj.Spec.Ports {
-			if port.Name == opts.PortSelector {
-				nodePort = port.NodePort
-				clusterPort = port.Port
-			}
+	for _, port := range obj.Spec.Ports {
+		if opts.PortSelector != "" && port.Name == opts.PortSelector {
+			nodePort = port.NodePort
+			clusterPort = port.Port
+			break
+		} else {
+			nodePort = port.NodePort
+			clusterPort = port.Port
 		}
 	}
 
