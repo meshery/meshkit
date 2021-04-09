@@ -474,6 +474,46 @@ func TestGetEndpoint(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "service type ClusterIP",
+			args: args{
+				ctx: context.TODO(),
+				opts: &ServiceOptions{
+					PortSelector: "test_port_2",
+					Mock: &utils.MockOptions{
+						DesiredEndpoint: "1.1.1.1:1001",
+					},
+				},
+				obj: &v1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test_service",
+						Namespace:   "default",
+						Annotations: map[string]string{},
+					},
+					Spec: corev1.ServiceSpec{
+						ClusterIP: "1.1.1.1",
+						Ports: []corev1.ServicePort{
+							corev1.ServicePort{
+								Name: "test_port_1",
+								Port: 1000,
+							},
+							corev1.ServicePort{
+								Name: "test_port_2",
+								Port: 1001,
+							},
+						},
+						Type: corev1.ServiceTypeClusterIP,
+					},
+				},
+			},
+			want: &utils.Endpoint{
+				Internal: &utils.HostPort{
+					Address: "1.1.1.1",
+					Port:    1001,
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -485,6 +525,8 @@ func TestGetEndpoint(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetEndpoint() = %v, want %v", got, tt.want)
+				t.Error(got.External)
+				t.Error(got.Internal)
 			}
 		})
 	}

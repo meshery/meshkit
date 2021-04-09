@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/url"
 
@@ -83,10 +82,15 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 		}
 	}
 
+	// Service Type ClusterIP
+	if endpoint.External.Port == 0 {
+		return &utils.Endpoint{
+			Internal: endpoint.Internal,
+		}, nil
+	}
+
 	// If external endpoint not reachable
 	if !utils.TcpCheck(endpoint.External, opts.Mock) {
-		fmt.Println(endpoint.External)
-		fmt.Println(opts.Mock.DesiredEndpoint)
 		url, err := url.Parse(opts.APIServerURL)
 		if err != nil {
 			return nil, ErrInvalidAPIServer
@@ -99,12 +103,8 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 		endpoint.External.Address = host
 		// If still unable to reach, change to resolve to clusterPort
 		if !utils.TcpCheck(endpoint.External, opts.Mock) {
-			fmt.Println(endpoint.External)
-			fmt.Println(opts.Mock.DesiredEndpoint)
 			endpoint.External.Port = nodePort
 			if !utils.TcpCheck(endpoint.External, opts.Mock) {
-				fmt.Println(endpoint.External)
-				fmt.Println(opts.Mock.DesiredEndpoint)
 				return nil, ErrEndpointNotFound
 			}
 		}
