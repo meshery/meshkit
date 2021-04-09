@@ -18,12 +18,22 @@ type HostPort struct {
 	Port    int32
 }
 
-func TcpCheck(ip string, port int32) bool {
+type MockOptions struct {
+	DesiredEndpoint string
+}
+
+func TcpCheck(hp *HostPort, mock *MockOptions) bool {
 	timeout := 5 * time.Second
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), timeout)
-	if err != nil {
+
+	// For mocking output
+	if mock != nil {
+		if mock.DesiredEndpoint == fmt.Sprintf("%s:%d", hp.Address, hp.Port) {
+			return true
+		}
 		return false
 	}
+
+	conn, _ := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", hp.Address, hp.Port), timeout)
 	if conn != nil {
 		return true
 	}

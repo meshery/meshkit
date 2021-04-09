@@ -2,7 +2,8 @@ package kubernetes
 
 import (
 	"context"
-	"strings"
+	"net"
+	"net/url"
 
 	"github.com/layer5io/meshkit/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -16,10 +17,13 @@ type ServiceOptions struct {
 	Namespace    string // Namespace of the kubernetes service
 	PortSelector string // To specify the name of the kubernetes service port
 	APIServerURL string // Kubernetes api-server URL (Used in-case of minikube)
+	WorkerNodeIP string // Kubernetes worker node IP address (Any), in case of a kubeadm based cluster orchestration
+
+	Mock *utils.MockOptions
 }
 
 // GetServiceEndpoint returns the endpoint for the given service
-func GetServiceEndpoint(ctx context.Context, client *kubernetes.Clientset, opts *ServiceOptions) (*utils.Endpoint, error) {
+func GetServiceEndpoint(ctx context.Context, client kubernetes.Interface, opts *ServiceOptions) (*utils.Endpoint, error) {
 	obj, err := client.CoreV1().Services(opts.Namespace).Get(ctx, opts.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, ErrServiceDiscovery(err)
@@ -33,12 +37,15 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 	var nodePort, clusterPort int32
 	endpoint := utils.Endpoint{}
 
-	if opts.PortSelector != "" {
-		for _, port := range obj.Spec.Ports {
-			if port.Name == opts.PortSelector {
-				nodePort = port.NodePort
-				clusterPort = port.Port
-			}
+	if opts.WorkerNodeIP == "" {
+		opts.WorkerNodeIP = "localhost"
+	}
+
+	for _, port := range obj.Spec.Ports {
+		nodePort = port.NodePort
+		clusterPort = port.Port
+		if opts.PortSelector != "" && port.Name == opts.PortSelector {
+			break
 		}
 	}
 
@@ -48,28 +55,58 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 		Port:    clusterPort,
 	}
 
+	// Initialize nodePort type endpoint
 	endpoint.External = &utils.HostPort{
-		Address: "localhost",
-		Port:    clusterPort,
+		Address: opts.WorkerNodeIP,
+		Port:    nodePort,
 	}
 
 	if obj.Status.Size() > 0 && obj.Status.LoadBalancer.Size() > 0 && len(obj.Status.LoadBalancer.Ingress) > 0 && obj.Status.LoadBalancer.Ingress[0].Size() > 0 {
 		if obj.Status.LoadBalancer.Ingress[0].IP == "" {
-			if obj.Status.LoadBalancer.Ingress[0].Hostname == "localhost" {
-				endpoint.External.Address = "host.docker.internal"
-			} else {
-				endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].Hostname
-			}
+			endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].Hostname
+			endpoint.External.Port = clusterPort
 		} else if obj.Status.LoadBalancer.Ingress[0].IP == obj.Spec.ClusterIP {
-			endpoint.External.Port = nodePort
-			url := strings.SplitAfter(opts.APIServerURL, "://")
-			address := ""
-			if len(url) > 0 {
-				address = strings.SplitAfter(url[1], ":")[0]
+			url, err := url.Parse(opts.APIServerURL)
+			if err != nil {
+				return nil, ErrInvalidAPIServer
 			}
-			endpoint.External.Address = address[:len(address)-1]
+			host, _, err := net.SplitHostPort(url.Host)
+			if err != nil {
+				return nil, ErrInvalidAPIServer
+			}
+			endpoint.External.Address = host
+			endpoint.External.Port = nodePort
 		} else {
 			endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].IP
+			endpoint.External.Port = clusterPort
+		}
+	}
+
+	// Service Type ClusterIP
+	if endpoint.External.Port == 0 {
+		return &utils.Endpoint{
+			Internal: endpoint.Internal,
+		}, nil
+	}
+
+	// If external endpoint not reachable
+	if !utils.TcpCheck(endpoint.External, opts.Mock) {
+		url, err := url.Parse(opts.APIServerURL)
+		if err != nil {
+			return nil, ErrInvalidAPIServer
+		}
+		host, _, err := net.SplitHostPort(url.Host)
+		if err != nil {
+			return nil, ErrInvalidAPIServer
+		}
+		// Set to APIServer host (For minikube specific clusters)
+		endpoint.External.Address = host
+		// If still unable to reach, change to resolve to clusterPort
+		if !utils.TcpCheck(endpoint.External, opts.Mock) {
+			endpoint.External.Port = nodePort
+			if !utils.TcpCheck(endpoint.External, opts.Mock) {
+				return nil, ErrEndpointNotFound
+			}
 		}
 	}
 
