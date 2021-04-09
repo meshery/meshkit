@@ -11,8 +11,10 @@ var (
 	ErrNewDiscoveryCode     = "test_code"
 	ErrNewInformerCode      = "test_code"
 	ErrEndpointNotFoundCode = "test_code"
+	ErrInvalidAPIServerCode = "test_code"
 
 	ErrEndpointNotFound = errors.NewDefault(ErrEndpointNotFoundCode, "Unable to discover an endpoint")
+	ErrInvalidAPIServer = errors.NewDefault(ErrInvalidAPIServerCode, "Invalid API Server URL")
 )
 
 func ErrApplyManifest(err error) error {

@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"context"
-	"strings"
+	"net/url"
 
 	"github.com/layer5io/meshkit/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -64,24 +64,22 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 			}
 		} else if obj.Status.LoadBalancer.Ingress[0].IP == obj.Spec.ClusterIP {
 			endpoint.External.Port = nodePort
-			url := strings.SplitAfter(opts.APIServerURL, "://")
-			address := ""
-			if len(url) > 0 {
-				address = strings.SplitAfter(url[1], ":")[0]
+			url, err := url.Parse(opts.APIServerURL)
+			if err != nil {
+				return nil, ErrInvalidAPIServer
 			}
-			endpoint.External.Address = address[:len(address)-1]
+			endpoint.External.Address = url.Host
 		} else {
 			endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].IP
 		}
 	}
 
 	if !utils.TcpCheck(endpoint.External) {
-		if len(strings.SplitAfter(opts.APIServerURL, "://")) > 1 {
-			endpoint.External.Address = strings.SplitAfter(strings.SplitAfter(opts.APIServerURL, "://")[1], ":")[0]
-			if len(endpoint.External.Address) > 0 {
-				endpoint.External.Address = endpoint.External.Address[:len(endpoint.External.Address)-1]
-			}
+		url, err := url.Parse(opts.APIServerURL)
+		if err != nil {
+			return nil, ErrInvalidAPIServer
 		}
+		endpoint.External.Address = url.Host
 		if !utils.TcpCheck(endpoint.External) {
 			endpoint.External.Port = nodePort
 			if !utils.TcpCheck(endpoint.External) {
