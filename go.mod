@@ -26,6 +26,7 @@ require (
 	github.com/onsi/gomega v1.10.2 // indirect
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
+	github.com/spf13/cobra v1.1.3 // indirect
 	github.com/spf13/viper v1.7.1
 	go.opencensus.io v0.22.4 // indirect
 	golang.org/x/net v0.0.0-20200822124328-c89045814202 // indirect
