@@ -3,16 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 type ErrorInfo struct {
@@ -24,9 +26,16 @@ type ErrorInfo struct {
 }
 
 type Errors struct {
-	Entries       []ErrorInfo
-	LiteralCodes  map[string][]ErrorInfo
-	CallExprCodes []ErrorInfo
+	Entries       []ErrorInfo            `yaml:"entries" json:"entries"`
+	LiteralCodes  map[string][]ErrorInfo `yaml:"literalCodes" json:"literalCodes"`
+	CallExprCodes []ErrorInfo            `yaml:"callExprCodes" json:"callExprCodes"`
+}
+
+type Summary struct {
+	MinCode    int                 `yaml:"minCode" json:"minCode"`
+	MaxCode    int                 `yaml:"maxCode" json:"maxCode"`
+	Duplicates map[string][]string `yaml:"duplicates" json:"duplicates"`
+	IntCodes   []int               `yaml:"intCodes" json:"intCodes"`
 }
 
 func NewErrors() *Errors {
@@ -35,11 +44,43 @@ func NewErrors() *Errors {
 
 var errors = NewErrors()
 
-func init_logging(verbose bool) {
-	//log.SetFormatter(&log.JSONFormatter{})
+const (
+	app     = "errorutil"
+	logFile = app + ".log"
+)
 
-	log.SetOutput(os.Stdout)
+func summarizeResults(errors *Errors) *Summary {
+	maxInt := int(^uint(0) >> 1)
+	summary := &Summary{MinCode: maxInt, MaxCode: -maxInt - 1, Duplicates: make(map[string][]string)}
+	for k, v := range errors.LiteralCodes {
+		if len(v) > 1 {
+			_, ok := summary.Duplicates[k]
+			if !ok {
+				summary.Duplicates[k] = []string{}
+			}
+		}
+		for _, e := range v {
+			if e.CodeIsInt {
+				i, _ := strconv.Atoi(e.Code)
+				if i < summary.MinCode {
+					summary.MinCode = i
+				}
+				if i > summary.MaxCode {
+					summary.MaxCode = i
+				}
+				summary.IntCodes = append(summary.IntCodes, i)
+			}
+			if _, ok := summary.Duplicates[k]; ok {
+				summary.Duplicates[k] = append(summary.Duplicates[k], e.Name)
+			}
+		}
+	}
+	return summary
+}
 
+func configLoging(verbose bool) {
+	log.SetFormatter(&log.TextFormatter{})
+	//logrus.SetFormatter(&logrus.JSONFormatter{})
 	if verbose {
 		log.SetLevel(log.DebugLevel)
 	} else {
@@ -62,7 +103,7 @@ func isErrorsGoFile(path string) bool {
 }
 
 func isErrorCodeName(name string) bool {
-	matched, _ := regexp.MatchString("Err[A-Z]", name)
+	matched, _ := regexp.MatchString("^Err[A-Z]", name)
 	return matched
 }
 
@@ -71,7 +112,7 @@ func isInt(s string) bool {
 	return err == nil
 }
 
-func analyse(path string) error {
+func analyze(path string) error {
 	logger := log.WithFields(log.Fields{"path": path})
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, nil, 0)
@@ -81,7 +122,7 @@ func analyse(path string) error {
 	for _, d := range f.Decls {
 		switch decl := d.(type) {
 		case *ast.FuncDecl:
-			logger.WithFields(log.Fields{"decl": "func", "name": fmt.Sprintf("%s", decl.Name)}).Debug("ast declaration")
+			logger.WithFields(log.Fields{"decl": "func", "name": decl.Name.String()}).Debug("ast declaration")
 		case *ast.GenDecl:
 			for _, spec := range decl.Specs {
 				switch spec := spec.(type) {
@@ -159,7 +200,7 @@ func walk() {
 			if filepath.Ext(path) == ".go" {
 				isErrorsGoFile := isErrorsGoFile(path)
 				logger.WithFields(log.Fields{"iserrorsfile": fmt.Sprintf("%v", isErrorsGoFile)}).Debug("handling Go file")
-				err := analyse(path)
+				err := analyze(path)
 				if err != nil {
 					logger.Errorf("error on analyze: %v", err)
 				}
@@ -176,6 +217,14 @@ func walk() {
 }
 
 func main() {
+	logFile, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+	log.SetLevel(log.InfoLevel)
+	log.SetFormatter(&log.TextFormatter{})
 
 	var cmdAnalyze = &cobra.Command{
 		Use:   "analyze",
@@ -184,24 +233,30 @@ func main() {
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			init_logging(verbose)
+			configLoging(verbose)
 			walk()
-			for i, v := range errors.Entries {
-				jsn, _ := json.Marshal(v)
-				fmt.Printf("%d: %s\n", i, jsn)
+			jsn, _ := json.MarshalIndent(errors, "", "  ")
+			fname := app + "_analyze_errors.json"
+			err := ioutil.WriteFile(fname, jsn, 0600)
+			if err != nil {
+				log.Errorf("Unable to write to file %s (%v)", fname, err)
 			}
-			for i, v := range errors.CallExprCodes {
-				jsn, _ := json.Marshal(v)
-				fmt.Printf("%d: %s\n", i, jsn)
-			}
-			jsn, _ := json.Marshal(errors)
-			fmt.Println(string(jsn))
 		},
 	}
 
 	var verbose bool
-	var rootCmd = &cobra.Command{Use: "errorutil"}
+	var rootCmd = &cobra.Command{Use: app}
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output (debug)")
 	rootCmd.AddCommand(cmdAnalyze)
-	rootCmd.Execute()
+	err = rootCmd.Execute()
+	if err != nil {
+		log.Errorf("Unable to execute root command (%v)", err)
+	}
+	s := summarizeResults(errors)
+	jsn, _ := json.MarshalIndent(s, "", "  ")
+	fname := app + "_analyze_summary.json"
+	err = ioutil.WriteFile(fname, jsn, 0600)
+	if err != nil {
+		log.Errorf("Unable to write to file %s (%v)", fname, err)
+	}
 }
