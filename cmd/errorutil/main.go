@@ -17,6 +17,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// ComponentInfo specifies type, name, and minimum error code of the current component.
+// Refer to the corresponding design document for valid types and names, extend if necessary.
+type (
+	ComponentInfo struct {
+		Type         string `yaml:"type" json:"type"`                     // the type of the component, e.g. "adapter"
+		Name         string `yaml:"name" json:"name"`                     // the name of the component, e.g. "kuma"
+		MinErrorCode int    `yaml:"min_error_code" json:"min_error_code"` // the next error code to use. this value will be updated automatically.
+	}
+)
+
 // ErrorExport is used to export Error for e.g. documentation purposes.
 //
 // Type Error (errors/types.go) is not reused in order to avoid tight coupling between code and documentation of errors, e.g. on Meshery website.
@@ -26,7 +36,6 @@ import (
 // Another one is that it is often desirable to be able to change the internal representation without the need for the consumer
 // (in this case, the meshery doc) to have to adjust quickly in order to be able to handle updated content.
 // The lifecycles of producers and consumers should not be tightly coupled.
-
 type (
 	ErrorExport struct {
 		Name                 string `yaml:"name" json:"name"`                                   // the name of the error code variable, e.g. "ErrInstallMesh", not guaranteed to be unique as it is package scoped
@@ -78,8 +87,20 @@ const (
 	logFile = app + ".log"
 )
 
+func readComponentInfoFile() (ComponentInfo, error) {
+	info := ComponentInfo{}
+	file, err := ioutil.ReadFile("component_info.json")
+	if err != nil {
+		return info, err
+	}
+
+	err = json.Unmarshal([]byte(file), &info)
+	return info, err
+}
+
 func summarizeResults(errors *Errors) *Summary {
 	maxInt := int(^uint(0) >> 1)
+	// TODO: need also error variables with call expressions
 	summary := &Summary{MinCode: maxInt, MaxCode: -maxInt - 1, Duplicates: make(map[string][]string)}
 	for k, v := range errors.LiteralCodes {
 		if len(v) > 1 {
@@ -255,6 +276,12 @@ func main() {
 	log.SetLevel(log.InfoLevel)
 	log.SetFormatter(&log.TextFormatter{})
 
+	info, err := readComponentInfoFile()
+	if err != nil {
+		log.Fatalf("Unable to read component info file (%v)", err)
+		return
+	}
+
 	var cmdAnalyze = &cobra.Command{
 		Use:   "analyze",
 		Short: "Analyze a directory tree",
@@ -284,6 +311,33 @@ func main() {
 	s := summarizeResults(errors)
 	jsn, _ := json.MarshalIndent(s, "", "  ")
 	fname := app + "_analyze_summary.json"
+	err = ioutil.WriteFile(fname, jsn, 0600)
+	if err != nil {
+		log.Errorf("Unable to write to file %s (%v)", fname, err)
+	}
+
+	export := ErrorsExport{
+		ComponentType: info.Type,
+		ComponentName: info.Name,
+		Errors:        make(map[string]ErrorExport),
+	}
+	for k, v := range errors.LiteralCodes {
+		if len(v) > 1 {
+			log.Warnf("duplicate code %s", k)
+		}
+		e := v[0]
+		export.Errors[k] = ErrorExport{
+			Name:                 e.Name,
+			Code:                 e.Code,
+			Severity:             "none",
+			ShortDescription:     "might contain newlines (JSON encoded)",
+			LongDescription:      "might contain newlines (JSON encoded)",
+			ProbableCause:        "might contain newlines (JSON encoded)",
+			SuggestedRemediation: "might contain newlines (JSON encoded)",
+		}
+	}
+	jsn, _ = json.MarshalIndent(export, "", "  ")
+	fname = app + "_errors_export.json"
 	err = ioutil.WriteFile(fname, jsn, 0600)
 	if err != nil {
 		log.Errorf("Unable to write to file %s (%v)", fname, err)

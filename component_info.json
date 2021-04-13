@@ -1,0 +1,5 @@
+{
+  "type": "library",
+  "name": "meshkit",
+  "min_error_code": 1000
+}
