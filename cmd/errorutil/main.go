@@ -326,14 +326,18 @@ func main() {
 			log.Warnf("duplicate code %s", k)
 		}
 		e := v[0]
-		export.Errors[k] = ErrorExport{
-			Name:                 e.Name,
-			Code:                 e.Code,
-			Severity:             "none",
-			ShortDescription:     "might contain newlines (JSON encoded)",
-			LongDescription:      "might contain newlines (JSON encoded)",
-			ProbableCause:        "might contain newlines (JSON encoded)",
-			SuggestedRemediation: "might contain newlines (JSON encoded)",
+		if _, ok := strconv.Atoi(e.Code); ok == nil {
+			export.Errors[k] = ErrorExport{
+				Name:                 e.Name,
+				Code:                 e.Code,
+				Severity:             "none",                                  // TODO replace sample value
+				ShortDescription:     "might contain newlines (JSON encoded)", // TODO replace sample value
+				LongDescription:      "might contain newlines (JSON encoded)", // TODO replace sample value
+				ProbableCause:        "might contain newlines (JSON encoded)", // TODO replace sample value
+				SuggestedRemediation: "might contain newlines (JSON encoded)", // TODO replace sample value
+			}
+		} else {
+			log.Warnf("non-integer code %s", k)
 		}
 	}
 	jsn, _ = json.MarshalIndent(export, "", "  ")
