@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -57,6 +59,7 @@ type ErrorsExport struct {
 
 type ErrorInfo struct {
 	Name          string `yaml:"name" json:"name"`
+	OldCode       string `yaml:"old_code" json:"old_code"`
 	Code          string `yaml:"code" json:"code"`
 	CodeIsLiteral bool   `yaml:"codeIsLiteral" json:"codeIsLiteral"`
 	CodeIsInt     bool   `yaml:"codeIsInt" json:"codeIsInt"`
@@ -162,73 +165,87 @@ func isInt(s string) bool {
 	return err == nil
 }
 
-func analyze(path string) error {
+func getNextValue() string {
+	return "\"newValue\""
+}
+
+func handleFile(path string, update bool, updateAll bool) error {
 	logger := log.WithFields(log.Fields{"path": path})
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, path, nil, 0)
+	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
 		return err
 	}
-	for _, d := range f.Decls {
-		switch decl := d.(type) {
-		case *ast.FuncDecl:
-			logger.WithFields(log.Fields{"decl": "func", "name": decl.Name.String()}).Debug("ast declaration")
-		case *ast.GenDecl:
-			for _, spec := range decl.Specs {
-				switch spec := spec.(type) {
-				case *ast.ImportSpec:
-					logger.WithFields(log.Fields{"decl": "importspec", "name": strings.Trim(spec.Path.Value, "\"")}).Debug("ast declaration")
-				case *ast.TypeSpec:
-					logger.WithFields(log.Fields{"decl": "typespec", "name": spec.Name.String()}).Debug("ast declaration")
-				case *ast.ValueSpec:
-					for _, id := range spec.Names {
-						if isErrorCodeName(id.Name) {
-							value0 := id.Obj.Decl.(*ast.ValueSpec).Values[0]
-							isLiteral := false
-							codeValue := ""
-							switch value := value0.(type) {
-							case *ast.BasicLit:
-								isLiteral = true
-								codeValue = strings.Trim(value.Value, "\"")
-								logger.WithFields(log.Fields{"name": id.Name, "value": codeValue}).Info("Err* variable detected with literal value.")
-							case *ast.CallExpr:
-								logger.WithFields(log.Fields{"name": id.Name}).Warn("Err* variable detected with call expression value.")
-							}
-							ec := &ErrorInfo{
-								Name:          id.Name,
-								Code:          codeValue,
-								CodeIsLiteral: isLiteral,
-								CodeIsInt:     isInt(codeValue),
-								Path:          path,
-							}
-							errors.Entries = append(errors.Entries, *ec)
-							if isLiteral {
-								key := codeValue
-								if codeValue == "" {
-									key = "no_code"
-								}
-								_, ok := errors.LiteralCodes[key]
-								if !ok {
-									errors.LiteralCodes[key] = []ErrorInfo{}
-								}
-								errors.LiteralCodes[key] = append(errors.LiteralCodes[key], *ec)
-							} else {
-								errors.CallExprCodes = append(errors.CallExprCodes, *ec)
-							}
+	logger.WithFields(log.Fields{"update": update}).Info("inspecting file")
+	ast.Inspect(file, func(n ast.Node) bool {
+		spec, ok := n.(*ast.ValueSpec)
+		if ok {
+			for _, id := range spec.Names {
+				if isErrorCodeName(id.Name) {
+					value0 := id.Obj.Decl.(*ast.ValueSpec).Values[0]
+					isLiteral := false
+					isInteger := false
+					oldValue := ""
+					newValue := ""
+					switch value := value0.(type) {
+					case *ast.BasicLit:
+						isLiteral = true
+						oldValue = strings.Trim(value.Value, "\"")
+						isInteger = isInt(oldValue)
+						if (update && !isInteger) || (update && updateAll) {
+							value.Value = getNextValue()
+							newValue = strings.Trim(value.Value, "\"")
+							logger.WithFields(log.Fields{"name": id.Name, "value": newValue, "oldValue": oldValue}).Info("Err* variable with literal value replaced.")
+						} else {
+							newValue = oldValue
+							logger.WithFields(log.Fields{"name": id.Name, "value": oldValue}).Info("Err* variable detected with literal value.")
 						}
+					case *ast.CallExpr:
+						logger.WithFields(log.Fields{"name": id.Name}).Warn("Err* variable detected with call expression value.")
 					}
-				default:
-					logger.Debug(fmt.Sprintf("unhandled token type: %s", decl.Tok))
+					ec := &ErrorInfo{
+						Name:          id.Name,
+						OldCode:       oldValue,
+						Code:          newValue,
+						CodeIsLiteral: isLiteral,
+						CodeIsInt:     isInteger,
+						Path:          path,
+					}
+					errors.Entries = append(errors.Entries, *ec)
+					if isLiteral {
+						key := oldValue
+						if oldValue == "" {
+							key = "no_code"
+						}
+						_, ok := errors.LiteralCodes[key]
+						if !ok {
+							errors.LiteralCodes[key] = []ErrorInfo{}
+						}
+						errors.LiteralCodes[key] = append(errors.LiteralCodes[key], *ec)
+					} else {
+						errors.CallExprCodes = append(errors.CallExprCodes, *ec)
+					}
 				}
 			}
-		default:
-			logger.Debug(fmt.Sprintf("unhandled declaration: %v at %v", decl, decl.Pos()))
+		}
+		return true
+	})
+	if update {
+		logger.Info("writing updated file")
+		buf := new(bytes.Buffer)
+		err = format.Node(buf, fset, file)
+		if err != nil {
+			return err
+		}
+		err = ioutil.WriteFile(path, buf.Bytes(), 0644)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func walk() {
+func walk(update bool, updateAll bool) {
 	rootDir := "."
 	subDirsToSkip := []string{".git", ".github"}
 	log.Info(fmt.Sprintf("root directory: %s", rootDir))
@@ -250,7 +267,7 @@ func walk() {
 			if filepath.Ext(path) == ".go" {
 				isErrorsGoFile := isErrorsGoFile(path)
 				logger.WithFields(log.Fields{"iserrorsfile": fmt.Sprintf("%v", isErrorsGoFile)}).Debug("handling Go file")
-				err := analyze(path)
+				handleFile(path, update, updateAll)
 				if err != nil {
 					logger.Errorf("error on analyze: %v", err)
 				}
@@ -290,7 +307,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			configLoging(verbose)
-			walk()
+			walk(true, false)
 			jsn, _ := json.MarshalIndent(errors, "", "  ")
 			fname := app + "_analyze_errors.json"
 			err := ioutil.WriteFile(fname, jsn, 0600)
