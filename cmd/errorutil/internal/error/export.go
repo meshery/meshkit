@@ -38,10 +38,10 @@ type ErrorsExport struct {
 	Errors        map[string]ErrorExport `yaml:"errors" json:"errors"`                 // map of all errors with key = code
 }
 
-func Export(componentInfo component.ComponentInfo, errorsInfo *ErrorsInfo) {
+func Export(componenInfo *component.Info, errorsInfo *ErrorsInfo) {
 	export := ErrorsExport{
-		ComponentType: componentInfo.Type,
-		ComponentName: componentInfo.Name,
+		ComponentType: componenInfo.Type,
+		ComponentName: componenInfo.Name,
 		Errors:        make(map[string]ErrorExport),
 	}
 	for k, v := range errorsInfo.LiteralCodes {
@@ -65,7 +65,7 @@ func Export(componentInfo component.ComponentInfo, errorsInfo *ErrorsInfo) {
 	}
 	jsn, _ := json.MarshalIndent(export, "", "  ")
 	fname := config.App + "_errors_export.json"
-	err := ioutil.WriteFile(fname, jsn, 0600)
+	err := ioutil.WriteFile(fname, jsn, 0600) // TODO rootDir
 	if err != nil {
 		log.Errorf("Unable to write to file %s (%v)", fname, err)
 	}

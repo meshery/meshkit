@@ -45,7 +45,7 @@ func Summarize(errors *ErrorsInfo) {
 	}
 	jsn, _ := json.MarshalIndent(summary, "", "  ")
 	fname := config.App + "_analyze_summary.json"
-	err := ioutil.WriteFile(fname, jsn, 0600)
+	err := ioutil.WriteFile(fname, jsn, 0600) // TODO rootDir
 	if err != nil {
 		log.Errorf("Unable to write to file %s (%v)", fname, err)
 	}

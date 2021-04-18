@@ -2,6 +2,7 @@ package coder
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -16,7 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.ErrorsInfo) error {
+func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.ErrorsInfo, comp *component.Info) error {
 	logger := logrus.WithFields(logrus.Fields{"path": path})
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
@@ -28,7 +29,7 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.Er
 		spec, ok := n.(*ast.ValueSpec)
 		if ok {
 			for _, id := range spec.Names {
-				if IsErrorCodeName(id.Name) {
+				if IsErrorCodeVarName(id.Name) {
 					value0 := id.Obj.Decl.(*ast.ValueSpec).Values[0]
 					isLiteral := false
 					isInteger := false
@@ -40,7 +41,7 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.Er
 						oldValue = strings.Trim(value.Value, "\"")
 						isInteger = IsInt(oldValue)
 						if (update && !isInteger) || (update && updateAll) {
-							value.Value = component.GetNextErrorCode()
+							value.Value = fmt.Sprintf("\"%s\"", comp.GetNextErrorCode())
 							newValue = strings.Trim(value.Value, "\"")
 							logger.WithFields(logrus.Fields{"name": id.Name, "value": newValue, "oldValue": oldValue}).Info("Err* variable with literal value replaced.")
 						} else {
@@ -92,7 +93,7 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.Er
 	return nil
 }
 
-func IsErrorCodeName(name string) bool {
+func IsErrorCodeVarName(name string) bool {
 	matched, _ := regexp.MatchString("^Err[A-Z]", name)
 	return matched
 }
