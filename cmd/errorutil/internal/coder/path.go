@@ -20,7 +20,15 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func walk(rootDir string, update bool, updateAll bool, errorsInfo *mesherr.ErrorsInfo) error {
+func walkAnalyze(rootDir string, errorsInfo *mesherr.InfoAll) error {
+	return walk(rootDir, false, false, errorsInfo)
+}
+
+func walkUpdate(rootDir string, updateAll bool, errorsInfo *mesherr.InfoAll) error {
+	return walk(rootDir, true, updateAll, errorsInfo)
+}
+
+func walk(rootDir string, update bool, updateAll bool, errorsInfo *mesherr.InfoAll) error {
 	subDirsToSkip := []string{".git", ".github"}
 	logrus.Info(fmt.Sprintf("root directory: %s", rootDir))
 	logrus.Info(fmt.Sprintf("subdirs to skip: %v", subDirsToSkip))
@@ -43,11 +51,11 @@ func walk(rootDir string, update bool, updateAll bool, errorsInfo *mesherr.Error
 			logger.Debug("handling dir")
 		} else {
 			if filepath.Ext(path) == ".go" {
-				isErrorsGoFile := IsErrorGoFile(path)
+				isErrorsGoFile := isErrorGoFile(path)
 				logger.WithFields(logrus.Fields{"iserrorsfile": fmt.Sprintf("%v", isErrorsGoFile)}).Debug("handling Go file")
 				err := handleFile(path, update, updateAll, errorsInfo, comp)
 				if err != nil {
-					logger.Errorf("error on analyze: %v", err)
+					return err
 				}
 			} else {
 				logger.Debug("skipping file")
@@ -61,7 +69,7 @@ func walk(rootDir string, update bool, updateAll bool, errorsInfo *mesherr.Error
 	return err
 }
 
-func IsErrorGoFile(path string) bool {
+func isErrorGoFile(path string) bool {
 	_, file := filepath.Split(path)
 	return file == "error.go"
 }

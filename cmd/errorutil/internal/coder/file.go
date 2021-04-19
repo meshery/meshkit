@@ -17,7 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.ErrorsInfo, comp *component.Info) error {
+func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.InfoAll, comp *component.Info) error {
 	logger := logrus.WithFields(logrus.Fields{"path": path})
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
@@ -29,7 +29,7 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.Er
 		spec, ok := n.(*ast.ValueSpec)
 		if ok {
 			for _, id := range spec.Names {
-				if IsErrorCodeVarName(id.Name) {
+				if isErrorCodeVarName(id.Name) {
 					value0 := id.Obj.Decl.(*ast.ValueSpec).Values[0]
 					isLiteral := false
 					isInteger := false
@@ -39,7 +39,7 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.Er
 					case *ast.BasicLit:
 						isLiteral = true
 						oldValue = strings.Trim(value.Value, "\"")
-						isInteger = IsInt(oldValue)
+						isInteger = isInt(oldValue)
 						if (update && !isInteger) || (update && updateAll) {
 							value.Value = fmt.Sprintf("\"%s\"", comp.GetNextErrorCode())
 							newValue = strings.Trim(value.Value, "\"")
@@ -51,7 +51,7 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.Er
 					case *ast.CallExpr:
 						logger.WithFields(logrus.Fields{"name": id.Name}).Warn("Err* variable detected with call expression value.")
 					}
-					ec := &mesherr.ErrorInfo{
+					ec := &mesherr.Info{
 						Name:          id.Name,
 						OldCode:       oldValue,
 						Code:          newValue,
@@ -67,7 +67,7 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.Er
 						}
 						_, ok := errorsInfo.LiteralCodes[key]
 						if !ok {
-							errorsInfo.LiteralCodes[key] = []mesherr.ErrorInfo{}
+							errorsInfo.LiteralCodes[key] = []mesherr.Info{}
 						}
 						errorsInfo.LiteralCodes[key] = append(errorsInfo.LiteralCodes[key], *ec)
 					} else {
@@ -93,12 +93,12 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.Er
 	return nil
 }
 
-func IsErrorCodeVarName(name string) bool {
+func isErrorCodeVarName(name string) bool {
 	matched, _ := regexp.MatchString("^Err[A-Z]", name)
 	return matched
 }
 
-func IsInt(s string) bool {
+func isInt(s string) bool {
 	_, err := strconv.Atoi(s)
 	return err == nil
 }

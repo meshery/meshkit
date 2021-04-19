@@ -9,7 +9,6 @@ import (
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
 	mesherr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -19,79 +18,96 @@ const (
 	updateAllCmdFlag = "all"
 )
 
-func CommandAnalyze() *cobra.Command {
+func commandAnalyze() *cobra.Command {
 	return &cobra.Command{
 		Use:   "analyze",
 		Short: "Analyze a directory tree",
-		Long:  `analyze is for analyzing a directory tree for error codes`,
+		Long:  `analyze analyzes a directory tree for error codes`,
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			verbose, _ := cmd.Flags().GetBool(verboseCmdFlag)
-			rootDir, _ := cmd.Flags().GetString(rootDirCmdFlag)
-			update := false
-			updateAll := false
-			config.Logging(verbose)
-			errorsInfo := mesherr.NewErrorsInfo()
-			err := walk(rootDir, update, updateAll, errorsInfo)
+			verbose, err := cmd.Flags().GetBool(verboseCmdFlag)
 			if err != nil {
-				log.Errorf("Unable to walk the walk: %v", err)
 				return err
 			}
-			jsn, _ := json.MarshalIndent(errorsInfo, "", "  ")
+			rootDir, err := cmd.Flags().GetString(rootDirCmdFlag)
+			if err != nil {
+				return err
+			}
+			config.Logging(verbose)
+			errorsInfo := mesherr.NewInfoAll()
+			err = walkAnalyze(rootDir, errorsInfo)
+			if err != nil {
+				return err
+			}
+			jsn, err := json.MarshalIndent(errorsInfo, "", "  ")
+			if err != nil {
+				return err
+			}
 			fname := filepath.Join(rootDir, config.App+"_analyze_errors.json")
 			err = ioutil.WriteFile(fname, jsn, 0600)
 			if err != nil {
-				log.Errorf("Unable to write to file %s (%v)", fname, err)
 				return err
 			}
-			mesherr.Summarize(errorsInfo)
+			err = mesherr.SummarizeAnalysis(errorsInfo, rootDir)
+			if err != nil {
+				return err
+			}
 			componentInfo, err := component.New(rootDir)
 			if err != nil {
-				log.Fatalf("Unable to read component info file (%v)", err)
 				return err
 			}
-			mesherr.Export(componentInfo, errorsInfo)
-			return nil
+			return mesherr.Export(componentInfo, errorsInfo, rootDir)
 		},
 	}
 }
 
-func CommandUpdate() *cobra.Command {
+func commandUpdate() *cobra.Command {
 	var updateAll bool
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update error codes and details",
-		Long:  "update is for replacing error codes if necessary, and updating error details",
+		Long:  "update replaces error codes where specified, and updates error details",
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			verbose, _ := cmd.Flags().GetBool(verboseCmdFlag)
-			rootDir, _ := cmd.Flags().GetString(rootDirCmdFlag)
-			update := true
-			updateAll, _ := cmd.Flags().GetBool(updateAllCmdFlag)
-			config.Logging(verbose)
-			errorsInfo := mesherr.NewErrorsInfo()
-			err := walk(rootDir, update, updateAll, errorsInfo)
+			verbose, err := cmd.Flags().GetBool(verboseCmdFlag)
 			if err != nil {
-				log.Errorf("Unable to walk the walk: %v", err)
+				return err
 			}
-			jsn, _ := json.MarshalIndent(errorsInfo, "", "  ")
+			rootDir, err := cmd.Flags().GetString(rootDirCmdFlag)
+			if err != nil {
+				return err
+			}
+			updateAll, err := cmd.Flags().GetBool(updateAllCmdFlag)
+			if err != nil {
+				return err
+			}
+			config.Logging(verbose)
+			errorsInfo := mesherr.NewInfoAll()
+			err = walkUpdate(rootDir, updateAll, errorsInfo)
+			if err != nil {
+				return err
+			}
+			jsn, err := json.MarshalIndent(errorsInfo, "", "  ")
+			if err != nil {
+				return err
+			}
 			fname := filepath.Join(rootDir, config.App+"_analyze_errors.json")
 			err = ioutil.WriteFile(fname, jsn, 0600)
 			if err != nil {
-				log.Errorf("Unable to write to file %s (%v)", fname, err)
 				return err
 			}
-			mesherr.Summarize(errorsInfo)
+			err = mesherr.SummarizeAnalysis(errorsInfo, rootDir)
+			if err != nil {
+				return err
+			}
 			componentInfo, err := component.New(rootDir)
 			if err != nil {
-				log.Fatalf("Unable to read component info file (%v)", err)
 				return err
 			}
-			mesherr.Export(componentInfo, errorsInfo)
-			return nil
+			return mesherr.Export(componentInfo, errorsInfo, rootDir)
 		},
 	}
-	cmd.PersistentFlags().BoolVarP(&updateAll, updateAllCmdFlag, "a", false, "update all error codes and details (even ones where the error code has correct format")
+	cmd.PersistentFlags().BoolVarP(&updateAll, updateAllCmdFlag, "a", false, "update all error codes and details (including ones where the error code has correct format")
 	return cmd
 }
 
@@ -101,7 +117,7 @@ func RootCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: config.App}
 	cmd.PersistentFlags().BoolVarP(&verbose, verboseCmdFlag, "v", false, "verbose output")
 	cmd.PersistentFlags().StringVarP(&rootDir, rootDirCmdFlag, "d", ".", "root directory")
-	cmd.AddCommand(CommandAnalyze())
-	cmd.AddCommand(CommandUpdate())
+	cmd.AddCommand(commandAnalyze())
+	cmd.AddCommand(commandUpdate())
 	return cmd
 }

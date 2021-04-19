@@ -3,6 +3,7 @@ package error
 import (
 	"encoding/json"
 	"io/ioutil"
+	"path/filepath"
 	"strconv"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
@@ -10,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// ErrorExport is used to export Error for e.g. documentation purposes.
+// external is used to export Error for e.g. documentation purposes.
 //
 // Type Error (errors/types.go) is not reused in order to avoid tight coupling between code and documentation of errors, e.g. on Meshery website.
 // It is good practice not to use internal data types in integrations; one should in general transform between internal and external models.
@@ -19,30 +20,28 @@ import (
 // Another one is that it is often desirable to be able to change the internal representation without the need for the consumer
 // (in this case, the meshery doc) to have to adjust quickly in order to be able to handle updated content.
 // The lifecycles of producers and consumers should not be tightly coupled.
-type (
-	ErrorExport struct {
-		Name                 string `yaml:"name" json:"name"`                                   // the name of the error code variable, e.g. "ErrInstallMesh", not guaranteed to be unique as it is package scoped
-		Code                 string `yaml:"code" json:"code"`                                   // the code, an int, but exported as string, e.g. "1001", guaranteed to be unique per component-type:component-name
-		Severity             string `yaml:"severity" json:"severity"`                           // a textual representation of the type Severity (errors/types.go), i.e. "none", "alert", etc
-		LongDescription      string `yaml:"long_description" json:"long_description"`           // might contain newlines (JSON encoded)
-		ShortDescription     string `yaml:"short_description" json:"short_description"`         // might contain newlines (JSON encoded)
-		ProbableCause        string `yaml:"probable_cause" json:"probable_cause"`               // might contain newlines (JSON encoded)
-		SuggestedRemediation string `yaml:"suggested_remediation" json:"suggested_remediation"` // might contain newlines (JSON encoded)
-	}
-)
-
-// ErrorsExport is used to export all Errors including information about the component for e.g. documentation purposes.
-type ErrorsExport struct {
-	ComponentName string                 `yaml:"component_name" json:"component_name"` // component type, e.g. "adapter"
-	ComponentType string                 `yaml:"component_type" json:"component_type"` // component name, e.g. "kuma"
-	Errors        map[string]ErrorExport `yaml:"errors" json:"errors"`                 // map of all errors with key = code
+type external struct {
+	Name                 string `yaml:"name" json:"name"`                                   // the name of the error code variable, e.g. "ErrInstallMesh", not guaranteed to be unique as it is package scoped
+	Code                 string `yaml:"code" json:"code"`                                   // the code, an int, but exported as string, e.g. "1001", guaranteed to be unique per component-type:component-name
+	Severity             string `yaml:"severity" json:"severity"`                           // a textual representation of the type Severity (errors/types.go), i.e. "none", "alert", etc
+	LongDescription      string `yaml:"long_description" json:"long_description"`           // might contain newlines (JSON encoded)
+	ShortDescription     string `yaml:"short_description" json:"short_description"`         // might contain newlines (JSON encoded)
+	ProbableCause        string `yaml:"probable_cause" json:"probable_cause"`               // might contain newlines (JSON encoded)
+	SuggestedRemediation string `yaml:"suggested_remediation" json:"suggested_remediation"` // might contain newlines (JSON encoded)
 }
 
-func Export(componenInfo *component.Info, errorsInfo *ErrorsInfo) {
-	export := ErrorsExport{
+// externalAll is used to export all Errors including information about the component for e.g. documentation purposes.
+type externalAll struct {
+	ComponentName string              `yaml:"component_name" json:"component_name"` // component type, e.g. "adapter"
+	ComponentType string              `yaml:"component_type" json:"component_type"` // component name, e.g. "kuma"
+	Errors        map[string]external `yaml:"errors" json:"errors"`                 // map of all errors with key = code
+}
+
+func Export(componenInfo *component.Info, errorsInfo *InfoAll, outputDir string) error {
+	export := externalAll{
 		ComponentType: componenInfo.Type,
 		ComponentName: componenInfo.Name,
-		Errors:        make(map[string]ErrorExport),
+		Errors:        make(map[string]external),
 	}
 	for k, v := range errorsInfo.LiteralCodes {
 		if len(v) > 1 {
@@ -50,7 +49,7 @@ func Export(componenInfo *component.Info, errorsInfo *ErrorsInfo) {
 		}
 		e := v[0]
 		if _, ok := strconv.Atoi(e.Code); ok == nil {
-			export.Errors[k] = ErrorExport{
+			export.Errors[k] = external{
 				Name:                 e.Name,
 				Code:                 e.Code,
 				Severity:             "",
@@ -63,10 +62,10 @@ func Export(componenInfo *component.Info, errorsInfo *ErrorsInfo) {
 			log.Warnf("non-integer code %s", k)
 		}
 	}
-	jsn, _ := json.MarshalIndent(export, "", "  ")
-	fname := config.App + "_errors_export.json"
-	err := ioutil.WriteFile(fname, jsn, 0600) // TODO rootDir
+	jsn, err := json.MarshalIndent(export, "", "  ")
 	if err != nil {
-		log.Errorf("Unable to write to file %s (%v)", fname, err)
+		return err
 	}
+	fname := filepath.Join(outputDir, config.App+"_errors_export.json")
+	return ioutil.WriteFile(fname, jsn, 0600)
 }
