@@ -3,8 +3,6 @@ package database
 import (
 	"database/sql/driver"
 	"encoding/json"
-
-	"errors"
 )
 
 // Map type is an alias for map[string]interface{}
@@ -24,11 +22,11 @@ func (m Map) Interface() interface{} {
 func (m *Map) Scan(src interface{}) error {
 	b, ok := src.([]byte)
 	if !ok {
-		return errors.New("scan source is not of type []byte")
+		return ErrSQLMapInvalidScan
 	}
 
 	if err := json.Unmarshal(b, m); err != nil {
-		return err
+		return ErrSQLMapUnmarshalScanned(err)
 	}
 
 	return nil
@@ -39,7 +37,7 @@ func (m *Map) Scan(src interface{}) error {
 func (m Map) Value() (driver.Value, error) {
 	b, err := json.Marshal(m)
 	if err != nil {
-		return nil, err
+		return nil, ErrSQLMapMarshalValue(err)
 	}
 
 	return string(b), nil
@@ -51,7 +49,7 @@ func (m Map) UnmarshalJSON(b []byte) error {
 	var stuff map[string]interface{}
 
 	if err := json.Unmarshal(b, &stuff); err != nil {
-		return err
+		return ErrSQLMapUnmarshalJSON(err)
 	}
 
 	for key, value := range stuff {
@@ -65,7 +63,7 @@ func (m Map) UnmarshalJSON(b []byte) error {
 // the map representation of this value.
 func (m Map) UnmarshalText(text []byte) error {
 	if err := json.Unmarshal(text, &m); err != nil {
-		return err
+		return ErrSQLMapUnmarshalText(err)
 	}
 
 	return nil
