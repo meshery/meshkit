@@ -42,8 +42,8 @@ type Object interface {
 // when the traverser reaches one of the given kubernetes resource
 //
 // The first argument for the VisitCB is the kubernetes resource itself
-// while the other is the error that may have occured in the traverser
-// in case this error is not nil, then this callbac function may return
+// while the other is the error that may have occurred in the traverser
+// in case this error is not nil, then this callback function may return
 // without executing the code
 type VisitCB = func(Object, error) (*v1.Service, error)
 

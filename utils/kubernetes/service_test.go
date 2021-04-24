@@ -7,7 +7,6 @@ import (
 
 	"github.com/layer5io/meshkit/utils"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -20,7 +19,7 @@ func TestGetServiceEndpoint(t *testing.T) {
 		opts   *ServiceOptions
 	}
 
-	svc := &v1.Service{
+	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test_service",
 			Namespace:   "default",
@@ -29,12 +28,12 @@ func TestGetServiceEndpoint(t *testing.T) {
 		Spec: corev1.ServiceSpec{
 			ClusterIP: "1.1.1.1",
 			Ports: []corev1.ServicePort{
-				corev1.ServicePort{
+				{
 					Name:     "test_port_1",
 					Port:     1000,
 					NodePort: 2000,
 				},
-				corev1.ServicePort{
+				{
 					Name:     "test_port_2",
 					Port:     1001,
 					NodePort: 2001,
@@ -45,7 +44,7 @@ func TestGetServiceEndpoint(t *testing.T) {
 		Status: corev1.ServiceStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: []corev1.LoadBalancerIngress{
-					corev1.LoadBalancerIngress{
+					{
 						IP:       "10.10.10.10",
 						Hostname: "test_name.com",
 					},
@@ -165,7 +164,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "10.10.10.10:1000",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -174,12 +173,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							corev1.ServicePort{
+							{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							corev1.ServicePort{
+							{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -190,7 +189,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								corev1.LoadBalancerIngress{
+								{
 									IP:       "10.10.10.10",
 									Hostname: "test_name.com",
 								},
@@ -221,7 +220,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "10.10.10.10:1001",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -230,12 +229,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							corev1.ServicePort{
+							{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							corev1.ServicePort{
+							{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -246,7 +245,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								corev1.LoadBalancerIngress{
+								{
 									IP:       "10.10.10.10",
 									Hostname: "test_name.com",
 								},
@@ -278,7 +277,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "20.20.20.20:2000",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -287,12 +286,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							corev1.ServicePort{
+							{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							corev1.ServicePort{
+							{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -303,7 +302,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								corev1.LoadBalancerIngress{
+								{
 									IP:       "10.10.10.10",
 									Hostname: "test_name.com",
 								},
@@ -326,7 +325,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "20.20.20.20:2000",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -335,12 +334,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							corev1.ServicePort{
+							{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							corev1.ServicePort{
+							{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -351,7 +350,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								corev1.LoadBalancerIngress{
+								{
 									IP:       "10.10.10.10",
 									Hostname: "test_name.com",
 								},
@@ -382,7 +381,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "localhost:2001",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -391,12 +390,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							corev1.ServicePort{
+							{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							corev1.ServicePort{
+							{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -429,7 +428,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "test_name.com:1001",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -438,12 +437,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							corev1.ServicePort{
+							{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							corev1.ServicePort{
+							{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -454,7 +453,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								corev1.LoadBalancerIngress{
+								{
 									Hostname: "test_name.com",
 								},
 							},
@@ -484,7 +483,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "1.1.1.1:1001",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -493,11 +492,11 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							corev1.ServicePort{
+							{
 								Name: "test_port_1",
 								Port: 1000,
 							},
-							corev1.ServicePort{
+							{
 								Name: "test_port_2",
 								Port: 1001,
 							},

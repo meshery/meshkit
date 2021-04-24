@@ -17,7 +17,6 @@ import (
 
 // unmarshal returns parses the JSON config data and stores the value in the reference to result
 func Unmarshal(obj string, result interface{}) error {
-
 	obj = strings.TrimSpace(obj)
 	err := json.Unmarshal([]byte(obj), result)
 	if err != nil {
@@ -43,7 +42,6 @@ func Unmarshal(obj string, result interface{}) error {
 
 // getBool function returns the boolean config data
 func GetBool(key string) (bool, error) {
-
 	enabled, err := strconv.ParseBool(key)
 	if err != nil {
 		return false, ErrGetBool(key, err)
@@ -76,7 +74,6 @@ func Filepath() string {
 }
 
 func DownloadFile(filepath string, url string) error {
-
 	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {

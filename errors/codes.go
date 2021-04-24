@@ -4,12 +4,14 @@ var (
 
 	// GRPC server specific codes
 	// Range 600-699
+
 	ErrPanic        = "600"
 	ErrGrpcListener = "601"
 	ErrGrpcServer   = "602"
 
 	// Config specific codes
 	// Range 700-799
+
 	ErrEmptyConfig = "700"
 	ErrInMem       = "701"
 	ErrViper       = "702"
@@ -22,6 +24,7 @@ var (
 
 	// Meshery adapter specific codes
 	// Range 10100 to 10199
+
 	ErrGetName        = "1000"
 	ErrInstallMesh    = "1001"
 	ErrMeshConfig     = "1002"
@@ -35,6 +38,7 @@ var (
 
 	// Meshkit specific codes
 	// Range 10200 to 10299
+
 	ErrSmiInit          = "kit_10200"
 	ErrInstallSmi       = "kit_10201"
 	ErrConnectSmi       = "kit_10202"

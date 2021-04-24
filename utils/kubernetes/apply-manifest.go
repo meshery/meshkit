@@ -5,9 +5,8 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
-	meta "k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -175,7 +174,7 @@ func createNamespaceIfNotExist(ctx context.Context, kubeClientset kubernetes.Int
 
 	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	_, err := kubeClientset.CoreV1().Namespaces().Create(ctx, nsSpec, metav1.CreateOptions{})
-	if !errors.IsAlreadyExists(err) {
+	if !kubeerror.IsAlreadyExists(err) {
 		return err
 	}
 	return nil
