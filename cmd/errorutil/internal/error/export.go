@@ -37,15 +37,17 @@ type externalAll struct {
 	Errors        map[string]external `yaml:"errors" json:"errors"`                 // map of all errors with key = code
 }
 
-func Export(componenInfo *component.Info, errorsInfo *InfoAll, outputDir string) error {
+func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) error {
+	fname := filepath.Join(outputDir, config.App+"_errors_export.json")
+	log.Infof("exporting to %s", fname)
 	export := externalAll{
-		ComponentType: componenInfo.Type,
-		ComponentName: componenInfo.Name,
+		ComponentType: componentInfo.Type,
+		ComponentName: componentInfo.Name,
 		Errors:        make(map[string]external),
 	}
-	for k, v := range errorsInfo.LiteralCodes {
+	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
-			log.Warnf("duplicate code %s", k)
+			log.Warnf("exporting duplicate code %s", k)
 		}
 		e := v[0]
 		if _, ok := strconv.Atoi(e.Code); ok == nil {
@@ -59,13 +61,12 @@ func Export(componenInfo *component.Info, errorsInfo *InfoAll, outputDir string)
 				SuggestedRemediation: "",
 			}
 		} else {
-			log.Warnf("non-integer code %s", k)
+			log.Warnf("exporting non-integer code %s", k)
 		}
 	}
 	jsn, err := json.MarshalIndent(export, "", "  ")
 	if err != nil {
 		return err
 	}
-	fname := filepath.Join(outputDir, config.App+"_errors_export.json")
 	return ioutil.WriteFile(fname, jsn, 0600)
 }

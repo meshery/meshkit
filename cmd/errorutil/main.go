@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/coder"
@@ -14,7 +15,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer logFile.Close()
-	log.SetOutput(logFile)
+	log.SetOutput(io.MultiWriter(os.Stdout, logFile))
 	log.SetLevel(log.InfoLevel)
 	log.SetFormatter(&log.TextFormatter{})
 

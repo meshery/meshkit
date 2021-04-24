@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	verboseCmdFlag   = "verbose"
-	rootDirCmdFlag   = "dir"
-	updateAllCmdFlag = "all"
+	verboseCmdFlag             = "verbose"
+	rootDirCmdFlag             = "dir"
+	forceUpdateAllCodesCmdFlag = "force"
 )
 
 func commandAnalyze() *cobra.Command {
@@ -77,7 +77,7 @@ func commandUpdate() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			updateAll, err := cmd.Flags().GetBool(updateAllCmdFlag)
+			updateAll, err := cmd.Flags().GetBool(forceUpdateAllCodesCmdFlag)
 			if err != nil {
 				return err
 			}
@@ -107,7 +107,7 @@ func commandUpdate() *cobra.Command {
 			return mesherr.Export(componentInfo, errorsInfo, rootDir)
 		},
 	}
-	cmd.PersistentFlags().BoolVarP(&updateAll, updateAllCmdFlag, "a", false, "update all error codes and details (including ones where the error code has correct format")
+	cmd.PersistentFlags().BoolVar(&updateAll, forceUpdateAllCodesCmdFlag, false, "Update and re-sequence all error codes.")
 	return cmd
 }
 

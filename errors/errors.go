@@ -2,6 +2,7 @@ package errors
 
 import "strings"
 
+// Deprecated: NewDefault is deprecated, use New
 func NewDefault(code string, ldescription ...string) *Error {
 
 	return &Error{

@@ -10,9 +10,10 @@ type Info struct {
 }
 
 type InfoAll struct {
-	Entries       []Info            `yaml:"entries" json:"entries"`
-	LiteralCodes  map[string][]Info `yaml:"literal_codes" json:"literal_codes"`
-	CallExprCodes []Info            `yaml:"call_expr_codes" json:"call_expr_codes"`
+	Entries              []Info            `yaml:"entries" json:"entries"`                                // raw entries
+	LiteralCodes         map[string][]Info `yaml:"literal_codes" json:"literal_codes"`                    // entries with literal codes
+	CallExprCodes        []Info            `yaml:"call_expr_codes" json:"call_expr_codes"`                // entries with call expressions
+	DeprecatedNewDefault []string          `yaml:"deprecated_new_default" json:"deprecated_new_default" ` // list of files with usage of deprecated NewDefault func
 }
 
 func NewInfoAll() *InfoAll {

@@ -10,17 +10,18 @@ import (
 )
 
 type analysisSummary struct {
-	MinCode       int                 `yaml:"min_code" json:"min_code"`               // the smallest error code (an int)
-	MaxCode       int                 `yaml:"max_code" json:"max_code"`               // the biggest error code (an int)
-	Duplicates    map[string][]string `yaml:"duplicates" json:"duplicates"`           // duplicate error codes
-	CallExprCodes []string            `yaml:"call_expr_codes" json:"call_expr_codes"` // codes set by call expressions instead of literals
-	IntCodes      []int               `yaml:"int_codes" json:"int_codes"`             // all error codes as integers
+	MinCode              int                 `yaml:"min_code" json:"min_code"`                              // the smallest error code (an int)
+	MaxCode              int                 `yaml:"max_code" json:"max_code"`                              // the biggest error code (an int)
+	Duplicates           map[string][]string `yaml:"duplicates" json:"duplicates"`                          // duplicate error codes
+	CallExprCodes        []string            `yaml:"call_expr_codes" json:"call_expr_codes"`                // codes set by call expressions instead of literals
+	IntCodes             []int               `yaml:"int_codes" json:"int_codes"`                            // all error codes as integers
+	DeprecatedNewDefault []string            `yaml:"deprecated_new_default" json:"deprecated_new_default" ` // list of files with usage of deprecated NewDefault func
 }
 
-func SummarizeAnalysis(errors *InfoAll, outputDir string) error {
+func SummarizeAnalysis(infoAll *InfoAll, outputDir string) error {
 	maxInt := int(^uint(0) >> 1)
 	summary := &analysisSummary{MinCode: maxInt, MaxCode: -maxInt - 1, Duplicates: make(map[string][]string)}
-	for k, v := range errors.LiteralCodes {
+	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
 			_, ok := summary.Duplicates[k]
 			if !ok {
@@ -45,9 +46,10 @@ func SummarizeAnalysis(errors *InfoAll, outputDir string) error {
 			}
 		}
 	}
-	for _, v := range errors.CallExprCodes {
+	for _, v := range infoAll.CallExprCodes {
 		summary.CallExprCodes = append(summary.CallExprCodes, v.Name)
 	}
+	summary.DeprecatedNewDefault = infoAll.DeprecatedNewDefault
 	jsn, err := json.MarshalIndent(summary, "", "  ")
 	if err != nil {
 		return err

@@ -17,7 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.InfoAll, comp *component.Info) error {
+func handleFile(path string, update bool, updateAll bool, infoAll *mesherr.InfoAll, comp *component.Info) error {
 	logger := logrus.WithFields(logrus.Fields{"path": path})
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
@@ -26,6 +26,15 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.In
 	}
 	logger.WithFields(logrus.Fields{"update": update}).Info("inspecting file")
 	ast.Inspect(file, func(n ast.Node) bool {
+		if pgkid, ok := isNewDefaultCallExpr(n); ok {
+			logger.Warnf("Usage of deprecated function %s.NewDefault detected.", pgkid)
+			if !contains(infoAll.DeprecatedNewDefault, path) {
+				infoAll.DeprecatedNewDefault = append(infoAll.DeprecatedNewDefault, path)
+			}
+			// If a NewDefault call expression is detected, child-nodes are not inspected.
+			// This would lead to duplicates detections in case of dot-import.
+			return false
+		}
 		spec, ok := n.(*ast.ValueSpec)
 		if ok {
 			for _, id := range spec.Names {
@@ -59,19 +68,19 @@ func handleFile(path string, update bool, updateAll bool, errorsInfo *mesherr.In
 						CodeIsInt:     isInteger,
 						Path:          path,
 					}
-					errorsInfo.Entries = append(errorsInfo.Entries, *ec)
+					infoAll.Entries = append(infoAll.Entries, *ec)
 					if isLiteral {
 						key := oldValue
 						if oldValue == "" {
 							key = "no_code"
 						}
-						_, ok := errorsInfo.LiteralCodes[key]
+						_, ok := infoAll.LiteralCodes[key]
 						if !ok {
-							errorsInfo.LiteralCodes[key] = []mesherr.Info{}
+							infoAll.LiteralCodes[key] = []mesherr.Info{}
 						}
-						errorsInfo.LiteralCodes[key] = append(errorsInfo.LiteralCodes[key], *ec)
+						infoAll.LiteralCodes[key] = append(infoAll.LiteralCodes[key], *ec)
 					} else {
-						errorsInfo.CallExprCodes = append(errorsInfo.CallExprCodes, *ec)
+						infoAll.CallExprCodes = append(infoAll.CallExprCodes, *ec)
 					}
 				}
 			}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
 
@@ -50,7 +51,7 @@ func walk(rootDir string, update bool, updateAll bool, errorsInfo *mesherr.InfoA
 		if info.IsDir() {
 			logger.Debug("handling dir")
 		} else {
-			if filepath.Ext(path) == ".go" {
+			if includeFile(path) {
 				isErrorsGoFile := isErrorGoFile(path)
 				logger.WithFields(logrus.Fields{"iserrorsfile": fmt.Sprintf("%v", isErrorsGoFile)}).Debug("handling Go file")
 				err := handleFile(path, update, updateAll, errorsInfo, comp)
@@ -72,4 +73,14 @@ func walk(rootDir string, update bool, updateAll bool, errorsInfo *mesherr.InfoA
 func isErrorGoFile(path string) bool {
 	_, file := filepath.Split(path)
 	return file == "error.go"
+}
+
+func includeFile(path string) bool {
+	if strings.HasSuffix(path, "_test.go") {
+		return false
+	}
+	if filepath.Ext(path) == ".go" {
+		return true
+	}
+	return false
 }
