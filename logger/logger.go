@@ -26,6 +26,7 @@ type Logger struct {
 }
 
 func New(appname string, opts Options) (Handler, error) {
+
 	log := logrus.New()
 
 	switch opts.Format {

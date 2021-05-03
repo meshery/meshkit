@@ -14,6 +14,7 @@ var (
 
 // git method which allows fetch the git HEAD tag version and commit number
 func Git() (version, commitHead string) {
+
 	b, _ := ioutil.ReadFile(gitVersionFilePath)
 	if b != nil {
 		reader := bytes.NewReader(b)

@@ -27,9 +27,15 @@ func TcpCheck(hp *HostPort, mock *MockOptions) bool {
 
 	// For mocking output
 	if mock != nil {
-		return mock.DesiredEndpoint == fmt.Sprintf("%s:%d", hp.Address, hp.Port)
+		if mock.DesiredEndpoint == fmt.Sprintf("%s:%d", hp.Address, hp.Port) {
+			return true
+		}
+		return false
 	}
 
 	conn, _ := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", hp.Address, hp.Port), timeout)
-	return conn != nil
+	if conn != nil {
+		return true
+	}
+	return false
 }

@@ -4,6 +4,7 @@ import "strings"
 
 // Deprecated: NewDefault is deprecated, use New
 func NewDefault(code string, ldescription ...string) *Error {
+
 	return &Error{
 		Code:                 code,
 		Severity:             None,
@@ -15,6 +16,7 @@ func NewDefault(code string, ldescription ...string) *Error {
 }
 
 func New(code string, severity Severity, sdescription []string, ldescription []string, probablecause []string, remedy []string) *Error {
+
 	return &Error{
 		Code:                 code,
 		Severity:             severity,
@@ -28,6 +30,7 @@ func New(code string, severity Severity, sdescription []string, ldescription []s
 func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ".") }
 
 func GetCode(err error) string {
+
 	if obj := err.(*Error); obj != nil && obj.Code != " " {
 		return obj.Code
 	}
@@ -35,6 +38,7 @@ func GetCode(err error) string {
 }
 
 func GetSeverity(err error) Severity {
+
 	if obj := err.(*Error); obj != nil {
 		return obj.Severity
 	}
@@ -42,6 +46,7 @@ func GetSeverity(err error) Severity {
 }
 
 func GetSDescription(err error) string {
+
 	if obj := err.(*Error); obj != nil {
 		return strings.Join(err.(*Error).ShortDescription[:], ".")
 	}
@@ -49,6 +54,7 @@ func GetSDescription(err error) string {
 }
 
 func GetCause(err error) string {
+
 	if obj := err.(*Error); obj != nil {
 		return strings.Join(err.(*Error).ProbableCause[:], ".")
 	}
@@ -56,6 +62,7 @@ func GetCause(err error) string {
 }
 
 func GetRemedy(err error) string {
+
 	if obj := err.(*Error); obj != nil {
 		return strings.Join(err.(*Error).SuggestedRemediation[:], ".")
 	}
