@@ -20,8 +20,14 @@ func (m Map) Interface() interface{} {
 // Scan implements the sql.Scanner interface.
 // It allows to read the map from the database value.
 func (m *Map) Scan(src interface{}) error {
-	b, ok := src.([]byte)
-	if !ok {
+	var b []byte
+
+	switch t := src.(type) {
+	case []byte:
+		b = t
+	case string:
+		b = []byte(t)
+	default:
 		return ErrSQLMapInvalidScan
 	}
 
