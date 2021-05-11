@@ -312,7 +312,16 @@ func TestGetEndpoint(t *testing.T) {
 					},
 				},
 			},
-			want:    nil,
+			want: &utils.Endpoint{
+				External: &utils.HostPort{
+					Address: "10.10.10.10",
+					Port:    1000,
+				},
+				Internal: &utils.HostPort{
+					Address: "1.1.1.1",
+					Port:    1000,
+				},
+			},
 			wantErr: true,
 		},
 		{
