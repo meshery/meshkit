@@ -13,11 +13,11 @@ import (
 	"strings"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	mesherr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
+	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
 	"github.com/sirupsen/logrus"
 )
 
-func handleFile(path string, update bool, updateAll bool, infoAll *mesherr.InfoAll, comp *component.Info) error {
+func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.InfoAll, comp *component.Info) error {
 	logger := logrus.WithFields(logrus.Fields{"path": path})
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
@@ -60,7 +60,7 @@ func handleFile(path string, update bool, updateAll bool, infoAll *mesherr.InfoA
 					case *ast.CallExpr:
 						logger.WithFields(logrus.Fields{"name": id.Name}).Warn("Err* variable detected with call expression value.")
 					}
-					ec := &mesherr.Info{
+					ec := &errutilerr.Info{
 						Name:          id.Name,
 						OldCode:       oldValue,
 						Code:          newValue,
@@ -76,7 +76,7 @@ func handleFile(path string, update bool, updateAll bool, infoAll *mesherr.InfoA
 						}
 						_, ok := infoAll.LiteralCodes[key]
 						if !ok {
-							infoAll.LiteralCodes[key] = []mesherr.Info{}
+							infoAll.LiteralCodes[key] = []errutilerr.Info{}
 						}
 						infoAll.LiteralCodes[key] = append(infoAll.LiteralCodes[key], *ec)
 					} else {

@@ -11,26 +11,26 @@ import (
 	mesherr "github.com/layer5io/meshkit/errors" //nolint
 )
 
-var ErrTestOneCode = "one" //nolint:unused
-var fileToTest = "newdefault_test.go"
+var ErrTestCode1 = "one" //nolint:unused
+var newDefaultTestFile = "errorsnewdefault_test.go"
 
 //nolint:unused
-func ErrTestOne(err error) error {
-	return errors.NewDefault(ErrTestOneCode, "Connection to broker failed", err.Error()) //nolint:staticcheck
+func ErrNewDefaultTestOne(err error) error {
+	return errors.NewDefault(ErrTestCode1, "Connection to broker failed", err.Error()) //nolint:staticcheck
 }
 
 //nolint:unused
-func ErrTestTwo(err error) error {
-	return NewDefault(ErrTestOneCode, "Connection to broker failed", err.Error()) //nolint:staticcheck
+func ErrNewDefaultTestTwo(err error) error {
+	return NewDefault(ErrTestCode1, "Connection to broker failed", err.Error()) //nolint:staticcheck
 }
 
 //nolint:unused
-func ErrTestThree(err error) error {
-	return mesherr.NewDefault(ErrTestOneCode, "Connection to broker failed", err.Error()) //nolint:staticcheck
+func ErrNewDefaultTestThree(err error) error {
+	return mesherr.NewDefault(ErrTestCode1, "Connection to broker failed", err.Error()) //nolint:staticcheck
 }
 
 func TestDetectNewDefault(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), fileToTest, nil, parser.ParseComments)
+	file, err := parser.ParseFile(token.NewFileSet(), newDefaultTestFile, nil, parser.ParseComments)
 	if err != nil {
 		t.Errorf("err = %v; want 'nil'", err)
 	}
