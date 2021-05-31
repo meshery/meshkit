@@ -35,6 +35,17 @@ func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.In
 			// This would lead to duplicates detections in case of dot-import.
 			return false
 		}
+		if newErr, ok := isNewCallExpr(n); ok {
+			name := newErr.Name
+			logger.Infof("New.Error(...) call detected, error code name: '%s'", name)
+			_, ok := infoAll.Errors[name]
+			if !ok {
+				infoAll.Errors[name] = []errutilerr.Error{}
+			}
+			infoAll.Errors[name] = append(infoAll.Errors[name], *newErr)
+			// If a New call expression is detected, child-nodes are not inspected:
+			return false
+		}
 		spec, ok := n.(*ast.ValueSpec)
 		if ok {
 			for _, id := range spec.Names {

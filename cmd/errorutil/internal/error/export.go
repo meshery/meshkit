@@ -47,26 +47,50 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 	}
 	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
-			log.Warnf("exporting duplicate code %s", k)
+			log.Errorf("not exporting duplicate code %s", k)
+			continue
 		}
 		e := v[0]
-		if _, ok := strconv.Atoi(e.Code); ok == nil {
-			export.Errors[k] = Error{
-				Name:                 e.Name,
-				Code:                 e.Code,
-				Severity:             "",
-				ShortDescription:     "",
-				LongDescription:      "",
-				ProbableCause:        "",
-				SuggestedRemediation: "",
+		if _, err := strconv.Atoi(e.Code); err != nil {
+			log.Errorf("not exporting non-integer code %s", k)
+			continue
+		}
+		// default value used if validations below fail
+		export.Errors[k] = Error{
+			Name:                 e.Name,
+			Code:                 e.Code,
+			Severity:             "",
+			ShortDescription:     "",
+			LongDescription:      "",
+			ProbableCause:        "",
+			SuggestedRemediation: "",
+		}
+		// were details for this error generated using errors.New(...)?
+		if _, ok := infoAll.Errors[e.Name]; ok {
+			log.Infof("error details found for error name: '%s' and code: '%s'", e.Name, e.Code)
+			// no duplicates?
+			if len(infoAll.Errors[e.Name]) == 1 {
+				details := infoAll.Errors[e.Name][0]
+				export.Errors[k] = Error{
+					Name:                 details.Name,
+					Code:                 e.Code,
+					Severity:             details.Severity,
+					ShortDescription:     details.ShortDescription,
+					LongDescription:      details.LongDescription,
+					ProbableCause:        details.ProbableCause,
+					SuggestedRemediation: details.SuggestedRemediation,
+				}
+			} else {
+				log.Errorf("duplicate error details for error name: '%s' and code: '%s'", e.Name, e.Code)
 			}
 		} else {
-			log.Warnf("exporting non-integer code %s", k)
+			log.Warnf("no error details found for error name: '%s' and code: '%s'", e.Name, e.Code)
 		}
 	}
 	jsn, err := json.MarshalIndent(export, "", "  ")
 	if err != nil {
 		return err
 	}
+	log.Infof("Exporting to %s", fname)
 	return ioutil.WriteFile(fname, jsn, 0600)
 }

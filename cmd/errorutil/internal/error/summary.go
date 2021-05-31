@@ -2,6 +2,7 @@ package error
 
 import (
 	"encoding/json"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -12,7 +13,8 @@ import (
 type analysisSummary struct {
 	MinCode              int                 `yaml:"min_code" json:"min_code"`                              // the smallest error code (an int)
 	MaxCode              int                 `yaml:"max_code" json:"max_code"`                              // the biggest error code (an int)
-	Duplicates           map[string][]string `yaml:"duplicates" json:"duplicates"`                          // duplicate error codes
+	DuplicateCodes       map[string][]string `yaml:"duplicate_codes" json:"duplicate_codes"`                // duplicate error codes
+	DuplicateNames       []string            `yaml:"duplicate_names" json:"duplicate_names"`                // duplicate error names
 	CallExprCodes        []string            `yaml:"call_expr_codes" json:"call_expr_codes"`                // codes set by call expressions instead of literals
 	IntCodes             []int               `yaml:"int_codes" json:"int_codes"`                            // all error codes as integers
 	DeprecatedNewDefault []string            `yaml:"deprecated_new_default" json:"deprecated_new_default" ` // list of files with usage of deprecated NewDefault func
@@ -20,12 +22,12 @@ type analysisSummary struct {
 
 func SummarizeAnalysis(infoAll *InfoAll, outputDir string) error {
 	maxInt := int(^uint(0) >> 1)
-	summary := &analysisSummary{MinCode: maxInt, MaxCode: -maxInt - 1, Duplicates: make(map[string][]string)}
+	summary := &analysisSummary{MinCode: maxInt, MaxCode: -maxInt - 1, DuplicateCodes: make(map[string][]string), DuplicateNames: []string{}}
 	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
-			_, ok := summary.Duplicates[k]
+			_, ok := summary.DuplicateCodes[k]
 			if !ok {
-				summary.Duplicates[k] = []string{}
+				summary.DuplicateCodes[k] = []string{}
 			}
 		}
 		for _, e := range v {
@@ -41,9 +43,14 @@ func SummarizeAnalysis(infoAll *InfoAll, outputDir string) error {
 					summary.IntCodes = append(summary.IntCodes, i)
 				}
 			}
-			if _, ok := summary.Duplicates[k]; ok {
-				summary.Duplicates[k] = append(summary.Duplicates[k], e.Name)
+			if _, ok := summary.DuplicateCodes[k]; ok {
+				summary.DuplicateCodes[k] = append(summary.DuplicateCodes[k], e.Name)
 			}
+		}
+	}
+	for k, v := range infoAll.Errors {
+		if len(v) > 1 {
+			summary.DuplicateNames = append(summary.DuplicateNames, k)
 		}
 	}
 	for _, v := range infoAll.CallExprCodes {
@@ -55,6 +62,7 @@ func SummarizeAnalysis(infoAll *InfoAll, outputDir string) error {
 		return err
 	}
 	fname := filepath.Join(outputDir, config.App+"_analyze_summary.json")
+	log.Infof("Writing summary to %s", fname)
 	return ioutil.WriteFile(fname, jsn, 0600)
 }
 
