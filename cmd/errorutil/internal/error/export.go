@@ -47,12 +47,12 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 	}
 	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
-			log.Errorf("not exporting duplicate code %s", k)
+			log.Errorf("not exporting duplicate code '%s'", k)
 			continue
 		}
 		e := v[0]
 		if _, err := strconv.Atoi(e.Code); err != nil {
-			log.Errorf("not exporting non-integer code %s", k)
+			log.Errorf("not exporting non-integer code '%s'", k)
 			continue
 		}
 		// default value used if validations below fail
@@ -67,7 +67,7 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 		}
 		// were details for this error generated using errors.New(...)?
 		if _, ok := infoAll.Errors[e.Name]; ok {
-			log.Infof("error details found for error name: '%s' and code: '%s'", e.Name, e.Code)
+			log.Infof("error details found for error name '%s' and code '%s'", e.Name, e.Code)
 			// no duplicates?
 			if len(infoAll.Errors[e.Name]) == 1 {
 				details := infoAll.Errors[e.Name][0]
@@ -81,10 +81,10 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 					SuggestedRemediation: details.SuggestedRemediation,
 				}
 			} else {
-				log.Errorf("duplicate error details for error name: '%s' and code: '%s'", e.Name, e.Code)
+				log.Errorf("duplicate error details for error name '%s' and code '%s'", e.Name, e.Code)
 			}
 		} else {
-			log.Warnf("no error details found for error name: '%s' and code: '%s'", e.Name, e.Code)
+			log.Warnf("no error details found for error name '%s' and code '%s'", e.Name, e.Code)
 		}
 	}
 	jsn, err := json.MarshalIndent(export, "", "  ")

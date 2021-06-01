@@ -2,7 +2,9 @@ package coder
 
 import (
 	"bytes"
-	"fmt"
+	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
+	"github.com/sirupsen/logrus"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -10,11 +12,6 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strconv"
-	"strings"
-
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
-	"github.com/sirupsen/logrus"
 )
 
 func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.InfoAll, comp *component.Info) error {
@@ -46,56 +43,7 @@ func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.In
 			// If a New call expression is detected, child-nodes are not inspected:
 			return false
 		}
-		spec, ok := n.(*ast.ValueSpec)
-		if ok {
-			for _, id := range spec.Names {
-				if isErrorCodeVarName(id.Name) {
-					value0 := id.Obj.Decl.(*ast.ValueSpec).Values[0]
-					isLiteral := false
-					isInteger := false
-					oldValue := ""
-					newValue := ""
-					switch value := value0.(type) {
-					case *ast.BasicLit:
-						isLiteral = true
-						oldValue = strings.Trim(value.Value, "\"")
-						isInteger = isInt(oldValue)
-						if (update && !isInteger) || (update && updateAll) {
-							value.Value = fmt.Sprintf("\"%s\"", comp.GetNextErrorCode())
-							newValue = strings.Trim(value.Value, "\"")
-							logger.WithFields(logrus.Fields{"name": id.Name, "value": newValue, "oldValue": oldValue}).Info("Err* variable with literal value replaced.")
-						} else {
-							newValue = oldValue
-							logger.WithFields(logrus.Fields{"name": id.Name, "value": oldValue}).Info("Err* variable detected with literal value.")
-						}
-					case *ast.CallExpr:
-						logger.WithFields(logrus.Fields{"name": id.Name}).Warn("Err* variable detected with call expression value.")
-					}
-					ec := &errutilerr.Info{
-						Name:          id.Name,
-						OldCode:       oldValue,
-						Code:          newValue,
-						CodeIsLiteral: isLiteral,
-						CodeIsInt:     isInteger,
-						Path:          path,
-					}
-					infoAll.Entries = append(infoAll.Entries, *ec)
-					if isLiteral {
-						key := oldValue
-						if oldValue == "" {
-							key = "no_code"
-						}
-						_, ok := infoAll.LiteralCodes[key]
-						if !ok {
-							infoAll.LiteralCodes[key] = []errutilerr.Info{}
-						}
-						infoAll.LiteralCodes[key] = append(infoAll.LiteralCodes[key], *ec)
-					} else {
-						infoAll.CallExprCodes = append(infoAll.CallExprCodes, *ec)
-					}
-				}
-			}
-		}
+		handleValueSpec(n, update, updateAll, comp, logger, path, infoAll)
 		return true
 	})
 	if update {
