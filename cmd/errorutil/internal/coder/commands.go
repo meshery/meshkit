@@ -138,6 +138,7 @@ It is intended to be run locally and as part of a CI workflow.
   Examples of a component types are 'adapter' and 'library', corresponding examples of names are 'istio' and 'meshkit'.
 - There are no predefined error code ranges for components.
   Every component is free to use its own range, but it looks like the convention is to start at 1000.
+- Errors are not to be reused across components and modules.
 - Codes carry no meaning, as e.g. HTTP status codes do.
 - In the code, create string var's or const's with names starting with Err[A-Z], e.g. 'ErrApplyManifestCode'.
 - Set the value to any string, like "replace_me" (no convention here), e.g. ErrApplyManifestCode = "test_code".
