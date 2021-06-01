@@ -15,6 +15,7 @@ import (
 const (
 	verboseCmdFlag             = "verbose"
 	rootDirCmdFlag             = "dir"
+	skipDirsCmdFlag            = "skip-dirs"
 	forceUpdateAllCodesCmdFlag = "force"
 )
 
@@ -33,9 +34,13 @@ func commandAnalyze() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			skipDirs, err := cmd.Flags().GetStringSlice(skipDirsCmdFlag)
+			if err != nil {
+				return err
+			}
 			config.Logging(verbose)
 			errorsInfo := mesherr.NewInfoAll()
-			err = walkAnalyze(rootDir, errorsInfo)
+			err = walkAnalyze(rootDir, skipDirs, errorsInfo)
 			if err != nil {
 				return err
 			}
@@ -81,9 +86,13 @@ func commandUpdate() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			skipDirs, err := cmd.Flags().GetStringSlice(skipDirsCmdFlag)
+			if err != nil {
+				return err
+			}
 			config.Logging(verbose)
 			errorsInfo := mesherr.NewInfoAll()
-			err = walkUpdate(rootDir, updateAll, errorsInfo)
+			err = walkUpdate(rootDir, skipDirs, updateAll, errorsInfo)
 			if err != nil {
 				return err
 			}
@@ -161,9 +170,11 @@ It is intended to be run locally and as part of a CI workflow.
 func RootCommand() *cobra.Command {
 	var verbose bool
 	var rootDir string
+	var skipDirs []string
 	cmd := &cobra.Command{Use: config.App}
 	cmd.PersistentFlags().BoolVarP(&verbose, verboseCmdFlag, "v", false, "verbose output")
 	cmd.PersistentFlags().StringVarP(&rootDir, rootDirCmdFlag, "d", ".", "root directory")
+	cmd.PersistentFlags().StringSliceVar(&skipDirs, skipDirsCmdFlag, []string{}, "directories to skip (comma-separated list, repeatable argument)")
 	cmd.AddCommand(commandAnalyze())
 	cmd.AddCommand(commandUpdate())
 	cmd.AddCommand(commandDoc())

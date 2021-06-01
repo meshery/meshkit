@@ -21,16 +21,16 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func walkAnalyze(rootDir string, errorsInfo *mesherr.InfoAll) error {
-	return walk(rootDir, false, false, errorsInfo)
+func walkAnalyze(rootDir string, skipDirs []string, errorsInfo *mesherr.InfoAll) error {
+	return walk(rootDir, skipDirs, false, false, errorsInfo)
 }
 
-func walkUpdate(rootDir string, updateAll bool, errorsInfo *mesherr.InfoAll) error {
-	return walk(rootDir, true, updateAll, errorsInfo)
+func walkUpdate(rootDir string, skipDirs []string, updateAll bool, errorsInfo *mesherr.InfoAll) error {
+	return walk(rootDir, skipDirs, true, updateAll, errorsInfo)
 }
 
-func walk(rootDir string, update bool, updateAll bool, errorsInfo *mesherr.InfoAll) error {
-	subDirsToSkip := []string{".git", ".github"}
+func walk(rootDir string, skipDirs []string, update bool, updateAll bool, errorsInfo *mesherr.InfoAll) error {
+	subDirsToSkip := append([]string{".git", ".github"}, skipDirs...)
 	logrus.Info(fmt.Sprintf("root directory: %s", rootDir))
 	logrus.Info(fmt.Sprintf("subdirs to skip: %v", subDirsToSkip))
 	comp, err := component.New(rootDir)
@@ -45,7 +45,7 @@ func walk(rootDir string, update bool, updateAll bool, errorsInfo *mesherr.InfoA
 			return err
 		}
 		if info.IsDir() && contains(subDirsToSkip, info.Name()) {
-			logger.Debug("skipping dir")
+			logger.Infof("skipping directory %s", info.Name())
 			return filepath.SkipDir
 		}
 		if info.IsDir() {
