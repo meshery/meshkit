@@ -23,12 +23,12 @@ var (
 	ErrEmptyConfig = errors.NewDefault(errors.ErrEmptyConfig, "Config not initialized")
 )
 
-// ErrViper returns a MeshKit error wrapping err in case of an (initialization) error in the Viper provider.
+// ErrViper returns a MeshKit error indicating an (initialization) error in the Viper provider.
 func ErrViper(err error) error {
-	return errors.NewDefault(errors.ErrViper, "Viper initialization failed with error", err.Error())
+	return errors.New(errors.ErrViper, errors.Fatal, []string{"Viper configuration initialization failed"}, []string{}, []string{}, []string{})
 }
 
-// ErrViper returns a MeshKit error wrapping err in case of an (initialization) error in the in-memory provider.
+// ErrViper returns a MeshKit error indicating an (initialization) error in the in-memory provider.
 func ErrInMem(err error) error {
-	return errors.NewDefault(errors.ErrInMem, "InMem initialization failed with error", err.Error())
+	return errors.New(errors.ErrInMem, errors.Fatal, []string{"InMem configuration initialization failed"}, []string{}, []string{}, []string{})
 }

@@ -6,3 +6,6 @@ check-clean-cache:
 
 test:
 	go test ./...
+
+errorutil:
+	go build -o errorutil cmd/errorutil/main.go
