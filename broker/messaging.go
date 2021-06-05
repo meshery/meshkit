@@ -13,7 +13,8 @@ var (
 	ErrorEvent EventType = "ERROR"
 	ReSync     EventType = "RESYNC"
 
-	LogRequestEntity RequestEntity = "log-stream"
+	LogRequestEntity      RequestEntity = "log-stream"
+	ReSyncDiscoveryEntity RequestEntity = "resync-discovery"
 )
 
 type ObjectType string
