@@ -15,6 +15,7 @@ var (
 
 	LogRequestEntity      RequestEntity = "log-stream"
 	ReSyncDiscoveryEntity RequestEntity = "resync-discovery"
+	ExecRequestEntity     RequestEntity = "exec-request"
 )
 
 type ObjectType string

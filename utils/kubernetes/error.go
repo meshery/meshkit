@@ -12,6 +12,8 @@ var (
 	ErrNewInformerCode      = "test_code"
 	ErrEndpointNotFoundCode = "test_code"
 	ErrInvalidAPIServerCode = "test_code"
+	ErrLoadConfigCode       = "test_code"
+	ErrValidateConfigCode   = "test_code"
 
 	ErrEndpointNotFound = errors.NewDefault(ErrEndpointNotFoundCode, "Unable to discover an endpoint")
 	ErrInvalidAPIServer = errors.NewDefault(ErrInvalidAPIServerCode, "Invalid API Server URL")
@@ -49,4 +51,14 @@ func ErrNewDiscovery(err error) error {
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrNewInformer(err error) error {
 	return errors.NewDefault(ErrNewInformerCode, "Error creating informer client", err.Error())
+}
+
+// ErrLoadConfig is the error which occurs in the process of loading a kubernetes config
+func ErrLoadConfig(err error) error {
+	return errors.NewDefault(ErrLoadConfigCode, "Error loading kubernetes config", err.Error())
+}
+
+// ErrValidateConfig is the error which occurs in the process of validating a kubernetes config
+func ErrValidateConfig(err error) error {
+	return errors.NewDefault(ErrValidateConfigCode, "Validation failed in the kubernetes config", err.Error())
 }
