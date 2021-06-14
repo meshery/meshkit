@@ -1,0 +1,1032 @@
+{
+  "entries": [
+    {
+      "name": "ErrConnectCode",
+      "old_code": "11000",
+      "code": "11000",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "broker/nats/error.go"
+    },
+    {
+      "name": "ErrEncodedConnCode",
+      "old_code": "11000",
+      "code": "11000",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "broker/nats/error.go"
+    },
+    {
+      "name": "ErrPublishCode",
+      "old_code": "11001",
+      "code": "11001",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "broker/nats/error.go"
+    },
+    {
+      "name": "ErrPublishRequestCode",
+      "old_code": "11001",
+      "code": "11001",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "broker/nats/error.go"
+    },
+    {
+      "name": "ErrQueueSubscribeCode",
+      "old_code": "11001",
+      "code": "11001",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "broker/nats/error.go"
+    },
+    {
+      "name": "ErrEmptyConfig",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "config/error.go"
+    },
+    {
+      "name": "ErrNoneDatabaseCode",
+      "old_code": "11010",
+      "code": "11010",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrDatabaseOpenCode",
+      "old_code": "11011",
+      "code": "11011",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrSQLMapUnmarshalJSONCode",
+      "old_code": "11012",
+      "code": "11012",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrSQLMapUnmarshalTextCode",
+      "old_code": "11013",
+      "code": "11013",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrSQLMapMarshalValueCode",
+      "old_code": "11014",
+      "code": "11014",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrSQLMapUnmarshalScannedCode",
+      "old_code": "11015",
+      "code": "11015",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrSQLMapInvalidScanCode",
+      "old_code": "11016",
+      "code": "11016",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrNoneDatabase",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrSQLMapInvalidScan",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrUnmarshalCode",
+      "old_code": "test",
+      "code": "11043",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrUnmarshalInvalidCode",
+      "old_code": "test",
+      "code": "11044",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrUnmarshalSyntaxCode",
+      "old_code": "test",
+      "code": "11045",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrUnmarshalTypeCode",
+      "old_code": "test",
+      "code": "11046",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrUnmarshalUnsupportedTypeCode",
+      "old_code": "test",
+      "code": "11047",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrUnmarshalUnsupportedValueCode",
+      "old_code": "test",
+      "code": "11048",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrMarshalCode",
+      "old_code": "test",
+      "code": "11049",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrGetBoolCode",
+      "old_code": "test",
+      "code": "11050",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrInvalidProtocolCode",
+      "old_code": "test",
+      "code": "11051",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrRemoteFileNotFoundCode",
+      "old_code": "test",
+      "code": "11052",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrReadingRemoteFileCode",
+      "old_code": "test",
+      "code": "11053",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrReadingLocalFileCode",
+      "old_code": "test",
+      "code": "11054",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrApplyManifestCode",
+      "old_code": "11021",
+      "code": "11021",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrServiceDiscoveryCode",
+      "old_code": "11022",
+      "code": "11022",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrApplyHelmChartCode",
+      "old_code": "11023",
+      "code": "11023",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrNewKubeClientCode",
+      "old_code": "11024",
+      "code": "11024",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrNewDynClientCode",
+      "old_code": "11025",
+      "code": "11025",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrNewDiscoveryCode",
+      "old_code": "11026",
+      "code": "11026",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrNewInformerCode",
+      "old_code": "11027",
+      "code": "11027",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrEndpointNotFoundCode",
+      "old_code": "11028",
+      "code": "11028",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrInvalidAPIServerCode",
+      "old_code": "11029",
+      "code": "11029",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrLoadConfigCode",
+      "old_code": "11030",
+      "code": "11030",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrValidateConfigCode",
+      "old_code": "11031",
+      "code": "11031",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrEndpointNotFound",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrInvalidAPIServer",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrExposeResourceCode",
+      "old_code": "11032",
+      "code": "11032",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrGettingResourceCode",
+      "old_code": "11033",
+      "code": "11033",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrTraverserCode",
+      "old_code": "11034",
+      "code": "11034",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrResourceCannotBeExposedCode",
+      "old_code": "11035",
+      "code": "11035",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrSelectorBasedMapCode",
+      "old_code": "11036",
+      "code": "11036",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrProtocolBasedMapCode",
+      "old_code": "11037",
+      "code": "11037",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrLableBasedMapCode",
+      "old_code": "11038",
+      "code": "11038",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrPortParsingCode",
+      "old_code": "11039",
+      "code": "11039",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrGenerateServiceCode",
+      "old_code": "11040",
+      "code": "11040",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrConstructingRestHelperCode",
+      "old_code": "11041",
+      "code": "11041",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrCreatingServiceCode",
+      "old_code": "11042",
+      "code": "11042",
+      "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrPodHasNoLabels",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrServiceHasNoSelectors",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidDeploymentNoSelectorsLabels",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidDeploymentNoSelectors",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidReplicaNoSelectorsLabels",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidReplicaSetNoSelectors",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrNoPortsFoundForHeadlessResource",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    }
+  ],
+  "literal_codes": {
+    "11000": [
+      {
+        "name": "ErrConnectCode",
+        "old_code": "11000",
+        "code": "11000",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "broker/nats/error.go"
+      },
+      {
+        "name": "ErrEncodedConnCode",
+        "old_code": "11000",
+        "code": "11000",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "broker/nats/error.go"
+      }
+    ],
+    "11001": [
+      {
+        "name": "ErrPublishCode",
+        "old_code": "11001",
+        "code": "11001",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "broker/nats/error.go"
+      },
+      {
+        "name": "ErrPublishRequestCode",
+        "old_code": "11001",
+        "code": "11001",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "broker/nats/error.go"
+      },
+      {
+        "name": "ErrQueueSubscribeCode",
+        "old_code": "11001",
+        "code": "11001",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "broker/nats/error.go"
+      }
+    ],
+    "11010": [
+      {
+        "name": "ErrNoneDatabaseCode",
+        "old_code": "11010",
+        "code": "11010",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "database/error.go"
+      }
+    ],
+    "11011": [
+      {
+        "name": "ErrDatabaseOpenCode",
+        "old_code": "11011",
+        "code": "11011",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "database/error.go"
+      }
+    ],
+    "11012": [
+      {
+        "name": "ErrSQLMapUnmarshalJSONCode",
+        "old_code": "11012",
+        "code": "11012",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "database/error.go"
+      }
+    ],
+    "11013": [
+      {
+        "name": "ErrSQLMapUnmarshalTextCode",
+        "old_code": "11013",
+        "code": "11013",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "database/error.go"
+      }
+    ],
+    "11014": [
+      {
+        "name": "ErrSQLMapMarshalValueCode",
+        "old_code": "11014",
+        "code": "11014",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "database/error.go"
+      }
+    ],
+    "11015": [
+      {
+        "name": "ErrSQLMapUnmarshalScannedCode",
+        "old_code": "11015",
+        "code": "11015",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "database/error.go"
+      }
+    ],
+    "11016": [
+      {
+        "name": "ErrSQLMapInvalidScanCode",
+        "old_code": "11016",
+        "code": "11016",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "database/error.go"
+      }
+    ],
+    "11021": [
+      {
+        "name": "ErrApplyManifestCode",
+        "old_code": "11021",
+        "code": "11021",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11022": [
+      {
+        "name": "ErrServiceDiscoveryCode",
+        "old_code": "11022",
+        "code": "11022",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11023": [
+      {
+        "name": "ErrApplyHelmChartCode",
+        "old_code": "11023",
+        "code": "11023",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11024": [
+      {
+        "name": "ErrNewKubeClientCode",
+        "old_code": "11024",
+        "code": "11024",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11025": [
+      {
+        "name": "ErrNewDynClientCode",
+        "old_code": "11025",
+        "code": "11025",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11026": [
+      {
+        "name": "ErrNewDiscoveryCode",
+        "old_code": "11026",
+        "code": "11026",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11027": [
+      {
+        "name": "ErrNewInformerCode",
+        "old_code": "11027",
+        "code": "11027",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11028": [
+      {
+        "name": "ErrEndpointNotFoundCode",
+        "old_code": "11028",
+        "code": "11028",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11029": [
+      {
+        "name": "ErrInvalidAPIServerCode",
+        "old_code": "11029",
+        "code": "11029",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11030": [
+      {
+        "name": "ErrLoadConfigCode",
+        "old_code": "11030",
+        "code": "11030",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11031": [
+      {
+        "name": "ErrValidateConfigCode",
+        "old_code": "11031",
+        "code": "11031",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/error.go"
+      }
+    ],
+    "11032": [
+      {
+        "name": "ErrExposeResourceCode",
+        "old_code": "11032",
+        "code": "11032",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11033": [
+      {
+        "name": "ErrGettingResourceCode",
+        "old_code": "11033",
+        "code": "11033",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11034": [
+      {
+        "name": "ErrTraverserCode",
+        "old_code": "11034",
+        "code": "11034",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11035": [
+      {
+        "name": "ErrResourceCannotBeExposedCode",
+        "old_code": "11035",
+        "code": "11035",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11036": [
+      {
+        "name": "ErrSelectorBasedMapCode",
+        "old_code": "11036",
+        "code": "11036",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11037": [
+      {
+        "name": "ErrProtocolBasedMapCode",
+        "old_code": "11037",
+        "code": "11037",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11038": [
+      {
+        "name": "ErrLableBasedMapCode",
+        "old_code": "11038",
+        "code": "11038",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11039": [
+      {
+        "name": "ErrPortParsingCode",
+        "old_code": "11039",
+        "code": "11039",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11040": [
+      {
+        "name": "ErrGenerateServiceCode",
+        "old_code": "11040",
+        "code": "11040",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11041": [
+      {
+        "name": "ErrConstructingRestHelperCode",
+        "old_code": "11041",
+        "code": "11041",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "11042": [
+      {
+        "name": "ErrCreatingServiceCode",
+        "old_code": "11042",
+        "code": "11042",
+        "code_is_literal": true,
+        "code_is_int": true,
+        "path": "utils/kubernetes/expose/error.go"
+      }
+    ],
+    "test": [
+      {
+        "name": "ErrUnmarshalCode",
+        "old_code": "test",
+        "code": "11043",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrUnmarshalInvalidCode",
+        "old_code": "test",
+        "code": "11044",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrUnmarshalSyntaxCode",
+        "old_code": "test",
+        "code": "11045",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrUnmarshalTypeCode",
+        "old_code": "test",
+        "code": "11046",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrUnmarshalUnsupportedTypeCode",
+        "old_code": "test",
+        "code": "11047",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrUnmarshalUnsupportedValueCode",
+        "old_code": "test",
+        "code": "11048",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrMarshalCode",
+        "old_code": "test",
+        "code": "11049",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrGetBoolCode",
+        "old_code": "test",
+        "code": "11050",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrInvalidProtocolCode",
+        "old_code": "test",
+        "code": "11051",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrRemoteFileNotFoundCode",
+        "old_code": "test",
+        "code": "11052",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrReadingRemoteFileCode",
+        "old_code": "test",
+        "code": "11053",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      },
+      {
+        "name": "ErrReadingLocalFileCode",
+        "old_code": "test",
+        "code": "11054",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/error.go"
+      }
+    ]
+  },
+  "call_expr_codes": [
+    {
+      "name": "ErrEmptyConfig",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "config/error.go"
+    },
+    {
+      "name": "ErrNoneDatabase",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrSQLMapInvalidScan",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "database/error.go"
+    },
+    {
+      "name": "ErrEndpointNotFound",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrInvalidAPIServer",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/error.go"
+    },
+    {
+      "name": "ErrPodHasNoLabels",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrServiceHasNoSelectors",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidDeploymentNoSelectorsLabels",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidDeploymentNoSelectors",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidReplicaNoSelectorsLabels",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidReplicaSetNoSelectors",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrNoPortsFoundForHeadlessResource",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    }
+  ],
+  "deprecated_new_default": [
+    "broker/nats/error.go",
+    "config/error.go",
+    "database/error.go",
+    "utils/error.go",
+    "utils/kubernetes/error.go",
+    "utils/kubernetes/expose/error.go"
+  ],
+  "errors_raw": {
+    "ErrInMem": [
+      {
+        "name": "ErrInMem",
+        "code": "",
+        "severity": "Fatal",
+        "long_description": "",
+        "short_description": "InMem configuration initialization failed",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrViper": [
+      {
+        "name": "ErrViper",
+        "code": "",
+        "severity": "Fatal",
+        "long_description": "",
+        "short_description": "Viper configuration initialization failed",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ]
+  }
+}

@@ -1,11 +1,14 @@
-check:
+check: error
 	golangci-lint run
 
-check-clean-cache:
+check-clean-cache: error
 	golangci-lint cache clean
 
-test:
+test: error
 	go test ./...
+
+error: errorutil
+	./errorutil -d . update
 
 errorutil:
 	go build -o errorutil cmd/errorutil/main.go

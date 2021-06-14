@@ -1,0 +1,85 @@
+{
+  "min_code": 11000,
+  "max_code": 11042,
+  "duplicate_codes": {
+    "11000": [
+      "ErrConnectCode",
+      "ErrEncodedConnCode"
+    ],
+    "11001": [
+      "ErrPublishCode",
+      "ErrPublishRequestCode",
+      "ErrQueueSubscribeCode"
+    ],
+    "test": [
+      "ErrUnmarshalCode",
+      "ErrUnmarshalInvalidCode",
+      "ErrUnmarshalSyntaxCode",
+      "ErrUnmarshalTypeCode",
+      "ErrUnmarshalUnsupportedTypeCode",
+      "ErrUnmarshalUnsupportedValueCode",
+      "ErrMarshalCode",
+      "ErrGetBoolCode",
+      "ErrInvalidProtocolCode",
+      "ErrRemoteFileNotFoundCode",
+      "ErrReadingRemoteFileCode",
+      "ErrReadingLocalFileCode"
+    ]
+  },
+  "duplicate_names": [],
+  "call_expr_codes": [
+    "ErrEmptyConfig",
+    "ErrNoneDatabase",
+    "ErrSQLMapInvalidScan",
+    "ErrEndpointNotFound",
+    "ErrInvalidAPIServer",
+    "ErrPodHasNoLabels",
+    "ErrServiceHasNoSelectors",
+    "ErrInvalidDeploymentNoSelectorsLabels",
+    "ErrInvalidDeploymentNoSelectors",
+    "ErrInvalidReplicaNoSelectorsLabels",
+    "ErrInvalidReplicaSetNoSelectors",
+    "ErrNoPortsFoundForHeadlessResource"
+  ],
+  "int_codes": [
+    11000,
+    11027,
+    11036,
+    11039,
+    11041,
+    11023,
+    11033,
+    11035,
+    11038,
+    11011,
+    11014,
+    11030,
+    11031,
+    11034,
+    11013,
+    11026,
+    11042,
+    11021,
+    11028,
+    11037,
+    11040,
+    11001,
+    11010,
+    11015,
+    11024,
+    11025,
+    11029,
+    11032,
+    11012,
+    11016,
+    11022
+  ],
+  "deprecated_new_default": [
+    "broker/nats/error.go",
+    "config/error.go",
+    "database/error.go",
+    "utils/error.go",
+    "utils/kubernetes/error.go",
+    "utils/kubernetes/expose/error.go"
+  ]
+}

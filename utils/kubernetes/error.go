@@ -3,17 +3,17 @@ package kubernetes
 import "github.com/layer5io/meshkit/errors"
 
 var (
-	ErrApplyManifestCode    = "test_code"
-	ErrServiceDiscoveryCode = "test_code"
-	ErrApplyHelmChartCode   = "test_code"
-	ErrNewKubeClientCode    = "test_code"
-	ErrNewDynClientCode     = "test_code"
-	ErrNewDiscoveryCode     = "test_code"
-	ErrNewInformerCode      = "test_code"
-	ErrEndpointNotFoundCode = "test_code"
-	ErrInvalidAPIServerCode = "test_code"
-	ErrLoadConfigCode       = "test_code"
-	ErrValidateConfigCode   = "test_code"
+	ErrApplyManifestCode    = "11021"
+	ErrServiceDiscoveryCode = "11022"
+	ErrApplyHelmChartCode   = "11023"
+	ErrNewKubeClientCode    = "11024"
+	ErrNewDynClientCode     = "11025"
+	ErrNewDiscoveryCode     = "11026"
+	ErrNewInformerCode      = "11027"
+	ErrEndpointNotFoundCode = "11028"
+	ErrInvalidAPIServerCode = "11029"
+	ErrLoadConfigCode       = "11030"
+	ErrValidateConfigCode   = "11031"
 
 	ErrEndpointNotFound = errors.NewDefault(ErrEndpointNotFoundCode, "Unable to discover an endpoint")
 	ErrInvalidAPIServer = errors.NewDefault(ErrInvalidAPIServerCode, "Invalid API Server URL")

@@ -1,0 +1,267 @@
+{
+  "component_name": "meshkit",
+  "component_type": "library",
+  "errors": {
+    "11010": {
+      "name": "ErrNoneDatabaseCode",
+      "code": "11010",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11011": {
+      "name": "ErrDatabaseOpenCode",
+      "code": "11011",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11012": {
+      "name": "ErrSQLMapUnmarshalJSONCode",
+      "code": "11012",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11013": {
+      "name": "ErrSQLMapUnmarshalTextCode",
+      "code": "11013",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11014": {
+      "name": "ErrSQLMapMarshalValueCode",
+      "code": "11014",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11015": {
+      "name": "ErrSQLMapUnmarshalScannedCode",
+      "code": "11015",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11016": {
+      "name": "ErrSQLMapInvalidScanCode",
+      "code": "11016",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11021": {
+      "name": "ErrApplyManifestCode",
+      "code": "11021",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11022": {
+      "name": "ErrServiceDiscoveryCode",
+      "code": "11022",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11023": {
+      "name": "ErrApplyHelmChartCode",
+      "code": "11023",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11024": {
+      "name": "ErrNewKubeClientCode",
+      "code": "11024",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11025": {
+      "name": "ErrNewDynClientCode",
+      "code": "11025",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11026": {
+      "name": "ErrNewDiscoveryCode",
+      "code": "11026",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11027": {
+      "name": "ErrNewInformerCode",
+      "code": "11027",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11028": {
+      "name": "ErrEndpointNotFoundCode",
+      "code": "11028",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11029": {
+      "name": "ErrInvalidAPIServerCode",
+      "code": "11029",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11030": {
+      "name": "ErrLoadConfigCode",
+      "code": "11030",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11031": {
+      "name": "ErrValidateConfigCode",
+      "code": "11031",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11032": {
+      "name": "ErrExposeResourceCode",
+      "code": "11032",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11033": {
+      "name": "ErrGettingResourceCode",
+      "code": "11033",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11034": {
+      "name": "ErrTraverserCode",
+      "code": "11034",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11035": {
+      "name": "ErrResourceCannotBeExposedCode",
+      "code": "11035",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11036": {
+      "name": "ErrSelectorBasedMapCode",
+      "code": "11036",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11037": {
+      "name": "ErrProtocolBasedMapCode",
+      "code": "11037",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11038": {
+      "name": "ErrLableBasedMapCode",
+      "code": "11038",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11039": {
+      "name": "ErrPortParsingCode",
+      "code": "11039",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11040": {
+      "name": "ErrGenerateServiceCode",
+      "code": "11040",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11041": {
+      "name": "ErrConstructingRestHelperCode",
+      "code": "11041",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11042": {
+      "name": "ErrCreatingServiceCode",
+      "code": "11042",
+      "severity": "",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    }
+  }
+}
