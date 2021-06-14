@@ -5,45 +5,45 @@
     "11010": {
       "name": "ErrNoneDatabaseCode",
       "code": "11010",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "No Database selected",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11011": {
       "name": "ErrDatabaseOpenCode",
       "code": "11011",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Unable to open database",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11012": {
       "name": "ErrSQLMapUnmarshalJSONCode",
       "code": "11012",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "failed to unmarshal json",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11013": {
       "name": "ErrSQLMapUnmarshalTextCode",
       "code": "11013",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "failed to unmarshal text",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11014": {
       "name": "ErrSQLMapMarshalValueCode",
       "code": "11014",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "failed to marshal value",
       "probable_cause": "",
       "suggested_remediation": ""
     },
@@ -167,7 +167,7 @@
     "11032": {
       "name": "ErrExposeResourceCode",
       "code": "11032",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
       "probable_cause": "",
@@ -176,7 +176,7 @@
     "11033": {
       "name": "ErrGettingResourceCode",
       "code": "11033",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
       "probable_cause": "",
@@ -185,7 +185,7 @@
     "11034": {
       "name": "ErrTraverserCode",
       "code": "11034",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
       "probable_cause": "",
@@ -194,16 +194,16 @@
     "11035": {
       "name": "ErrResourceCannotBeExposedCode",
       "code": "11035",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "resource type %s cannot be exposed: ",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11036": {
       "name": "ErrSelectorBasedMapCode",
       "code": "11036",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
       "probable_cause": "",
@@ -212,7 +212,7 @@
     "11037": {
       "name": "ErrProtocolBasedMapCode",
       "code": "11037",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
       "probable_cause": "",
@@ -221,7 +221,7 @@
     "11038": {
       "name": "ErrLableBasedMapCode",
       "code": "11038",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
       "probable_cause": "",
@@ -230,7 +230,7 @@
     "11039": {
       "name": "ErrPortParsingCode",
       "code": "11039",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
       "probable_cause": "",
@@ -239,7 +239,7 @@
     "11040": {
       "name": "ErrGenerateServiceCode",
       "code": "11040",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
       "probable_cause": "",
@@ -248,7 +248,7 @@
     "11041": {
       "name": "ErrConstructingRestHelperCode",
       "code": "11041",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
       "probable_cause": "",
@@ -257,9 +257,117 @@
     "11042": {
       "name": "ErrCreatingServiceCode",
       "code": "11042",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
       "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11043": {
+      "name": "ErrUnmarshalCode",
+      "code": "11043",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Unmarshal unknown error: %s",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11044": {
+      "name": "ErrUnmarshalInvalidCode",
+      "code": "11044",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Unmarshal invalid error for type: ",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11045": {
+      "name": "ErrUnmarshalSyntaxCode",
+      "code": "11045",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Unmarshal syntax error at offest: ",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11046": {
+      "name": "ErrUnmarshalTypeCode",
+      "code": "11046",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Unmarshal type error at key: %s. Error: %s",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11047": {
+      "name": "ErrUnmarshalUnsupportedTypeCode",
+      "code": "11047",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Unmarshal unsupported type error at key: ",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11048": {
+      "name": "ErrUnmarshalUnsupportedValueCode",
+      "code": "11048",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Unmarshal unsupported value error at key: ",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11049": {
+      "name": "ErrMarshalCode",
+      "code": "11049",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Marshal error, Description: %s",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11050": {
+      "name": "ErrGetBoolCode",
+      "code": "11050",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Error while getting Boolean value for key: %s, error: %s",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11051": {
+      "name": "ErrInvalidProtocolCode",
+      "code": "11051",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "invalid protocol: only http, https and file are valid protocols",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11052": {
+      "name": "ErrRemoteFileNotFoundCode",
+      "code": "11052",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "remote file not found at",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11053": {
+      "name": "ErrReadingRemoteFileCode",
+      "code": "11053",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "error reading remote file",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11054": {
+      "name": "ErrReadingLocalFileCode",
+      "code": "11054",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "error reading local file",
       "probable_cause": "",
       "suggested_remediation": ""
     }

@@ -48,43 +48,43 @@ var (
 	ErrCreatingServiceCode = "11042"
 
 	// ErrPodHasNoLabelsCode is generated when there is an error
-	ErrPodHasNoLabelsCode = "test"
+	ErrPodHasNoLabelsCode = "11058"
 
 	// ErrServiceHasNoSelectorsCode is generated when there is an error
-	ErrServiceHasNoSelectorsCode = "test"
+	ErrServiceHasNoSelectorsCode = "11059"
 
 	// ErrInvalidDeploymentNoSelectorsLabelsCode is generated when there is an error
-	ErrInvalidDeploymentNoSelectorsLabelsCode = "test"
+	ErrInvalidDeploymentNoSelectorsLabelsCode = "11060"
 
 	// ErrInvalidDeploymentNoSelectorsCode is generated when there is an error
-	ErrInvalidDeploymentNoSelectorsCode = "test"
+	ErrInvalidDeploymentNoSelectorsCode = "11061"
 
 	// ErrInvalidReplicaNoSelectorsLabelsCode is generated when there is an error
-	ErrInvalidReplicaNoSelectorsLabelsCode = "test"
+	ErrInvalidReplicaNoSelectorsLabelsCode = "11062"
 
 	// ErrInvalidReplicaSetNoSelectorsCode is generated when there is an error
-	ErrInvalidReplicaSetNoSelectorsCode = "test"
+	ErrInvalidReplicaSetNoSelectorsCode = "11063"
 
 	// ErrNoPortsFoundForHeadlessResourceCode is generated when there is an error
-	ErrNoPortsFoundForHeadlessResourceCode = "test"
+	ErrNoPortsFoundForHeadlessResourceCode = "11064"
 
 	// ErrUnknownSessionAffinityErrCode is generated when there is an error
-	ErrUnknownSessionAffinityErrCode = "test"
+	ErrUnknownSessionAffinityErrCode = "11065"
 
 	// ErrMatchExpressionsConvertionErrCode is generated when there is an error
-	ErrMatchExpressionsConvertionErrCode = "test"
+	ErrMatchExpressionsConvertionErrCode = "11066"
 
 	// ErrFailedToExtractPodSelectorErrCode is generated when there is an error
-	ErrFailedToExtractPodSelectorErrCode = "test"
+	ErrFailedToExtractPodSelectorErrCode = "11067"
 
 	// ErrFailedToExtractPortsCode is generated when there is an error
-	ErrFailedToExtractPortsCode = "test"
+	ErrFailedToExtractPortsCode = "11068"
 
 	// ErrFailedToExtractProtocolsErrCode is generated when there is an error
-	ErrFailedToExtractProtocolsErrCode = "test"
+	ErrFailedToExtractProtocolsErrCode = "11069"
 
 	// ErrCannotExposeObjectErrCode is generated when there is an error
-	ErrCannotExposeObjectErrCode = "test"
+	ErrCannotExposeObjectErrCode = "11070"
 )
 
 // Custom errors and generators - These errors are not meshkit errors, they are intended to be wrapped

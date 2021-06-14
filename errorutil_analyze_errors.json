@@ -41,6 +41,30 @@
       "path": "broker/nats/error.go"
     },
     {
+      "name": "ErrEmptyConfigCode",
+      "old_code": "test",
+      "code": "11055",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "config/error.go"
+    },
+    {
+      "name": "ErrViperCode",
+      "old_code": "test",
+      "code": "11056",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "config/error.go"
+    },
+    {
+      "name": "ErrInMemCode",
+      "old_code": "test",
+      "code": "11057",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "config/error.go"
+    },
+    {
       "name": "ErrEmptyConfig",
       "old_code": "",
       "code": "",
@@ -122,97 +146,105 @@
     },
     {
       "name": "ErrUnmarshalCode",
-      "old_code": "test",
+      "old_code": "11043",
       "code": "11043",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrUnmarshalInvalidCode",
-      "old_code": "test",
+      "old_code": "11044",
       "code": "11044",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrUnmarshalSyntaxCode",
-      "old_code": "test",
+      "old_code": "11045",
       "code": "11045",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrUnmarshalTypeCode",
-      "old_code": "test",
+      "old_code": "11046",
       "code": "11046",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrUnmarshalUnsupportedTypeCode",
-      "old_code": "test",
+      "old_code": "11047",
       "code": "11047",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrUnmarshalUnsupportedValueCode",
-      "old_code": "test",
+      "old_code": "11048",
       "code": "11048",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrMarshalCode",
-      "old_code": "test",
+      "old_code": "11049",
       "code": "11049",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrGetBoolCode",
-      "old_code": "test",
+      "old_code": "11050",
       "code": "11050",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrInvalidProtocolCode",
-      "old_code": "test",
+      "old_code": "11051",
       "code": "11051",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrRemoteFileNotFoundCode",
-      "old_code": "test",
+      "old_code": "11052",
       "code": "11052",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrReadingRemoteFileCode",
-      "old_code": "test",
+      "old_code": "11053",
       "code": "11053",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "utils/error.go"
     },
     {
       "name": "ErrReadingLocalFileCode",
-      "old_code": "test",
+      "old_code": "11054",
       "code": "11054",
       "code_is_literal": true,
+      "code_is_int": true,
+      "path": "utils/error.go"
+    },
+    {
+      "name": "ErrInvalidProtocol",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
       "code_is_int": false,
       "path": "utils/error.go"
     },
@@ -406,6 +438,110 @@
       "code": "11042",
       "code_is_literal": true,
       "code_is_int": true,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrPodHasNoLabelsCode",
+      "old_code": "test",
+      "code": "11058",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrServiceHasNoSelectorsCode",
+      "old_code": "test",
+      "code": "11059",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidDeploymentNoSelectorsLabelsCode",
+      "old_code": "test",
+      "code": "11060",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidDeploymentNoSelectorsCode",
+      "old_code": "test",
+      "code": "11061",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidReplicaNoSelectorsLabelsCode",
+      "old_code": "test",
+      "code": "11062",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrInvalidReplicaSetNoSelectorsCode",
+      "old_code": "test",
+      "code": "11063",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrNoPortsFoundForHeadlessResourceCode",
+      "old_code": "test",
+      "code": "11064",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrUnknownSessionAffinityErrCode",
+      "old_code": "test",
+      "code": "11065",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrMatchExpressionsConvertionErrCode",
+      "old_code": "test",
+      "code": "11066",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrFailedToExtractPodSelectorErrCode",
+      "old_code": "test",
+      "code": "11067",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrFailedToExtractPortsCode",
+      "old_code": "test",
+      "code": "11068",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrFailedToExtractProtocolsErrCode",
+      "old_code": "test",
+      "code": "11069",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "utils/kubernetes/expose/error.go"
+    },
+    {
+      "name": "ErrCannotExposeObjectErrCode",
+      "old_code": "test",
+      "code": "11070",
+      "code_is_literal": true,
+      "code_is_int": false,
       "path": "utils/kubernetes/expose/error.go"
     },
     {
@@ -800,102 +936,254 @@
         "path": "utils/kubernetes/expose/error.go"
       }
     ],
-    "test": [
+    "11043": [
       {
         "name": "ErrUnmarshalCode",
-        "old_code": "test",
+        "old_code": "11043",
         "code": "11043",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11044": [
       {
         "name": "ErrUnmarshalInvalidCode",
-        "old_code": "test",
+        "old_code": "11044",
         "code": "11044",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11045": [
       {
         "name": "ErrUnmarshalSyntaxCode",
-        "old_code": "test",
+        "old_code": "11045",
         "code": "11045",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11046": [
       {
         "name": "ErrUnmarshalTypeCode",
-        "old_code": "test",
+        "old_code": "11046",
         "code": "11046",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11047": [
       {
         "name": "ErrUnmarshalUnsupportedTypeCode",
-        "old_code": "test",
+        "old_code": "11047",
         "code": "11047",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11048": [
       {
         "name": "ErrUnmarshalUnsupportedValueCode",
-        "old_code": "test",
+        "old_code": "11048",
         "code": "11048",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11049": [
       {
         "name": "ErrMarshalCode",
-        "old_code": "test",
+        "old_code": "11049",
         "code": "11049",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11050": [
       {
         "name": "ErrGetBoolCode",
-        "old_code": "test",
+        "old_code": "11050",
         "code": "11050",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11051": [
       {
         "name": "ErrInvalidProtocolCode",
-        "old_code": "test",
+        "old_code": "11051",
         "code": "11051",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11052": [
       {
         "name": "ErrRemoteFileNotFoundCode",
-        "old_code": "test",
+        "old_code": "11052",
         "code": "11052",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11053": [
       {
         "name": "ErrReadingRemoteFileCode",
-        "old_code": "test",
+        "old_code": "11053",
         "code": "11053",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
-      },
+      }
+    ],
+    "11054": [
       {
         "name": "ErrReadingLocalFileCode",
-        "old_code": "test",
+        "old_code": "11054",
         "code": "11054",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "utils/error.go"
+      }
+    ],
+    "test": [
+      {
+        "name": "ErrEmptyConfigCode",
+        "old_code": "test",
+        "code": "11055",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "config/error.go"
+      },
+      {
+        "name": "ErrViperCode",
+        "old_code": "test",
+        "code": "11056",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "config/error.go"
+      },
+      {
+        "name": "ErrInMemCode",
+        "old_code": "test",
+        "code": "11057",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "config/error.go"
+      },
+      {
+        "name": "ErrPodHasNoLabelsCode",
+        "old_code": "test",
+        "code": "11058",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrServiceHasNoSelectorsCode",
+        "old_code": "test",
+        "code": "11059",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrInvalidDeploymentNoSelectorsLabelsCode",
+        "old_code": "test",
+        "code": "11060",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrInvalidDeploymentNoSelectorsCode",
+        "old_code": "test",
+        "code": "11061",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrInvalidReplicaNoSelectorsLabelsCode",
+        "old_code": "test",
+        "code": "11062",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrInvalidReplicaSetNoSelectorsCode",
+        "old_code": "test",
+        "code": "11063",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrNoPortsFoundForHeadlessResourceCode",
+        "old_code": "test",
+        "code": "11064",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrUnknownSessionAffinityErrCode",
+        "old_code": "test",
+        "code": "11065",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrMatchExpressionsConvertionErrCode",
+        "old_code": "test",
+        "code": "11066",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrFailedToExtractPodSelectorErrCode",
+        "old_code": "test",
+        "code": "11067",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrFailedToExtractPortsCode",
+        "old_code": "test",
+        "code": "11068",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrFailedToExtractProtocolsErrCode",
+        "old_code": "test",
+        "code": "11069",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
+      },
+      {
+        "name": "ErrCannotExposeObjectErrCode",
+        "old_code": "test",
+        "code": "11070",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "utils/kubernetes/expose/error.go"
       }
     ]
   },
@@ -923,6 +1211,14 @@
       "code_is_literal": false,
       "code_is_int": false,
       "path": "database/error.go"
+    },
+    {
+      "name": "ErrInvalidProtocol",
+      "old_code": "",
+      "code": "",
+      "code_is_literal": false,
+      "code_is_int": false,
+      "path": "utils/error.go"
     },
     {
       "name": "ErrEndpointNotFound",
@@ -1000,15 +1296,133 @@
   "deprecated_new_default": [
     "broker/nats/error.go",
     "config/error.go",
-    "database/error.go",
-    "utils/error.go",
-    "utils/kubernetes/error.go",
-    "utils/kubernetes/expose/error.go"
+    "utils/kubernetes/error.go"
   ],
   "errors_raw": {
-    "ErrInMem": [
+    "ErrCannotExposeObjectErrCode": [
       {
-        "name": "ErrInMem",
+        "name": "ErrCannotExposeObjectErrCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "cannot expose a ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrConstructingRestHelperCode": [
+      {
+        "name": "ErrConstructingRestHelperCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrCreatingServiceCode": [
+      {
+        "name": "ErrCreatingServiceCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrDatabaseOpenCode": [
+      {
+        "name": "ErrDatabaseOpenCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Unable to open database",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrExposeResourceCode": [
+      {
+        "name": "ErrExposeResourceCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrFailedToExtractPodSelectorErrCode": [
+      {
+        "name": "ErrFailedToExtractPodSelectorErrCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "cannot extract pod selector from ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrFailedToExtractPortsCode": [
+      {
+        "name": "ErrFailedToExtractPortsCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "cannot extract ports from ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrFailedToExtractProtocolsErrCode": [
+      {
+        "name": "ErrFailedToExtractProtocolsErrCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "cannot extract protocols from ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrGenerateServiceCode": [
+      {
+        "name": "ErrGenerateServiceCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrGetBoolCode": [
+      {
+        "name": "ErrGetBoolCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Error while getting Boolean value for key: %s, error: %s",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrGettingResourceCode": [
+      {
+        "name": "ErrGettingResourceCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrInMemCode": [
+      {
+        "name": "ErrInMemCode",
         "code": "",
         "severity": "Fatal",
         "long_description": "",
@@ -1017,9 +1431,359 @@
         "suggested_remediation": ""
       }
     ],
-    "ErrViper": [
+    "ErrInvalidDeploymentNoSelectorsCode": [
       {
-        "name": "ErrViper",
+        "name": "ErrInvalidDeploymentNoSelectorsCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "invalid deployment: no selectors, therefore cannot be exposed",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrInvalidDeploymentNoSelectorsLabelsCode": [
+      {
+        "name": "ErrInvalidDeploymentNoSelectorsLabelsCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "the deployment has no labels or selectors and cannot be exposed",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrInvalidProtocolCode": [
+      {
+        "name": "ErrInvalidProtocolCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "invalid protocol: only http, https and file are valid protocols",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrInvalidReplicaNoSelectorsLabelsCode": [
+      {
+        "name": "ErrInvalidReplicaNoSelectorsLabelsCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "the replica set has no labels or selectors and cannot be exposed",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrInvalidReplicaSetNoSelectorsCode": [
+      {
+        "name": "ErrInvalidReplicaSetNoSelectorsCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "invalid replicaset: no selectors, therefore cannot be exposed",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrLableBasedMapCode": [
+      {
+        "name": "ErrLableBasedMapCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrMarshalCode": [
+      {
+        "name": "ErrMarshalCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Marshal error, Description: %s",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrMatchExpressionsConvertionErrCode": [
+      {
+        "name": "ErrMatchExpressionsConvertionErrCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "couldn't convert expressions - to map-based selector format",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrNoPortsFoundForHeadlessResourceCode": [
+      {
+        "name": "ErrNoPortsFoundForHeadlessResourceCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "no ports found for the non headless resource",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrNoneDatabaseCode": [
+      {
+        "name": "ErrNoneDatabaseCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "No Database selected",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrPodHasNoLabelsCode": [
+      {
+        "name": "ErrPodHasNoLabelsCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "the pod has no labels and cannot be exposed",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrPortParsingCode": [
+      {
+        "name": "ErrPortParsingCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrProtocolBasedMapCode": [
+      {
+        "name": "ErrProtocolBasedMapCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrReadingLocalFileCode": [
+      {
+        "name": "ErrReadingLocalFileCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "error reading local file",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrReadingRemoteFileCode": [
+      {
+        "name": "ErrReadingRemoteFileCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "error reading remote file",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrRemoteFileNotFoundCode": [
+      {
+        "name": "ErrRemoteFileNotFoundCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "remote file not found at",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrResourceCannotBeExposedCode": [
+      {
+        "name": "ErrResourceCannotBeExposedCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "resource type %s cannot be exposed: ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrSQLMapMarshalValueCode": [
+      {
+        "name": "ErrSQLMapMarshalValueCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "failed to marshal value",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrSQLMapUnmarshalJSONCode": [
+      {
+        "name": "ErrSQLMapUnmarshalJSONCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "failed to unmarshal json",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrSQLMapUnmarshalScannedCode": [
+      {
+        "name": "ErrSQLMapUnmarshalScannedCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "invalid data type: expected []byte",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      },
+      {
+        "name": "ErrSQLMapUnmarshalScannedCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "failed to unmarshal scanned data",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrSQLMapUnmarshalTextCode": [
+      {
+        "name": "ErrSQLMapUnmarshalTextCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "failed to unmarshal text",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrSelectorBasedMapCode": [
+      {
+        "name": "ErrSelectorBasedMapCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrServiceHasNoSelectorsCode": [
+      {
+        "name": "ErrServiceHasNoSelectorsCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "the service has no pod selector set",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrTraverserCode": [
+      {
+        "name": "ErrTraverserCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrUnknownSessionAffinityErrCode": [
+      {
+        "name": "ErrUnknownSessionAffinityErrCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "unknown session affinity:",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrUnmarshalCode": [
+      {
+        "name": "ErrUnmarshalCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Unmarshal unknown error: %s",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrUnmarshalInvalidCode": [
+      {
+        "name": "ErrUnmarshalInvalidCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Unmarshal invalid error for type: ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrUnmarshalSyntaxCode": [
+      {
+        "name": "ErrUnmarshalSyntaxCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Unmarshal syntax error at offest: ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrUnmarshalTypeCode": [
+      {
+        "name": "ErrUnmarshalTypeCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Unmarshal type error at key: %s. Error: %s",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrUnmarshalUnsupportedTypeCode": [
+      {
+        "name": "ErrUnmarshalUnsupportedTypeCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Unmarshal unsupported type error at key: ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrUnmarshalUnsupportedValueCode": [
+      {
+        "name": "ErrUnmarshalUnsupportedValueCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Unmarshal unsupported value error at key: ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrViperCode": [
+      {
+        "name": "ErrViperCode",
         "code": "",
         "severity": "Fatal",
         "long_description": "",
