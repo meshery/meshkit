@@ -134,7 +134,7 @@ func ReadFileSource(uri string) (string, error) {
 		return ReadLocalFile(uri)
 	}
 
-	return "", ErrInvalidProtocol()
+	return "", ErrInvalidProtocol
 }
 
 // ReadRemoteFile takes in the location of a remote file
