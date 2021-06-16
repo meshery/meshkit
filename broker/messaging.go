@@ -1,11 +1,13 @@
 package broker
 
 var (
-	Request         ObjectType = "request-payload"
-	MeshSync        ObjectType = "meshsync-data"
-	LogStreamObject ObjectType = "log-stream"
-	SMI             ObjectType = "smi-data"
-	ErrorObject     ObjectType = "error"
+	Request          ObjectType = "request-payload"
+	MeshSync         ObjectType = "meshsync-data"
+	LogStreamObject  ObjectType = "log-stream"
+	SMI              ObjectType = "smi-data"
+	ErrorObject      ObjectType = "error"
+	ExecInputObject  ObjectType = "exec-input"
+	ExecOutputObject ObjectType = "exec-output"
 
 	Add        EventType = "ADDED"
 	Update     EventType = "MODIFIED"
