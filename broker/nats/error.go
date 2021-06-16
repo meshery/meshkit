@@ -13,17 +13,17 @@ const (
 )
 
 func ErrConnect(err error) error {
-	return errors.NewDefault(ErrConnectCode, "Connection to broker failed", err.Error())
+	return errors.New(ErrConnectCode, errors.Alert, []string{"Connection to broker failed"}, []string{err.Error()}, []string{}, []string{})
 }
 func ErrEncodedConn(err error) error {
-	return errors.NewDefault(ErrEncodedConnCode, "Encoding connection failed with broker", err.Error())
+	return errors.New(ErrEncodedConnCode, errors.Alert, []string{"Encoding connection failed with broker"}, []string{err.Error()}, []string{}, []string{})
 }
 func ErrPublish(err error) error {
-	return errors.NewDefault(ErrPublishCode, "Publish failed", err.Error())
+	return errors.New(ErrPublishCode, errors.Alert, []string{"Publish failed"}, []string{err.Error()}, []string{}, []string{})
 }
 func ErrPublishRequest(err error) error {
-	return errors.NewDefault(ErrPublishRequestCode, "Publish request failed", err.Error())
+	return errors.New(ErrPublishRequestCode, errors.Alert, []string{"Publish request failed"}, []string{err.Error()}, []string{}, []string{})
 }
 func ErrQueueSubscribe(err error) error {
-	return errors.NewDefault(ErrQueueSubscribeCode, "Subscription failed", err.Error())
+	return errors.New(ErrQueueSubscribeCode, errors.Alert, []string{"Subscription failed"}, []string{err.Error()}, []string{}, []string{})
 }
