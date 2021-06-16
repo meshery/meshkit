@@ -68,99 +68,99 @@
     "11021": {
       "name": "ErrApplyManifestCode",
       "code": "11021",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error Applying manifest",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11022": {
       "name": "ErrServiceDiscoveryCode",
       "code": "11022",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error Discovering service",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11023": {
       "name": "ErrApplyHelmChartCode",
       "code": "11023",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error applying helm chart",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11024": {
       "name": "ErrNewKubeClientCode",
       "code": "11024",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error creating kubernetes clientset",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11025": {
       "name": "ErrNewDynClientCode",
       "code": "11025",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error creating dynamic client",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11026": {
       "name": "ErrNewDiscoveryCode",
       "code": "11026",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error creating discovery client",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11027": {
       "name": "ErrNewInformerCode",
       "code": "11027",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error creating informer client",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11028": {
       "name": "ErrEndpointNotFoundCode",
       "code": "11028",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Unable to discover an endpoint",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11029": {
       "name": "ErrInvalidAPIServerCode",
       "code": "11029",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Invalid API Server URL",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11030": {
       "name": "ErrLoadConfigCode",
       "code": "11030",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error loading kubernetes config",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "11031": {
       "name": "ErrValidateConfigCode",
       "code": "11031",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Validation failed in the kubernetes config",
       "probable_cause": "",
       "suggested_remediation": ""
     },
@@ -368,6 +368,150 @@
       "severity": "Alert",
       "long_description": "",
       "short_description": "error reading local file",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11055": {
+      "name": "ErrEmptyConfigCode",
+      "code": "11055",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Config not initialized",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11056": {
+      "name": "ErrViperCode",
+      "code": "11056",
+      "severity": "Fatal",
+      "long_description": "",
+      "short_description": "Viper configuration initialization failed",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11057": {
+      "name": "ErrInMemCode",
+      "code": "11057",
+      "severity": "Fatal",
+      "long_description": "",
+      "short_description": "InMem configuration initialization failed",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11058": {
+      "name": "ErrPodHasNoLabelsCode",
+      "code": "11058",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "the pod has no labels and cannot be exposed",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11059": {
+      "name": "ErrServiceHasNoSelectorsCode",
+      "code": "11059",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "the service has no pod selector set",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11060": {
+      "name": "ErrInvalidDeploymentNoSelectorsLabelsCode",
+      "code": "11060",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "the deployment has no labels or selectors and cannot be exposed",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11061": {
+      "name": "ErrInvalidDeploymentNoSelectorsCode",
+      "code": "11061",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "invalid deployment: no selectors, therefore cannot be exposed",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11062": {
+      "name": "ErrInvalidReplicaNoSelectorsLabelsCode",
+      "code": "11062",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "the replica set has no labels or selectors and cannot be exposed",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11063": {
+      "name": "ErrInvalidReplicaSetNoSelectorsCode",
+      "code": "11063",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "invalid replicaset: no selectors, therefore cannot be exposed",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11064": {
+      "name": "ErrNoPortsFoundForHeadlessResourceCode",
+      "code": "11064",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "no ports found for the non headless resource",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11065": {
+      "name": "ErrUnknownSessionAffinityErrCode",
+      "code": "11065",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "unknown session affinity:",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11066": {
+      "name": "ErrMatchExpressionsConvertionErrCode",
+      "code": "11066",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "couldn't convert expressions - to map-based selector format",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11067": {
+      "name": "ErrFailedToExtractPodSelectorErrCode",
+      "code": "11067",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "cannot extract pod selector from ",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11068": {
+      "name": "ErrFailedToExtractPortsCode",
+      "code": "11068",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "cannot extract ports from ",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11069": {
+      "name": "ErrFailedToExtractProtocolsErrCode",
+      "code": "11069",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "cannot extract protocols from ",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "11070": {
+      "name": "ErrCannotExposeObjectErrCode",
+      "code": "11070",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "cannot expose a ",
       "probable_cause": "",
       "suggested_remediation": ""
     }

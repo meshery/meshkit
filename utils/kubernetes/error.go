@@ -15,50 +15,50 @@ var (
 	ErrLoadConfigCode       = "11030"
 	ErrValidateConfigCode   = "11031"
 
-	ErrEndpointNotFound = errors.NewDefault(ErrEndpointNotFoundCode, "Unable to discover an endpoint")
-	ErrInvalidAPIServer = errors.NewDefault(ErrInvalidAPIServerCode, "Invalid API Server URL")
+	ErrEndpointNotFound = errors.New(ErrEndpointNotFoundCode, errors.Alert, []string{"Unable to discover an endpoint"}, []string{}, []string{}, []string{})
+	ErrInvalidAPIServer = errors.New(ErrInvalidAPIServerCode, errors.Alert, []string{"Invalid API Server URL"}, []string{}, []string{}, []string{})
 )
 
 func ErrApplyManifest(err error) error {
-	return errors.NewDefault(ErrApplyManifestCode, "Error Applying manifest", err.Error())
+	return errors.New(ErrApplyManifestCode, errors.Alert, []string{"Error Applying manifest"}, []string{err.Error()}, []string{}, []string{})
 }
 
 // ErrServiceDiscovery returns an error of type "ErrServiceDiscovery" along with the passed error
 func ErrServiceDiscovery(err error) error {
-	return errors.NewDefault(ErrServiceDiscoveryCode, "Error Discovering service", err.Error())
+	return errors.New(ErrServiceDiscoveryCode, errors.Alert, []string{"Error Discovering service"}, []string{err.Error()}, []string{}, []string{})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrApplyHelmChart(err error) error {
-	return errors.NewDefault(ErrApplyHelmChartCode, "Error applying helm chart", err.Error())
+	return errors.New(ErrApplyHelmChartCode, errors.Alert, []string{"Error applying helm chart"}, []string{err.Error()}, []string{}, []string{})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrNewKubeClient(err error) error {
-	return errors.NewDefault(ErrNewKubeClientCode, "Error creating kubernetes clientset", err.Error())
+	return errors.New(ErrNewKubeClientCode, errors.Alert, []string{"Error creating kubernetes clientset"}, []string{err.Error()}, []string{}, []string{})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrNewDynClient(err error) error {
-	return errors.NewDefault(ErrNewDynClientCode, "Error creating dynamic client", err.Error())
+	return errors.New(ErrNewDynClientCode, errors.Alert, []string{"Error creating dynamic client"}, []string{err.Error()}, []string{}, []string{})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrNewDiscovery(err error) error {
-	return errors.NewDefault(ErrNewDiscoveryCode, "Error creating discovery client", err.Error())
+	return errors.New(ErrNewDiscoveryCode, errors.Alert, []string{"Error creating discovery client"}, []string{err.Error()}, []string{}, []string{})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrNewInformer(err error) error {
-	return errors.NewDefault(ErrNewInformerCode, "Error creating informer client", err.Error())
+	return errors.New(ErrNewInformerCode, errors.Alert, []string{"Error creating informer client"}, []string{err.Error()}, []string{}, []string{})
 }
 
 // ErrLoadConfig is the error which occurs in the process of loading a kubernetes config
 func ErrLoadConfig(err error) error {
-	return errors.NewDefault(ErrLoadConfigCode, "Error loading kubernetes config", err.Error())
+	return errors.New(ErrLoadConfigCode, errors.Alert, []string{"Error loading kubernetes config"}, []string{err.Error()}, []string{}, []string{})
 }
 
 // ErrValidateConfig is the error which occurs in the process of validating a kubernetes config
 func ErrValidateConfig(err error) error {
-	return errors.NewDefault(ErrValidateConfigCode, "Validation failed in the kubernetes config", err.Error())
+	return errors.New(ErrValidateConfigCode, errors.Alert, []string{"Validation failed in the kubernetes config"}, []string{err.Error()}, []string{}, []string{})
 }

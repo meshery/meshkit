@@ -11,4 +11,4 @@ error: errorutil
 	./errorutil -d . update
 
 errorutil:
-	go build -o errorutil cmd/errorutil/main.go
+	go run github.com/layer5io/meshkit/cmd/errorutil -d . update

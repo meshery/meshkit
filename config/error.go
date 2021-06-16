@@ -24,7 +24,7 @@ var (
 	ErrInMemCode       = "11057"
 
 	// ErrEmptyConfig is returned when the config has not been initialized.
-	ErrEmptyConfig = errors.NewDefault(ErrEmptyConfigCode, "Config not initialized")
+	ErrEmptyConfig = errors.New(ErrEmptyConfigCode, errors.Alert, []string{"Config not initialized"}, []string{}, []string{}, []string{})
 )
 
 // ErrViper returns a MeshKit error indicating an (initialization) error in the Viper provider.

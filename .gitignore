@@ -17,3 +17,4 @@
 # Miscellaneous
 .vscode/
 cmd/errorutil/errorutil
+errorutil
