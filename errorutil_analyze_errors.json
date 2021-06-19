@@ -1323,7 +1323,7 @@
       "path": "utils/kubernetes/expose/error.go"
     }
   ],
-  "deprecated_new_default": null,
+  "deprecated_new_default": [],
   "errors_raw": {
     "ErrApplyHelmChartCode": [
       {

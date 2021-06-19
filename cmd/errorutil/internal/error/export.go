@@ -39,7 +39,6 @@ type externalAll struct {
 
 func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) error {
 	fname := filepath.Join(outputDir, config.App+"_errors_export.json")
-	log.Infof("exporting to %s", fname)
 	export := externalAll{
 		ComponentType: componentInfo.Type,
 		ComponentName: componentInfo.Name,
@@ -91,6 +90,6 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 	if err != nil {
 		return err
 	}
-	log.Infof("Exporting to %s", fname)
+	log.Infof("exporting to %s", fname)
 	return ioutil.WriteFile(fname, jsn, 0600)
 }
