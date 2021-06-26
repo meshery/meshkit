@@ -46,12 +46,12 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 	}
 	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
-			log.Errorf("not exporting duplicate code '%s'", k)
+			log.Errorf("duplicate code '%s' - skipping export", k)
 			continue
 		}
 		e := v[0]
 		if _, err := strconv.Atoi(e.Code); err != nil {
-			log.Errorf("not exporting non-integer code '%s'", k)
+			log.Errorf("non-integer code '%s' - skipping export", k)
 			continue
 		}
 		// default value used if validations below fail

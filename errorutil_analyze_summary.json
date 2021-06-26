@@ -15,21 +15,7 @@
   "duplicate_names": [
     "ErrSQLMapUnmarshalScannedCode"
   ],
-  "call_expr_codes": [
-    "ErrEmptyConfig",
-    "ErrNoneDatabase",
-    "ErrSQLMapInvalidScan",
-    "ErrInvalidProtocol",
-    "ErrEndpointNotFound",
-    "ErrInvalidAPIServer",
-    "ErrPodHasNoLabels",
-    "ErrServiceHasNoSelectors",
-    "ErrInvalidDeploymentNoSelectorsLabels",
-    "ErrInvalidDeploymentNoSelectors",
-    "ErrInvalidReplicaNoSelectorsLabels",
-    "ErrInvalidReplicaSetNoSelectors",
-    "ErrNoPortsFoundForHeadlessResource"
-  ],
+  "call_expr_codes": [],
   "int_codes": [
     11000,
     11001,

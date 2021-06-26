@@ -48,7 +48,7 @@ func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesh
 			if includeFile(path) {
 				isErrorsGoFile := isErrorGoFile(path)
 				logger.WithFields(logrus.Fields{"iserrorsfile": fmt.Sprintf("%v", isErrorsGoFile)}).Debug("handling Go file")
-				err := handleFile(path, update, updateAll, errorsInfo, comp)
+				err := handleFile(path, update && isErrorsGoFile, updateAll, errorsInfo, comp)
 				if err != nil {
 					return err
 				}
