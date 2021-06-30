@@ -7,9 +7,6 @@ check-clean-cache: error
 test: error
 	go test ./...
 
-error: build-errorutil
-	./errorutil -d . update
-
 errorutil:
 	go run github.com/layer5io/meshkit/cmd/errorutil -d . update
 
