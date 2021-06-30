@@ -2,8 +2,17 @@ package logger
 
 import (
 	"github.com/go-logr/logr"
+	"github.com/layer5io/meshkit/errors"
 	"github.com/sirupsen/logrus"
 )
+
+var (
+	ErrControllerCode = "test"
+)
+
+func ErrController(err error, msg string) error {
+	return errors.New(ErrControllerCode, errors.Alert, []string{msg}, []string{err.Error()}, []string{}, []string{})
+}
 
 type Controller struct {
 	enabled bool
@@ -26,7 +35,7 @@ func (c *Controller) Info(msg string, keysAndValues ...interface{}) {
 }
 
 func (c *Controller) Error(err error, msg string, keysAndValues ...interface{}) {
-	c.base.Error(err)
+	c.base.Error(ErrController(err, msg))
 }
 
 func (c *Controller) V(level int) logr.InfoLogger {

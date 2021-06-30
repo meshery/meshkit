@@ -18,8 +18,7 @@ type ServiceOptions struct {
 	PortSelector string // To specify the name of the kubernetes service port
 	APIServerURL string // Kubernetes api-server URL (Used in-case of minikube)
 	WorkerNodeIP string // Kubernetes worker node IP address (Any), in case of a kubeadm based cluster orchestration
-
-	Mock *utils.MockOptions
+	Mock         *utils.MockOptions
 }
 
 // GetServiceEndpoint returns the endpoint for the given service
@@ -28,7 +27,6 @@ func GetServiceEndpoint(ctx context.Context, client kubernetes.Interface, opts *
 	if err != nil {
 		return nil, ErrServiceDiscovery(err)
 	}
-
 	return GetEndpoint(ctx, opts, obj)
 }
 
@@ -36,11 +34,9 @@ func GetServiceEndpoint(ctx context.Context, client kubernetes.Interface, opts *
 func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service) (*utils.Endpoint, error) {
 	var nodePort, clusterPort int32
 	endpoint := utils.Endpoint{}
-
 	if opts.WorkerNodeIP == "" {
 		opts.WorkerNodeIP = "localhost"
 	}
-
 	for _, port := range obj.Spec.Ports {
 		nodePort = port.NodePort
 		clusterPort = port.Port
@@ -48,47 +44,47 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 			break
 		}
 	}
-
 	// get clusterip endpoint
 	endpoint.Internal = &utils.HostPort{
 		Address: obj.Spec.ClusterIP,
 		Port:    clusterPort,
 	}
-
 	// Initialize nodePort type endpoint
 	endpoint.External = &utils.HostPort{
 		Address: opts.WorkerNodeIP,
 		Port:    nodePort,
 	}
-
 	if obj.Status.Size() > 0 && obj.Status.LoadBalancer.Size() > 0 && len(obj.Status.LoadBalancer.Ingress) > 0 && obj.Status.LoadBalancer.Ingress[0].Size() > 0 {
 		if obj.Status.LoadBalancer.Ingress[0].IP == "" {
 			endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].Hostname
 			endpoint.External.Port = clusterPort
 		} else if obj.Status.LoadBalancer.Ingress[0].IP == obj.Spec.ClusterIP {
-			url, err := url.Parse(opts.APIServerURL)
-			if err != nil {
-				return nil, ErrInvalidAPIServer
+			if opts.APIServerURL != "" {
+				url, err := url.Parse(opts.APIServerURL)
+				if err != nil {
+					return nil, ErrInvalidAPIServer
+				}
+				host, _, err := net.SplitHostPort(url.Host)
+				if err != nil {
+					return nil, ErrInvalidAPIServer
+				}
+				endpoint.External.Address = host
+				endpoint.External.Port = nodePort
+			} else {
+				endpoint.External.Address = obj.Spec.ClusterIP
+				endpoint.External.Port = clusterPort
 			}
-			host, _, err := net.SplitHostPort(url.Host)
-			if err != nil {
-				return nil, ErrInvalidAPIServer
-			}
-			endpoint.External.Address = host
-			endpoint.External.Port = nodePort
 		} else {
 			endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].IP
 			endpoint.External.Port = clusterPort
 		}
 	}
-
 	// Service Type ClusterIP
 	if endpoint.External.Port == 0 {
 		return &utils.Endpoint{
 			Internal: endpoint.Internal,
 		}, nil
 	}
-
 	// If external endpoint not reachable
 	if !utils.TcpCheck(endpoint.External, opts.Mock) && endpoint.External.Address != "localhost" {
 		url, err := url.Parse(opts.APIServerURL)
@@ -109,6 +105,5 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 			}
 		}
 	}
-
 	return &endpoint, nil
 }
