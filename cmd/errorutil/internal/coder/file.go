@@ -22,6 +22,7 @@ func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.In
 		return err
 	}
 	logger.WithFields(logrus.Fields{"update": update}).Info("inspecting file")
+	anyValueChanged := false
 	ast.Inspect(file, func(n ast.Node) bool {
 		if pgkid, ok := isNewDefaultCallExpr(n); ok {
 			logger.Warnf("Usage of deprecated function %s.NewDefault detected.", pgkid)
@@ -43,10 +44,12 @@ func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.In
 			// If a New call expression is detected, child-nodes are not inspected:
 			return false
 		}
-		handleValueSpec(n, update, updateAll, comp, logger, path, infoAll)
+		if handleValueSpec(n, update, updateAll, comp, logger, path, infoAll) {
+			anyValueChanged = true
+		}
 		return true
 	})
-	if update {
+	if update && anyValueChanged {
 		logger.Info("writing updated file")
 		buf := new(bytes.Buffer)
 		err = format.Node(buf, fset, file)
@@ -62,7 +65,7 @@ func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.In
 }
 
 func isErrorCodeVarName(name string) bool {
-	matched, _ := regexp.MatchString("^Err[A-Z]", name)
+	matched, _ := regexp.MatchString("^Err[A-Z].+Code$", name)
 	return matched
 }
 

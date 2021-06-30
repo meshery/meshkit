@@ -7,6 +7,6 @@ func Logging(verbose bool) {
 	if verbose {
 		logrus.SetLevel(logrus.DebugLevel)
 	} else {
-		logrus.SetLevel(logrus.InfoLevel)
+		logrus.SetLevel(logrus.WarnLevel)
 	}
 }

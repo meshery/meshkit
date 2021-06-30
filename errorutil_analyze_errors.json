@@ -65,14 +65,6 @@
       "path": "config/error.go"
     },
     {
-      "name": "ErrEmptyConfig",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "config/error.go"
-    },
-    {
       "name": "ErrNoneDatabaseCode",
       "old_code": "11010",
       "code": "11010",
@@ -126,22 +118,6 @@
       "code": "11016",
       "code_is_literal": true,
       "code_is_int": true,
-      "path": "database/error.go"
-    },
-    {
-      "name": "ErrNoneDatabase",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "database/error.go"
-    },
-    {
-      "name": "ErrSQLMapInvalidScan",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
       "path": "database/error.go"
     },
     {
@@ -241,14 +217,6 @@
       "path": "utils/error.go"
     },
     {
-      "name": "ErrInvalidProtocol",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/error.go"
-    },
-    {
       "name": "ErrApplyManifestCode",
       "old_code": "11021",
       "code": "11021",
@@ -334,22 +302,6 @@
       "code": "11031",
       "code_is_literal": true,
       "code_is_int": true,
-      "path": "utils/kubernetes/error.go"
-    },
-    {
-      "name": "ErrEndpointNotFound",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/error.go"
-    },
-    {
-      "name": "ErrInvalidAPIServer",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
       "path": "utils/kubernetes/error.go"
     },
     {
@@ -542,62 +494,6 @@
       "code": "11070",
       "code_is_literal": true,
       "code_is_int": true,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrPodHasNoLabels",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrServiceHasNoSelectors",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrInvalidDeploymentNoSelectorsLabels",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrInvalidDeploymentNoSelectors",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrInvalidReplicaNoSelectorsLabels",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrInvalidReplicaSetNoSelectors",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrNoPortsFoundForHeadlessResource",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
       "path": "utils/kubernetes/expose/error.go"
     }
   ],
@@ -1217,113 +1113,8 @@
       }
     ]
   },
-  "call_expr_codes": [
-    {
-      "name": "ErrEmptyConfig",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "config/error.go"
-    },
-    {
-      "name": "ErrNoneDatabase",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "database/error.go"
-    },
-    {
-      "name": "ErrSQLMapInvalidScan",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "database/error.go"
-    },
-    {
-      "name": "ErrInvalidProtocol",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/error.go"
-    },
-    {
-      "name": "ErrEndpointNotFound",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/error.go"
-    },
-    {
-      "name": "ErrInvalidAPIServer",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/error.go"
-    },
-    {
-      "name": "ErrPodHasNoLabels",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrServiceHasNoSelectors",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrInvalidDeploymentNoSelectorsLabels",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrInvalidDeploymentNoSelectors",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrInvalidReplicaNoSelectorsLabels",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrInvalidReplicaSetNoSelectors",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    },
-    {
-      "name": "ErrNoPortsFoundForHeadlessResource",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "utils/kubernetes/expose/error.go"
-    }
-  ],
-  "deprecated_new_default": null,
+  "call_expr_codes": [],
+  "deprecated_new_default": [],
   "errors_raw": {
     "ErrApplyHelmChartCode": [
       {

@@ -21,24 +21,18 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func walkAnalyze(rootDir string, skipDirs []string, errorsInfo *mesherr.InfoAll) error {
-	return walk(rootDir, skipDirs, false, false, errorsInfo)
-}
-
-func walkUpdate(rootDir string, skipDirs []string, updateAll bool, errorsInfo *mesherr.InfoAll) error {
-	return walk(rootDir, skipDirs, true, updateAll, errorsInfo)
-}
-
-func walk(rootDir string, skipDirs []string, update bool, updateAll bool, errorsInfo *mesherr.InfoAll) error {
-	subDirsToSkip := append([]string{".git", ".github"}, skipDirs...)
-	logrus.Info(fmt.Sprintf("root directory: %s", rootDir))
+func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesherr.InfoAll) error {
+	subDirsToSkip := append([]string{".git", ".github"}, globalFlags.skipDirs...)
+	logrus.Info(fmt.Sprintf("root directory: %s", globalFlags.rootDir))
+	logrus.Info(fmt.Sprintf("output directory: %s", globalFlags.outDir))
+	logrus.Info(fmt.Sprintf("info directory: %s", globalFlags.infoDir))
 	logrus.Info(fmt.Sprintf("subdirs to skip: %v", subDirsToSkip))
-	comp, err := component.New(rootDir)
+	comp, err := component.New(globalFlags.infoDir)
 	if err != nil {
 		return err
 	}
 
-	err = filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(globalFlags.rootDir, func(path string, info os.FileInfo, err error) error {
 		logger := logrus.WithFields(logrus.Fields{"path": path})
 		if err != nil {
 			logger.WithFields(logrus.Fields{"error": fmt.Sprintf("%v", err)}).Warn("failure accessing path")
@@ -54,7 +48,7 @@ func walk(rootDir string, skipDirs []string, update bool, updateAll bool, errors
 			if includeFile(path) {
 				isErrorsGoFile := isErrorGoFile(path)
 				logger.WithFields(logrus.Fields{"iserrorsfile": fmt.Sprintf("%v", isErrorsGoFile)}).Debug("handling Go file")
-				err := handleFile(path, update, updateAll, errorsInfo, comp)
+				err := handleFile(path, update && isErrorsGoFile, updateAll, errorsInfo, comp)
 				if err != nil {
 					return err
 				}

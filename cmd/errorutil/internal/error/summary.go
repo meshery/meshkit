@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 	"strconv"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
@@ -22,7 +23,13 @@ type analysisSummary struct {
 
 func SummarizeAnalysis(infoAll *InfoAll, outputDir string) error {
 	maxInt := int(^uint(0) >> 1)
-	summary := &analysisSummary{MinCode: maxInt, MaxCode: -maxInt - 1, DuplicateCodes: make(map[string][]string), DuplicateNames: []string{}}
+	summary := &analysisSummary{
+		MinCode:              maxInt,
+		MaxCode:              -maxInt - 1,
+		DuplicateCodes:       make(map[string][]string),
+		DuplicateNames:       []string{},
+		CallExprCodes:        []string{},
+		DeprecatedNewDefault: []string{}}
 	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
 			_, ok := summary.DuplicateCodes[k]
@@ -45,12 +52,15 @@ func SummarizeAnalysis(infoAll *InfoAll, outputDir string) error {
 			}
 			if _, ok := summary.DuplicateCodes[k]; ok {
 				summary.DuplicateCodes[k] = append(summary.DuplicateCodes[k], e.Name)
+				log.Errorf("duplicate error code '%s', name: '%s'", k, e.Name)
 			}
 		}
 	}
+	sort.Ints(summary.IntCodes)
 	for k, v := range infoAll.Errors {
 		if len(v) > 1 {
 			summary.DuplicateNames = append(summary.DuplicateNames, k)
+			log.Errorf("duplicate error code name '%s'", k)
 		}
 	}
 	for _, v := range infoAll.CallExprCodes {
@@ -62,7 +72,7 @@ func SummarizeAnalysis(infoAll *InfoAll, outputDir string) error {
 		return err
 	}
 	fname := filepath.Join(outputDir, config.App+"_analyze_summary.json")
-	log.Infof("Writing summary to %s", fname)
+	log.Infof("writing summary to %s", fname)
 	return ioutil.WriteFile(fname, jsn, 0600)
 }
 

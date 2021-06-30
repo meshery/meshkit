@@ -115,7 +115,9 @@ func isNewCallExpr(node ast.Node) (*errutilerr.Error, bool) {
 	return empty, false
 }
 
-func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.Info, logger *logrus.Entry, path string, infoAll *errutilerr.InfoAll) {
+// handleValueSpec inspects node n if it is a ValueSpec, analyses and updates it (depending on update and updateAll). Returns true if any value was changed.
+func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.Info, logger *logrus.Entry, path string, infoAll *errutilerr.InfoAll) bool {
+	anyValueChanged := false
 	spec, ok := n.(*ast.ValueSpec)
 	if ok {
 		for _, id := range spec.Names {
@@ -133,6 +135,7 @@ func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.In
 					if (update && !isInteger) || (update && updateAll) {
 						value.Value = fmt.Sprintf("\"%s\"", comp.GetNextErrorCode())
 						newValue = strings.Trim(value.Value, "\"")
+						anyValueChanged = true
 						logger.WithFields(logrus.Fields{"name": id.Name, "value": newValue, "oldValue": oldValue}).Info("Err* variable with literal value replaced.")
 					} else {
 						newValue = oldValue
@@ -166,4 +169,5 @@ func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.In
 			}
 		}
 	}
+	return anyValueChanged
 }
