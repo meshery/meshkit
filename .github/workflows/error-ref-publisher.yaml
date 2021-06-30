@@ -18,7 +18,7 @@ jobs:
 
       - name: Run utility
         run: |
-          go run github.com/layer5io/meshkit/cmd/errorutil -d . analyze --skip-dirs meshery
+          make errorutil-analyze
 
       # to update errorutil* files in meshkit repo
       - name: Commit changes
@@ -33,9 +33,11 @@ jobs:
       - name: Checkout meshery
         uses: actions/checkout@v2
         with:
-          repository: 'DelusionalOptimist/meshery'
+          repository: 'layer5io/meshery'
+          # token with write access to meshery repository
           token: ${{ secrets.PAT }}
           path: 'meshery'
+          ref: 'master'
 
       # to push changes to meshery docs
       - name: Update and push docs
