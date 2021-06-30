@@ -1,0 +1,36 @@
+name: Error Reference Publisher
+on:
+  push:
+    branches:
+      - 'err-ref-ci'
+
+jobs:
+  error-ref:
+    name: Error codes utility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ secrets.GO_VERSION }}
+
+      - name: Checkout meshery
+        uses: actions/checkout@v2
+        with:
+          repository: 'DelusionalOptimist/meshery'
+          token: ${{ secrets.PAT }}
+          path: 'meshery'
+
+      - name: Update and push docs
+        run: |
+          go run github.com/layer5io/meshkit/cmd/errorutil -d . update --skip-dirs meshery
+          echo '{ "errors_export": '$(cat errorutil_errors_export.json)' }' | jq > ./meshery/docs/_data/errorref/meshkit_errors_export.json
+
+          cd ./meshery
+          git config user.name l5io
+          git config user.email ci@layer5.io
+          git add ./docs/_data/errorref/meshkit_errors_export.json
+          git commit -m "[Docs] update error reference for Meshkit library" --signoff
+          git push origin master
