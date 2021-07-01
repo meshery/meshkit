@@ -48,6 +48,6 @@ jobs:
           git config user.name l5io
           git config user.email ci@layer5.io
           git add ./docs/_data/errorref/meshkit_errors_export.json
-          git commit -m "[Docs] update error reference for MeshKit library" --signoff
+          git commit -m "[Docs] Error Code Reference: Updated codes for MeshKit library" --signoff
           git push origin master
           cd ../
