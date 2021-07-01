@@ -1,4 +1,4 @@
-name: Error Reference Publisher
+name: Error Code Reference Publisher
 on:
   push:
     branches:
