@@ -33,7 +33,7 @@ jobs:
       - name: Checkout meshery
         uses: actions/checkout@v2
         with:
-          repository: 'layer5io/meshery'
+          repository: 'meshery/meshery'
           # token with write access to meshery repository
           token: ${{ secrets.PAT }}
           path: 'meshery'
