@@ -35,7 +35,7 @@ jobs:
         with:
           repository: 'meshery/meshery'
           # token with write access to meshery repository
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GH_ACCESS_TOKEN }}
           path: 'meshery'
           ref: 'master'
 
@@ -48,6 +48,6 @@ jobs:
           git config user.name l5io
           git config user.email ci@layer5.io
           git add ./docs/_data/errorref/meshkit_errors_export.json
-          git commit -m "[Docs] update error reference for Meshkit library" --signoff
+          git commit -m "[Docs] update error reference for MeshKit library" --signoff
           git push origin master
           cd ../
