@@ -121,6 +121,14 @@
       "path": "database/error.go"
     },
     {
+      "name": "ErrControllerCode",
+      "old_code": "test",
+      "code": "test",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "logger/controller.go"
+    },
+    {
       "name": "ErrUnmarshalCode",
       "old_code": "11043",
       "code": "11043",
@@ -1111,6 +1119,16 @@
         "code_is_int": true,
         "path": "utils/kubernetes/expose/error.go"
       }
+    ],
+    "test": [
+      {
+        "name": "ErrControllerCode",
+        "old_code": "test",
+        "code": "test",
+        "code_is_literal": true,
+        "code_is_int": false,
+        "path": "logger/controller.go"
+      }
     ]
   },
   "call_expr_codes": [],
@@ -1163,6 +1181,17 @@
     "ErrConstructingRestHelperCode": [
       {
         "name": "ErrConstructingRestHelperCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrControllerCode": [
+      {
+        "name": "ErrControllerCode",
         "code": "",
         "severity": "Alert",
         "long_description": "",
