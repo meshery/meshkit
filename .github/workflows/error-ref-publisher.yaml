@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      # token here with write access to meshkit repo
+        with:
+          token: ${{ secrets.PAT }}
 
       - name: Setup Go
         uses: actions/setup-go@v1
@@ -30,6 +33,7 @@ jobs:
           commit_options: '--signoff'
           commit_message: "run error codes utility"
 
+      # to push changes to meshery docs
       - name: Checkout meshery
         uses: actions/checkout@v2
         with:
@@ -39,7 +43,6 @@ jobs:
           path: 'meshery'
           ref: 'master'
 
-      # to push changes to meshery docs
       - name: Update and push docs
         run: |
           echo '{ "errors_export": '$(cat errorutil_errors_export.json)' }' | jq > ./meshery/docs/_data/errorref/meshkit_errors_export.json
