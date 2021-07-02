@@ -2,7 +2,7 @@ name: Error Code Reference Publisher
 on:
   push:
     branches:
-      - 'err-ref-ci'
+      - 'master'
 
 jobs:
   error-ref:
