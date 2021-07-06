@@ -32,6 +32,7 @@ jobs:
           commit_author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           commit_options: '--signoff'
           commit_message: "run error codes utility"
+          file_pattern: helpers/
 
       # to push changes to meshery docs
       - name: Checkout meshery
