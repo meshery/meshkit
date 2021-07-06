@@ -71,6 +71,14 @@ func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) e
 	if err != nil {
 		return err
 	}
+	// if it was an update, carry out a second pass to get latest state
+	if update {
+		errorsInfo = mesherr.NewInfoAll()
+		err = walk(globalFlags, false, false, errorsInfo)
+		if err != nil {
+			return err
+		}
+	}
 	jsn, err := json.MarshalIndent(errorsInfo, "", "  ")
 	if err != nil {
 		return err
@@ -80,11 +88,11 @@ func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) e
 	if err != nil {
 		return err
 	}
-	err = mesherr.SummarizeAnalysis(errorsInfo, globalFlags.outDir)
+	componentInfo, err := component.New(globalFlags.infoDir)
 	if err != nil {
 		return err
 	}
-	componentInfo, err := component.New(globalFlags.infoDir)
+	err = mesherr.SummarizeAnalysis(componentInfo, errorsInfo, globalFlags.outDir)
 	if err != nil {
 		return err
 	}

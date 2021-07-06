@@ -2,6 +2,7 @@ package error
 
 import (
 	"encoding/json"
+	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 type analysisSummary struct {
 	MinCode              int                 `yaml:"min_code" json:"min_code"`                              // the smallest error code (an int)
 	MaxCode              int                 `yaml:"max_code" json:"max_code"`                              // the biggest error code (an int)
+	NextCode             int                 `yaml:"next_code" json:"next_code"`                            // the next error code to use, taken from ComponentInfo
 	DuplicateCodes       map[string][]string `yaml:"duplicate_codes" json:"duplicate_codes"`                // duplicate error codes
 	DuplicateNames       []string            `yaml:"duplicate_names" json:"duplicate_names"`                // duplicate error names
 	CallExprCodes        []string            `yaml:"call_expr_codes" json:"call_expr_codes"`                // codes set by call expressions instead of literals
@@ -21,14 +23,17 @@ type analysisSummary struct {
 	DeprecatedNewDefault []string            `yaml:"deprecated_new_default" json:"deprecated_new_default" ` // list of files with usage of deprecated NewDefault func
 }
 
-func SummarizeAnalysis(infoAll *InfoAll, outputDir string) error {
+// SummarizeAnalysis summarizes the analysis and writes it to the specified output directory.
+func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDir string) error {
 	maxInt := int(^uint(0) >> 1)
 	summary := &analysisSummary{
 		MinCode:              maxInt,
 		MaxCode:              -maxInt - 1,
+		NextCode:             componentInfo.NextErrorCode,
 		DuplicateCodes:       make(map[string][]string),
 		DuplicateNames:       []string{},
 		CallExprCodes:        []string{},
+		IntCodes:             []int{},
 		DeprecatedNewDefault: []string{}}
 	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
@@ -63,10 +68,13 @@ func SummarizeAnalysis(infoAll *InfoAll, outputDir string) error {
 			log.Errorf("duplicate error code name '%s'", k)
 		}
 	}
+	sort.Strings(summary.DuplicateNames)
 	for _, v := range infoAll.CallExprCodes {
 		summary.CallExprCodes = append(summary.CallExprCodes, v.Name)
 	}
+	sort.Strings(summary.CallExprCodes)
 	summary.DeprecatedNewDefault = infoAll.DeprecatedNewDefault
+	sort.Strings(summary.DeprecatedNewDefault)
 	jsn, err := json.MarshalIndent(summary, "", "  ")
 	if err != nil {
 		return err

@@ -1,10 +1,10 @@
-check: error
+check:
 	golangci-lint run
 
-check-clean-cache: error
+check-clean-cache:
 	golangci-lint cache clean
 
-test: error
+test:
 	go test ./...
 
 errorutil:
