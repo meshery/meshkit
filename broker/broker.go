@@ -14,4 +14,7 @@ type Handler interface {
 	PublishInterface
 	SubscribeInterface
 	Info() string
+	DeepCopyObject() Handler
+	DeepCopyInto(Handler)
+	IsEmpty() bool
 }
