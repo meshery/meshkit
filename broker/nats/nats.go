@@ -10,6 +10,10 @@ import (
 	nats "github.com/nats-io/nats.go"
 )
 
+var (
+	NewEmptyConnection = &Nats{}
+)
+
 type Options struct {
 	URLS           []string
 	ConnectionName string
@@ -108,4 +112,36 @@ func (n *Nats) SubscribeWithChannel(subject, queue string, msgch chan *broker.Me
 	}
 
 	return nil
+}
+
+// DeepCopyInto is a deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *Nats) DeepCopyInto(out broker.Handler) {
+	*out.(*Nats) = *in
+}
+
+// DeepCopy is a deepcopy function, copying the receiver, creating a new Nats.
+func (in *Nats) DeepCopy() *Nats {
+	if in == nil {
+		return nil
+	}
+	out := new(Nats)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject is a deepcopy function, copying the receiver, creating a new broker.Handler.
+func (in *Nats) DeepCopyObject() broker.Handler {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// Check if the connection object is empty
+func (in *Nats) IsEmpty() bool {
+	empty := &Nats{}
+	if in == nil || *in == *empty {
+		return true
+	}
+	return false
 }
