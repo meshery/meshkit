@@ -129,6 +129,22 @@
       "path": "logger/controller.go"
     },
     {
+      "name": "ErrControllerCode",
+      "old_code": "test",
+      "code": "11071",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "logger/controller.go"
+    },
+    {
+      "name": "ErrControllerCode",
+      "old_code": "test",
+      "code": "11071",
+      "code_is_literal": true,
+      "code_is_int": false,
+      "path": "logger/controller.go"
+    },
+    {
       "name": "ErrUnmarshalCode",
       "old_code": "11043",
       "code": "11043",
@@ -1124,7 +1140,7 @@
       {
         "name": "ErrControllerCode",
         "old_code": "test",
-        "code": "test",
+        "code": "11071",
         "code_is_literal": true,
         "code_is_int": false,
         "path": "logger/controller.go"

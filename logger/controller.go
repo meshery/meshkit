@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrControllerCode = "test"
+	ErrControllerCode = "11071"
 )
 
 func ErrController(err error, msg string) error {
