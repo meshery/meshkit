@@ -515,7 +515,7 @@
       "probable_cause": "",
       "suggested_remediation": ""
     },
-    "test": {
+    "11071": {
       "name": "ErrControllerCode",
       "code": "11071",
       "severity": "Alert",
