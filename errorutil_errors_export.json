@@ -514,6 +514,15 @@
       "short_description": "cannot expose a ",
       "probable_cause": "",
       "suggested_remediation": ""
+    },
+    "test": {
+      "name": "ErrControllerCode",
+      "code": "11071",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "",
+      "probable_cause": "",
+      "suggested_remediation": ""
     }
   }
 }
