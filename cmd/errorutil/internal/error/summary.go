@@ -61,6 +61,9 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 			}
 		}
 	}
+	if summary.NextCode <= summary.MaxCode {
+		log.Errorf("component_info.next_error_code '%v' is lower than or equal to highest used code '%v'", summary.NextCode, summary.MaxCode)
+	}
 	sort.Ints(summary.IntCodes)
 	for k, v := range infoAll.Errors {
 		if len(v) > 1 {
