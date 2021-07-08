@@ -48,7 +48,6 @@ jobs:
         run: |
           $ echo '{ "errors_export": "" }' | jq --slurpfile export ./helpers/errorutil_errors_export.json '.errors_export = $export[0]' > ./meshery/docs/_data/errorref/meshkit_errors_export.json
 
-
           cd ./meshery
           git config user.name l5io
           git config user.email ci@layer5.io
