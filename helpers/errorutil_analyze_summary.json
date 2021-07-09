@@ -1,6 +1,6 @@
 {
   "min_code": 11000,
-  "max_code": 11070,
+  "max_code": 11071,
   "duplicate_codes": {
     "11000": [
       "ErrConnectCode",
@@ -75,7 +75,8 @@
     11067,
     11068,
     11069,
-    11070
+    11070,
+    11071
   ],
   "deprecated_new_default": []
 }

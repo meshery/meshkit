@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v2
       # token here with write access to meshkit repo
         with:
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GH_ACCESS_TOKEN }}
 
       - name: Setup Go
         uses: actions/setup-go@v1
@@ -46,7 +46,7 @@ jobs:
 
       - name: Update and push docs
         run: |
-          echo '{ "errors_export": '$(cat errorutil_errors_export.json)' }' | jq > ./meshery/docs/_data/errorref/meshkit_errors_export.json
+          echo '{ "errors_export": '$(cat ./helpers/errorutil_errors_export.json)' }' | jq > ./meshery/docs/_data/errorref/meshkit_errors_export.json
 
           cd ./meshery
           git config user.name l5io

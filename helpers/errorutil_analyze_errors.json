@@ -122,10 +122,10 @@
     },
     {
       "name": "ErrControllerCode",
-      "old_code": "test",
-      "code": "test",
+      "old_code": "11071",
+      "code": "11071",
       "code_is_literal": true,
-      "code_is_int": false,
+      "code_is_int": true,
       "path": "logger/controller.go"
     },
     {
@@ -1120,13 +1120,13 @@
         "path": "utils/kubernetes/expose/error.go"
       }
     ],
-    "test": [
+    "11071": [
       {
         "name": "ErrControllerCode",
-        "old_code": "test",
-        "code": "test",
+        "old_code": "11071",
+        "code": "11071",
         "code_is_literal": true,
-        "code_is_int": false,
+        "code_is_int": true,
         "path": "logger/controller.go"
       }
     ]
