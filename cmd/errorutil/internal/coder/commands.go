@@ -64,7 +64,7 @@ func getGlobalFlags(cmd *cobra.Command) (globalFlags, error) {
 	return flags, nil
 }
 
-func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) error {
+func walkSummarizeExport(globalFlags globalFlags, update, updateAll bool) error {
 	config.Logging(globalFlags.verbose)
 	errorsInfo := mesherr.NewInfoAll()
 	err := walk(globalFlags, update, updateAll, errorsInfo)

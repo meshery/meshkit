@@ -75,7 +75,7 @@ func Filepath() string {
 	return fmt.Sprintf("file: %s, line: %d", fn, line)
 }
 
-func DownloadFile(filepath string, url string) error {
+func DownloadFile(filepath, url string) error {
 
 	// Get the data
 	resp, err := http.Get(url)
@@ -104,7 +104,7 @@ func GetHome() string {
 
 // CreateFile creates a file with the given content on the given location with
 // the given filename
-func CreateFile(contents []byte, filename string, location string) error {
+func CreateFile(contents []byte, filename, location string) error {
 	// Create file in -rw-r--r-- mode
 	fd, err := os.OpenFile(filepath.Join(location, filename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

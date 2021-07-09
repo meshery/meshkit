@@ -2,10 +2,11 @@ package coder
 
 import (
 	"fmt"
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	"github.com/sirupsen/logrus"
 	"go/ast"
 	"strings"
+
+	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	"github.com/sirupsen/logrus"
 
 	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
 )
@@ -116,7 +117,7 @@ func isNewCallExpr(node ast.Node) (*errutilerr.Error, bool) {
 }
 
 // handleValueSpec inspects node n if it is a ValueSpec, analyses and updates it (depending on update and updateAll). Returns true if any value was changed.
-func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.Info, logger *logrus.Entry, path string, infoAll *errutilerr.InfoAll) bool {
+func handleValueSpec(n ast.Node, update, updateAll bool, comp *component.Info, logger *logrus.Entry, path string, infoAll *errutilerr.InfoAll) bool {
 	anyValueChanged := false
 	spec, ok := n.(*ast.ValueSpec)
 	if ok {

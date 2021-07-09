@@ -62,7 +62,7 @@ func NewViper(opts Options) (config.Handler, error) {
 	}, nil
 }
 
-func (v *Viper) SetKey(key string, value string) {
+func (v *Viper) SetKey(key, value string) {
 	v.mutex.Lock()
 	v.instance.Set(key, value)
 	_ = v.instance.WriteConfig()

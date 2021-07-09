@@ -37,7 +37,7 @@ func NewInMem(opts Options) (config.Handler, error) {
 // -------------------------------------------Application config methods----------------------------------------------------------------
 
 // SetKey sets a key value in local store
-func (l *InMem) SetKey(key string, value string) {
+func (l *InMem) SetKey(key, value string) {
 	l.mutex.Lock()
 	l.store[key] = value
 	l.mutex.Unlock()

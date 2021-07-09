@@ -15,7 +15,7 @@ func NewDefault(code string, ldescription ...string) *Error {
 	}
 }
 
-func New(code string, severity Severity, sdescription []string, ldescription []string, probablecause []string, remedy []string) *Error {
+func New(code string, severity Severity, sdescription, ldescription, probablecause, remedy []string) *Error {
 
 	return &Error{
 		Code:                 code,

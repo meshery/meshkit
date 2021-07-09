@@ -21,7 +21,7 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesherr.InfoAll) error {
+func walk(globalFlags globalFlags, update, updateAll bool, errorsInfo *mesherr.InfoAll) error {
 	subDirsToSkip := append([]string{".git", ".github"}, globalFlags.skipDirs...)
 	logrus.Info(fmt.Sprintf("root directory: %s", globalFlags.rootDir))
 	logrus.Info(fmt.Sprintf("output directory: %s", globalFlags.outDir))
