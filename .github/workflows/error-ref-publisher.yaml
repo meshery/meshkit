@@ -46,7 +46,7 @@ jobs:
 
       - name: Update and push docs
         run: |
-          echo '{ "errors_export": '$(cat ./helpers/errorutil_errors_export.json)' }' | jq > ./meshery/docs/_data/errorref/meshkit_errors_export.json
+          echo '{ "errors_export": "" }' | jq --slurpfile export ./helpers/errorutil_errors_export.json '.errors_export = $export[0]' > ./meshery/docs/_data/errorref/meshkit_errors_export.json
 
           cd ./meshery
           git config user.name l5io
