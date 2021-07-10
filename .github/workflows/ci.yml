@@ -1,9 +1,13 @@
 name: MeshKit
 on:
   push:
-    branches: [ master ]
+    branches:
+      - '**'
+    tags:
+      - 'v*'
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
 
 jobs:
   golangci:
