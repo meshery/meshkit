@@ -1,6 +1,7 @@
 {
   "min_code": 11000,
   "max_code": 11071,
+  "next_code": 11072,
   "duplicate_codes": {
     "11000": [
       "ErrConnectCode",
