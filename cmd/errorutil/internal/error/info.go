@@ -18,5 +18,10 @@ type InfoAll struct {
 }
 
 func NewInfoAll() *InfoAll {
-	return &InfoAll{LiteralCodes: make(map[string][]Info), DeprecatedNewDefault: []string{}, CallExprCodes: []Info{}, Errors: map[string][]Error{}}
+	return &InfoAll{
+		Entries:              []Info{},
+		LiteralCodes:         make(map[string][]Info),
+		CallExprCodes:        []Info{},
+		DeprecatedNewDefault: []string{},
+		Errors:               map[string][]Error{}}
 }
