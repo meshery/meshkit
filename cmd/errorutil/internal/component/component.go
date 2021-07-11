@@ -2,6 +2,7 @@ package component
 
 import (
 	"encoding/json"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -17,7 +18,7 @@ type Info struct {
 	Name          string `yaml:"name" json:"name"`                       // the name of the component, e.g. "kuma"
 	Type          string `yaml:"type" json:"type"`                       // the type of the component, e.g. "adapter"
 	NextErrorCode int    `yaml:"next_error_code" json:"next_error_code"` // the next error code to use. this value will be updated automatically.
-	dir           string
+	file          string // the path of the component_info.json file
 }
 
 type Component interface {
@@ -27,8 +28,9 @@ type Component interface {
 
 // New reads the file component_info.json from dir and returns an info struct
 func New(dir string) (*Info, error) {
-	info := Info{}
-	file, err := ioutil.ReadFile(filepath.Join(dir, filename))
+	info := Info{file: filepath.Join(dir, filename)}
+	logrus.Debugf("reading %s", info.file)
+	file, err := ioutil.ReadFile(info.file)
 	if err != nil {
 		return &info, err
 	}
@@ -50,6 +52,6 @@ func (i *Info) Write() error {
 	if err != nil {
 		return err
 	}
-	fname := filepath.Join(i.dir, filename)
-	return ioutil.WriteFile(fname, jsn, 0600)
+	logrus.Debugf("writing %s", i.file)
+	return ioutil.WriteFile(i.file, jsn, 0600)
 }
