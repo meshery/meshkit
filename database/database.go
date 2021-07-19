@@ -1,6 +1,8 @@
 package database
 
 import (
+	"sync"
+
 	"github.com/layer5io/meshkit/logger"
 	sqlite "gorm.io/driver/sqlite"
 	gormpkg "gorm.io/gorm"
@@ -26,6 +28,7 @@ type Model struct {
 
 type Handler struct {
 	*gormpkg.DB
+	*sync.Mutex
 	// Implement methods if necessary
 }
 
@@ -45,6 +48,7 @@ func New(opts Options) (Handler, error) {
 		}
 		return Handler{
 			db,
+			&sync.Mutex{},
 		}, nil
 	}
 
