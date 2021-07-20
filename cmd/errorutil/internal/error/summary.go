@@ -2,12 +2,13 @@ package error
 
 import (
 	"encoding/json"
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"path/filepath"
 	"sort"
 	"strconv"
+
+	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
 )

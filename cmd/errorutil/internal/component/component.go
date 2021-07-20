@@ -2,10 +2,11 @@ package component
 
 import (
 	"encoding/json"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
