@@ -86,7 +86,7 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 		}, nil
 	}
 	// If external endpoint not reachable
-	if !utils.TcpCheck(endpoint.External, opts.Mock) && endpoint.External.Address != "localhost" {
+	if !utils.TCPCheck(endpoint.External, opts.Mock) && endpoint.External.Address != "localhost" {
 		url, err := url.Parse(opts.APIServerURL)
 		if err != nil {
 			return &endpoint, ErrInvalidAPIServer
@@ -98,9 +98,9 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 		// Set to APIServer host (For minikube specific clusters)
 		endpoint.External.Address = host
 		// If still unable to reach, change to resolve to clusterPort
-		if !utils.TcpCheck(endpoint.External, opts.Mock) && endpoint.External.Address != "localhost" {
+		if !utils.TCPCheck(endpoint.External, opts.Mock) && endpoint.External.Address != "localhost" {
 			endpoint.External.Port = nodePort
-			if !utils.TcpCheck(endpoint.External, opts.Mock) {
+			if !utils.TCPCheck(endpoint.External, opts.Mock) {
 				return &endpoint, ErrEndpointNotFound
 			}
 		}

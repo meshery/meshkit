@@ -116,7 +116,7 @@ func isNewCallExpr(node ast.Node) (*errutilerr.Error, bool) {
 	return empty, false
 }
 
-// handleValueSpec inspects node n if it is a ValueSpec, analyses and updates it (depending on update and updateAll). Returns true if any value was changed.
+// handleValueSpec inspects node n if it is a ValueSpec, analyzes and updates it (depending on update and updateAll). Returns true if any value was changed.
 func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.Info, logger *logrus.Entry, path string, infoAll *errutilerr.InfoAll) bool {
 	anyValueChanged := false
 	spec, ok := n.(*ast.ValueSpec)
