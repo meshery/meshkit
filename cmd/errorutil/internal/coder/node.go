@@ -2,10 +2,11 @@ package coder
 
 import (
 	"fmt"
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	"github.com/sirupsen/logrus"
 	"go/ast"
 	"strings"
+
+	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	"github.com/sirupsen/logrus"
 
 	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
 )

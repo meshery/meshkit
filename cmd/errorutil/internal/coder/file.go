@@ -2,9 +2,6 @@ package coder
 
 import (
 	"bytes"
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
-	"github.com/sirupsen/logrus"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -12,6 +9,10 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strconv"
+
+	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
+	"github.com/sirupsen/logrus"
 )
 
 func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.InfoAll, comp *component.Info) error {

@@ -145,13 +145,13 @@ func commandDoc() *cobra.Command {
 		Long:  "Print the documentation",
 		Run: func(cmd *cobra.Command, args []string) {
 			println(`
-This tool analyzes, verifies and updates error codes in Meshery source code trees. 
+This tool analyzes, verifies and updates error codes in Meshery source code trees.
 It extracts error details into a file that can be used for publishing all error code references on the Meshery website.
 
 It is intended to be run locally and as part of a CI workflow.
 
 - Errors names and codes are namespaced to components, i.e. they need to be unique within a component, which is verified by this tool.
-- A component corresponds usually to a repository. Components have a type and a name. 
+- A component corresponds usually to a repository. Components have a type and a name.
   They are also returned from the ComponentInfo endpoint, e.g. for adapters.
   Examples of a component types are 'adapter' and 'library', corresponding examples of names are 'istio' and 'meshkit'.
 - There are no predefined error code ranges for components.
@@ -173,7 +173,7 @@ It is intended to be run locally and as part of a CI workflow.
 - By convention, error codes and the factory functions live in files called error.go. The tool checks all files, but updates only error.go files.
 - This tool will create a couple of files, one of them is designed to be used to generate the error reference on the meshery website.
   The file errorutil_analyze_summary.json contains a summary of the analysis, notably lists of duplicates etc.
-- The tool requires a file called component_info.json. Its location can be customized, by default it is the root directory (-d flag). 
+- The tool requires a file called component_info.json. Its location can be customized, by default it is the root directory (-d flag).
   This file has the following content, with concrete values specific for each component:
   {
     "name": "meshkit",
