@@ -66,6 +66,9 @@ func New(opts Options) (broker.Handler, error) {
 }
 
 func (n *Nats) Info() string {
+	if n.ec == nil || n.ec.Conn == nil {
+		return broker.NotConnected
+	}
 	return n.ec.Conn.Opts.Name
 }
 

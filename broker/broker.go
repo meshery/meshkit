@@ -1,5 +1,9 @@
 package broker
 
+var (
+	NotConnected = "not-connected"
+)
+
 type PublishInterface interface {
 	Publish(string, *Message) error
 	PublishWithChannel(string, chan *Message) error
