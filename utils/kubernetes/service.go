@@ -58,7 +58,7 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 		if obj.Status.LoadBalancer.Ingress[0].IP == "" {
 			endpoint.External.Address = obj.Status.LoadBalancer.Ingress[0].Hostname
 			endpoint.External.Port = clusterPort
-		} else if obj.Status.LoadBalancer.Ingress[0].IP == obj.Spec.ClusterIP {
+		} else if obj.Status.LoadBalancer.Ingress[0].IP == obj.Spec.ClusterIP || obj.Status.LoadBalancer.Ingress[0].IP == "<pending>" {
 			if opts.APIServerURL != "" {
 				url, err := url.Parse(opts.APIServerURL)
 				if err != nil {
