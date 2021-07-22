@@ -1,27 +1,35 @@
-name: Error Code Reference Publisher
+name: Meshkit Error Codes Utility Runner
 on:
   push:
     branches:
       - 'master'
+    paths:
+      - '**.go'
 
 jobs:
-  error-ref:
+  Update-error-codes:
     name: Error codes utility
+    if: github.repository == 'layer5io/meshkit'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       # token here with write access to meshkit repo
         with:
           token: ${{ secrets.GH_ACCESS_TOKEN }}
+          ref: 'master'
 
       - name: Setup Go
         uses: actions/setup-go@v1
         with:
           go-version: ${{ secrets.GO_VERSION }}
 
+      - name: Build Error Utility
+        run: |
+          go build -o ~/errorutil github.com/layer5io/meshkit/cmd/errorutil
+
       - name: Run utility
         run: |
-          make errorutil-analyze
+          ~/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
 
       # to update errorutil* files in meshkit repo
       - name: Commit changes
@@ -32,7 +40,7 @@ jobs:
           commit_author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           commit_options: '--signoff'
           commit_message: "run error codes utility"
-          file_pattern: helpers/
+          file_pattern: helpers/ **.go
 
       # to push changes to meshery docs
       - name: Checkout meshery
@@ -54,4 +62,3 @@ jobs:
           git add ./docs/_data/errorref/meshkit_errors_export.json
           git commit -m "[Docs] Error Code Reference: Updated codes for MeshKit library" --signoff
           git push origin master
-          cd ../
