@@ -20,45 +20,45 @@ var (
 )
 
 func ErrApplyManifest(err error) error {
-	return errors.New(ErrApplyManifestCode, errors.Alert, []string{"Error Applying manifest"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrApplyManifestCode, errors.Alert, []string{"Error Applying manifest"}, []string{err.Error()}, []string{"Manifest could be invalid"}, []string{"Make sure manifest yaml is valid"})
 }
 
 // ErrServiceDiscovery returns an error of type "ErrServiceDiscovery" along with the passed error
 func ErrServiceDiscovery(err error) error {
-	return errors.New(ErrServiceDiscoveryCode, errors.Alert, []string{"Error Discovering service"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrServiceDiscoveryCode, errors.Alert, []string{"Error Discovering service"}, []string{err.Error()}, []string{"Network not reachable to the service"}, []string{"Make sure the endpoint is reachable"})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrApplyHelmChart(err error) error {
-	return errors.New(ErrApplyHelmChartCode, errors.Alert, []string{"Error applying helm chart"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrApplyHelmChartCode, errors.Alert, []string{"Error applying helm chart"}, []string{err.Error()}, []string{"Chart could be invalid"}, []string{"Make sure to apply valid chart"})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrNewKubeClient(err error) error {
-	return errors.New(ErrNewKubeClientCode, errors.Alert, []string{"Error creating kubernetes clientset"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrNewKubeClientCode, errors.Alert, []string{"Error creating kubernetes clientset"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrNewDynClient(err error) error {
-	return errors.New(ErrNewDynClientCode, errors.Alert, []string{"Error creating dynamic client"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrNewDynClientCode, errors.Alert, []string{"Error creating dynamic client"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrNewDiscovery(err error) error {
-	return errors.New(ErrNewDiscoveryCode, errors.Alert, []string{"Error creating discovery client"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrNewDiscoveryCode, errors.Alert, []string{"Error creating discovery client"}, []string{err.Error()}, []string{"Discovery resource is invalid or doesnt exist"}, []string{"Makes sure the you input valid resource for discovery"})
 }
 
 // ErrApplyHelmChart is the error which occurs in the process of applying helm chart
 func ErrNewInformer(err error) error {
-	return errors.New(ErrNewInformerCode, errors.Alert, []string{"Error creating informer client"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrNewInformerCode, errors.Alert, []string{"Error creating informer client"}, []string{err.Error()}, []string{"Informer is invalid or doesnt exist"}, []string{"Makes sure the you input valid resource for the informer"})
 }
 
 // ErrLoadConfig is the error which occurs in the process of loading a kubernetes config
 func ErrLoadConfig(err error) error {
-	return errors.New(ErrLoadConfigCode, errors.Alert, []string{"Error loading kubernetes config"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrLoadConfigCode, errors.Alert, []string{"Error loading kubernetes config"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
 }
 
 // ErrValidateConfig is the error which occurs in the process of validating a kubernetes config
 func ErrValidateConfig(err error) error {
-	return errors.New(ErrValidateConfigCode, errors.Alert, []string{"Validation failed in the kubernetes config"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrValidateConfigCode, errors.Alert, []string{"Validation failed in the kubernetes config"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
 }

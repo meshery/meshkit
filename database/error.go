@@ -11,12 +11,12 @@ var (
 	ErrSQLMapUnmarshalScannedCode = "11015"
 	ErrSQLMapInvalidScanCode      = "11016"
 
-	ErrNoneDatabase      = errors.New(ErrNoneDatabaseCode, errors.Alert, []string{"No Database selected"}, []string{}, []string{}, []string{})
+	ErrNoneDatabase      = errors.New(ErrNoneDatabaseCode, errors.Alert, []string{"No Database selected"}, []string{}, []string{"database name is empty"}, []string{"Input a name for the database"})
 	ErrSQLMapInvalidScan = errors.New(ErrSQLMapUnmarshalScannedCode, errors.Alert, []string{"invalid data type: expected []byte"}, []string{}, []string{}, []string{})
 )
 
 func ErrDatabaseOpen(err error) error {
-	return errors.New(ErrDatabaseOpenCode, errors.Alert, []string{"Unable to open database", err.Error()}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrDatabaseOpenCode, errors.Alert, []string{"Unable to open database", err.Error()}, []string{err.Error()}, []string{"Database is unreachable"}, []string{"Make sure your database is reachable"})
 }
 
 // ErrSQLMapUnmarshalJSON represents the error which will occur when the native SQL driver
