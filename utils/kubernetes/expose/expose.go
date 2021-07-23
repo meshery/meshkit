@@ -8,7 +8,6 @@ import (
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -106,7 +105,7 @@ func Expose(
 	restConfig rest.Config,
 	config Config,
 	resources []Resource,
-) ([]*v1.Service, error) {
+) ([]*corev1.Service, error) {
 	// continueOnError controls if the traversal should continue even after errors
 	continueOnError := true
 
@@ -115,7 +114,7 @@ func Expose(
 		Resources: resources,
 		Logger:    config.Log,
 	}
-	createdSvc, err := tr.Visit(func(info Object, err error) (*v1.Service, error) {
+	createdSvc, err := tr.Visit(func(info Object, err error) (*corev1.Service, error) {
 		if config.Namespace == "" {
 			config.Namespace = info.GetNamespace()
 		}

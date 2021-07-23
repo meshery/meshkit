@@ -17,7 +17,6 @@ import (
 
 // unmarshal returns parses the JSON config data and stores the value in the reference to result
 func Unmarshal(obj string, result interface{}) error {
-
 	obj = strings.TrimSpace(obj)
 	err := json.Unmarshal([]byte(obj), result)
 	if err != nil {

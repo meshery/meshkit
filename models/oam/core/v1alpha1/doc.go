@@ -6,5 +6,5 @@
 // 2. Application Confiuration
 // 3. Trait Definition
 // 4. Workload Definition
-// 5. Scope Definiton
+// 5. Scope Definition
 package v1alpha1
