@@ -23,13 +23,9 @@ jobs:
         with:
           go-version: ${{ secrets.GO_VERSION }}
 
-      - name: Build Error Utility
-        run: |
-          go build -o ~/errorutil github.com/layer5io/meshkit/cmd/errorutil
-
       - name: Run utility
         run: |
-          ~/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
+          go run github.com/layer5io/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
 
       # to update errorutil* files in meshkit repo
       - name: Commit changes
@@ -59,6 +55,11 @@ jobs:
           cd ./meshery
           git config user.name l5io
           git config user.email ci@layer5.io
+          if git diff --exit-code --quiet
+          then
+            echo "No changes to commit"
+            exit
+          fi
           git add ./docs/_data/errorref/meshkit_errors_export.json
           git commit -m "[Docs] Error Code Reference: Updated codes for MeshKit library" --signoff
           git push origin master
