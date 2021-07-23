@@ -36,6 +36,8 @@ linters-settings:
     min-complexity: 15
   goimports:
     local-prefixes: github.com/golangci/golangci-lint
+  golint:
+    min-confidence: 0
   gomnd:
     settings:
       mnd:
@@ -64,20 +66,6 @@ linters-settings:
     allow-unused: false # report any unused nolint directives
     require-explanation: false # don't require an explanation for nolint directives
     require-specific: false # don't require nolint directives to be specific about which linter is being skipped
-revive:
-    # see https://github.com/mgechev/revive#available-rules for details.
-    ignore-generated-header: true
-    severity: warning
-    rules:
-      - name: indent-error-flow
-        severity: warning
-      - name: add-constant
-        severity: warning
-        arguments:
-          - maxLitCount: "3"
-            allowStrs: '""'
-            allowInts: "0,1,2"
-            allowFloats: "0.0,0.,1.0,1.,2.0,2."
 
 linters:
   # please, do not use `enable-all`: it's deprecated and will be removed soon.
@@ -96,7 +84,7 @@ linters:
     # - gocyclo
     - gofmt
     - goimports
-    - revive
+    - golint
     # todo[kusthedude]: restore gosec check, once this issue is resolved https://github.com/golangci/golangci-lint/issues/177
     # - gosec
     # - gomnd
