@@ -11,6 +11,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	exportFilename = config.App + "_errors_export.json"
+	exportFilePerm = 0600
+)
+
 // Error is used to export Error for e.g. documentation purposes.
 //
 // Type Error (errors/types.go) is not reused in order to avoid tight coupling between code and documentation of errors, e.g. on Meshery website.
@@ -38,7 +43,7 @@ type externalAll struct {
 }
 
 func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) error {
-	fname := filepath.Join(outputDir, config.App+"_errors_export.json")
+	fname := filepath.Join(outputDir, exportFilename)
 	export := externalAll{
 		ComponentType: componentInfo.Type,
 		ComponentName: componentInfo.Name,
@@ -91,5 +96,5 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 		return err
 	}
 	log.Infof("exporting to %s", fname)
-	return ioutil.WriteFile(fname, jsn, 0600)
+	return ioutil.WriteFile(fname, jsn, exportFilePerm)
 }

@@ -11,6 +11,7 @@ import (
 
 const (
 	filename = "component_info.json"
+	filePerm = 0600
 )
 
 // Info specifies type, name, and the next error code of the current component.
@@ -54,5 +55,5 @@ func (i *Info) Write() error {
 		return err
 	}
 	logrus.Debugf("writing %s", i.file)
-	return ioutil.WriteFile(i.file, jsn, 0600)
+	return ioutil.WriteFile(i.file, jsn, filePerm)
 }

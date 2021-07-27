@@ -13,6 +13,11 @@ import (
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
 )
 
+const (
+	summaryFilename = config.App + "_analyze_summary.json"
+	summaryFilePerm = 0600
+)
+
 type analysisSummary struct {
 	MinCode              int                 `yaml:"min_code" json:"min_code"`                              // the smallest error code (an int)
 	MaxCode              int                 `yaml:"max_code" json:"max_code"`                              // the biggest error code (an int)
@@ -83,9 +88,9 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 	if err != nil {
 		return err
 	}
-	fname := filepath.Join(outputDir, config.App+"_analyze_summary.json")
+	fname := filepath.Join(outputDir, summaryFilename)
 	log.Infof("writing summary to %s", fname)
-	return ioutil.WriteFile(fname, jsn, 0600)
+	return ioutil.WriteFile(fname, jsn, summaryFilePerm)
 }
 
 func contains(s []int, str int) bool {

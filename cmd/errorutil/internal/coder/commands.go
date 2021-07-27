@@ -19,6 +19,8 @@ const (
 	outDirCmdFlag              = "out-dir"
 	infoDirCmdFlag             = "info-dir"
 	forceUpdateAllCodesCmdFlag = "force"
+	analysisFilename           = config.App + "_analyze_errors.json"
+	analysisFilePerm           = 0600
 )
 
 type globalFlags struct {
@@ -83,8 +85,8 @@ func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) e
 	if err != nil {
 		return err
 	}
-	fname := filepath.Join(globalFlags.outDir, config.App+"_analyze_errors.json")
-	err = ioutil.WriteFile(fname, jsn, 0600)
+	fname := filepath.Join(globalFlags.outDir, analysisFilename)
+	err = ioutil.WriteFile(fname, jsn, analysisFilePerm)
 	if err != nil {
 		return err
 	}

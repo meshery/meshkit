@@ -54,7 +54,7 @@ func TestDetectNewDefault(t *testing.T) {
 	if !contains(pkgs, "") {
 		t.Errorf("package id '' expected but not found. pkgs = %v", pkgs)
 	}
-	countExpected := 3
+	const countExpected = 3
 	if len(pkgs) != countExpected {
 		t.Errorf("found %v package ids; want %d", len(pkgs), countExpected)
 	}

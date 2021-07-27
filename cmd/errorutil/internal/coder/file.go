@@ -15,6 +15,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const goFilePerm = 0600
+
 func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.InfoAll, comp *component.Info) error {
 	logger := logrus.WithFields(logrus.Fields{"path": path})
 	fset := token.NewFileSet()
@@ -57,7 +59,7 @@ func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.In
 		if err != nil {
 			return err
 		}
-		err = ioutil.WriteFile(path, buf.Bytes(), 0600)
+		err = ioutil.WriteFile(path, buf.Bytes(), goFilePerm)
 		if err != nil {
 			return err
 		}

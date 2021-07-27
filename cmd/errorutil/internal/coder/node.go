@@ -69,36 +69,46 @@ func isStringArray(node ast.Node) (string, bool) {
 
 // isNewCallExpr checks whether node is a errors.New(...) call and returns the error information if so.
 func isNewCallExpr(node ast.Node) (*errutilerr.Error, bool) {
+	const (
+		// New call expression signature parameter magic numbers
+		paramCount          = 6
+		codeParamIndex      = 0
+		severityParamIndex  = 1
+		shortDescParamIndex = 2
+		longDescParamIndex  = 3
+		causeParamIndex     = 4
+		remedyParamIndex    = 5
+	)
 	empty := &errutilerr.Error{}
 	if ce, ok := node.(*ast.CallExpr); ok {
 		_, name, ok2 := isSelectorOrIdent(ce.Fun)
 		if ok2 && name == "New" {
 			// check the signature:
 			args := ce.Args
-			if len(args) != 6 {
+			if len(args) != paramCount {
 				return empty, false
 			}
-			_, codeName, ok := isSelectorOrIdent(args[0])
+			_, codeName, ok := isSelectorOrIdent(args[codeParamIndex])
 			if !ok {
 				return empty, false
 			}
-			_, severityName, ok := isSelectorOrIdent(args[1])
+			_, severityName, ok := isSelectorOrIdent(args[severityParamIndex])
 			if !ok {
 				return empty, false
 			}
-			sDesc, ok := isStringArray(args[2])
+			sDesc, ok := isStringArray(args[shortDescParamIndex])
 			if !ok {
 				return empty, false
 			}
-			lDesc, ok := isStringArray(args[3])
+			lDesc, ok := isStringArray(args[longDescParamIndex])
 			if !ok {
 				return empty, false
 			}
-			cause, ok := isStringArray(args[4])
+			cause, ok := isStringArray(args[causeParamIndex])
 			if !ok {
 				return empty, false
 			}
-			remedy, ok := isStringArray(args[5])
+			remedy, ok := isStringArray(args[remedyParamIndex])
 			if !ok {
 				return empty, false
 			}

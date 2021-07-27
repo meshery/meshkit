@@ -13,10 +13,13 @@ import (
 	mesherr "github.com/layer5io/meshkit/errors"
 )
 
-var ErrTestNewCode1 = "one"   //nolint:unused
-var ErrTestNewCode2 = "two"   //nolint:unused
-var ErrTestNewCode3 = "three" //nolint:unused
-var newTestFile = "errorsnew_test.go"
+//revive:disable:add-constant magic strings are allowed as they need to be literals in errors.New anyway
+var (
+	ErrTestNewCode1 = "one"   //nolint:unused
+	ErrTestNewCode2 = "two"   //nolint:unused
+	ErrTestNewCode3 = "three" //nolint:unused
+	newTestFile     = "errorsnew_test.go"
+)
 
 //nolint:unused
 func ErrNewTestOne(err error) error {
@@ -58,7 +61,7 @@ func TestDetectNew(t *testing.T) {
 		}
 		return true
 	})
-	countExpected := 3
+	const countExpected = 3
 	found := len(errors)
 	if found != countExpected {
 		t.Errorf("found %v call expressions; want %d", found, countExpected)
@@ -96,3 +99,5 @@ func TestDetectNew(t *testing.T) {
 		}
 	}
 }
+
+//revive:enable:add-constant
