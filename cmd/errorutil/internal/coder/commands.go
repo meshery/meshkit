@@ -171,8 +171,8 @@ This tool produces three files:
 - errorutil_errors_export.json: export of errors which can be used to create the error code reference on the Meshery website
 
 Typically, the 'analyze' command of the tool is used by the developer to verify errors, i.e. that there are no duplicate names or details.
-A CI workflow is used to replace the placeholder code strings with integer code, and export errors. Using this export, a PR is created 
-by the workflow to update the error code reference documentation.
+A CI workflow is used to replace the placeholder code strings with integer code, and export errors. Using this export, the workflow updates 
+the error code reference documentation in the Meshery repository.
 
 Meshery components and this tool:
 - Meshery components have a name and a type.
