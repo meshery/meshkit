@@ -145,42 +145,48 @@ func commandDoc() *cobra.Command {
 		Long:  "Print the documentation",
 		Run: func(cmd *cobra.Command, args []string) {
 			println(`
-This tool analyzes, verifies and updates error codes in Meshery source code trees.
-It extracts error details into a file that can be used for publishing all error code references on the Meshery website.
+This tool analyzes, verifies and updates MeshKit compatible errors in Meshery Go source code trees.
 
-It is intended to be run locally and as part of a CI workflow.
+A MeshKit compatible error consist of
+- An error code defined as a constant or variable (preferably constant), of type string.
+  - The naming convention for these variables is the regex "^Err[A-Z].+Code$", e.g. ErrApplyManifestCode.
+  - The initial value of the code is a placeholder string, e.g. "replace_me", set by the developer.
+  - The final value of the code is an integer, set by this tool, as part of a CI workflow.
+- Error details defined using the errors.New(...) function from MeshKit.
+ - The error code constant (or variable) has to be passed as first parameter, not a string literal.
+ - Use string literals in the error details string array parameters. 
+ - Call expressions can be used but will be ignored by the tool when exporting error details for the documentation.
+ - Do not concatenate strings using the '+' operator, just add multiple elements to the string array.
 
-- Errors names and codes are namespaced to components, i.e. they need to be unique within a component, which is verified by this tool.
-- A component corresponds usually to a repository. Components have a type and a name.
-  They are also returned from the ComponentInfo endpoint, e.g. for adapters.
-  Examples of a component types are 'adapter' and 'library', corresponding examples of names are 'istio' and 'meshkit'.
-- There are no predefined error code ranges for components.
-  Every component is free to use its own range, but it looks like the convention is to start at 1000.
+Additionally, the following conventions apply:
+- Errors are defined in each package, in a file named error.go
+- Errors are namespaced to components, i.e. they need to be unique within a component (see below).
 - Errors are not to be reused across components and modules.
+- There are no predefined error code ranges for components. Every component is free to use its own range.
 - Codes carry no meaning, as e.g. HTTP status codes do.
-- In the code, create string var's or const's with names starting with Err[A-Z] and ending in Code, e.g. 'ErrApplyManifestCode'.
-- Set the value to any string, like "replace_me" (no convention here), e.g. ErrApplyManifestCode = "test_code".
-- If the value is a string, this tool will replace it with the next integer.
-- If the value is an int, e.g. ErrGetName = "1000" the tool will not replace it unless it is forced (command line flag --force).
-  If forced, all codes are renumbered. This can be useful to tidy up in earlier implementations of meshkit error codes.
-- Setting an error code to a call expression like ErrNoneDatabase = errors.NewDefault(ErrNoneDatabaseCode, "No Database selected")
-  is not allowed. This tool emits a warning if a call expression is detected.
-- Using errors.NewDefault(...) is deprecated. This tool emits a warning if this is detected.
-- Use errors.New(...) from meshkit to create actual errors with all the details.
-  This is often done in a factory function. It is important that the error code variable is used here, not a literal.
-  Specify detailed descriptions, probable causes, and remedies. They need to be string literals, call expressions are ignored.
-  This tool extracts this information from the code and exports it.
-- By convention, error codes and the factory functions live in files called error.go. The tool checks all files, but updates only error.go files.
-- This tool will create a couple of files, one of them is designed to be used to generate the error reference on the meshery website.
-  The file errorutil_analyze_summary.json contains a summary of the analysis, notably lists of duplicates etc.
-- The tool requires a file called component_info.json. Its location can be customized, by default it is the root directory (-d flag).
+
+This tool produces three files:
+- errorutil_analyze_errors.json: raw data with all errors and some metadata
+- errorutil_analyze_summary.json: summary of raw data, also used for validation and troubleshooting
+- errorutil_errors_export.json: export of errors which can be used to create the error code reference on the Meshery website
+
+Typically, the 'analyze' command of the tool is used by the developer to verify errors, i.e. that there are no duplicate names or details.
+A CI workflow is used to replace the placeholder code strings with integer code, and export errors. Using this export, a PR is created 
+by the workflow to update the error code reference documentation.
+
+Meshery components and this tool:
+- Meshery components have a name and a type.
+- An example of a component is MeshKit with 'meshkit' as name, and 'library' as type.
+- Often, a specific component corresponds to one git repository.
+- The tool requires a file called component_info.json.
   This file has the following content, with concrete values specific for each component:
   {
     "name": "meshkit",
     "type": "library",
-    "next_error_code": 11010
+    "next_error_code": 1014
   }
-- The tool updates next_error_code.
+- next_error_code is the value used by the tool to replace the error code placeholder string with the next integer.
+- The tool updates next_error_code. 
 `)
 		},
 	}
