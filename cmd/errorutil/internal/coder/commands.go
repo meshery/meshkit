@@ -152,9 +152,11 @@ A MeshKit compatible error consist of
   - The naming convention for these variables is the regex "^Err[A-Z].+Code$", e.g. ErrApplyManifestCode.
   - The initial value of the code is a placeholder string, e.g. "replace_me", set by the developer.
   - The final value of the code is an integer, set by this tool, as part of a CI workflow.
-- Error details defined using the errors.New(...) function from MeshKit.
- - The error code constant (or variable) has to be passed as first parameter, not a string literal.
- - Use string literals in the error details string array parameters. 
+- Error details defined using the function errors.New(code, severity, sdescription, ldescription, probablecause, remedy) from MeshKit.
+ - The first parameter, 'code', has to be passed as the error code constant (or variable), not a string literal.
+ - The second parameter, 'severity', has its own type; consult its Go-doc for further details.
+ - The remaining parameters are string arrays for short and long description, probable cause, and suggested remediation.
+ - Use string literals in these string arrays, not constants or variables, for any static texts. 
  - Call expressions can be used but will be ignored by the tool when exporting error details for the documentation.
  - Do not concatenate strings using the '+' operator, just add multiple elements to the string array.
 
