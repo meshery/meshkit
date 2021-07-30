@@ -60,6 +60,7 @@ func NewDefault(code string, ldescription ...string) *Error {
 //
 // The remaining parameters are string arrays for short and long description, probable cause, and suggested remediation.
 // Use string literals in these string arrays, not constants or variables, for any static texts or format strings.
+// Capitalize the first letter of each statement.
 // Call expressions can be used but will be ignored by the tool when exporting error details for the documentation.
 // Do not concatenate strings using the '+' operator, just add multiple elements to the string array.
 //

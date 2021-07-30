@@ -156,7 +156,8 @@ A MeshKit compatible error consist of
  - The first parameter, 'code', has to be passed as the error code constant (or variable), not a string literal.
  - The second parameter, 'severity', has its own type; consult its Go-doc for further details.
  - The remaining parameters are string arrays for short and long description, probable cause, and suggested remediation.
- - Use string literals in these string arrays, not constants or variables, for any static texts. 
+ - Use string literals in these string arrays, not constants or variables, for any static texts.
+ - Capitalize the first letter of each statement.
  - Call expressions can be used but will be ignored by the tool when exporting error details for the documentation.
  - Do not concatenate strings using the '+' operator, just add multiple elements to the string array.
 
