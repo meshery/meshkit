@@ -14,7 +14,8 @@ type TraitDefinition struct {
 
 // TraitDefinitionSpec is the struct for OAM TraitDefinitionSpec's spec
 type TraitDefinitionSpec struct {
-	AppliesToWorkloads []string      `json:"appliesToWorkloads,omitempty"`
-	DefinitionRef      DefinitionRef `json:"definitionRef,omitempty"`
-	RevisionEnabled    bool          `json:"revisionEnabled,omitempty"`
+	AppliesToWorkloads []string          `json:"appliesToWorkloads,omitempty"`
+	DefinitionRef      DefinitionRef     `json:"definitionRef,omitempty"`
+	RevisionEnabled    bool              `json:"revisionEnabled,omitempty"`
+	Metadata           map[string]string `json:"metadata,omitempty"`
 }
