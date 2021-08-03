@@ -14,6 +14,7 @@ type ScopeDefinition struct {
 
 // ScopeDefinitionSpec is the struct for OAM ScopeDefinition's spec
 type ScopeDefinitionSpec struct {
-	AllowComponentOverlap bool          `json:"allowComponentOverlap,omitempty"`
-	DefinitionRef         DefinitionRef `json:"definitionRef,omitempty"`
+	AllowComponentOverlap bool              `json:"allowComponentOverlap,omitempty"`
+	DefinitionRef         DefinitionRef     `json:"definitionRef,omitempty"`
+	Metadata              map[string]string `json:"metadata,omitempty"`
 }

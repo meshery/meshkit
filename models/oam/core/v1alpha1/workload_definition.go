@@ -14,5 +14,6 @@ type WorkloadDefinition struct {
 
 // WorkloadDefinitionSpec is the struct for OAM WorkloadDefinitionSpec's spec
 type WorkloadDefinitionSpec struct {
-	DefinitionRef DefinitionRef `json:"definitionRef,omitempty"`
+	DefinitionRef DefinitionRef     `json:"definitionRef,omitempty"`
+	Metadata      map[string]string `json:"metadata,omitempty"`
 }
