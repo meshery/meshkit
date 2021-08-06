@@ -23,7 +23,6 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 			return config, err
 		}
 	}
-
 	// If deployed within the cluster
 	if config, err = rest.InClusterConfig(); err == nil {
 		return config, err
@@ -49,21 +48,25 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 func processConfig(configFile []byte) ([]byte, error) {
 	cfg, err := clientcmd.Load(configFile)
 	if err != nil {
+
 		return nil, ErrLoadConfig(err)
 	}
 
 	err = clientcmdapi.MinifyConfig(cfg)
 	if err != nil {
+
 		return nil, ErrValidateConfig(err)
 	}
 
 	err = clientcmdapi.FlattenConfig(cfg)
 	if err != nil {
+
 		return nil, ErrValidateConfig(err)
 	}
 
 	err = clientcmd.Validate(*cfg)
 	if err != nil {
+
 		return nil, ErrValidateConfig(err)
 	}
 

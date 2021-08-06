@@ -12,12 +12,7 @@ type Component struct {
 	Definitions []string
 }
 
-// type Components struct {
-// 	Versions []Component
-// }
 type Config struct {
 	Name        string // Name of the service mesh,or k8 or meshery
 	MeshVersion string
-	ApiVersion  string
-	Kind        string
 }
