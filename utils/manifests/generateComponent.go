@@ -53,7 +53,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 	cmd.Stderr = &er
 	err = cmd.Run()
 	if err != nil {
-		return nil, err
+		return nil, ErrGetCrdNames(err)
 	}
 	crds := getCrdnames(out.String())
 
@@ -65,7 +65,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 		c.Definitions = append(c.Definitions, out)
 		out, err = getSchema(crd, path, binPath)
 		if err != nil {
-			return nil, err
+			return nil, ErrGetSchemas(err)
 		}
 		c.Schemas = append(c.Schemas, out)
 	}

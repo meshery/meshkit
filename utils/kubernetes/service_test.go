@@ -29,12 +29,12 @@ func TestGetServiceEndpoint(t *testing.T) {
 		Spec: corev1.ServiceSpec{
 			ClusterIP: "1.1.1.1",
 			Ports: []corev1.ServicePort{
-				{
+				corev1.ServicePort{
 					Name:     "test_port_1",
 					Port:     1000,
 					NodePort: 2000,
 				},
-				{
+				corev1.ServicePort{
 					Name:     "test_port_2",
 					Port:     1001,
 					NodePort: 2001,
@@ -45,7 +45,7 @@ func TestGetServiceEndpoint(t *testing.T) {
 		Status: corev1.ServiceStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: []corev1.LoadBalancerIngress{
-					{
+					corev1.LoadBalancerIngress{
 						IP:       "10.10.10.10",
 						Hostname: "test_name.com",
 					},
@@ -174,12 +174,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							{
+							corev1.ServicePort{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							{
+							corev1.ServicePort{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -190,7 +190,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								{
+								corev1.LoadBalancerIngress{
 									IP:       "10.10.10.10",
 									Hostname: "test_name.com",
 								},
@@ -230,12 +230,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							{
+							corev1.ServicePort{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							{
+							corev1.ServicePort{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -246,7 +246,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								{
+								corev1.LoadBalancerIngress{
 									IP:       "10.10.10.10",
 									Hostname: "test_name.com",
 								},
@@ -287,12 +287,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							{
+							corev1.ServicePort{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							{
+							corev1.ServicePort{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -303,7 +303,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								{
+								corev1.LoadBalancerIngress{
 									IP:       "10.10.10.10",
 									Hostname: "test_name.com",
 								},
@@ -344,12 +344,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							{
+							corev1.ServicePort{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							{
+							corev1.ServicePort{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -360,7 +360,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								{
+								corev1.LoadBalancerIngress{
 									IP:       "10.10.10.10",
 									Hostname: "test_name.com",
 								},
@@ -400,12 +400,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							{
+							corev1.ServicePort{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							{
+							corev1.ServicePort{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -447,12 +447,12 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							{
+							corev1.ServicePort{
 								Name:     "test_port_1",
 								Port:     1000,
 								NodePort: 2000,
 							},
-							{
+							corev1.ServicePort{
 								Name:     "test_port_2",
 								Port:     1001,
 								NodePort: 2001,
@@ -463,7 +463,7 @@ func TestGetEndpoint(t *testing.T) {
 					Status: corev1.ServiceStatus{
 						LoadBalancer: corev1.LoadBalancerStatus{
 							Ingress: []corev1.LoadBalancerIngress{
-								{
+								corev1.LoadBalancerIngress{
 									Hostname: "test_name.com",
 								},
 							},
@@ -502,11 +502,11 @@ func TestGetEndpoint(t *testing.T) {
 					Spec: corev1.ServiceSpec{
 						ClusterIP: "1.1.1.1",
 						Ports: []corev1.ServicePort{
-							{
+							corev1.ServicePort{
 								Name: "test_port_1",
 								Port: 1000,
 							},
-							{
+							corev1.ServicePort{
 								Name: "test_port_2",
 								Port: 1001,
 							},

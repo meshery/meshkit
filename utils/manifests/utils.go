@@ -3,7 +3,6 @@ package manifests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,12 +15,10 @@ func getDefinitions(template string, crd string, resource int, cfg Config, filep
 	definitionRef := strings.ToLower(crd) + ".meshery.layer5.io"
 	apiVersion, err := getApiVersion(binPath, filepath, crd)
 	if err != nil {
-		fmt.Println("Could not get api version: ", apiVersion)
 		return "", err
 	}
 	apiGroup, err := getApiGrp(binPath, filepath, crd)
 	if err != nil {
-		fmt.Println("Could not get api version: ", apiGroup)
 		return "", err
 	}
 	//getting defintions for different native resources
@@ -38,7 +35,7 @@ func getDefinitions(template string, crd string, resource int, cfg Config, filep
 				"k8skind":       crd,
 			}
 		}
-	case K8:
+	case K8s:
 		{
 			def.Spec.Metadata = map[string]string{
 				"@type":         "pattern.meshery.io/k8s",
@@ -122,7 +119,6 @@ func getCrdnames(s string) []string {
 	s = strings.ReplaceAll(s, " ", "")
 	s = strings.ReplaceAll(s, ",", "")
 	crds := strings.Split(s, "\n")
-	fmt.Println(crds)
 	if len(crds) <= 2 {
 		return []string{}
 	}
@@ -134,13 +130,13 @@ func getApiVersion(binPath string, filepath string, crd string) (string, error) 
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
-	getAPIvCmdArgs := []string{"--location", filepath, "-t", "yaml", "--filter", "$[?(@.kind==\"CustomResourceDefinition\" && @.spec.names.kind=='" + crd + "')]..spec.versions[0]", " --o-filter", "$[].name", "-o", "json"}
+	getAPIvCmdArgs := []string{"--location", filepath, "-t", "yaml", "--filter", "$[?(@.kind==\"CustomResourceDefinition\" && @.spec.names.kind=='" + crd + "')]..spec.versions[0]", " --o-filter", "$[]", "-o", "json"}
 	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
 	schemaCmd.Stdout = &out
 	schemaCmd.Stderr = &er
 	err := schemaCmd.Run()
 	if err != nil {
-		return er.String(), err
+		return er.String(), ErrGetAPIVersion(err)
 	}
 	grp := [][]map[string]interface{}{}
 	if err := json.Unmarshal(out.Bytes(), &grp); err != nil {
@@ -159,13 +155,13 @@ func getApiGrp(binPath string, filepath string, crd string) (string, error) {
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
-	getAPIvCmdArgs := []string{"--location", filepath, "-t", "yaml", "--filter", "$[?(@.kind==\"CustomResourceDefinition\" && @.spec.names.kind=='" + crd + "')]..spec", " --o-filter", "$[].group", "-o", "json"}
+	getAPIvCmdArgs := []string{"--location", filepath, "-t", "yaml", "--filter", "$[?(@.kind==\"CustomResourceDefinition\" && @.spec.names.kind=='" + crd + "')]..spec", " --o-filter", "$[]", "-o", "json"}
 	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
 	schemaCmd.Stdout = &out
 	schemaCmd.Stderr = &er
 	err := schemaCmd.Run()
 	if err != nil {
-		return er.String(), err
+		return er.String(), ErrGetAPIGroup(err)
 	}
 	v := [][]map[string]interface{}{}
 	if err := json.Unmarshal(out.Bytes(), &v); err != nil {
@@ -179,3 +175,9 @@ func getApiGrp(binPath string, filepath string, crd string) (string, error) {
 	s := strings.ReplaceAll(string(output), "\"", "")
 	return s, nil
 }
+
+//It takes the crdname and injects the filter in the query to crdname
+// func getCustomFilter(crdname string, filter CrdFilter) string {
+
+// 	return ""
+// }

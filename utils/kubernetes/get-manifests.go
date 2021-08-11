@@ -1,8 +1,6 @@
 package kubernetes
 
 import (
-	"fmt"
-
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
@@ -14,11 +12,11 @@ import (
 func GetManifestsFromHelm(client *Client, url string) (string, error) {
 	chartLocation, err := fetchHelmChart(url)
 	if err != nil {
-		return "", nil
+		return "", ErrApplyHelmChart(err)
 	}
 	chart, err := loader.Load(chartLocation)
 	if err != nil {
-		return "", err
+		return "", ErrApplyHelmChart(err)
 	}
 	if err := checkIfInstallable(chart); err != nil {
 		return "", ErrApplyHelmChart(err)
@@ -45,7 +43,7 @@ func GetManifestsFromHelm(client *Client, url string) (string, error) {
 	ccli.ReleaseName = "test" //To be changed to something unique dynamically. Because everytime a new relase name is expected by helm
 	rel, err := ccli.Run(chart, vals)
 	if err != nil {
-		fmt.Println(err.Error())
+		return "", ErrApplyHelmChart(err)
 	}
 	return rel.Manifest, nil
 }
