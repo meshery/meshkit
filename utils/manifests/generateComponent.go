@@ -2,10 +2,13 @@ package manifests
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+
+	"github.com/layer5io/meshkit/utils"
 )
 
 func generateComponents(manifest string, resource int, cfg Config) (*Component, error) {
@@ -13,16 +16,26 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 	if err != nil {
 		return nil, err
 	}
+
 	var binPath string = wd + "/utils/manifests/utilBin/kubeopenapi-jsonschema"
+	var url string = "https://github.com/layer5io/kubeopenapi-jsonschema/releases/download/v0.1.0/kubeopenapi-jsonschema"
 	switch runtime.GOOS {
 	case "windows":
 		{
 			binPath += ".exe"
+			url += ".exe"
 		}
 	case "darwin":
 		{
 			binPath += "-darwin"
+			url += "-darwin"
 		}
+	}
+	//download the binary on that path if it doesn't exist
+	if _, err := os.Stat(binPath); os.IsNotExist(err) {
+		fmt.Println("Downloading at " + binPath + "...")
+		utils.DownloadFile(binPath, url)
+		fmt.Println("Download Completed")
 	}
 
 	//make the binary executable
@@ -34,17 +47,24 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
-	path := filepath.Join(os.TempDir(), "/test.yaml")
-
-	c := &Component{
-		Schemas:     []string{},
-		Definitions: []string{},
-	}
+	path := filepath.Join(wd, "/test.yaml")
 	err = populateTempyaml(manifest, path)
 	if err != nil {
 		return nil, err
 	}
-	getCrdsCmdArgs := []string{"--location", path, "-t", "yaml", "--filter", "$[?(@.kind==\"CustomResourceDefinition\")]", "-o", "json", "--o-filter", "$..[\"spec\"][\"names\"][\"kind\"]"}
+	filteroot := cfg.Filter.RootFilter //cfg.Filter.RootFilter
+	err = filterYaml(path, filteroot, binPath)
+	if err != nil {
+		return nil, err
+	}
+	c := &Component{
+		Schemas:     []string{},
+		Definitions: []string{},
+	}
+	filter := cfg.Filter.NamFilter //cfg.Filter.Name
+	filteroot = append(filteroot, "-o", "json", "--o-filter")
+	filteroot = append(filteroot, filter...)
+	getCrdsCmdArgs := append([]string{"--location", path, "-t", "yaml", "--filter"}, filteroot...)
 	cmd := exec.Command(binPath, getCrdsCmdArgs...)
 	//emptying buffers
 	out.Reset()
@@ -63,12 +83,15 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 			return nil, err
 		}
 		c.Definitions = append(c.Definitions, out)
-		out, err = getSchema(crd, path, binPath)
+		out, err = getSchema(crd, path, binPath, cfg)
 		if err != nil {
 			return nil, ErrGetSchemas(err)
 		}
 		c.Schemas = append(c.Schemas, out)
 	}
-
+	err = deleteFile(path)
+	if err != nil {
+		fmt.Println("error in cleanup" + err.Error())
+	}
 	return c, nil
 }

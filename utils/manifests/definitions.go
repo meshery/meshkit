@@ -7,6 +7,8 @@ const (
 	MESHERY
 )
 
+// Json Paths
+type JsonPath []string
 type Component struct {
 	Schemas     []string
 	Definitions []string
@@ -15,15 +17,14 @@ type Component struct {
 type Config struct {
 	Name        string // Name of the service mesh,or k8 or meshery
 	MeshVersion string
-	// Filter      CrdFilter //json path filters
+	Filter      CrdFilter //json path filters
 }
 
-// type CrdFilter struct {
-// 	CrdFilter     Filter //Filter which will help to get to the specific CRD containing all the info we need.
-// 	APIFilter     Filter
-// 	VersionFilter Filter
-// }
-// type Filter struct {
-// 	path string
-// 	dest string
-// }
+type CrdFilter struct {
+	RootFilter    JsonPath //This would be the first filter to get a modified yaml
+	NamFilter     JsonPath // This will be the json path passed in order to get the names of crds
+	NamePath      string
+	GroupFilter   JsonPath //This will specify the path to get to group name
+	VersionFilter JsonPath //This will specify the path to get to version name. [Version should have a name field]
+	SpecFilter    JsonPath //This will specify the path to get spec
+}

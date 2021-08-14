@@ -9,6 +9,7 @@ const (
 	ErrGetAPIVersionCode       = "1003"
 	ErrGetAPIGroupCode         = "1004"
 	ErrGetManifestFromHelmCode = "1005"
+	ErrParsingJsonCode         = "1006"
 )
 
 func ErrGetCrdNames(err error) error {
@@ -28,3 +29,7 @@ func ErrGetAPIGroup(err error) error {
 // func ErrGetManifestFromHelm(err error)error{
 // 	return errors.New(ErrGetManifestFromHelmCode,errors.Alert,[]string{""})
 // }
+func ErrParsingJson(err error) error {
+	return errors.New(ErrParsingJsonCode, errors.Alert, []string{"Error parsing json"}, []string{err.Error()}, []string{"Json could not be parsed"}, []string{"Make sure the path passed in filter is correct"})
+
+}
