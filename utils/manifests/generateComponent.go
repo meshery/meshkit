@@ -34,7 +34,10 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 	//download the binary on that path if it doesn't exist
 	if _, err := os.Stat(binPath); os.IsNotExist(err) {
 		fmt.Println("Downloading at " + binPath + "...")
-		utils.DownloadFile(binPath, url)
+		errdownload := utils.DownloadFile(binPath, url)
+		if errdownload != nil {
+			return nil, errdownload
+		}
 		fmt.Println("Download Completed")
 	}
 

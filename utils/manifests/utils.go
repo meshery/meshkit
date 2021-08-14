@@ -204,18 +204,12 @@ func filterYaml(yamlPath string, filter []string, binPath string) error {
 	}
 	path := filepath.Join(os.TempDir(), "/test.yaml")
 	err = populateTempyaml(out.String(), path)
+	if err != nil {
+		return ErrPopulatingYaml(err)
+	}
 	return nil
 }
 
-// func getCrdNamess(s string) []string {
-
-// }
-
-//It takes the crdname and injects the filter in the query to crdname
-// func getCustomFilter(crdname string, filter CrdFilter) string {
-
-// 	return ""
-// }
 //cleanup
 func deleteFile(path string) error {
 	err := os.Remove(path)
