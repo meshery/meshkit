@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,9 +19,10 @@ import (
 )
 
 type ApplyOptions struct {
-	Namespace string
-	Update    bool
-	Delete    bool
+	Namespace    string
+	Update       bool
+	Delete       bool
+	IgnoreErrors bool
 }
 
 // ApplyManifest applies, updates or deletes resources as specified in ApplyOptions.
@@ -42,9 +42,10 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		// get the runtime.Object
 		object, obj, err := GetObjectFromManifest(manifest)
 		if err != nil {
-			if len(obj.GetObjectKind().GroupVersionKind().Kind) < 1 {
+			if recvOptions.IgnoreErrors || len(obj.GetObjectKind().GroupVersionKind().Kind) < 1 {
 				continue
 			}
+
 			return ErrApplyManifest(err)
 		}
 
@@ -58,7 +59,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		if err == nil && len(val) > 1 {
 			if len(options.Namespace) > 1 {
 				er := meta.NewAccessor().SetNamespace(object, options.Namespace)
-				if er != nil {
+				if er != nil && !recvOptions.IgnoreErrors {
 					return ErrApplyManifest(er)
 				}
 			} else {
@@ -67,18 +68,18 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		}
 
 		// Create namespace if it doesnt already exist
-		if err = createNamespaceIfNotExist(context.TODO(), client.KubeClient, options.Namespace); err != nil {
+		if err = createNamespaceIfNotExist(context.TODO(), client.KubeClient, options.Namespace); err != nil && !recvOptions.IgnoreErrors {
 			return ErrApplyManifest(err)
 		}
 
 		if options.Delete {
 			_, err = deleteObject(helper, options.Namespace, object)
-			if err != nil && !kubeerror.IsNotFound(err) {
+			if err != nil && !kubeerror.IsNotFound(err) && !recvOptions.IgnoreErrors {
 				return ErrApplyManifest(err)
 			}
 		} else {
 			_, err = createObject(helper, options.Namespace, object, options.Update)
-			if err != nil && !kubeerror.IsAlreadyExists(err) {
+			if err != nil && !kubeerror.IsAlreadyExists(err) && !recvOptions.IgnoreErrors {
 				return ErrApplyManifest(err)
 			}
 		}
@@ -175,7 +176,7 @@ func createNamespaceIfNotExist(ctx context.Context, kubeClientset kubernetes.Int
 
 	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	_, err := kubeClientset.CoreV1().Namespaces().Create(ctx, nsSpec, metav1.CreateOptions{})
-	if !errors.IsAlreadyExists(err) {
+	if !kubeerror.IsAlreadyExists(err) {
 		return err
 	}
 	return nil
