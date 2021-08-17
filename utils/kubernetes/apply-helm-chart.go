@@ -2,10 +2,13 @@ package kubernetes
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/layer5io/meshkit/utils"
+	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -50,6 +53,25 @@ var (
 	downloadLocation = os.TempDir()
 )
 
+// HelmIndex holds the index.yaml data in the struct format
+type HelmIndex struct {
+	APIVersion string      `yaml:"apiVersion"`
+	Entries    HelmEntries `yaml:"entries"`
+}
+
+// HelmEntries holds the data for all of the entries present
+// in the helm repository
+type HelmEntries map[string][]HelmEntryMetadata
+
+// HelmEntryMetadata is the struct for holding the metadata
+// associated with a helm repositories' entry
+type HelmEntryMetadata struct {
+	APIVersion string `yaml:"apiVersion"`
+	AppVersion string `yaml:"appVersion"`
+	Name       string `yaml:"name"`
+	Version    string `yaml:"version"`
+}
+
 // HelmChartLocation describes the structure for defining
 // the location for helm chart
 type HelmChartLocation struct {
@@ -68,6 +90,13 @@ type HelmChartLocation struct {
 	//
 	// Defaults to Latest
 	Version string
+
+	// AppVersion unlike the Version is the actual version of the
+	// application. This app version must be present in the
+	// https://REPOSITORY/index.yaml
+	//
+	// If this is defined then chart version will be ignored
+	AppVersion string
 }
 
 // ApplyHelmChartConfig defines the options that ApplyHelmChart
@@ -84,6 +113,12 @@ type ApplyHelmChartConfig struct {
 	// Either ChartLocation or URL can be defined, if both of them
 	// are defined then URL is given the preferenece
 	URL string
+
+	// LocalPath is the local path where the routine can find the helm chart
+	//
+	// If this is provided then both URL and ChartLocation will be completely
+	// ignored
+	LocalPath string
 
 	// HelmDriver is used to determine the backend
 	// informations used by helm for managing release
@@ -117,6 +152,14 @@ type ApplyHelmChartConfig struct {
 	//
 	// Defaults to false
 	Delete bool
+
+	// Logger that will be used by the client to print the logs
+	//
+	// If nothing is provided then a dummy logger is used
+	Logger func(string, ...interface{})
+
+	// DryRun will skip actual run, useful for testing
+	DryRun bool
 }
 
 // ApplyHelmChart takes in the url for the helm chart
@@ -177,12 +220,11 @@ type ApplyHelmChartConfig struct {
 func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	setupDefaults(&cfg)
 
-	url, err := getHelmChartURL(cfg)
-	if err != nil {
+	if err := setupChartVersion(&cfg); err != nil {
 		return ErrApplyHelmChart(err)
 	}
 
-	localPath, err := fetchHelmChart(url)
+	localPath, err := getHelmLocalPath(cfg)
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
@@ -224,6 +266,45 @@ func setupDefaults(cfg *ApplyHelmChartConfig) {
 	if cfg.Namespace == "" {
 		cfg.Namespace = "default"
 	}
+	if cfg.Logger == nil {
+		cfg.Logger = func(string, ...interface{}) {} // Dummy logger for helm packages
+	}
+}
+
+// setupChartVersion takes in the configuration and assigns a chart version
+// if an app version is provided. If app version is not provided then it will
+// skip any processing
+func setupChartVersion(cfg *ApplyHelmChartConfig) error {
+	if cfg.ChartLocation.AppVersion != "" {
+		var err error
+		cfg.ChartLocation.Version, err = HelmConvertAppVersionToChartVersion(
+			cfg.ChartLocation.Repository,
+			cfg.ChartLocation.Chart,
+			cfg.ChartLocation.AppVersion,
+		)
+
+		return err
+	}
+
+	return nil
+}
+
+// getHelmLocalPath takes in the configuration and returns path to helm chart
+// on the local file system
+//
+// If cfg has LocalPath defined then it will skip downloading and assumes that
+// the chart exists at the mentioned location
+func getHelmLocalPath(cfg ApplyHelmChartConfig) (string, error) {
+	if cfg.LocalPath != "" {
+		return cfg.LocalPath, nil
+	}
+
+	url, err := getHelmChartURL(cfg)
+	if err != nil {
+		return "", ErrApplyHelmChart(err)
+	}
+
+	return fetchHelmChart(url)
 }
 
 // getHelmChartURL returns the chart url irrespective of the chosen method for
@@ -279,10 +360,8 @@ func createHelmActionConfig(restConfig rest.Config, cfg ApplyHelmChartConfig) (*
 	kubeConfig.BearerToken = &restConfig.BearerToken
 	kubeConfig.CAFile = &restConfig.CAFile
 
-	nopLogger := func(_ string, _ ...interface{}) {} // Dummy logger for helm packages
-
 	actionConfig := new(action.Configuration)
-	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), nopLogger); err != nil {
+	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
 		return nil, ErrApplyHelmChart(err)
 	}
 
@@ -299,6 +378,7 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 	if cfg.Delete {
 		return func(c *chart.Chart) error {
 			act := action.NewUninstall(actionConfig)
+			act.DryRun = cfg.DryRun
 			if _, err := act.Run(c.Name()); err != nil {
 				return ErrApplyHelmChart(err)
 			}
@@ -312,6 +392,7 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 		act.ReleaseName = c.Name()
 		act.CreateNamespace = cfg.CreateNamespace
 		act.Namespace = cfg.Namespace
+		act.DryRun = cfg.DryRun
 		if _, err := act.Run(c, cfg.OverrideValues); err != nil {
 			return ErrApplyHelmChart(err)
 		}
@@ -338,4 +419,74 @@ func createHelmPathFromHelmChartLocation(loc HelmChartLocation) (string, error) 
 	}
 
 	return chartURL, nil
+}
+
+// HelmConvertAppVersionToChartVersion takes in the repo, chart and app version and
+// returns the corresponding chart version for the same
+func HelmConvertAppVersionToChartVersion(repo, chart, appVersion string) (string, error) {
+	appVersion = normalizeVersion(appVersion)
+
+	helmIndex, err := createHelmIndex(repo)
+	if err != nil {
+		return "", ErrCreatingHelmIndex(err)
+	}
+
+	entryMetadata, exists := helmIndex.Entries.GetEntryWithAppVersion(chart, appVersion)
+	if !exists {
+		return "", ErrEntryWithAppVersionNotExists(chart, appVersion)
+	}
+
+	return entryMetadata.Version, nil
+}
+
+// createHelmIndex takes in the repo name and creates a
+// helm index for it. Helm index is basically marshalled version of
+// index.yaml file present in the remote helm repository
+func createHelmIndex(repo string) (*HelmIndex, error) {
+	url := fmt.Sprintf("%s/index.yaml", repo)
+
+	// helm repository path will alaways be varaible hence,
+	// #nosec
+	resp, err := http.Get(url)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return nil, ErrHelmRepositoryNotFound(repo, err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	var hi HelmIndex
+	dec := yaml.NewDecoder(resp.Body)
+	if err := dec.Decode(&hi); err != nil {
+		return nil, ErrDecodeYaml(err)
+	}
+
+	return &hi, nil
+}
+
+// GetEntryWithAppVersion takes in the entry name and the appversion and returns the corresponding
+// metadata for the parameters if it exists
+func (helmEntries HelmEntries) GetEntryWithAppVersion(entry, appVersion string) (HelmEntryMetadata, bool) {
+	hem, ok := helmEntries[entry]
+	if !ok {
+		return HelmEntryMetadata{}, false
+	}
+
+	for _, v := range hem {
+		if v.Name == entry && v.AppVersion == appVersion {
+			return v, true
+		}
+	}
+
+	return HelmEntryMetadata{}, false
+}
+
+// normalizeVerion takes in a version and adds "v" prefix
+// if it isn't already present
+func normalizeVersion(version string) string {
+	if strings.HasPrefix(version, "v") {
+		return version
+	}
+
+	return fmt.Sprintf("v%s", version)
 }
