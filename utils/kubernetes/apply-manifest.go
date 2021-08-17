@@ -51,6 +51,10 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 
 		helper, err := constructObject(client.KubeClient, client.RestConfig, object)
 		if err != nil {
+			if recvOptions.IgnoreErrors {
+				continue
+			}
+
 			return ErrApplyManifest(err)
 		}
 
@@ -59,7 +63,11 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		if err == nil && len(val) > 1 {
 			if len(options.Namespace) > 1 {
 				er := meta.NewAccessor().SetNamespace(object, options.Namespace)
-				if er != nil && !recvOptions.IgnoreErrors {
+				if er != nil {
+					if recvOptions.IgnoreErrors {
+						continue
+					}
+
 					return ErrApplyManifest(er)
 				}
 			} else {
@@ -68,18 +76,30 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		}
 
 		// Create namespace if it doesnt already exist
-		if err = createNamespaceIfNotExist(context.TODO(), client.KubeClient, options.Namespace); err != nil && !recvOptions.IgnoreErrors {
+		if err = createNamespaceIfNotExist(context.TODO(), client.KubeClient, options.Namespace); err != nil {
+			if recvOptions.IgnoreErrors {
+				continue
+			}
+
 			return ErrApplyManifest(err)
 		}
 
 		if options.Delete {
 			_, err = deleteObject(helper, options.Namespace, object)
-			if err != nil && !kubeerror.IsNotFound(err) && !recvOptions.IgnoreErrors {
+			if err != nil && !kubeerror.IsNotFound(err) {
+				if recvOptions.IgnoreErrors {
+					continue
+				}
+
 				return ErrApplyManifest(err)
 			}
 		} else {
 			_, err = createObject(helper, options.Namespace, object, options.Update)
-			if err != nil && !kubeerror.IsAlreadyExists(err) && !recvOptions.IgnoreErrors {
+			if err != nil && !kubeerror.IsAlreadyExists(err) {
+				if recvOptions.IgnoreErrors {
+					continue
+				}
+
 				return ErrApplyManifest(err)
 			}
 		}
