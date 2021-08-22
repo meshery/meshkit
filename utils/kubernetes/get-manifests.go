@@ -41,6 +41,7 @@ func GetManifestsFromHelm(client *Client, url string) (string, error) {
 	}
 	ccli := action.NewInstall(actionConfig)
 	ccli.ReleaseName = "test" //To be changed to something unique dynamically. Because everytime a new relase name is expected by helm
+	ccli.DryRun = true
 	rel, err := ccli.Run(chart, vals)
 	if err != nil {
 		return "", ErrApplyHelmChart(err)
