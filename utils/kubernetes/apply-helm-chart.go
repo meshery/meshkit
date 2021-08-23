@@ -424,8 +424,12 @@ func createHelmPathFromHelmChartLocation(loc HelmChartLocation) (string, error) 
 // HelmConvertAppVersionToChartVersion takes in the repo, chart and app version and
 // returns the corresponding chart version for the same
 func HelmConvertAppVersionToChartVersion(repo, chart, appVersion string) (string, error) {
-	appVersion = normalizeVersion(appVersion)
+	return HelmAppVersionToChartVersion(repo, chart, normalizeVersion(appVersion))
+}
 
+// HelmAppVersionToChartVersion takes in the repo, chart and app version and
+// returns the corresponding chart version for the same without normalizing the app version
+func HelmAppVersionToChartVersion(repo, chart, appVersion string) (string, error) {
 	helmIndex, err := createHelmIndex(repo)
 	if err != nil {
 		return "", ErrCreatingHelmIndex(err)
