@@ -11,7 +11,7 @@ import (
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
 )
 
-func getDefinitions(template string, crd string, resource int, cfg Config, filepath string, binPath string) (string, error) {
+func getDefinitions(crd string, resource int, cfg Config, filepath string, binPath string) (string, error) {
 	var def v1alpha1.WorkloadDefinition
 	definitionRef := strings.ToLower(crd) + ".meshery.layer5.io"
 	apiVersion, err := getApiVersion(binPath, filepath, crd)

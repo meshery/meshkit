@@ -78,7 +78,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 	crds := getCrdnames(out.String())
 
 	for _, crd := range crds {
-		out, err := getDefinitions(workloadDefinitionTemplate, crd, resource, cfg, path, binPath)
+		out, err := getDefinitions(crd, resource, cfg, path, binPath)
 		if err != nil {
 			return nil, err
 		}
