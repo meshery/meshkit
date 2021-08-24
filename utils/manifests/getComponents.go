@@ -3,7 +3,6 @@ package manifests
 import (
 	"github.com/layer5io/meshkit/utils"
 	k8s "github.com/layer5io/meshkit/utils/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func GetFromManifest(url string, resource int, cfg Config) (*Component, error) {
@@ -19,14 +18,7 @@ func GetFromManifest(url string, resource int, cfg Config) (*Component, error) {
 }
 
 func GetFromHelm(url string, resource int, cfg Config) (*Component, error) {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	configOverrides := &clientcmd.ConfigOverrides{}
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, configOverrides)
-	kcli, err := k8s.New([]byte(kubeConfig.ConfigAccess().GetExplicitFile()))
-	if err != nil {
-		return nil, err
-	}
-	manifest, err := k8s.GetManifestsFromHelm(kcli, url)
+	manifest, err := k8s.GetManifestsFromHelm(url)
 	if err != nil {
 		return nil, err
 	}
