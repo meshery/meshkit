@@ -1,9 +1,14 @@
 package manifests
 
-const template = "{\"apiVersion\":\"core.oam.dev/v1alpha1\",\"kind\":\"WorkloadDefinition\",\"metadata\":{\"name\":\"\"},\"spec\":{\"definitionRef\":{\"name\":\"\"}}}"
+const workloadDefinitionTemplate = "{\"apiVersion\":\"core.oam.dev/v1alpha1\",\"kind\":\"WorkloadDefinition\",\"metadata\":{\"name\":\"\"},\"spec\":{\"definitionRef\":{\"name\":\"\"}}}"
+
+// Type of resource
 const (
+	// service mesh resource
 	SERVICE_MESH = iota
+	// native Kubernetes resource
 	K8s
+	// native Meshery resource
 	MESHERY
 )
 
@@ -22,7 +27,7 @@ type Config struct {
 
 type CrdFilter struct {
 	RootFilter    JsonPath //This would be the first filter to get a modified yaml
-	NamFilter     JsonPath // This will be the json path passed in order to get the names of crds
+	NameFilter    JsonPath // This will be the json path passed in order to get the names of crds
 	NamePath      string
 	GroupFilter   JsonPath //This will specify the path to get to group name
 	VersionFilter JsonPath //This will specify the path to get to version name. [Version should have a name field]

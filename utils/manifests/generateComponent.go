@@ -12,12 +12,9 @@ import (
 )
 
 func generateComponents(manifest string, resource int, cfg Config) (*Component, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
-	var binPath string = wd + "/utils/manifests/utilBin/kubeopenapi-jsonschema"
+	wd := utils.GetHome() + "/.meshery/bin"
+	fmt.Println("Looking for kubeopenapi-jsonschema in ", wd)
+	var binPath string = wd + "/kubeopenapi-jsonschema"
 	var url string = "https://github.com/layer5io/kubeopenapi-jsonschema/releases/download/v0.1.0/kubeopenapi-jsonschema"
 	switch runtime.GOOS {
 	case "windows":
@@ -42,7 +39,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 	}
 
 	//make the binary executable
-	if err = os.Chmod(binPath, 0750); err != nil {
+	if err := os.Chmod(binPath, 0750); err != nil {
 		return nil, err
 	}
 
@@ -51,7 +48,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 		er  bytes.Buffer
 	)
 	path := filepath.Join(wd, "/test.yaml")
-	err = populateTempyaml(manifest, path)
+	err := populateTempyaml(manifest, path)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +61,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 		Schemas:     []string{},
 		Definitions: []string{},
 	}
-	filter := cfg.Filter.NamFilter //cfg.Filter.Name
+	filter := cfg.Filter.NameFilter //cfg.Filter.Name
 	filteroot = append(filteroot, "-o", "json", "--o-filter")
 	filteroot = append(filteroot, filter...)
 	getCrdsCmdArgs := append([]string{"--location", path, "-t", "yaml", "--filter"}, filteroot...)
@@ -81,7 +78,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 	crds := getCrdnames(out.String())
 
 	for _, crd := range crds {
-		out, err := getDefinitions(template, crd, resource, cfg, path, binPath)
+		out, err := getDefinitions(workloadDefinitionTemplate, crd, resource, cfg, path, binPath)
 		if err != nil {
 			return nil, err
 		}
