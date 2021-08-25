@@ -16,11 +16,11 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 	definitionRef := strings.ToLower(crd) + ".meshery.layer5.io"
 	apiVersion, err := getApiVersion(binPath, filepath, crd)
 	if err != nil {
-		return "", err
+		return "", ErrGetAPIVersion(err)
 	}
 	apiGroup, err := getApiGrp(binPath, filepath, crd)
 	if err != nil {
-		return "", err
+		return "", ErrGetAPIGroup(err)
 	}
 	//getting defintions for different native resources
 	def.Spec.DefinitionRef.Name = definitionRef
@@ -76,6 +76,9 @@ func getSchema(crd string, filepath string, binPath string, cfg Config) (string,
 	}
 	schema := [][]map[string]interface{}{}
 	if err := json.Unmarshal(out.Bytes(), &schema); err != nil {
+		return "", err
+	}
+	if len(schema) == 0 || len(schema[0]) == 0 {
 		return "", err
 	}
 	(schema)[0][0]["title"] = crdname
@@ -142,10 +145,13 @@ func getApiVersion(binPath string, filepath string, crd string) (string, error) 
 	schemaCmd.Stderr = &er
 	err := schemaCmd.Run()
 	if err != nil {
-		return er.String(), ErrGetAPIVersion(err)
+		return er.String(), err
 	}
 	grp := [][]map[string]interface{}{}
 	if err := json.Unmarshal(out.Bytes(), &grp); err != nil {
+		return "", err
+	}
+	if len(grp) == 0 || len(grp[0]) == 0 {
 		return "", err
 	}
 	var output []byte
@@ -170,13 +176,16 @@ func getApiGrp(binPath string, filepath string, crd string) (string, error) {
 	schemaCmd.Stderr = &er
 	err := schemaCmd.Run()
 	if err != nil {
-		return er.String(), ErrGetAPIGroup(err)
+		return er.String(), err
 	}
 	v := [][]map[string]interface{}{}
 	if err := json.Unmarshal(out.Bytes(), &v); err != nil {
 		return "", err
 	}
 	var output []byte
+	if len(v) == 0 || len(v[0]) == 0 {
+		return "", err
+	}
 	output, err = json.Marshal(v[0][0]["group"])
 	if err != nil {
 		return "", err
@@ -200,7 +209,7 @@ func filterYaml(yamlPath string, filter []string, binPath string) error {
 	cmd.Stderr = &er
 	err := cmd.Run()
 	if err != nil {
-		return ErrGetCrdNames(err)
+		return err
 	}
 	path := filepath.Join(os.TempDir(), "/test.yaml")
 	err = populateTempyaml(out.String(), path)

@@ -7,8 +7,7 @@ const (
 	ErrGetSchemasCode     = "1002"
 	ErrGetAPIVersionCode  = "1003"
 	ErrGetAPIGroupCode    = "1004"
-	ErrParsingJsonCode    = "1005"
-	ErrPopulatingYamlCode = "1006"
+	ErrPopulatingYamlCode = "1005"
 )
 
 func ErrGetCrdNames(err error) error {
@@ -25,11 +24,6 @@ func ErrGetAPIGroup(err error) error {
 	return errors.New(ErrGetAPIGroupCode, errors.Alert, []string{"Error getting api group"}, []string{err.Error()}, []string{"Api group could not be parsed"}, []string{"Make sure the filter passed is correct"})
 }
 
-func ErrParsingJson(err error) error {
-	return errors.New(ErrParsingJsonCode, errors.Alert, []string{"Error parsing json"}, []string{err.Error()}, []string{"Json could not be parsed"}, []string{"Make sure the path passed in filter is correct"})
-
-}
 func ErrPopulatingYaml(err error) error {
 	return errors.New(ErrPopulatingYamlCode, errors.Alert, []string{"Error populating yaml"}, []string{err.Error()}, []string{"Yaml could not be populated with the returned manifests"}, []string{""})
-
 }
