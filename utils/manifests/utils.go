@@ -27,28 +27,24 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 	def.ObjectMeta.Name = crd
 	switch resource {
 	case SERVICE_MESH:
-		{
-			def.Spec.Metadata = map[string]string{
-				"@type":         "pattern.meshery.io/mesh/workload",
-				"meshVersion":   cfg.MeshVersion,
-				"meshName":      cfg.Name,
-				"k8sAPIVersion": apiGroup + "/" + apiVersion,
-				"k8skind":       crd,
-			}
+		def.Spec.Metadata = map[string]string{
+			"@type":         "pattern.meshery.io/mesh/workload",
+			"meshVersion":   cfg.MeshVersion,
+			"meshName":      cfg.Name,
+			"k8sAPIVersion": apiGroup + "/" + apiVersion,
+			"k8skind":       crd,
 		}
 	case K8s:
-		{
-			def.Spec.Metadata = map[string]string{
-				"@type":         "pattern.meshery.io/k8s",
-				"k8sAPIVersion": apiGroup + "/" + apiVersion,
-				"k8skind":       "",
-			}
+		def.Spec.Metadata = map[string]string{
+			"@type":         "pattern.meshery.io/k8s",
+			"k8sAPIVersion": apiGroup + "/" + apiVersion,
+			"k8skind":       crd,
 		}
+		def.ObjectMeta.Name += ".K8s"
+		def.Spec.DefinitionRef.Name = strings.ToLower(crd) + "k8s.meshery.layer5.io"
 	case MESHERY:
-		{
-			def.Spec.Metadata = map[string]string{
-				"@type": "pattern.meshery.io/core",
-			}
+		def.Spec.Metadata = map[string]string{
+			"@type": "pattern.meshery.io/core",
 		}
 	}
 	out, err := json.MarshalIndent(def, "", " ")

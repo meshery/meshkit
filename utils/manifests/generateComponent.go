@@ -12,21 +12,18 @@ import (
 )
 
 func generateComponents(manifest string, resource int, cfg Config) (*Component, error) {
-	wd := utils.GetHome() + "/.meshery/bin"
+	wd := filepath.Join(utils.GetHome(), ".meshery", "bin")
 	fmt.Println("Looking for kubeopenapi-jsonschema in ", wd)
-	var binPath string = wd + "/kubeopenapi-jsonschema"
+	var binPath string = filepath.Join(wd, "kubeopenapi-jsonschema")
 	var url string = "https://github.com/layer5io/kubeopenapi-jsonschema/releases/download/v0.1.0/kubeopenapi-jsonschema"
 	switch runtime.GOOS {
 	case "windows":
-		{
-			binPath += ".exe"
-			url += ".exe"
-		}
+		binPath += ".exe"
+		url += ".exe"
 	case "darwin":
-		{
-			binPath += "-darwin"
-			url += "-darwin"
-		}
+		binPath += "-darwin"
+		url += "-darwin"
+
 	}
 	//download the binary on that path if it doesn't exist
 	if _, err := os.Stat(binPath); os.IsNotExist(err) {
@@ -47,7 +44,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
-	path := filepath.Join(wd, "/test.yaml")
+	path := filepath.Join(wd, "test.yaml")
 	err := populateTempyaml(manifest, path)
 	if err != nil {
 		return nil, err
@@ -76,7 +73,6 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 		return nil, ErrGetCrdNames(err)
 	}
 	crds := getCrdnames(out.String())
-
 	for _, crd := range crds {
 		out, err := getDefinitions(crd, resource, cfg, path, binPath)
 		if err != nil {
