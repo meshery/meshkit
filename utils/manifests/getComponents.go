@@ -10,7 +10,7 @@ func GetFromManifest(url string, resource int, cfg Config) (*Component, error) {
 	if err != nil {
 		return nil, err
 	}
-	comp, err := generateComponents(manifest, resource, cfg)
+	comp, err := GenerateComponents(manifest, resource, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func GetFromHelm(url string, resource int, cfg Config) (*Component, error) {
 	if err != nil {
 		return nil, err
 	}
-	comp, err := generateComponents(manifest, resource, cfg)
+	comp, err := GenerateComponents(manifest, resource, cfg)
 	if err != nil {
 		return nil, err
 	}
