@@ -12,13 +12,18 @@ import (
 )
 
 func getDefinitions(crd string, resource int, cfg Config, filepath string, binPath string) (string, error) {
+	//the default input format is "yaml"
+	inputFormat := "yaml"
+	if cfg.Filter.IsJson {
+		inputFormat = "json"
+	}
 	var def v1alpha1.WorkloadDefinition
 	definitionRef := strings.ToLower(crd) + ".meshery.layer5.io"
-	apiVersion, err := getApiVersion(binPath, filepath, crd)
+	apiVersion, err := getApiVersion(binPath, filepath, crd, inputFormat)
 	if err != nil {
 		return "", ErrGetAPIVersion(err)
 	}
-	apiGroup, err := getApiGrp(binPath, filepath, crd)
+	apiGroup, err := getApiGrp(binPath, filepath, crd, inputFormat)
 	if err != nil {
 		return "", ErrGetAPIGroup(err)
 	}
@@ -55,13 +60,17 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 }
 
 func getSchema(crd string, filepath string, binPath string, cfg Config) (string, error) {
+	inputFormat := "yaml"
+	if cfg.Filter.IsJson {
+		inputFormat = "json"
+	}
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
 	crdname := strings.ToLower(crd)
 	filter := []string{"$..openAPIV3Schema.properties.spec", " --o-filter", "$[]", "-o", "json"} //cfg.Filter.Spec
-	getSchemaCmdArgs := []string{"--location", filepath, "-t", "yaml", "--filter", "$[?(@.spec.names.kind=='" + crd + "')]", "--filter"}
+	getSchemaCmdArgs := []string{"--location", filepath, "-t", inputFormat, "--filter", "$[?(@.spec.names.kind=='" + crd + "')]", "--filter"}
 	getSchemaCmdArgs = append(getSchemaCmdArgs, filter...)
 	schemaCmd := exec.Command(binPath, getSchemaCmdArgs...)
 	schemaCmd.Stdout = &out
@@ -127,14 +136,14 @@ func getCrdnames(s string) []string {
 	return crds[1 : len(crds)-2] // first and last characters are "[" and "]" respectively
 }
 
-func getApiVersion(binPath string, filepath string, crd string) (string, error) {
+func getApiVersion(binPath string, filepath string, crd string, inputFormat string) (string, error) {
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
 	filter := []string{"$..spec.versions[0]", " --o-filter", "$[0]"} //cfg.Filter.VersionFilter
 	filter = append(filter, "-o", "json")
-	getAPIvCmdArgs := []string{"--location", filepath, "-t", "yaml", "--filter", "$[?(@.spec.names.kind=='" + crd + "')]", "--filter"}
+	getAPIvCmdArgs := []string{"--location", filepath, "-t", inputFormat, "--filter", "$[?(@.spec.names.kind=='" + crd + "')]", "--filter"}
 	getAPIvCmdArgs = append(getAPIvCmdArgs, filter...)
 	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
 	schemaCmd.Stdout = &out
@@ -158,14 +167,14 @@ func getApiVersion(binPath string, filepath string, crd string) (string, error) 
 	s := strings.ReplaceAll(string(output), "\"", "")
 	return s, nil
 }
-func getApiGrp(binPath string, filepath string, crd string) (string, error) {
+func getApiGrp(binPath string, filepath string, crd string, inputFormat string) (string, error) {
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
 	filter := []string{"$..spec", " --o-filter", "$[]"}
 	filter = append(filter, "-o", "json")
-	getAPIvCmdArgs := []string{"--location", filepath, "-t", "yaml", "--filter", "$[?(@.spec.names.kind=='" + crd + "')]", "--filter"}
+	getAPIvCmdArgs := []string{"--location", filepath, "-t", inputFormat, "--filter", "$[?(@.spec.names.kind=='" + crd + "')]", "--filter"}
 	getAPIvCmdArgs = append(getAPIvCmdArgs, filter...)
 	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
 	schemaCmd.Stdout = &out
@@ -190,13 +199,13 @@ func getApiGrp(binPath string, filepath string, crd string) (string, error) {
 	return s, nil
 }
 
-func filterYaml(yamlPath string, filter []string, binPath string) error {
+func filterYaml(yamlPath string, filter []string, binPath string, inputFormat string) error {
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
 	filter = append(filter, "-o", "yaml")
-	getCrdsCmdArgs := append([]string{"--location", yamlPath, "-t", "yaml", "--filter"}, filter...)
+	getCrdsCmdArgs := append([]string{"--location", yamlPath, "-t", inputFormat, "--filter"}, filter...)
 	cmd := exec.Command(binPath, getCrdsCmdArgs...)
 	//emptying buffers
 	out.Reset()

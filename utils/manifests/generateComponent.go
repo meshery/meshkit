@@ -11,7 +11,12 @@ import (
 	"github.com/layer5io/meshkit/utils"
 )
 
-func generateComponents(manifest string, resource int, cfg Config) (*Component, error) {
+// GenerateComponents generates components given manifest(yaml/json) ,resource type, and additional configuration
+func GenerateComponents(manifest string, resource int, cfg Config) (*Component, error) {
+	var inputFormat = "yaml"
+	if cfg.Filter.IsJson {
+		inputFormat = "json"
+	}
 	wd := filepath.Join(utils.GetHome(), ".meshery", "bin")
 	fmt.Println("Looking for kubeopenapi-jsonschema in ", wd)
 	var binPath string = filepath.Join(wd, "kubeopenapi-jsonschema")
@@ -50,7 +55,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 		return nil, err
 	}
 	filteroot := cfg.Filter.RootFilter //cfg.Filter.RootFilter
-	err = filterYaml(path, filteroot, binPath)
+	err = filterYaml(path, filteroot, binPath, inputFormat)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +66,7 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 	filter := cfg.Filter.NameFilter //cfg.Filter.Name
 	filteroot = append(filteroot, "-o", "json", "--o-filter")
 	filteroot = append(filteroot, filter...)
-	getCrdsCmdArgs := append([]string{"--location", path, "-t", "yaml", "--filter"}, filteroot...)
+	getCrdsCmdArgs := append([]string{"--location", path, "-t", inputFormat, "--filter"}, filteroot...)
 	cmd := exec.Command(binPath, getCrdsCmdArgs...)
 	//emptying buffers
 	out.Reset()
@@ -74,16 +79,19 @@ func generateComponents(manifest string, resource int, cfg Config) (*Component, 
 	}
 	crds := getCrdnames(out.String())
 	for _, crd := range crds {
-		out, err := getDefinitions(crd, resource, cfg, path, binPath)
+		outDef, err := getDefinitions(crd, resource, cfg, path, binPath)
 		if err != nil {
 			return nil, err
 		}
-		c.Definitions = append(c.Definitions, out)
-		out, err = getSchema(crd, path, binPath, cfg)
+		outSchema, err := getSchema(crd, path, binPath, cfg)
 		if err != nil {
 			return nil, ErrGetSchemas(err)
 		}
-		c.Schemas = append(c.Schemas, out)
+		if cfg.ModifyDefSchema != nil {
+			outDef, outSchema = cfg.ModifyDefSchema(outDef, outSchema)
+		}
+		c.Definitions = append(c.Definitions, outDef)
+		c.Schemas = append(c.Schemas, outSchema)
 	}
 	err = deleteFile(path)
 	if err != nil {

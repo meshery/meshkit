@@ -18,9 +18,10 @@ type Component struct {
 }
 
 type Config struct {
-	Name        string // Name of the service mesh,or k8 or meshery
-	MeshVersion string
-	Filter      CrdFilter //json path filters
+	Name            string // Name of the service mesh,or k8 or meshery
+	MeshVersion     string
+	Filter          CrdFilter                             //json path filters
+	ModifyDefSchema func(string, string) (string, string) //takes in definition and schema, does some manipulation on them and returns the new def and schema
 }
 
 type CrdFilter struct {
@@ -29,4 +30,5 @@ type CrdFilter struct {
 	GroupFilter   JsonPath //This will specify the path to get to group name
 	VersionFilter JsonPath //This will specify the path to get to version name. [Version should have a name field]
 	SpecFilter    JsonPath //This will specify the path to get spec
+	IsJson        bool     //Set to true if input format is json
 }
