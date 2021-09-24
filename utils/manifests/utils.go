@@ -19,17 +19,19 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 	}
 	var def v1alpha1.WorkloadDefinition
 	definitionRef := strings.ToLower(crd) + ".meshery.layer5.io"
-	apiVersion, err := getApiVersion(binPath, filepath, crd, inputFormat)
+	apiVersion, err := getApiVersion(binPath, filepath, crd, inputFormat, cfg)
 	if err != nil {
 		return "", ErrGetAPIVersion(err)
 	}
-	apiGroup, err := getApiGrp(binPath, filepath, crd, inputFormat)
+	apiGroup, err := getApiGrp(binPath, filepath, crd, inputFormat, cfg)
 	if err != nil {
 		return "", ErrGetAPIGroup(err)
 	}
 	//getting defintions for different native resources
 	def.Spec.DefinitionRef.Name = definitionRef
 	def.ObjectMeta.Name = crd
+	def.APIVersion = "core.oam.dev/v1alpha1"
+	def.Kind = "WorkloadDefinition"
 	switch resource {
 	case SERVICE_MESH:
 		def.Spec.Metadata = map[string]string{
@@ -59,36 +61,50 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 	return string(out), nil
 }
 
-func getSchema(crd string, filepath string, binPath string, cfg Config) (string, error) {
+func getSchema(crd string, fp string, binPath string, cfg Config) (string, error) {
 	inputFormat := "yaml"
 	if cfg.Filter.IsJson {
 		inputFormat = "json"
 	}
+
+	crdname := strings.ToLower(crd)
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
-	crdname := strings.ToLower(crd)
-	filter := []string{"$..openAPIV3Schema.properties.spec", " --o-filter", "$[]", "-o", "json"} //cfg.Filter.Spec
-	getSchemaCmdArgs := []string{"--location", filepath, "-t", inputFormat, "--filter", "$[?(@.spec.names.kind=='" + crd + "')]", "--filter"}
-	getSchemaCmdArgs = append(getSchemaCmdArgs, filter...)
-	schemaCmd := exec.Command(binPath, getSchemaCmdArgs...)
-	schemaCmd.Stdout = &out
-	schemaCmd.Stderr = &er
-	err := schemaCmd.Run()
-	if err != nil {
-		return "", err
+	if len(cfg.Filter.SpecFilter) != 0 { //If SpecFilter is passed then it will evaluated in output filter. [currently this case is for service meshes]
+		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", cfg.Filter.ItrSpecFilter + "=='" + crd + "')]", "--o-filter"}
+		getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.SpecFilter...)
+		schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
+		schemaCmd.Stdout = &out
+		schemaCmd.Stderr = &er
+		err := schemaCmd.Run()
+		if err != nil {
+			return er.String(), err
+		}
+	} else { //If no specfilter is passed then root filter is applied and iterator filter is used in output filter
+		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter"}
+		getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.RootFilter...)
+		getAPIvCmdArgs = append(getAPIvCmdArgs, "--o-filter", cfg.Filter.ItrSpecFilter+"=='"+crd+"')]")
+		schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
+		schemaCmd.Stdout = &out
+		schemaCmd.Stderr = &er
+		err := schemaCmd.Run()
+		if err != nil {
+			return er.String(), err
+		}
 	}
-	schema := [][]map[string]interface{}{}
+
+	schema := []map[string]interface{}{}
 	if err := json.Unmarshal(out.Bytes(), &schema); err != nil {
 		return "", err
 	}
-	if len(schema) == 0 || len(schema[0]) == 0 {
-		return "", err
+	if len(schema) == 0 {
+		return "", nil
 	}
-	(schema)[0][0]["title"] = crdname
+	(schema)[0]["title"] = crdname
 	var output []byte
-	output, err = json.MarshalIndent(schema[0][0], "", " ")
+	output, err := json.MarshalIndent(schema[0], "", " ")
 	if err != nil {
 		return "", err
 	}
@@ -136,15 +152,15 @@ func getCrdnames(s string) []string {
 	return crds[1 : len(crds)-2] // first and last characters are "[" and "]" respectively
 }
 
-func getApiVersion(binPath string, filepath string, crd string, inputFormat string) (string, error) {
+func getApiVersion(binPath string, fp string, crd string, inputFormat string, cfg Config) (string, error) {
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
-	filter := []string{"$..spec.versions[0]", " --o-filter", "$[0]"} //cfg.Filter.VersionFilter
-	filter = append(filter, "-o", "json")
-	getAPIvCmdArgs := []string{"--location", filepath, "-t", inputFormat, "--filter", "$[?(@.spec.names.kind=='" + crd + "')]", "--filter"}
-	getAPIvCmdArgs = append(getAPIvCmdArgs, filter...)
+
+	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", cfg.Filter.ItrFilter + "=='" + crd + "')]", "--o-filter"}
+	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.VersionFilter...)
+
 	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
 	schemaCmd.Stdout = &out
 	schemaCmd.Stderr = &er
@@ -152,46 +168,45 @@ func getApiVersion(binPath string, filepath string, crd string, inputFormat stri
 	if err != nil {
 		return er.String(), err
 	}
-	grp := [][]map[string]interface{}{}
+	grp := []map[string]interface{}{}
 	if err := json.Unmarshal(out.Bytes(), &grp); err != nil {
 		return "", err
 	}
-	if len(grp) == 0 || len(grp[0]) == 0 {
+	if len(grp) == 0 {
 		return "", err
 	}
 	var output []byte
-	output, err = json.Marshal(grp[0][0]["name"])
+	output, err = json.Marshal(grp[0][cfg.Filter.VField])
 	if err != nil {
 		return "", err
 	}
 	s := strings.ReplaceAll(string(output), "\"", "")
 	return s, nil
 }
-func getApiGrp(binPath string, filepath string, crd string, inputFormat string) (string, error) {
+func getApiGrp(binPath string, fp string, crd string, inputFormat string, cfg Config) (string, error) {
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
-	filter := []string{"$..spec", " --o-filter", "$[]"}
-	filter = append(filter, "-o", "json")
-	getAPIvCmdArgs := []string{"--location", filepath, "-t", inputFormat, "--filter", "$[?(@.spec.names.kind=='" + crd + "')]", "--filter"}
-	getAPIvCmdArgs = append(getAPIvCmdArgs, filter...)
+	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", cfg.Filter.ItrFilter + "=='" + crd + "')]", "--o-filter"}
+	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.GroupFilter...)
 	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
 	schemaCmd.Stdout = &out
 	schemaCmd.Stderr = &er
+
 	err := schemaCmd.Run()
 	if err != nil {
 		return er.String(), err
 	}
-	v := [][]map[string]interface{}{}
-	if err := json.Unmarshal(out.Bytes(), &v); err != nil {
+	grp := []map[string]interface{}{}
+	if err := json.Unmarshal(out.Bytes(), &grp); err != nil {
+		return "", err
+	}
+	if len(grp) == 0 {
 		return "", err
 	}
 	var output []byte
-	if len(v) == 0 || len(v[0]) == 0 {
-		return "", err
-	}
-	output, err = json.Marshal(v[0][0]["group"])
+	output, err = json.Marshal(grp[0][cfg.Filter.GField])
 	if err != nil {
 		return "", err
 	}
