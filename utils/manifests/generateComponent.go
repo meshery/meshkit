@@ -44,40 +44,45 @@ func GenerateComponents(manifest string, resource int, cfg Config) (*Component, 
 	if err := os.Chmod(binPath, 0750); err != nil {
 		return nil, err
 	}
-
-	var (
-		out bytes.Buffer
-		er  bytes.Buffer
-	)
 	path := filepath.Join(wd, "test.yaml")
 	err := populateTempyaml(manifest, path)
 	if err != nil {
 		return nil, err
 	}
-	filteroot := cfg.Filter.RootFilter //cfg.Filter.RootFilter
-	err = filterYaml(path, filteroot, binPath, inputFormat)
-	if err != nil {
-		return nil, err
-	}
-	c := &Component{
+	var crds []string
+	var c = &Component{
 		Schemas:     []string{},
 		Definitions: []string{},
 	}
-	filter := cfg.Filter.NameFilter //cfg.Filter.Name
-	filteroot = append(filteroot, "-o", "json", "--o-filter")
-	filteroot = append(filteroot, filter...)
-	getCrdsCmdArgs := append([]string{"--location", path, "-t", inputFormat, "--filter"}, filteroot...)
-	cmd := exec.Command(binPath, getCrdsCmdArgs...)
-	//emptying buffers
-	out.Reset()
-	er.Reset()
-	cmd.Stdout = &out
-	cmd.Stderr = &er
-	err = cmd.Run()
-	if err != nil {
-		return nil, ErrGetCrdNames(err)
+	if len(cfg.Filter.OnlyRes) == 0 { //If the resources are not given by default, then extract using filter
+		var (
+			out bytes.Buffer
+			er  bytes.Buffer
+		)
+		filteroot := cfg.Filter.RootFilter
+		err = filterYaml(path, filteroot, binPath, inputFormat)
+		if err != nil {
+			return nil, err
+		}
+		filter := cfg.Filter.NameFilter
+		filteroot = append(filteroot, "-o", "json", "--o-filter")
+		filteroot = append(filteroot, filter...)
+		getCrdsCmdArgs := append([]string{"--location", path, "-t", inputFormat, "--filter"}, filteroot...)
+		cmd := exec.Command(binPath, getCrdsCmdArgs...)
+		//emptying buffers
+		out.Reset()
+		er.Reset()
+		cmd.Stdout = &out
+		cmd.Stderr = &er
+		err = cmd.Run()
+		if err != nil {
+			return nil, ErrGetCrdNames(err)
+		}
+		crds = getCrdnames(out.String())
+	} else {
+		crds = cfg.Filter.OnlyRes
 	}
-	crds := getCrdnames(out.String())
+
 	for _, crd := range crds {
 		outDef, err := getDefinitions(crd, resource, cfg, path, binPath)
 		if err != nil {
@@ -88,7 +93,7 @@ func GenerateComponents(manifest string, resource int, cfg Config) (*Component, 
 			return nil, ErrGetSchemas(err)
 		}
 		if cfg.ModifyDefSchema != nil {
-			outDef, outSchema = cfg.ModifyDefSchema(outDef, outSchema)
+			cfg.ModifyDefSchema(&outDef, &outSchema) //definition and schema can be modified using some call back function
 		}
 		c.Definitions = append(c.Definitions, outDef)
 		c.Schemas = append(c.Schemas, outSchema)
