@@ -38,7 +38,7 @@ The filters described below are an abstraction over those filters.
 			ItrFilter filters out the object which has some given field set to X. A complete filter might look something like "$.a.b[?(@.c==X)]".
 			Since X is obtained at runtime, we pass ItrFilter such that it can be later appended with "==X)]". So you can use this filter to find objects where we can
 			get versions and groups based on X. Hence ItrFilter in this example can be passed as "$.a.b[?(@.c".
-			All filters except this are complete.
+			All filters except this and ItrSpecFilter are complete.
 
 4. GroupFilter- After ItrFilter gives us the object with the group and version of the crd/resource we are interested in with this iteration, GroupFilter is used as output filter to only extract the group.
 5. VersionFilter- After ItrFilter gives us the object with the group and version of the crd/resource we are interested in with this iteration, GroupFilter is used as output filter to only extract the version.
