@@ -40,13 +40,13 @@ The filters described below are an abstraction over those filters.
 			get versions and groups based on X. Hence ItrFilter in this example can be passed as "$.a.b[?(@.c".
 			All filters except this and ItrSpecFilter are complete.
 
-4. GroupFilter- After ItrFilter gives us the object with the group and version of the crd/resource we are interested in with this iteration, GroupFilter is used as output filter to only extract the group.
-5. VersionFilter- After ItrFilter gives us the object with the group and version of the crd/resource we are interested in with this iteration, GroupFilter is used as output filter to only extract the version.
+4. GroupFilter- After ItrFilter gives us the object with the group and version of the crd/resource we are interested in with this iteration, GroupFilter is used as output filter to only extract the object with group in one of the fields.
+5. VersionFilter- After ItrFilter gives us the object with the group and version of the crd/resource we are interested in with this iteration, GroupFilter is used as output filter to only extract the object with version in one of the fields.
 6. ItrSpecFilter- Functionally is same as ItrFilter but instead of group and version, it is used to get openapi spec/schema.
 7. GField- The GroupFilter returns a json which has group in it. The key name which is used to signify group will be passed here. For eg: "group"
-8. VField- The GroupFilter returns a json which has version in it. The key name which is used to signify version will be passed here. For eg: "version", "name","version-name"
+8. VField- The VersionFilter returns a json which has version in it. The key name which is used to signify version will be passed here. For eg: "version", "name","version-name"
 9. OnlyRes- In some cases we dont want to compute crdnames/api-resources at runtime as we already have them. Pass those names as an array here to skip that step.
-10. IsJson- The file on which to apply all these filters is, by default expected to be YAML. Set this to true if a JSON is passed instead. (These are the only two supported formats)
+10. IsJson- The file on which to apply all these filters is by default expected to be YAML. Set this to true if a JSON is passed instead. (These are the only two supported formats)
 11. SpecFilter- When SpecFilter is passed, it is applied as output filter after ItrSpec filter.
 
 1(b) If SpecFilter is not passed, then before the ItrSpecFilter the rootfilter will be applied by default and then the ItrSpec filter will be applied as output filter.
