@@ -25,7 +25,7 @@ type BroadcastMessage struct {
 	Id     uuid.UUID
 	Source BroadcastSource
 	Type   string
-	Data   *interface{}
+	Data   interface{}
 	Time   time.Time
 }
 
