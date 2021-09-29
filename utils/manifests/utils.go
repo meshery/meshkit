@@ -48,7 +48,7 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 			"k8skind":       crd,
 		}
 		def.ObjectMeta.Name += ".K8s"
-		def.Spec.DefinitionRef.Name = strings.ToLower(crd) + "k8s.meshery.layer5.io"
+		def.Spec.DefinitionRef.Name = strings.ToLower(crd) + ".k8s.meshery.layer5.io"
 	case MESHERY:
 		def.Spec.Metadata = map[string]string{
 			"@type": "pattern.meshery.io/core",
