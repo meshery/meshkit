@@ -18,9 +18,10 @@ type Component struct {
 }
 
 type Config struct {
-	Name            string // Name of the service mesh,or k8 or meshery
-	MeshVersion     string
+	Name            string                 // Name of the service mesh,or k8 or meshery
+	MeshVersion     string                 // For service meshes
 	Filter          CrdFilter              //json path filters
+	K8sVersion      string                 //For K8ss
 	ModifyDefSchema func(*string, *string) //takes in definition and schema, does some manipulation on them and returns the new def and schema
 }
 
@@ -33,12 +34,8 @@ The filters described below are an abstraction over those filters.
 	(b) [this will be discussed after ItrFilter]
 
 2. NameFilter- As explained above, it is used as an --o-filter to extract only the names after RootFilter(1(a)) has been applied.
-3. ItrFilter- This is an incomplete filter, intentionally left incomplete. Before getting version and group with VersionFilter and GroupFilter, we want to obtain only the
-			object we are interested in, in a given iteration. Crdnames or ApiResource names which are obtained by NameFilter are iterated over and used within,lets call it X.
-			ItrFilter filters out the object which has some given field set to X. A complete filter might look something like "$.a.b[?(@.c==X)]".
-			Since X is obtained at runtime, we pass ItrFilter such that it can be later appended with "==X)]". So you can use this filter to find objects where we can
-			get versions and groups based on X. Hence ItrFilter in this example can be passed as "$.a.b[?(@.c".
-			All filters except this and ItrSpecFilter are complete.
+3. ItrFilter- The first element of the array is an incomplete filter and expected to end with "=='crdname')]". So it needs to be configured just before the double
+				equals sign. The rest of the elements of the array are directly appended afterwards to form the complete filter.
 
 4. GroupFilter- After ItrFilter gives us the object with the group and version of the crd/resource we are interested in with this iteration, GroupFilter is used as output filter to only extract the object with group in one of the fields.
 5. VersionFilter- After ItrFilter gives us the object with the group and version of the crd/resource we are interested in with this iteration, GroupFilter is used as output filter to only extract the object with version in one of the fields.
@@ -48,7 +45,7 @@ The filters described below are an abstraction over those filters.
 9. OnlyRes- In some cases we dont want to compute crdnames/api-resources at runtime as we already have them. Pass those names as an array here to skip that step.
 10. IsJson- The file on which to apply all these filters is by default expected to be YAML. Set this to true if a JSON is passed instead. (These are the only two supported formats)
 11. SpecFilter- When SpecFilter is passed, it is applied as output filter after ItrSpec filter.
-
+12. ResolveFilter- If passed, this filter will be applied after all the filter for generating schema. This filter is used to resolve $ref in json schema
 1(b) If SpecFilter is not passed, then before the ItrSpecFilter the rootfilter will be applied by default and then the ItrSpec filter will be applied as output filter.
 
 */
@@ -58,8 +55,9 @@ type CrdFilter struct {
 	GroupFilter   JsonPath
 	VersionFilter JsonPath
 	SpecFilter    JsonPath
-	ItrFilter     string
-	ItrSpecFilter string
+	ItrFilter     JsonPath
+	ItrSpecFilter JsonPath
+	ResolveFilter JsonPath
 	VField        string
 	GField        string
 	IsJson        bool
