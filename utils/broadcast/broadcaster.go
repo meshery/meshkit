@@ -8,16 +8,25 @@ which subscribers Register to pick up those messages.
 */
 package broadcast
 
-type BroadcastType string
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type BroadcastSource string
 
 const (
 	// OperatorSyncChannel is a broadcast channel type for operator status messages.
-	OperatorSyncChannel BroadcastType = "operator-sync"
+	OperatorSyncChannel BroadcastSource = "urn:meshery:operator:sync"
 )
 
 type BroadcastMessage struct {
-	Type    BroadcastType
-	Message interface{}
+	Id     uuid.UUID
+	Source BroadcastSource
+	Type   string
+	Data   interface{}
+	Time   time.Time
 }
 
 type broadcaster struct {
