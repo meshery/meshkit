@@ -20,7 +20,7 @@ func GenerateComponents(manifest string, resource int, cfg Config) (*Component, 
 	wd := filepath.Join(utils.GetHome(), ".meshery", "bin")
 	fmt.Println("Looking for kubeopenapi-jsonschema in ", wd)
 	var binPath string = filepath.Join(wd, "kubeopenapi-jsonschema")
-	var url string = "https://github.com/layer5io/kubeopenapi-jsonschema/releases/download/v0.1.0/kubeopenapi-jsonschema"
+	var url string = "https://github.com/layer5io/kubeopenapi-jsonschema/releases/download/v0.1.2/kubeopenapi-jsonschema"
 	switch runtime.GOOS {
 	case "windows":
 		binPath += ".exe"
