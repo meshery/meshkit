@@ -46,6 +46,7 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 			"@type":         "pattern.meshery.io/k8s",
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
 			"k8skind":       crd,
+			"version":       cfg.K8sVersion,
 		}
 		def.ObjectMeta.Name += ".K8s"
 		def.Spec.DefinitionRef.Name = strings.ToLower(crd) + ".k8s.meshery.layer5.io"
@@ -73,7 +74,11 @@ func getSchema(crd string, fp string, binPath string, cfg Config) (string, error
 		er  bytes.Buffer
 	)
 	if len(cfg.Filter.SpecFilter) != 0 { //If SpecFilter is passed then it will evaluated in output filter. [currently this case is for service meshes]
-		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", cfg.Filter.ItrSpecFilter + "=='" + crd + "')]", "--o-filter"}
+		itr := cfg.Filter.ItrSpecFilter[0] + "=='" + crd + "')]"
+		for _, f := range cfg.Filter.ItrSpecFilter[1:] {
+			itr += f
+		}
+		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
 		getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.SpecFilter...)
 		schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
 		schemaCmd.Stdout = &out
@@ -83,9 +88,16 @@ func getSchema(crd string, fp string, binPath string, cfg Config) (string, error
 			return er.String(), err
 		}
 	} else { //If no specfilter is passed then root filter is applied and iterator filter is used in output filter
+		itr := cfg.Filter.ItrSpecFilter[0] + "=='" + crd + "')]"
+		for _, f := range cfg.Filter.ItrSpecFilter[1:] {
+			itr += f
+		}
 		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter"}
 		getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.RootFilter...)
-		getAPIvCmdArgs = append(getAPIvCmdArgs, "--o-filter", cfg.Filter.ItrSpecFilter+"=='"+crd+"')]")
+		getAPIvCmdArgs = append(getAPIvCmdArgs, "--o-filter", itr)
+		if len(cfg.Filter.ResolveFilter) != 0 {
+			getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.ResolveFilter...)
+		}
 		schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
 		schemaCmd.Stdout = &out
 		schemaCmd.Stderr = &er
@@ -157,8 +169,11 @@ func getApiVersion(binPath string, fp string, crd string, inputFormat string, cf
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
-
-	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", cfg.Filter.ItrFilter + "=='" + crd + "')]", "--o-filter"}
+	itr := cfg.Filter.ItrFilter[0] + "=='" + crd + "')]"
+	for _, f := range cfg.Filter.ItrFilter[1:] {
+		itr += f
+	}
+	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
 	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.VersionFilter...)
 
 	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
@@ -188,7 +203,11 @@ func getApiGrp(binPath string, fp string, crd string, inputFormat string, cfg Co
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
-	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", cfg.Filter.ItrFilter + "=='" + crd + "')]", "--o-filter"}
+	itr := cfg.Filter.ItrFilter[0] + "=='" + crd + "')]"
+	for _, f := range cfg.Filter.ItrFilter[1:] {
+		itr += f
+	}
+	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
 	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.GroupFilter...)
 	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
 	schemaCmd.Stdout = &out
