@@ -65,7 +65,7 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 
 func getSchema(crd string, fp string, binPath string, cfg Config) (string, error) {
 	//few checks to avoid index out of bound panic
-	if len(cfg.Filter.ItrFilter) == 0 {
+	if len(cfg.Filter.ItrSpecFilter) == 0 {
 		return "", ErrAbsentFilter(errors.New("Empty ItrSpecFilter"))
 	}
 	inputFormat := "yaml"
