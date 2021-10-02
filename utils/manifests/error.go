@@ -8,6 +8,7 @@ const (
 	ErrGetAPIVersionCode  = "1003"
 	ErrGetAPIGroupCode    = "1004"
 	ErrPopulatingYamlCode = "1005"
+	ErrAbsentFilterCode   = "1006"
 )
 
 func ErrGetCrdNames(err error) error {
@@ -26,4 +27,7 @@ func ErrGetAPIGroup(err error) error {
 
 func ErrPopulatingYaml(err error) error {
 	return errors.New(ErrPopulatingYamlCode, errors.Alert, []string{"Error populating yaml"}, []string{err.Error()}, []string{"Yaml could not be populated with the returned manifests"}, []string{""})
+}
+func ErrAbsentFilter(err error) error {
+	return errors.New(ErrAbsentFilterCode, errors.Alert, []string{"Error with passed filters"}, []string{err.Error()}, []string{"ItrFilter or ItrSpecFilter is either not passed or empty"}, []string{"Pass the correct ItrFilter and ItrSpecFilter"})
 }
