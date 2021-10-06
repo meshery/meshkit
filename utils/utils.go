@@ -84,6 +84,10 @@ func DownloadFile(filepath string, url string) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("failed to get the file %d status code for %s file", resp.StatusCode, url)
+	}
+
 	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {
