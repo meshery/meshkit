@@ -3,6 +3,7 @@ package manifests
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,6 +64,10 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 }
 
 func getSchema(crd string, fp string, binPath string, cfg Config) (string, error) {
+	//few checks to avoid index out of bound panic
+	if len(cfg.Filter.ItrSpecFilter) == 0 {
+		return "", ErrAbsentFilter(errors.New("Empty ItrSpecFilter"))
+	}
 	inputFormat := "yaml"
 	if cfg.Filter.IsJson {
 		inputFormat = "json"
@@ -165,6 +170,11 @@ func getCrdnames(s string) []string {
 }
 
 func getApiVersion(binPath string, fp string, crd string, inputFormat string, cfg Config) (string, error) {
+	//few checks to avoid index out of bound panic
+	if len(cfg.Filter.ItrFilter) == 0 {
+		return "", ErrAbsentFilter(errors.New("Empty ItrFilter"))
+	}
+
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
@@ -199,6 +209,10 @@ func getApiVersion(binPath string, fp string, crd string, inputFormat string, cf
 	return s, nil
 }
 func getApiGrp(binPath string, fp string, crd string, inputFormat string, cfg Config) (string, error) {
+	//few checks to avoid index out of bound panic
+	if len(cfg.Filter.ItrFilter) == 0 {
+		return "", ErrAbsentFilter(errors.New("Empty ItrFilter"))
+	}
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
