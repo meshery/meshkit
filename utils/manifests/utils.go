@@ -40,13 +40,13 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 			"meshVersion":   cfg.MeshVersion,
 			"meshName":      cfg.Name,
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
-			"k8skind":       crd,
+			"k8sKind":       crd,
 		}
 	case K8s:
 		def.Spec.Metadata = map[string]string{
 			"@type":         "pattern.meshery.io/k8s",
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
-			"k8skind":       crd,
+			"k8sKind":       crd,
 			"version":       cfg.K8sVersion,
 		}
 		def.ObjectMeta.Name += ".K8s"
