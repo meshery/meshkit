@@ -121,7 +121,7 @@ type ApplyHelmChartConfig struct {
 	LocalPath string
 
 	// HelmDriver is used to determine the backend
-	// informations used by helm for managing release
+	// information used by helm for managing release
 	//
 	// Defaults to Secret
 	HelmDriver HelmDriver
@@ -137,21 +137,20 @@ type ApplyHelmChartConfig struct {
 	// Defaults to "default"
 	Namespace string
 
-	// CreateNamespace creates namespace if it doesn't exists
+	// CreateNamespace creates namespace if it doesn't exist
 	//
 	// Defaults to false
 	CreateNamespace bool
 
 	// OverrideValues are used during installation
-	// to override the the values present in Values.yaml
+	// to override the values present in Values.yaml
 	// it is equivalent to --set or --set-file helm flag
 	OverrideValues map[string]interface{}
 
-	// Delete indicates if the requested action is a delete
-	// action
+	// Action indicates if the requested action is Install, Uninstall, or Upgrade
 	//
-	// Defaults to false
-	Delete bool
+	// If this is not provided, it performs an Install operation
+	Action string
 
 	// Logger that will be used by the client to print the logs
 	//
@@ -375,29 +374,38 @@ func createHelmActionConfig(restConfig rest.Config, cfg ApplyHelmChartConfig) (*
 // on top of helm actions making them follow the same interface, hence easing extending
 // the number of supported helm actions
 func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig) func(*chart.Chart) error {
-	if cfg.Delete {
+	switch cfg.Action {
+	case "Uninstall":
 		return func(c *chart.Chart) error {
 			act := action.NewUninstall(actionConfig)
 			act.DryRun = cfg.DryRun
 			if _, err := act.Run(c.Name()); err != nil {
 				return ErrApplyHelmChart(err)
 			}
-
 			return nil
 		}
-	}
-
-	return func(c *chart.Chart) error {
-		act := action.NewInstall(actionConfig)
-		act.ReleaseName = c.Name()
-		act.CreateNamespace = cfg.CreateNamespace
-		act.Namespace = cfg.Namespace
-		act.DryRun = cfg.DryRun
-		if _, err := act.Run(c, cfg.OverrideValues); err != nil {
-			return ErrApplyHelmChart(err)
+	case "Upgrade":
+		return func(c *chart.Chart) error {
+			act := action.NewUpgrade(actionConfig)
+			act.Namespace = cfg.Namespace
+			act.DryRun = cfg.DryRun
+			if _, err := act.Run(c.Name(), c, cfg.OverrideValues); err != nil {
+				return ErrApplyHelmChart(err)
+			}
+			return nil
 		}
-
-		return nil
+	default:
+		return func(c *chart.Chart) error {
+			act := action.NewInstall(actionConfig)
+			act.ReleaseName = c.Name()
+			act.CreateNamespace = cfg.CreateNamespace
+			act.Namespace = cfg.Namespace
+			act.DryRun = cfg.DryRun
+			if _, err := act.Run(c, cfg.OverrideValues); err != nil {
+				return ErrApplyHelmChart(err)
+			}
+			return nil
+		}
 	}
 }
 
