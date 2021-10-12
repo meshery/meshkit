@@ -242,10 +242,31 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
+	if err := updateActionIfReleaseFound(actionConfig, &cfg, *helmChart); err != nil {
+		return ErrApplyHelmChart(err)
+	}
+
 	if err := generateAction(actionConfig, cfg)(helmChart); err != nil {
 		return ErrApplyHelmChart(err)
 	}
 
+	return nil
+}
+
+// updateActionIfReleaseFound changes cfg.Action to Upgrade if the release is found in the cluster
+// this is a workaround of making the helm chart installation idempotent
+func updateActionIfReleaseFound(actionConfig *action.Configuration, cfg *ApplyHelmChartConfig, c chart.Chart) error {
+	releases, err := action.NewList(actionConfig).Run()
+	if err != nil {
+		return err
+	}
+
+	for _, r := range releases {
+		if r.Name == c.Name() {
+			cfg.Action = "Upgrade"
+			return nil
+		}
+	}
 	return nil
 }
 
