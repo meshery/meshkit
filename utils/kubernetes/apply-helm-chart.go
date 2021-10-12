@@ -228,12 +228,12 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	chart, err := loader.Load(localPath)
+	helmChart, err := loader.Load(localPath)
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
 
-	if err := checkIfInstallable(chart); err != nil {
+	if err = checkIfInstallable(helmChart); err != nil {
 		return ErrApplyHelmChart(err)
 	}
 
@@ -242,7 +242,7 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	if err := generateAction(actionConfig, cfg)(chart); err != nil {
+	if err := generateAction(actionConfig, cfg)(helmChart); err != nil {
 		return ErrApplyHelmChart(err)
 	}
 
