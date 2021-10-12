@@ -87,7 +87,7 @@ func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ".") 
 
 func GetCode(err error) string {
 
-	if obj := err.(*Error); obj != nil && obj.Code != " " {
+	if obj, ok := err.(*Error); ok && obj != nil && obj.Code != " " {
 		return obj.Code
 	}
 	return strings.Join(NoneString[:], "")
@@ -95,7 +95,7 @@ func GetCode(err error) string {
 
 func GetSeverity(err error) Severity {
 
-	if obj := err.(*Error); obj != nil {
+	if obj, ok := err.(*Error); ok && obj != nil {
 		return obj.Severity
 	}
 	return None
@@ -103,7 +103,7 @@ func GetSeverity(err error) Severity {
 
 func GetSDescription(err error) string {
 
-	if obj := err.(*Error); obj != nil {
+	if obj, ok := err.(*Error); ok && obj != nil {
 		return strings.Join(err.(*Error).ShortDescription[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
@@ -111,7 +111,7 @@ func GetSDescription(err error) string {
 
 func GetCause(err error) string {
 
-	if obj := err.(*Error); obj != nil {
+	if obj, ok := err.(*Error); ok && obj != nil {
 		return strings.Join(err.(*Error).ProbableCause[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
@@ -119,7 +119,7 @@ func GetCause(err error) string {
 
 func GetRemedy(err error) string {
 
-	if obj := err.(*Error); obj != nil {
+	if obj, ok := err.(*Error); ok && obj != nil {
 		return strings.Join(err.(*Error).SuggestedRemediation[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
