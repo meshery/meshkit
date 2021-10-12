@@ -36,6 +36,11 @@ const (
 	// This should be used when release information
 	// is expected to be greater than 1MB
 	SQL HelmDriver = "sql"
+
+	// UNINSTALL is used to indicate the apply helm chart action is uninstall
+	UNINSTALL = "UNINSTALL"
+	// UPGRADE is used to indicate the apply helm chart action is upgrade
+	UPGRADE   = "UPGRADE"
 )
 
 const (
@@ -147,7 +152,7 @@ type ApplyHelmChartConfig struct {
 	// it is equivalent to --set or --set-file helm flag
 	OverrideValues map[string]interface{}
 
-	// Action indicates if the requested action is Install, Uninstall, or Upgrade
+	// Action indicates if the requested action is UNINSTALL, UPGRADE or install
 	//
 	// If this is not provided, it performs an Install operation
 	Action string
@@ -263,7 +268,7 @@ func updateActionIfReleaseFound(actionConfig *action.Configuration, cfg *ApplyHe
 
 	for _, r := range releases {
 		if r.Name == c.Name() {
-			cfg.Action = "Upgrade"
+			cfg.Action = UPGRADE
 			return nil
 		}
 	}
@@ -396,7 +401,7 @@ func createHelmActionConfig(restConfig rest.Config, cfg ApplyHelmChartConfig) (*
 // the number of supported helm actions
 func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig) func(*chart.Chart) error {
 	switch cfg.Action {
-	case "Uninstall":
+	case UNINSTALL:
 		return func(c *chart.Chart) error {
 			act := action.NewUninstall(actionConfig)
 			act.DryRun = cfg.DryRun
@@ -405,7 +410,7 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 			}
 			return nil
 		}
-	case "Upgrade":
+	case UPGRADE:
 		return func(c *chart.Chart) error {
 			act := action.NewUpgrade(actionConfig)
 			act.Namespace = cfg.Namespace
