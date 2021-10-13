@@ -41,7 +41,7 @@ const (
 	UNINSTALL = "UNINSTALL"
 	// UPGRADE is used to indicate the apply helm chart action is upgrade
 	UPGRADE = "UPGRADE"
-	// INSTALL is used to indicate the apply helm chart action is upgrade
+	// INSTALL is used to indicate the apply helm chart action is install
 	INSTALL = "INSTALL"
 )
 
@@ -249,8 +249,12 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	if err := updateActionIfReleaseFound(actionConfig, &cfg, *helmChart); err != nil {
-		return ErrApplyHelmChart(err)
+	// Before installing a helm chart, check if it already exists in the cluster
+	// this is a workaround make the helm chart installation idempotent
+	if cfg.Action == INSTALL {
+		if err := updateActionIfReleaseFound(actionConfig, &cfg, *helmChart); err != nil {
+			return ErrApplyHelmChart(err)
+		}
 	}
 
 	if err := generateAction(actionConfig, cfg)(helmChart); err != nil {
@@ -260,7 +264,7 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	return nil
 }
 
-// updateActionIfReleaseFound changes cfg.Action to Upgrade if the release is found in the cluster
+// updateActionIfReleaseFound changes cfg.Action to UPGRADE if the release is found in the cluster
 // this is a workaround of making the helm chart installation idempotent
 func updateActionIfReleaseFound(actionConfig *action.Configuration, cfg *ApplyHelmChartConfig, c chart.Chart) error {
 	releases, err := action.NewList(actionConfig).Run()
@@ -269,7 +273,7 @@ func updateActionIfReleaseFound(actionConfig *action.Configuration, cfg *ApplyHe
 	}
 
 	for _, r := range releases {
-		if (cfg.Action == INSTALL) && (r.Name == c.Name()) {
+		if r.Name == c.Name() {
 			cfg.Action = UPGRADE
 			return nil
 		}
