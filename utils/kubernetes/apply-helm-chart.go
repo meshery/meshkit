@@ -40,7 +40,9 @@ const (
 	// UNINSTALL is used to indicate the apply helm chart action is uninstall
 	UNINSTALL = "UNINSTALL"
 	// UPGRADE is used to indicate the apply helm chart action is upgrade
-	UPGRADE   = "UPGRADE"
+	UPGRADE = "UPGRADE"
+	// INSTALL is used to indicate the apply helm chart action is upgrade
+	INSTALL = "INSTALL"
 )
 
 const (
@@ -152,9 +154,9 @@ type ApplyHelmChartConfig struct {
 	// it is equivalent to --set or --set-file helm flag
 	OverrideValues map[string]interface{}
 
-	// Action indicates if the requested action is UNINSTALL, UPGRADE or install
+	// Action indicates if the requested action is UNINSTALL, UPGRADE or INSTALL
 	//
-	// If this is not provided, it performs an Install operation
+	// If this is not provided, it performs an INSTALL operation
 	Action string
 
 	// Logger that will be used by the client to print the logs
@@ -267,7 +269,7 @@ func updateActionIfReleaseFound(actionConfig *action.Configuration, cfg *ApplyHe
 	}
 
 	for _, r := range releases {
-		if r.Name == c.Name() {
+		if (cfg.Action == INSTALL) && (r.Name == c.Name()) {
 			cfg.Action = UPGRADE
 			return nil
 		}
