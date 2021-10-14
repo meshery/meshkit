@@ -21,6 +21,9 @@ import (
 // HelmDriver is the type for helm drivers
 type HelmDriver string
 
+// HelmChartAction is the type for helm chart actions
+type HelmChartAction int64
+
 const (
 	// ConfigMap HelmDriver can be used to instruct
 	// helm to use configmaps as backend
@@ -36,13 +39,12 @@ const (
 	// This should be used when release information
 	// is expected to be greater than 1MB
 	SQL HelmDriver = "sql"
+)
 
-	// UNINSTALL is used to indicate the apply helm chart action is uninstall
-	UNINSTALL = "UNINSTALL"
-	// UPGRADE is used to indicate the apply helm chart action is upgrade
-	UPGRADE = "UPGRADE"
-	// INSTALL is used to indicate the apply helm chart action is install
-	INSTALL = "INSTALL"
+const (
+	INSTALL HelmChartAction = iota
+	UPGRADE
+	UNINSTALL
 )
 
 const (
@@ -58,6 +60,8 @@ var (
 	// will be stored. os.TempDir will ensure that the path is cross
 	// platform
 	downloadLocation = os.TempDir()
+	ManifestsFolder = "manifests"
+	MesheryFolder = ".meshery"
 )
 
 // HelmIndex holds the index.yaml data in the struct format
@@ -157,7 +161,7 @@ type ApplyHelmChartConfig struct {
 	// Action indicates if the requested action is UNINSTALL, UPGRADE or INSTALL
 	//
 	// If this is not provided, it performs an INSTALL operation
-	Action string
+	Action HelmChartAction
 
 	// Logger that will be used by the client to print the logs
 	//
