@@ -60,8 +60,6 @@ var (
 	// will be stored. os.TempDir will ensure that the path is cross
 	// platform
 	downloadLocation = os.TempDir()
-	ManifestsFolder = "manifests"
-	MesheryFolder = ".meshery"
 )
 
 // HelmIndex holds the index.yaml data in the struct format
