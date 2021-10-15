@@ -5,7 +5,7 @@ import (
 )
 
 func GetManifestsFromHelm(url string) (string, error) {
-	chartLocation, err := fetchHelmChart(url, "'")
+	chartLocation, err := fetchHelmChart(url, "")
 	if err != nil {
 		return "", ErrApplyHelmChart(err)
 	}
