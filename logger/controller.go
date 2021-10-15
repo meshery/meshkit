@@ -38,7 +38,7 @@ func (c *Controller) Error(err error, msg string, keysAndValues ...interface{}) 
 	c.base.Error(ErrController(err, msg))
 }
 
-func (c *Controller) V(level int) logr.InfoLogger {
+func (c *Controller) V(level int) logr.Logger {
 	return c
 }
 

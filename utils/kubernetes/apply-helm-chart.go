@@ -21,6 +21,9 @@ import (
 // HelmDriver is the type for helm drivers
 type HelmDriver string
 
+// HelmChartAction is the type for helm chart actions
+type HelmChartAction int64
+
 const (
 	// ConfigMap HelmDriver can be used to instruct
 	// helm to use configmaps as backend
@@ -36,6 +39,12 @@ const (
 	// This should be used when release information
 	// is expected to be greater than 1MB
 	SQL HelmDriver = "sql"
+)
+
+const (
+	INSTALL HelmChartAction = iota
+	UPGRADE
+	UNINSTALL
 )
 
 const (
@@ -121,7 +130,7 @@ type ApplyHelmChartConfig struct {
 	LocalPath string
 
 	// HelmDriver is used to determine the backend
-	// informations used by helm for managing release
+	// information used by helm for managing release
 	//
 	// Defaults to Secret
 	HelmDriver HelmDriver
@@ -137,21 +146,20 @@ type ApplyHelmChartConfig struct {
 	// Defaults to "default"
 	Namespace string
 
-	// CreateNamespace creates namespace if it doesn't exists
+	// CreateNamespace creates namespace if it doesn't exist
 	//
 	// Defaults to false
 	CreateNamespace bool
 
 	// OverrideValues are used during installation
-	// to override the the values present in Values.yaml
+	// to override the values present in Values.yaml
 	// it is equivalent to --set or --set-file helm flag
 	OverrideValues map[string]interface{}
 
-	// Delete indicates if the requested action is a delete
-	// action
+	// Action indicates if the requested action is UNINSTALL, UPGRADE or INSTALL
 	//
-	// Defaults to false
-	Delete bool
+	// If this is not provided, it performs an INSTALL operation
+	Action HelmChartAction
 
 	// Logger that will be used by the client to print the logs
 	//
@@ -160,6 +168,10 @@ type ApplyHelmChartConfig struct {
 
 	// DryRun will skip actual run, useful for testing
 	DryRun bool
+
+	// DownloadLocation defines the location where the user wants to download the helm charts
+	// If this is not provided, the helm chart is downloaded to the "/tmp" folder
+	DownloadLocation string
 }
 
 // ApplyHelmChart takes in the url for the helm chart
@@ -229,12 +241,12 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	chart, err := loader.Load(localPath)
+	helmChart, err := loader.Load(localPath)
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
 
-	if err := checkIfInstallable(chart); err != nil {
+	if err = checkIfInstallable(helmChart); err != nil {
 		return ErrApplyHelmChart(err)
 	}
 
@@ -243,10 +255,35 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	if err := generateAction(actionConfig, cfg)(chart); err != nil {
+	// Before installing a helm chart, check if it already exists in the cluster
+	// this is a workaround make the helm chart installation idempotent
+	if cfg.Action == INSTALL {
+		if err := updateActionIfReleaseFound(actionConfig, &cfg, *helmChart); err != nil {
+			return ErrApplyHelmChart(err)
+		}
+	}
+
+	if err := generateAction(actionConfig, cfg)(helmChart); err != nil {
 		return ErrApplyHelmChart(err)
 	}
 
+	return nil
+}
+
+// updateActionIfReleaseFound changes cfg.Action to UPGRADE if the release is found in the cluster
+// this is a workaround of making the helm chart installation idempotent
+func updateActionIfReleaseFound(actionConfig *action.Configuration, cfg *ApplyHelmChartConfig, c chart.Chart) error {
+	releases, err := action.NewList(actionConfig).Run()
+	if err != nil {
+		return err
+	}
+
+	for _, r := range releases {
+		if r.Name == c.Name() {
+			cfg.Action = UPGRADE
+			return nil
+		}
+	}
 	return nil
 }
 
@@ -304,7 +341,7 @@ func getHelmLocalPath(cfg ApplyHelmChartConfig) (string, error) {
 		return "", ErrApplyHelmChart(err)
 	}
 
-	return fetchHelmChart(url)
+	return fetchHelmChart(url, cfg.DownloadLocation)
 }
 
 // getHelmChartURL returns the chart url irrespective of the chosen method for
@@ -322,9 +359,15 @@ func getHelmChartURL(cfg ApplyHelmChartConfig) (string, error) {
 //
 // if the chart is already present in the download location
 // then the download is skipped
-func fetchHelmChart(chartURL string) (string, error) {
+func fetchHelmChart(chartURL, downloadPath string) (string, error) {
 	filename := filepath.Base(chartURL)
-	downloadPath := filepath.Join(downloadLocation, filename)
+
+	// This allows the caller of the function to use the perfered location to download the helm chart, e.g. "~/.meshery/manifests"
+	if downloadPath == "" {
+		downloadPath = filepath.Join(downloadLocation, filename)
+	} else {
+		downloadPath = filepath.Join(downloadPath, filename)
+	}
 
 	// Skip the download if chart already exists
 	if _, err := os.Stat(downloadPath); err == nil {
@@ -375,29 +418,38 @@ func createHelmActionConfig(restConfig rest.Config, cfg ApplyHelmChartConfig) (*
 // on top of helm actions making them follow the same interface, hence easing extending
 // the number of supported helm actions
 func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig) func(*chart.Chart) error {
-	if cfg.Delete {
+	switch cfg.Action {
+	case UNINSTALL:
 		return func(c *chart.Chart) error {
 			act := action.NewUninstall(actionConfig)
 			act.DryRun = cfg.DryRun
 			if _, err := act.Run(c.Name()); err != nil {
 				return ErrApplyHelmChart(err)
 			}
-
 			return nil
 		}
-	}
-
-	return func(c *chart.Chart) error {
-		act := action.NewInstall(actionConfig)
-		act.ReleaseName = c.Name()
-		act.CreateNamespace = cfg.CreateNamespace
-		act.Namespace = cfg.Namespace
-		act.DryRun = cfg.DryRun
-		if _, err := act.Run(c, cfg.OverrideValues); err != nil {
-			return ErrApplyHelmChart(err)
+	case UPGRADE:
+		return func(c *chart.Chart) error {
+			act := action.NewUpgrade(actionConfig)
+			act.Namespace = cfg.Namespace
+			act.DryRun = cfg.DryRun
+			if _, err := act.Run(c.Name(), c, cfg.OverrideValues); err != nil {
+				return ErrApplyHelmChart(err)
+			}
+			return nil
 		}
-
-		return nil
+	default:
+		return func(c *chart.Chart) error {
+			act := action.NewInstall(actionConfig)
+			act.ReleaseName = c.Name()
+			act.CreateNamespace = cfg.CreateNamespace
+			act.Namespace = cfg.Namespace
+			act.DryRun = cfg.DryRun
+			if _, err := act.Run(c, cfg.OverrideValues); err != nil {
+				return ErrApplyHelmChart(err)
+			}
+			return nil
+		}
 	}
 }
 
