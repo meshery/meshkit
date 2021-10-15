@@ -168,6 +168,10 @@ type ApplyHelmChartConfig struct {
 
 	// DryRun will skip actual run, useful for testing
 	DryRun bool
+
+	// DownloadLocation defines the location where the user wants to download the helm charts
+	// If this is not provided, the helm chart is downloaded to the "/tmp" folder
+	DownloadLocation string
 }
 
 // ApplyHelmChart takes in the url for the helm chart
@@ -337,7 +341,7 @@ func getHelmLocalPath(cfg ApplyHelmChartConfig) (string, error) {
 		return "", ErrApplyHelmChart(err)
 	}
 
-	return fetchHelmChart(url)
+	return fetchHelmChart(url, cfg.DownloadLocation)
 }
 
 // getHelmChartURL returns the chart url irrespective of the chosen method for
@@ -355,9 +359,15 @@ func getHelmChartURL(cfg ApplyHelmChartConfig) (string, error) {
 //
 // if the chart is already present in the download location
 // then the download is skipped
-func fetchHelmChart(chartURL string) (string, error) {
+func fetchHelmChart(chartURL, downloadPath string) (string, error) {
 	filename := filepath.Base(chartURL)
-	downloadPath := filepath.Join(downloadLocation, filename)
+
+	// This allows the caller of the function to use the perfered location to download the helm chart, e.g. "~/.meshery/manifests"
+	if downloadPath == "" {
+		downloadPath = filepath.Join(downloadLocation, filename)
+	} else {
+		downloadPath = filepath.Join(downloadPath, filename)
+	}
 
 	// Skip the download if chart already exists
 	if _, err := os.Stat(downloadPath); err == nil {
