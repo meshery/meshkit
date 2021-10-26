@@ -17,6 +17,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var path = "/temp/"
+
 type Mode string
 
 const (
@@ -207,7 +209,8 @@ func repowalk(g *Github) error {
 	return g.walker(g.root, isFile)
 }
 func clonewalk(g *Github) error {
-	_, err := git.PlainClone(Path, false, &git.CloneOptions{
+	path += g.repo
+	_, err := git.PlainClone(path, false, &git.CloneOptions{
 		URL:      fmt.Sprintf("https://github.com/%s/%s", g.owner, g.repo),
 		Progress: os.Stdout,
 	})
@@ -217,7 +220,7 @@ func clonewalk(g *Github) error {
 
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
-		err := filepath.WalkDir(Path+g.root, func(path string, d fs.DirEntry, er error) error {
+		err := filepath.WalkDir(path+g.root, func(path string, d fs.DirEntry, er error) error {
 			if d.IsDir() && g.dirInterceptor != nil {
 				return g.dirInterceptor(Directory{
 					Name: d.Name(),
@@ -248,12 +251,12 @@ func clonewalk(g *Github) error {
 	}
 
 	// If recurse mode is off, we only walk the root directory passed with g.root
-	files, err := ioutil.ReadDir(Path + g.root)
+	files, err := ioutil.ReadDir(path + g.root)
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, f := range files {
-		path := Path + g.root + "/" + f.Name()
+		path := path + g.root + "/" + f.Name()
 		if f.IsDir() && g.dirInterceptor != nil {
 			name := f.Name()
 			go func(name string, path string) {
@@ -392,8 +395,6 @@ type Directory struct {
 }
 type FileInterceptor func(File) error
 type DirInterceptor func(Directory) error
-
-const Path = "./test"
 
 func getFileFuncName(mode Mode) string {
 	name := modeToFileIntercepterName[mode]
