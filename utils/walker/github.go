@@ -217,7 +217,7 @@ func clonewalk(g *Github) error {
 
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
-		err := filepath.WalkDir(Path+g.root, func(path string, d fs.DirEntry, err error) error {
+		err := filepath.WalkDir(Path+g.root, func(path string, d fs.DirEntry, er error) error {
 			if d.IsDir() && g.dirInterceptor != nil {
 				return g.dirInterceptor(Directory{
 					Name: d.Name(),
@@ -256,11 +256,14 @@ func clonewalk(g *Github) error {
 		path := Path + g.root + "/" + f.Name()
 		if f.IsDir() && g.dirInterceptor != nil {
 			name := f.Name()
-			go func(name string, path string) error {
-				return g.dirInterceptor(Directory{
+			go func(name string, path string) {
+				err := g.dirInterceptor(Directory{
 					Name: f.Name(),
 					Path: path,
 				})
+				if err != nil {
+					log.Fatal(err)
+				}
 			}(name, path)
 			continue
 		}
