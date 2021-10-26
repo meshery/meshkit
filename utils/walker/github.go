@@ -17,8 +17,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var path = "/temp/"
-
 type Mode string
 
 const (
@@ -188,6 +186,7 @@ func (g *Github) RegisterLocalDirInterceptor(i DirInterceptor) *Github {
 
 // Walk will initiate traversal process
 func (g *Github) Walk() error {
+	defer os.RemoveAll(os.TempDir() + "/" + g.repo)
 	switch g.mode {
 	case CloneAndWalk:
 		return clonewalk(g)
@@ -209,7 +208,7 @@ func repowalk(g *Github) error {
 	return g.walker(g.root, isFile)
 }
 func clonewalk(g *Github) error {
-	path += g.repo
+	path := os.TempDir() + "/" + g.repo
 	_, err := git.PlainClone(path, false, &git.CloneOptions{
 		URL:      fmt.Sprintf("https://github.com/%s/%s", g.owner, g.repo),
 		Progress: os.Stdout,
