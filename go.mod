@@ -10,6 +10,7 @@ replace (
 )
 
 require (
+	github.com/go-git/go-git/v5 v5.4.2 // indirect
 	github.com/go-logr/logr v0.4.0
 	github.com/google/uuid v1.1.2
 	github.com/kr/pretty v0.2.1 // indirect
