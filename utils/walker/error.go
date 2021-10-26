@@ -7,7 +7,7 @@ var (
 	ErrCloningRepoCode = "replace"
 )
 
-func ErrInvalidCode(err error) error {
+func ErrInvalidMode(err error) error {
 	return errors.New(ErrInvalidModeCode, errors.Alert, []string{"Empty or Invalid mode passed"}, []string{err.Error()}, []string{}, []string{})
 }
 func ErrCloningRepo(err error) error {

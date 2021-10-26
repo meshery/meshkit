@@ -192,7 +192,7 @@ func (g *Github) Walk() error {
 	case WalkTheRepo:
 		return repowalk(g)
 	default:
-		return ErrInvalidCode(errors.New("INVALID MODE"))
+		return ErrInvalidMode(errors.New("INVALID MODE"))
 	}
 
 }
