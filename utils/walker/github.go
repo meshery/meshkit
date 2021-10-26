@@ -214,6 +214,8 @@ func clonewalk(g *Github) error {
 	if err != nil {
 		return ErrCloningRepo(err)
 	}
+
+	// If recurse mode is on, we will walk the tree
 	if g.recurse {
 		err := filepath.WalkDir(Path+g.root, func(path string, d fs.DirEntry, err error) error {
 			if d.IsDir() && g.dirInterceptor != nil {
@@ -244,6 +246,8 @@ func clonewalk(g *Github) error {
 		})
 		return err
 	}
+
+	// If recurse mode is off, we only walk the root directory passed with g.root
 	files, err := ioutil.ReadDir(Path + g.root)
 	if err != nil {
 		log.Fatal(err)
