@@ -33,7 +33,7 @@ func NewGit() *Git {
 	return &Git{
 		branch:             "master",
 		baseurl:            "https://github.com", //defaults to a github repo if the url is not set with URL method
-		maxfilesizeinbytes: 50000000,
+		maxfilesizeinbytes: 50000000, // ~50MB file size limit
 	}
 }
 
