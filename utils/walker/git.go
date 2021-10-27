@@ -7,18 +7,28 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-
-	"errors"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 )
 
-type Mode string
+type Git struct {
+	owner   string
+	repo    string
+	branch  string
+	root    string
+	recurse bool
 
-const (
-	WalkTheRepo  = "WALK_THE_REPO"
-	CloneAndWalk = "CLONE_AND_WALK"
-)
+	fileInterceptor FileInterceptor
+	dirInterceptor  DirInterceptor
+}
+
+// NewGit returns a pointer to an instance of Git
+func NewGit() *Git {
+	return &Git{
+		branch: "main",
+	}
+}
 
 type File struct {
 	Name    string `json:"name,omitempty"`
@@ -32,56 +42,68 @@ type Directory struct {
 type FileInterceptor func(File) error
 type DirInterceptor func(Directory) error
 
-var modeToFileIntercepterName = map[Mode]string{
-	WalkTheRepo:  "RegisterFileInterceptor",
-	CloneAndWalk: "RegisterLocalFileInterceptor",
+// Owner sets git repository owner and returns a pointer
+// to the same Github instance
+func (g *Git) Owner(owner string) *Git {
+	g.owner = owner
+	return g
 }
-var modeToDirIntercepterName = map[Mode]string{
-	WalkTheRepo:  "RegisterDirInterceptor",
-	CloneAndWalk: "RegisterLocalDirInterceptor",
+
+// Repo sets github repository and returns a pointer
+// to the same Github instance
+func (g *Git) Repo(repo string) *Git {
+	g.repo = repo
+	return g
+}
+
+// Branch sets github repository branch which
+// will be traversed and returns a pointer
+// to the same Github instance
+func (g *Git) Branch(branch string) *Git {
+	g.branch = branch
+	return g
+}
+
+// Root sets github repository root node from where
+// Github walker needs to start traversing and returns
+// a pointer to the same Github instance
+//
+// If the root parameter ends with a "/**" then github walker
+// will run in "traversal" mode, ie. it will look into each sub
+// directory of the root node
+//
+// If the root node ends with an extension, then that
+// file will be returned and github walker will not traverse deeper
+func (g *Git) Root(root string) *Git {
+	if !strings.HasPrefix(root, "/") {
+		root = "/" + root
+	}
+	g.root = root
+
+	if strings.HasSuffix(root, "/**") {
+		g.recurse = true
+		g.root = strings.TrimSuffix(root, "/**")
+	}
+
+	return g
 }
 
 // Walk will initiate traversal process
-func (g *Github) Walk() error {
-	switch g.mode {
-	case CloneAndWalk:
-		return clonewalk(g)
-	case WalkTheRepo:
-		return repowalk(g)
-	default:
-		return ErrInvalidMode(errors.New("Invalid mode"))
-	}
+func (g *Git) Walk() error {
+	return clonewalk(g)
+	// case WalkTheRepo:
+	// 	return repowalk(g)
 }
-func (g *Github) RegisterLocalFileInterceptor(i FileInterceptor) *Github {
-	funcName, err := GetFileFuncName(g.mode)
-	if err != nil {
-		g.mode = ""
-		return g
-	}
-	if g.mode != CloneAndWalk {
-		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, funcName)
-		g.mode = ""
-		return g
-	}
+func (g *Git) RegisterFileInterceptor(i FileInterceptor) *Git {
 	g.fileInterceptor = i
 	return g
 }
 
-func (g *Github) RegisterLocalDirInterceptor(i DirInterceptor) *Github {
-	funcName, err := GetDirFuncName(g.mode)
-	if err != nil {
-		g.mode = ""
-		return g
-	}
-	if g.mode != CloneAndWalk {
-		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, funcName)
-		g.mode = ""
-		return g
-	}
+func (g *Git) RegisterDirInterceptor(i DirInterceptor) *Git {
 	g.dirInterceptor = i
 	return g
 }
-func clonewalk(g *Github) error {
+func clonewalk(g *Git) error {
 	os.RemoveAll(os.TempDir() + "/" + g.repo) //In case repo by same name already exists in temp
 	defer os.RemoveAll(os.TempDir() + "/" + g.repo)
 	path := os.TempDir() + "/" + g.repo
@@ -167,19 +189,4 @@ func clonewalk(g *Github) error {
 	}
 
 	return nil
-}
-
-func GetFileFuncName(mode Mode) (string, error) {
-	name := modeToFileIntercepterName[mode]
-	if name == "" {
-		return "", ErrInvalidMode(errors.New("No registeration function present for this mode"))
-	}
-	return name, nil
-}
-func GetDirFuncName(mode Mode) (string, error) {
-	name := modeToDirIntercepterName[mode]
-	if name == "" {
-		return "", ErrInvalidMode(errors.New("No registeration function present for this mode"))
-	}
-	return name, nil
 }

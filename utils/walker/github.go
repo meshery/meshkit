@@ -3,7 +3,6 @@ package walker
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -52,12 +51,8 @@ type Github struct {
 	branch             string
 	root               string
 	recurse            bool
-	mode               Mode
 	gitfileInterceptor GithubFileInterceptor
 	gitdirInterceptor  GithubDirInterceptor
-
-	fileInterceptor FileInterceptor
-	dirInterceptor  DirInterceptor
 }
 
 // NewGithub returns a pointer to an instance of Github
@@ -113,11 +108,6 @@ func (g *Github) Root(root string) *Github {
 	return g
 }
 
-func (g *Github) Mode(mode Mode) *Github {
-	g.mode = mode
-	return g
-}
-
 // If you change the name of registeration functions, reflect them in the maps above
 // RegisterFileInterceptor takes in a file interceptor which will be invoked
 // on each "file" node and it returns pointer to the same github instance
@@ -126,16 +116,6 @@ func (g *Github) Mode(mode Mode) *Github {
 // or writing to any variable from a higher namespace then those operations
 // should be done in thread safe manner in order to avoid data races
 func (g *Github) RegisterFileInterceptor(i GithubFileInterceptor) *Github {
-	funcName, err := GetFileFuncName(g.mode)
-	if err != nil {
-		g.mode = ""
-		return g
-	}
-	if g.mode != WalkTheRepo {
-		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, funcName)
-		g.mode = ""
-		return g
-	}
 	g.gitfileInterceptor = i
 	return g
 }
@@ -147,16 +127,6 @@ func (g *Github) RegisterFileInterceptor(i GithubFileInterceptor) *Github {
 // or writing to any variable from a higher namespace then those operations
 // should be done in thread safe manner in order to avoid data races
 func (g *Github) RegisterDirInterceptor(i GithubDirInterceptor) *Github {
-	funcName, err := GetDirFuncName(g.mode)
-	if err != nil {
-		g.mode = ""
-		return g
-	}
-	if g.mode != WalkTheRepo {
-		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, funcName)
-		g.mode = ""
-		return g
-	}
 	g.gitdirInterceptor = i
 	return g
 }
