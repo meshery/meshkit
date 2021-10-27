@@ -12,6 +12,7 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
+// Git represents the Git Walker
 type Git struct {
 	owner   string
 	repo    string
@@ -43,37 +44,35 @@ type FileInterceptor func(File) error
 type DirInterceptor func(Directory) error
 
 // Owner sets git repository owner and returns a pointer
-// to the same Github instance
+// to the same Git instance
 func (g *Git) Owner(owner string) *Git {
 	g.owner = owner
 	return g
 }
 
 // Repo sets github repository and returns a pointer
-// to the same Github instance
+// to the same Git instance
 func (g *Git) Repo(repo string) *Git {
 	g.repo = repo
 	return g
 }
 
-// Branch sets github repository branch which
-// will be traversed and returns a pointer
-// to the same Github instance
+// Branch sets git repository branch which
+// will be cloned and returns a pointer
+// to the same Git instance
 func (g *Git) Branch(branch string) *Git {
 	g.branch = branch
 	return g
 }
 
-// Root sets github repository root node from where
-// Github walker needs to start traversing and returns
-// a pointer to the same Github instance
+// Root sets git repository root node from where
+// Git walker needs to start traversing and returns
+// a pointer to the same Git instance
 //
 // If the root parameter ends with a "/**" then github walker
 // will run in "traversal" mode, ie. it will look into each sub
 // directory of the root node
-//
-// If the root node ends with an extension, then that
-// file will be returned and github walker will not traverse deeper
+//If path will be prefixed with "/" if not already.
 func (g *Git) Root(root string) *Git {
 	if !strings.HasPrefix(root, "/") {
 		root = "/" + root
@@ -91,8 +90,6 @@ func (g *Git) Root(root string) *Git {
 // Walk will initiate traversal process
 func (g *Git) Walk() error {
 	return clonewalk(g)
-	// case WalkTheRepo:
-	// 	return repowalk(g)
 }
 func (g *Git) RegisterFileInterceptor(i FileInterceptor) *Git {
 	g.fileInterceptor = i
