@@ -1,6 +1,7 @@
 package walker
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -16,22 +17,24 @@ import (
 
 // Git represents the Git Walker
 type Git struct {
-	baseurl string
-	owner   string
-	repo    string
-	branch  string
-	root    string
-	recurse bool
-
-	fileInterceptor FileInterceptor
-	dirInterceptor  DirInterceptor
+	baseurl            string
+	owner              string
+	repo               string
+	branch             string
+	root               string
+	recurse            bool
+	showlogs           bool
+	maxfilesizeinbytes int64 //defaults to 50 MB
+	fileInterceptor    FileInterceptor
+	dirInterceptor     DirInterceptor
 }
 
 // NewGit returns a pointer to an instance of Git
 func NewGit() *Git {
 	return &Git{
-		branch:  "master",
-		baseurl: "https://github.com", //defaults to a github repo if the url is not set with URL method
+		branch:             "master",
+		baseurl:            "https://github.com", //defaults to a github repo if the url is not set with URL method
+		maxfilesizeinbytes: 50000000,
 	}
 }
 
@@ -51,6 +54,20 @@ type DirInterceptor func(Directory) error
 // to the same Git instance
 func (g *Git) BaseURL(baseurl string) *Git {
 	g.baseurl = baseurl
+	return g
+}
+
+// BaseURL sets git repository base URL and returns a pointer
+// to the same Git instance
+func (g *Git) MaxFileSize(size int64) *Git {
+	g.maxfilesizeinbytes = size
+	return g
+}
+
+// ShowLogs enable the logs and returns a pointer
+// to the same Git instance
+func (g *Git) ShowLogs() *Git {
+	g.showlogs = true
 	return g
 }
 
@@ -112,11 +129,20 @@ func (g *Git) RegisterDirInterceptor(i DirInterceptor) *Git {
 	return g
 }
 func clonewalk(g *Git) error {
+	if g.maxfilesizeinbytes == 0 {
+		return ErrInvalidSizeFile(errors.New("Max file size passed as 0. Will not read any file"))
+	}
+
 	path := filepath.Join(os.TempDir(), g.repo, strconv.FormatInt(time.Now().UTC().UnixNano(), 10))
 	os.RemoveAll(path) //In case repo by same name already exists in temp
 	defer os.RemoveAll(path)
+	logs := os.Stdout
+	if !g.showlogs {
+		logs = nil
+	}
 	_, err := git.PlainClone(path, false, &git.CloneOptions{
-		URL: fmt.Sprintf("%s/%s/%s", g.baseurl, g.owner, g.repo),
+		URL:      fmt.Sprintf("%s/%s/%s", g.baseurl, g.owner, g.repo),
+		Progress: logs,
 	})
 	if err != nil {
 		return ErrCloningRepo(err)
@@ -134,22 +160,11 @@ func clonewalk(g *Git) error {
 			if d.IsDir() {
 				return nil
 			}
-			file, err := os.Open(path)
+			f, err := d.Info()
 			if err != nil {
 				return err
 			}
-			content, err := ioutil.ReadAll(file)
-			if err != nil {
-				return err
-			}
-			if g.fileInterceptor == nil {
-				return nil
-			}
-			return g.fileInterceptor(File{
-				Name:    d.Name(),
-				Content: string(content),
-				Path:    path,
-			})
+			return g.readFile(f, path)
 		})
 		return err
 	}
@@ -178,23 +193,31 @@ func clonewalk(g *Git) error {
 		if f.IsDir() {
 			return nil
 		}
-		filename, err := os.Open(path)
-		if err != nil {
-			log.Fatal(err)
-		}
-		content, err := ioutil.ReadAll(filename)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.fileInterceptor(File{
-			Name:    f.Name(),
-			Path:    path,
-			Content: string(content),
-		})
-		if err != nil {
-			fmt.Println("Could not intercept the file ", f.Name())
-		}
+		g.readFile(f, path)
 	}
 
 	return nil
+}
+
+func (g *Git) readFile(f fs.FileInfo, path string) error {
+	if f.Size() > g.maxfilesizeinbytes {
+		return ErrInvalidSizeFile(errors.New("File exceeding size limit"))
+	}
+	filename, err := os.Open(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	content, err := ioutil.ReadAll(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = g.fileInterceptor(File{
+		Name:    f.Name(),
+		Path:    path,
+		Content: string(content),
+	})
+	if err != nil {
+		fmt.Println("Could not intercept the file ", f.Name())
+	}
+	return err
 }
