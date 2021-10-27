@@ -62,6 +62,11 @@ func NewGithub() *Github {
 	}
 }
 
+// Walk will initiate traversal process
+func (g *Github) Walk() error {
+	return repowalk(g)
+}
+
 // Owner sets github repository owner and returns a pointer
 // to the same Github instance
 func (g *Github) Owner(owner string) *Github {
@@ -95,9 +100,6 @@ func (g *Github) Branch(branch string) *Github {
 // If the root node ends with an extension, then that
 // file will be returned and github walker will not traverse deeper
 func (g *Github) Root(root string) *Github {
-	if !strings.HasPrefix(root, "/") {
-		root = "/" + root
-	}
 	g.root = root
 
 	if strings.HasSuffix(root, "/**") {
@@ -155,6 +157,7 @@ func (g *Github) walker(path string, isFile bool) error {
 	if err != nil {
 		return err
 	}
+
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusForbidden {
 			respJSON := map[string]interface{}{}
