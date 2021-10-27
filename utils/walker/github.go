@@ -121,6 +121,9 @@ func (g *Github) Branch(branch string) *Github {
 // If the root node ends with an extension, then that
 // file will be returned and github walker will not traverse deeper
 func (g *Github) Root(root string) *Github {
+	if !strings.HasPrefix(root, "/") {
+		root = "/" + root
+	}
 	g.root = root
 
 	if strings.HasSuffix(root, "/**") {
@@ -186,6 +189,7 @@ func (g *Github) RegisterLocalDirInterceptor(i DirInterceptor) *Github {
 
 // Walk will initiate traversal process
 func (g *Github) Walk() error {
+	os.RemoveAll(os.TempDir() + "/" + g.repo) //In case repo by same name already exists in temp
 	defer os.RemoveAll(os.TempDir() + "/" + g.repo)
 	switch g.mode {
 	case CloneAndWalk:
