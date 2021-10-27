@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -172,7 +171,7 @@ func clonewalk(g *Git) error {
 	// If recurse mode is off, we only walk the root directory passed with g.root
 	files, err := ioutil.ReadDir(filepath.Join(path, g.root))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	for _, f := range files {
 
@@ -185,7 +184,7 @@ func clonewalk(g *Git) error {
 					Path: path,
 				})
 				if err != nil {
-					log.Fatal(err)
+					fmt.Println(err.Error())
 				}
 			}(name, path)
 			continue
@@ -193,7 +192,8 @@ func clonewalk(g *Git) error {
 		if f.IsDir() {
 			return nil
 		}
-		g.readFile(f, path)
+		err := g.readFile(f, path)
+		fmt.Println(err.Error())
 	}
 
 	return nil
@@ -205,11 +205,11 @@ func (g *Git) readFile(f fs.FileInfo, path string) error {
 	}
 	filename, err := os.Open(path)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	content, err := ioutil.ReadAll(filename)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	err = g.fileInterceptor(File{
 		Name:    f.Name(),
