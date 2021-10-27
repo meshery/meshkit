@@ -46,13 +46,13 @@ type GithubDirInterceptor func(GithubDirectoryContentAPI) error
 
 // Github represents the Github Walker
 type Github struct {
-	owner              string
-	repo               string
-	branch             string
-	root               string
-	recurse            bool
-	gitfileInterceptor GithubFileInterceptor
-	gitdirInterceptor  GithubDirInterceptor
+	owner           string
+	repo            string
+	branch          string
+	root            string
+	recurse         bool
+	fileInterceptor GithubFileInterceptor
+	dirInterceptor  GithubDirInterceptor
 }
 
 // NewGithub returns a pointer to an instance of Github
@@ -60,11 +60,6 @@ func NewGithub() *Github {
 	return &Github{
 		branch: "main",
 	}
-}
-
-// Walk will initiate traversal process
-func (g *Github) Walk() error {
-	return repowalk(g)
 }
 
 // Owner sets github repository owner and returns a pointer
@@ -110,7 +105,6 @@ func (g *Github) Root(root string) *Github {
 	return g
 }
 
-// If you change the name of registeration functions, reflect them in the maps above
 // RegisterFileInterceptor takes in a file interceptor which will be invoked
 // on each "file" node and it returns pointer to the same github instance
 //
@@ -118,7 +112,7 @@ func (g *Github) Root(root string) *Github {
 // or writing to any variable from a higher namespace then those operations
 // should be done in thread safe manner in order to avoid data races
 func (g *Github) RegisterFileInterceptor(i GithubFileInterceptor) *Github {
-	g.gitfileInterceptor = i
+	g.fileInterceptor = i
 	return g
 }
 
@@ -129,11 +123,12 @@ func (g *Github) RegisterFileInterceptor(i GithubFileInterceptor) *Github {
 // or writing to any variable from a higher namespace then those operations
 // should be done in thread safe manner in order to avoid data races
 func (g *Github) RegisterDirInterceptor(i GithubDirInterceptor) *Github {
-	g.gitdirInterceptor = i
+	g.dirInterceptor = i
 	return g
 }
 
-func repowalk(g *Github) error {
+// Walk will initiate traversal process
+func (g *Github) Walk() error {
 	// Check if a file is requested
 	isFile := true
 	if g.root == "" || filepath.Ext(g.root) == "" {
@@ -157,7 +152,6 @@ func (g *Github) walker(path string, isFile bool) error {
 	if err != nil {
 		return err
 	}
-
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusForbidden {
 			respJSON := map[string]interface{}{}
@@ -190,8 +184,8 @@ func (g *Github) walker(path string, isFile bool) error {
 			return err
 		}
 
-		if g.gitfileInterceptor != nil {
-			return g.gitfileInterceptor(respBody)
+		if g.fileInterceptor != nil {
+			return g.fileInterceptor(respBody)
 		}
 
 		return nil
@@ -224,8 +218,8 @@ func (g *Github) walker(path string, isFile bool) error {
 
 	wg.Wait()
 
-	if g.gitdirInterceptor != nil {
-		if err := g.gitdirInterceptor(respBody); err != nil {
+	if g.dirInterceptor != nil {
+		if err := g.dirInterceptor(respBody); err != nil {
 			logrus.Error("[GithubWalker]: error occurred while executing directory interceptor function ", err)
 			return err
 		}
