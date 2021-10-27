@@ -147,16 +147,28 @@ func (g *Github) Mode(mode Mode) *Github {
 // or writing to any variable from a higher namespace then those operations
 // should be done in thread safe manner in order to avoid data races
 func (g *Github) RegisterFileInterceptor(i GithubFileInterceptor) *Github {
+	funcName, err := GetFileFuncName(g.mode)
+	if err != nil {
+		g.mode = ""
+		return g
+	}
 	if g.mode != WalkTheRepo {
-		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, getFileFuncName(g.mode))
+		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, funcName)
+		g.mode = ""
 		return g
 	}
 	g.gitfileInterceptor = i
 	return g
 }
 func (g *Github) RegisterLocalFileInterceptor(i FileInterceptor) *Github {
+	funcName, err := GetFileFuncName(g.mode)
+	if err != nil {
+		g.mode = ""
+		return g
+	}
 	if g.mode != CloneAndWalk {
-		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, getFileFuncName(g.mode))
+		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, funcName)
+		g.mode = ""
 		return g
 	}
 	g.fileInterceptor = i
@@ -170,8 +182,14 @@ func (g *Github) RegisterLocalFileInterceptor(i FileInterceptor) *Github {
 // or writing to any variable from a higher namespace then those operations
 // should be done in thread safe manner in order to avoid data races
 func (g *Github) RegisterDirInterceptor(i GithubDirInterceptor) *Github {
+	funcName, err := GetDirFuncName(g.mode)
+	if err != nil {
+		g.mode = ""
+		return g
+	}
 	if g.mode != WalkTheRepo {
-		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, getDirFuncName(g.mode))
+		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, funcName)
+		g.mode = ""
 		return g
 	}
 	g.gitdirInterceptor = i
@@ -179,8 +197,14 @@ func (g *Github) RegisterDirInterceptor(i GithubDirInterceptor) *Github {
 }
 
 func (g *Github) RegisterLocalDirInterceptor(i DirInterceptor) *Github {
+	funcName, err := GetDirFuncName(g.mode)
+	if err != nil {
+		g.mode = ""
+		return g
+	}
 	if g.mode != CloneAndWalk {
-		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, getDirFuncName(g.mode))
+		log.Fatalf("Invalid register function for mode %s, use %s instead", g.mode, funcName)
+		g.mode = ""
 		return g
 	}
 	g.dirInterceptor = i
@@ -197,7 +221,7 @@ func (g *Github) Walk() error {
 	case WalkTheRepo:
 		return repowalk(g)
 	default:
-		return ErrInvalidMode(errors.New("INVALID MODE"))
+		return ErrInvalidMode(errors.New("Invalid mode"))
 	}
 
 }
@@ -399,17 +423,17 @@ type Directory struct {
 type FileInterceptor func(File) error
 type DirInterceptor func(Directory) error
 
-func getFileFuncName(mode Mode) string {
+func GetFileFuncName(mode Mode) (string, error) {
 	name := modeToFileIntercepterName[mode]
 	if name == "" {
-		return "NO FUNCTION PRESENT: [INVALID OR EMPTY MODE PASSED]"
+		return "", ErrInvalidMode(errors.New("No registeration function present for this mode"))
 	}
-	return name
+	return name, nil
 }
-func getDirFuncName(mode Mode) string {
+func GetDirFuncName(mode Mode) (string, error) {
 	name := modeToDirIntercepterName[mode]
 	if name == "" {
-		return "NO FUNCTION PRESENT: [INVALID OR EMPTY MODE PASSED]"
+		return "", ErrInvalidMode(errors.New("No registeration function present for this mode"))
 	}
-	return name
+	return name, nil
 }
