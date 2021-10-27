@@ -27,7 +27,7 @@ type Git struct {
 // NewGit returns a pointer to an instance of Git
 func NewGit() *Git {
 	return &Git{
-		branch: "main",
+		branch: "master",
 	}
 }
 
