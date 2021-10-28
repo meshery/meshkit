@@ -32,8 +32,8 @@ type Git struct {
 func NewGit() *Git {
 	return &Git{
 		branch:             "master",
-		baseurl:            "https://github.com", //defaults to a github repo if the url is not set with URL method
-		maxfilesizeinbytes: 50000000, // ~50MB file size limit
+		baseURL:            "https://github.com", //defaults to a github repo if the url is not set with URL method
+		maxfilesizeinbytes: 50000000,             // ~50MB file size limit
 	}
 }
 
@@ -52,7 +52,7 @@ type DirInterceptor func(Directory) error
 // BaseURL sets git repository base URL and returns a pointer
 // to the same Git instance
 func (g *Git) BaseURL(baseurl string) *Git {
-	g.baseurl = baseurl
+	g.baseURL = baseurl
 	return g
 }
 
@@ -140,7 +140,7 @@ func clonewalk(g *Git) error {
 		logs = nil
 	}
 	_, err := git.PlainClone(path, false, &git.CloneOptions{
-		URL:      fmt.Sprintf("%s/%s/%s", g.baseurl, g.owner, g.repo),
+		URL:      fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
 		Progress: logs,
 	})
 	if err != nil {
