@@ -20,10 +20,10 @@ type Git struct {
 	owner              string
 	repo               string
 	branch             string
-	root               string
+	root               string // If the root ends with "/**", then recurse is set to true
 	recurse            bool
-	showlogs           bool
-	maxfilesizeinbytes int64 //defaults to 50 MB
+	showLogs           bool  // By default the logs of gitwalker are not displayed
+	maxFileSizeInBytes int64 //defaults to 50 MB
 	fileInterceptor    FileInterceptor
 	dirInterceptor     DirInterceptor
 }
@@ -33,7 +33,7 @@ func NewGit() *Git {
 	return &Git{
 		branch:             "master",
 		baseURL:            "https://github.com", //defaults to a github repo if the url is not set with URL method
-		maxfilesizeinbytes: 50000000,             // ~50MB file size limit
+		maxFileSizeInBytes: 50000000,             // ~50MB file size limit
 	}
 }
 
@@ -59,14 +59,14 @@ func (g *Git) BaseURL(baseurl string) *Git {
 // BaseURL sets git repository base URL and returns a pointer
 // to the same Git instance
 func (g *Git) MaxFileSize(size int64) *Git {
-	g.maxfilesizeinbytes = size
+	g.maxFileSizeInBytes = size
 	return g
 }
 
 // ShowLogs enable the logs and returns a pointer
 // to the same Git instance
 func (g *Git) ShowLogs() *Git {
-	g.showlogs = true
+	g.showLogs = true
 	return g
 }
 
@@ -128,15 +128,14 @@ func (g *Git) RegisterDirInterceptor(i DirInterceptor) *Git {
 	return g
 }
 func clonewalk(g *Git) error {
-	if g.maxfilesizeinbytes == 0 {
+	if g.maxFileSizeInBytes == 0 {
 		return ErrInvalidSizeFile(errors.New("Max file size passed as 0. Will not read any file"))
 	}
 
 	path := filepath.Join(os.TempDir(), g.repo, strconv.FormatInt(time.Now().UTC().UnixNano(), 10))
-	os.RemoveAll(path) //In case repo by same name already exists in temp
 	defer os.RemoveAll(path)
 	logs := os.Stdout
-	if !g.showlogs {
+	if !g.showLogs {
 		logs = nil
 	}
 	_, err := git.PlainClone(path, false, &git.CloneOptions{
@@ -200,7 +199,7 @@ func clonewalk(g *Git) error {
 }
 
 func (g *Git) readFile(f fs.FileInfo, path string) error {
-	if f.Size() > g.maxfilesizeinbytes {
+	if f.Size() > g.maxFileSizeInBytes {
 		return ErrInvalidSizeFile(errors.New("File exceeding size limit"))
 	}
 	filename, err := os.Open(path)
