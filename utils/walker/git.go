@@ -134,14 +134,18 @@ func clonewalk(g *Git) error {
 
 	path := filepath.Join(os.TempDir(), g.repo, strconv.FormatInt(time.Now().UTC().UnixNano(), 10))
 	defer os.RemoveAll(path)
-	logs := os.Stdout
-	if !g.showLogs {
-		logs = nil
+	var err error
+	if g.showLogs {
+		_, err = git.PlainClone(path, false, &git.CloneOptions{
+			URL:      fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
+			Progress: os.Stdout,
+		})
+	} else {
+		_, err = git.PlainClone(path, false, &git.CloneOptions{
+			URL: fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
+		})
 	}
-	_, err := git.PlainClone(path, false, &git.CloneOptions{
-		URL:      fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
-		Progress: logs,
-	})
+
 	if err != nil {
 		return ErrCloningRepo(err)
 	}
@@ -192,7 +196,9 @@ func clonewalk(g *Git) error {
 			return nil
 		}
 		err := g.readFile(f, path)
-		fmt.Println(err.Error())
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 	}
 
 	return nil
