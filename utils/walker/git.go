@@ -16,7 +16,7 @@ import (
 
 // Git represents the Git Walker
 type Git struct {
-	baseurl            string
+	baseURL            string
 	owner              string
 	repo               string
 	branch             string
