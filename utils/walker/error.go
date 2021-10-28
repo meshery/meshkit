@@ -3,8 +3,8 @@ package walker
 import "github.com/layer5io/meshkit/errors"
 
 var (
-	ErrInvalidSizeFileCode = "replace"
-	ErrCloningRepoCode     = "replace"
+	ErrInvalidSizeFileCode = "11072"
+	ErrCloningRepoCode     = "11073"
 )
 
 func ErrCloningRepo(err error) error {
