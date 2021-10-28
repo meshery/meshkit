@@ -10,9 +10,9 @@ replace (
 )
 
 require (
+	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v0.4.0
 	github.com/google/uuid v1.1.2
-	github.com/kr/pretty v0.2.1 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/nats-io/nats.go v1.9.1
