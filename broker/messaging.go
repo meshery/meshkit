@@ -1,5 +1,7 @@
 package broker
 
+import "github.com/nats-io/nats.go"
+
 var (
 	Request          ObjectType = "request-payload"
 	MeshSync         ObjectType = "meshsync-data"
@@ -34,4 +36,10 @@ type Message struct {
 type RequestObject struct {
 	Entity  RequestEntity
 	Payload interface{}
+}
+
+type ExecProp struct {
+	ID             string
+	ReceiveChannel chan *Message
+	Subscription   *nats.Subscription
 }

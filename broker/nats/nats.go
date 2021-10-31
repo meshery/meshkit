@@ -12,6 +12,7 @@ import (
 
 var (
 	NewEmptyConnection = &Nats{}
+	activeExecSessions = make(map[string]broker.ExecProp)
 )
 
 type Options struct {
@@ -93,28 +94,38 @@ func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) er
 // Subscribe - for subscribing messages
 // TODO Ques: Do we want to unsubscribe
 // TODO will the method-user just subsribe, how will it handle the received messages?
-func (n *Nats) Subscribe(subject, queue string, message []byte) error {
+func (n *Nats) Subscribe(reqID, subject, queue string, message []byte) (*nats.Subscription, error) {
 	n.wg.Add(1)
-	_, err := n.ec.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
+	sub, err := n.ec.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
 		message = msg.Data
 		n.wg.Done()
 	})
 	if err != nil {
-		return ErrQueueSubscribe(err)
+		return nil, ErrQueueSubscribe(err)
+	}
+	activeExecSessions[reqID] = broker.ExecProp{
+		ID:             subject,
+		ReceiveChannel: make(chan *broker.Message),
+		Subscription:   sub,
 	}
 	n.wg.Wait()
 
-	return nil
+	return sub, nil
 }
 
 // SubscribeWithChannel will publish all the messages received to the given channel
-func (n *Nats) SubscribeWithChannel(subject, queue string, msgch chan *broker.Message) error {
-	_, err := n.ec.BindRecvQueueChan(subject, queue, msgch)
+func (n *Nats) SubscribeWithChannel(reqID, subject, queue string, msgch chan *broker.Message) (*nats.Subscription, error) {
+	sub, err := n.ec.BindRecvQueueChan(subject, queue, msgch)
 	if err != nil {
-		return ErrQueueSubscribe(err)
+		return nil, ErrQueueSubscribe(err)
+	}
+	activeExecSessions[reqID] = broker.ExecProp{
+		ID:             subject,
+		ReceiveChannel: make(chan *broker.Message),
+		Subscription:   sub,
 	}
 
-	return nil
+	return sub, nil
 }
 
 // DeepCopyInto is a deepcopy function, copying the receiver, writing into out. in must be non-nil.
@@ -146,5 +157,37 @@ func (in *Nats) IsEmpty() bool {
 	if in == nil || *in == *empty {
 		return true
 	}
+	return false
+}
+
+// Get active exec sessions from NATS
+func (in *Nats) GetActiveExecSessions() []*string {
+	sessions := make([]*string, 0)
+	for _, s := range activeExecSessions {
+		sessions = append(sessions, &s.ID)
+	}
+	return sessions
+}
+
+// Get an exec session from NATS
+func (in *Nats) GetExecSession(reqID string) *broker.ExecProp {
+	if ses, ok := activeExecSessions[reqID]; ok {
+		return &ses
+	}
+	return nil
+}
+
+// Close exec session from NATS
+func (in *Nats) Close(reqID string) bool {
+	if ses, ok := activeExecSessions[reqID]; ok {
+		if err := ses.Subscription.Unsubscribe(); err != nil {
+			return false
+		}
+
+		delete(activeExecSessions, reqID)
+
+		return true
+	}
+
 	return false
 }
