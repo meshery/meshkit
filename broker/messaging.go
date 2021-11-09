@@ -8,6 +8,7 @@ var (
 	ErrorObject      ObjectType = "error"
 	ExecInputObject  ObjectType = "exec-input"
 	ExecOutputObject ObjectType = "exec-output"
+	ActiveExecObject ObjectType = "active-exec"
 
 	Add        EventType = "ADDED"
 	Update     EventType = "MODIFIED"
@@ -18,6 +19,7 @@ var (
 	LogRequestEntity      RequestEntity = "log-stream"
 	ReSyncDiscoveryEntity RequestEntity = "resync-discovery"
 	ExecRequestEntity     RequestEntity = "exec-request"
+	ActiveExecEntity      RequestEntity = "active-exec"
 )
 
 type ObjectType string
