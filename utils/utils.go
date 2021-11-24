@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -192,17 +191,17 @@ func GetLatestReleaseTag(org string, repo string) (string, error) {
 	var url string = "https://github.com/" + org + "/" + repo + "/releases/latest"
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to make GET request to %s", url)
+		return "", ErrGettingLatestReleaseTag(err)
 	}
 	defer safeClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return "", errors.New("failed to get latest stable release tag")
+		return "", ErrGettingLatestReleaseTag(err)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to read response body")
+		return "", ErrGettingLatestReleaseTag(err)
 	}
 	re := regexp.MustCompile("/releases/tag/(.*?)\"")
 	releases := re.FindAllString(string(body), -1)
