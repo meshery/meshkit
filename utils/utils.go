@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,9 +11,12 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // unmarshal returns parses the JSON config data and stores the value in the reference to result
@@ -181,4 +185,38 @@ func ReadLocalFile(location string) (string, error) {
 	}
 
 	return string(data), nil
+}
+
+// Gets the latest stable release tag from github for a given org name and repo name(in that org)
+func GetLatestReleaseTag(org string, repo string) (string, error) {
+	var url string = "https://github.com/" + org + "/" + repo + "/releases/latest"
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", ErrGettingLatestReleaseTag(err)
+	}
+	defer safeClose(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return "", ErrGettingLatestReleaseTag(err)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", ErrGettingLatestReleaseTag(err)
+	}
+	re := regexp.MustCompile("/releases/tag/(.*?)\"")
+	releases := re.FindAllString(string(body), -1)
+	if len(releases) == 0 {
+		return "", ErrGettingLatestReleaseTag(errors.New("no release found in this repository"))
+	}
+	latest := strings.ReplaceAll(releases[0], "/releases/tag/", "")
+	latest = strings.ReplaceAll(latest, "\"", "")
+	return latest, nil
+}
+
+// SafeClose is a helper function help to close the io
+func safeClose(co io.Closer) {
+	if cerr := co.Close(); cerr != nil {
+		log.Error(cerr)
+	}
 }

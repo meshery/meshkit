@@ -20,8 +20,8 @@ var (
 	ErrRemoteFileNotFoundCode        = "11052"
 	ErrReadingRemoteFileCode         = "11053"
 	ErrReadingLocalFileCode          = "11054"
-
-	ErrInvalidProtocol = errors.New(ErrInvalidProtocolCode, errors.Alert, []string{"invalid protocol: only http, https and file are valid protocols"}, []string{}, []string{"Network protocol is incorrect"}, []string{"Make sure to specify the right network protocol"})
+	ErrGettingLatestReleaseTagCode   = "11055"
+	ErrInvalidProtocol               = errors.New(ErrInvalidProtocolCode, errors.Alert, []string{"invalid protocol: only http, https and file are valid protocols"}, []string{}, []string{"Network protocol is incorrect"}, []string{"Make sure to specify the right network protocol"})
 )
 
 func ErrUnmarshal(err error) error {
@@ -66,4 +66,8 @@ func ErrReadingRemoteFile(err error) error {
 
 func ErrReadingLocalFile(err error) error {
 	return errors.New(ErrReadingLocalFileCode, errors.Alert, []string{"error reading local file"}, []string{err.Error()}, []string{"File doesnt exist in the location", "File name is incorrect"}, []string{"Make sure to input the right file name and location"})
+}
+
+func ErrGettingLatestReleaseTag(err error) error {
+	return errors.New(ErrGettingLatestReleaseTagCode, errors.Alert, []string{"Could not fetch latest stable release from github"}, []string{err.Error()}, []string{"Failed to make GET request to github", "Invalid response recieved on github.com/<org>/<repo>/releases/stable"}, []string{"Make sure Github is reachable", "Make sure a valid response is available on github.com/<org>/<repo>/releases/stable"})
 }
