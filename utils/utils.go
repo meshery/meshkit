@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -205,6 +206,9 @@ func GetLatestReleaseTag(org string, repo string) (string, error) {
 	}
 	re := regexp.MustCompile("/releases/tag/(.*?)\"")
 	releases := re.FindAllString(string(body), -1)
+	if len(releases) == 0 {
+		return "", ErrGettingLatestReleaseTag(errors.New("no release found in this repository"))
+	}
 	latest := strings.ReplaceAll(releases[0], "/releases/tag/", "")
 	latest = strings.ReplaceAll(latest, "\"", "")
 	return latest, nil
