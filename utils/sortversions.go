@@ -24,6 +24,7 @@ func (d dottedStrings) Less(i, j int) bool {
 		siarr = siarr[0:n]
 	}
 	for i := 0; i < n; i++ {
+		//We can be sure that siarr and sjarr are numeric string array, hence Atoi can be safely used
 		p, _ := strconv.Atoi(siarr[i])
 		q, _ := strconv.Atoi(sjarr[i])
 		if p < q {
