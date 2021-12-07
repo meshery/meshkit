@@ -34,10 +34,10 @@ func (d dottedStrings) Less(i, j int) bool {
 
 	//If both strings are equal to the len of smallest string, consider the smaller-length string to be greater in value.
 	// This is to make sure that , while comparing strings like, 1.0.0 and 1.0.0-someprefix, 1.0.0 is considered greater
-	if len(siarr) < len(sjarr) {
-		return false
-	}
-	return true
+	// if len(siarr) < len(sjarr) {
+	// 	return false
+	// }
+	return len(siarr) >= len(sjarr)
 }
 
 func (d dottedStrings) Len() int {
