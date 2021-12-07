@@ -13,14 +13,22 @@ func (d dottedStrings) Less(i, j int) bool {
 	sj := cleanup(d[j])
 	siarr := strings.Split(si, ".")
 	sjarr := strings.Split(sj, ".")
-	var n int
-	if len(siarr) < len(sjarr) {
-		n = len(siarr)
+	diff := len(siarr) - len(sjarr)
+
+	//Making boths strings the same length
+	if diff > 0 {
+		for diff != 0 {
+			sjarr = append(sjarr, "3")
+			diff--
+		}
 	} else {
-		n = len(sjarr)
+		for diff != 0 {
+			siarr = append(siarr, "3")
+			diff++
+		}
 	}
-	// While comparing two strings, the comparison is made upto the size of smaller string
-	for i := 0; i < n; i++ {
+	// The string will both be the same length
+	for i := range siarr {
 		//We can be sure that siarr and sjarr are numeric string array, hence Atoi can be safely used
 		p, _ := strconv.Atoi(siarr[i])
 		q, _ := strconv.Atoi(sjarr[i])
@@ -31,13 +39,7 @@ func (d dottedStrings) Less(i, j int) bool {
 			return false
 		}
 	}
-
-	//If both strings are equal to the len of smallest string, consider the smaller-length string to be greater in value.
-	// This is to make sure that , while comparing strings like, 1.0.0 and 1.0.0-someprefix, 1.0.0 is considered greater
-	// if len(siarr) < len(sjarr) {
-	// 	return false
-	// }
-	return len(siarr) >= len(sjarr)
+	return false
 }
 
 func (d dottedStrings) Len() int {
@@ -47,10 +49,14 @@ func (d dottedStrings) Swap(i, j int) {
 	d[i], d[j] = d[j], d[i]
 }
 func cleanup(s string) string {
+	if strings.HasPrefix(s, "stable") {
+		s = strings.TrimPrefix(s, "stable")
+		s += "stable"
+	}
 	s = strings.Replace(s, "alpha", ".0", -1)
 	s = strings.Replace(s, "beta", ".1", -1)
 	s = strings.Replace(s, "rc", ".2", -1)
-	s = strings.Replace(s, "stable", ".3", -1)
+	s = strings.Replace(s, "stable", ".4", -1)
 	s1 := ""
 	for _, s := range s {
 		if (s >= 48 && s <= 57) || s == 46 {
@@ -65,6 +71,7 @@ func cleanup(s string) string {
 // This function ignores all letters except for:
 // - numeric digits
 // - alpha, beta, rc, stable
+// For the same version, stable is preferred over edge
 func SortDottedStringsByDigits(s []string) []string {
 	s1 := dottedStrings(s)
 	sort.Sort(s1)

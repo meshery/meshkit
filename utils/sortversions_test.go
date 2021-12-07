@@ -36,6 +36,10 @@ var testcases = []TestCases{
 		PassedArray:   []string{"v1.0.0-stable", "0.9.8", "1.0.0-alpha.1", "v1.0.0-alpha"},
 		ExpectedArray: []string{"0.9.8", "1.0.0-alpha.1", "v1.0.0-alpha", "v1.0.0-stable"},
 	},
+	{
+		PassedArray:   []string{"1.0.0", "stable-1.0.0"},
+		ExpectedArray: []string{"1.0.0", "stable-1.0.0"},
+	},
 }
 
 func TestSort(t *testing.T) {
