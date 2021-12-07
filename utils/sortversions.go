@@ -9,10 +9,8 @@ import (
 type dottedStrings []string
 
 func (d dottedStrings) Less(i, j int) bool {
-	si := d[i]
-	sj := d[j]
-	si = cleanup(si)
-	sj = cleanup(sj)
+	si := cleanup(d[i])
+	sj := cleanup(d[j])
 	siarr := strings.Split(si, ".")
 	sjarr := strings.Split(sj, ".")
 	var n int
@@ -23,6 +21,7 @@ func (d dottedStrings) Less(i, j int) bool {
 		n = len(sjarr)
 		siarr = siarr[0:n]
 	}
+	// While comparing two strings, the comparison is made upto the size of smaller string
 	for i := 0; i < n; i++ {
 		//We can be sure that siarr and sjarr are numeric string array, hence Atoi can be safely used
 		p, _ := strconv.Atoi(siarr[i])

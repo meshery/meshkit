@@ -189,7 +189,7 @@ func ReadLocalFile(location string) (string, error) {
 
 // Gets the latest stable release tag from github for a given org name and repo name(in that org)
 func GetLatestReleaseTag(org string, repo string) (string, error) {
-	var url string = "https://github.com/" + org + "/" + repo + "/releases/latest"
+	var url string = "https://github.com/" + org + "/" + repo + "/releases"
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", ErrGettingLatestReleaseTag(err)
@@ -209,9 +209,14 @@ func GetLatestReleaseTag(org string, repo string) (string, error) {
 	if len(releases) == 0 {
 		return "", ErrGettingLatestReleaseTag(errors.New("no release found in this repository"))
 	}
-	latest := strings.ReplaceAll(releases[0], "/releases/tag/", "")
-	latest = strings.ReplaceAll(latest, "\"", "")
-	return latest, nil
+	var version []string
+	for _, rel := range releases {
+		latest := strings.ReplaceAll(rel, "/releases/tag/", "")
+		latest = strings.ReplaceAll(latest, "\"", "")
+		version = append(version, latest)
+	}
+	version = SortDottedStringsByDigits(version)
+	return version[len(version)-1], nil
 }
 
 // SafeClose is a helper function help to close the io
