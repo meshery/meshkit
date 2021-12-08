@@ -187,36 +187,36 @@ func ReadLocalFile(location string) (string, error) {
 	return string(data), nil
 }
 
-// Gets the latest stable release tag from github for a given org name and repo name(in that org)
-func GetLatestReleaseTag(org string, repo string) (string, error) {
+// Gets the latest stable release tags from github for a given org name and repo name(in that org) in sorted order
+func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 	var url string = "https://github.com/" + org + "/" + repo + "/releases"
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", ErrGettingLatestReleaseTag(err)
+		return nil, ErrGettingLatestReleaseTag(err)
 	}
 	defer safeClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return "", ErrGettingLatestReleaseTag(err)
+		return nil, ErrGettingLatestReleaseTag(err)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", ErrGettingLatestReleaseTag(err)
+		return nil, ErrGettingLatestReleaseTag(err)
 	}
 	re := regexp.MustCompile("/releases/tag/(.*?)\"")
 	releases := re.FindAllString(string(body), -1)
 	if len(releases) == 0 {
-		return "", ErrGettingLatestReleaseTag(errors.New("no release found in this repository"))
+		return nil, ErrGettingLatestReleaseTag(errors.New("no release found in this repository"))
 	}
-	var version []string
+	var versions []string
 	for _, rel := range releases {
 		latest := strings.ReplaceAll(rel, "/releases/tag/", "")
 		latest = strings.ReplaceAll(latest, "\"", "")
-		version = append(version, latest)
+		versions = append(versions, latest)
 	}
-	version = SortDottedStringsByDigits(version)
-	return version[len(version)-1], nil
+	versions = SortDottedStringsByDigits(versions)
+	return versions, nil
 }
 
 // SafeClose is a helper function help to close the io
