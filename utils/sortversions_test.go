@@ -40,6 +40,22 @@ var testcases = []TestCases{
 		PassedArray:   []string{"1.0.0", "stable-1.0.0"},
 		ExpectedArray: []string{"1.0.0", "stable-1.0.0"},
 	},
+	{
+		PassedArray:   []string{"v1.12.0-rc.1", "1.12.0-beta.2", "1.12.0-beta.1"},
+		ExpectedArray: []string{"1.12.0-beta.1", "1.12.0-beta.2", "v1.12.0-rc.1"},
+	},
+	{
+		PassedArray:   []string{"edge-21.12.1", "edge-21.11.4", "stable-2.11.0"},
+		ExpectedArray: []string{"stable-2.11.0", "edge-21.11.4", "edge-21.12.1"},
+	},
+	{
+		PassedArray:   []string{"istio-1.10.6", "istio-1.12.0", "0.0.0"},
+		ExpectedArray: []string{"0.0.0", "istio-1.10.6", "istio-1.12.0"},
+	},
+	{
+		PassedArray:   []string{"v1.0.0-rc.2", "v1.0.0-rc.1", "v0.11.0-rc.1"},
+		ExpectedArray: []string{"v0.11.0-rc.1", "v1.0.0-rc.1", "v1.0.0-rc.2"},
+	},
 }
 
 func TestSort(t *testing.T) {
