@@ -301,8 +301,7 @@ func formatToReadableString(input string) string {
 			finalWord += " " + string(input[i])
 		}
 	}
-
-	return finalWord + input[len(input)-1:]
+	return strings.Join(strings.Fields(strings.TrimSpace(finalWord+input[len(input)-1:])), " ")
 }
 
 func switchedCasing(a byte, b byte) int {
