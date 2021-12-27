@@ -86,7 +86,7 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 		}, nil
 	}
 	// If external endpoint not reachable
-	if !utils.TcpCheck(endpoint.External, opts.Mock) && endpoint.External.Address != "localhost" {
+	if !utils.TcpCheck(endpoint.External, opts.Mock) {
 		url, err := url.Parse(opts.APIServerURL)
 		if err != nil {
 			return &endpoint, ErrInvalidAPIServer
