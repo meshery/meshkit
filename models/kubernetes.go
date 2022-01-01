@@ -8,6 +8,7 @@ type Kubeconfig struct {
 		Cluster struct {
 			CertificateAuthorityData string `yaml:"certificate-authority-data,omitempty" json:"certificate-authority-data,omitempty"`
 			Server                   string `yaml:"server,omitempty" json:"server,omitempty"`
+			InsecureSkipTLSVerify    *bool  `yaml:"insecure-skip-tls-verify,omitempty" json:"insecure-skip-tls-verify,omitempty"`
 		} `yaml:"cluster,omitempty" json:"cluster,omitempty"`
 		Name string `yaml:"name,omitempty" json:"name,omitempty"`
 	} `yaml:"clusters,omitempty" json:"clusters,omitempty"`
