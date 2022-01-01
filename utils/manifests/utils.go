@@ -119,7 +119,7 @@ func getSchema(crd string, fp string, binPath string, cfg Config) (string, error
 	if len(schema) == 0 {
 		return "", nil
 	}
-	(schema)[0]["title"] = crdname
+	(schema)[0]["title"] = formatToReadableString(crdname)
 	var output []byte
 	output, err := json.MarshalIndent(schema[0], "", " ")
 	if err != nil {
@@ -279,4 +279,39 @@ func deleteFile(path string) error {
 		return err
 	}
 	return nil
+}
+
+//While going from Capital letter to small, insert a whitespace before the capital letter.
+//While going from small letter to capital, insert a whitespace after the small letter
+func formatToReadableString(input string) string {
+	if len(input) == 0 {
+		return ""
+	}
+	finalWord := ""
+	for i := range input {
+		if i == len(input)-1 {
+			break
+		}
+		switch switchedCasing(input[i], input[i+1]) {
+		case 0:
+			finalWord += string(input[i])
+		case 1:
+			finalWord += string(input[i]) + " "
+		case -1:
+			finalWord += " " + string(input[i])
+		}
+	}
+	return strings.Join(strings.Fields(strings.TrimSpace(finalWord+input[len(input)-1:])), " ")
+}
+
+func switchedCasing(a byte, b byte) int {
+	aisSmall := int(a) >= 97 && int(a) <= 122
+	bisSmall := int(b) >= 97 && int(b) <= 122
+	if aisSmall && !bisSmall {
+		return 1
+	}
+	if bisSmall && !aisSmall {
+		return -1
+	}
+	return 0
 }
