@@ -32,6 +32,17 @@ type Handler struct {
 	// Implement methods if necessary
 }
 
+func (h *Handler) DBClose() error {
+	db, err := h.DB.DB()
+	if err != nil {
+		return err
+	}
+	err = db.Close() //It ensures that all writes have completed and the database is not corrupted.
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func New(opts Options) (Handler, error) {
 	switch opts.Engine {
 	case POSTGRES:
@@ -46,6 +57,7 @@ func New(opts Options) (Handler, error) {
 		if err != nil {
 			return Handler{}, ErrDatabaseOpen(err)
 		}
+
 		return Handler{
 			db,
 			&sync.Mutex{},
