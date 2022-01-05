@@ -25,6 +25,15 @@ type Logger struct {
 	handler *logrus.Entry
 }
 
+//TerminalFormatter is exported
+type TerminalFormatter struct{}
+
+// Format defined the format of output for Logrus logs
+// Format is exported
+func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	return append([]byte(entry.Message), '\n'), nil
+}
+
 func New(appname string, opts Options) (Handler, error) {
 
 	log := logrus.New()
@@ -39,17 +48,26 @@ func New(appname string, opts Options) (Handler, error) {
 			TimestampFormat: time.RFC3339,
 			FullTimestamp:   true,
 		})
+	case TerminalLogFormat:
+		log.SetFormatter(new(TerminalFormatter))
 	}
 
 	// log.SetReportCaller(true)
 	log.SetOutput(os.Stdout)
-	entry := log.WithFields(logrus.Fields{
-		"app": appname,
-	})
 
-	return &Logger{
-		handler: entry,
-	}, nil
+	switch opts.Format {
+	case TerminalLogFormat:
+		return &Logger{}, nil
+	default:
+		entry := log.WithFields(logrus.Fields{
+			"app": appname,
+		})
+
+		return &Logger{
+			handler: entry,
+		}, nil
+	}
+
 }
 
 func (l *Logger) Error(err error) {
