@@ -73,7 +73,6 @@ func getSchema(crd string, fp string, binPath string, cfg Config) (string, error
 		inputFormat = "json"
 	}
 
-	crdname := strings.ToLower(crd)
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
@@ -119,7 +118,7 @@ func getSchema(crd string, fp string, binPath string, cfg Config) (string, error
 	if len(schema) == 0 {
 		return "", nil
 	}
-	(schema)[0]["title"] = formatToReadableString(crdname)
+	(schema)[0]["title"] = FormatToReadableString(crd)
 	var output []byte
 	output, err := json.MarshalIndent(schema[0], "", " ")
 	if err != nil {
@@ -283,7 +282,7 @@ func deleteFile(path string) error {
 
 //While going from Capital letter to small, insert a whitespace before the capital letter.
 //While going from small letter to capital, insert a whitespace after the small letter
-func formatToReadableString(input string) string {
+func FormatToReadableString(input string) string {
 	if len(input) == 0 {
 		return ""
 	}
@@ -293,25 +292,34 @@ func formatToReadableString(input string) string {
 			break
 		}
 		switch switchedCasing(input[i], input[i+1]) {
-		case 0:
+		case samegroup:
 			finalWord += string(input[i])
-		case 1:
+		case smallToBig:
 			finalWord += string(input[i]) + " "
-		case -1:
+		case bigToSmall:
 			finalWord += " " + string(input[i])
 		}
 	}
 	return strings.Join(strings.Fields(strings.TrimSpace(finalWord+input[len(input)-1:])), " ")
 }
 
+const (
+	samegroup  = 0
+	smallToBig = 1
+	bigToSmall = -1
+)
+
+//switchedCasting returns 0 if a and b are both small, or both Capital letter.
+//returns 1 when a is small, but b is capital
+//returns -1 otherwise
 func switchedCasing(a byte, b byte) int {
 	aisSmall := int(a) >= 97 && int(a) <= 122
 	bisSmall := int(b) >= 97 && int(b) <= 122
 	if aisSmall && !bisSmall {
-		return 1
+		return smallToBig
 	}
 	if bisSmall && !aisSmall {
-		return -1
+		return bigToSmall
 	}
-	return 0
+	return samegroup
 }
