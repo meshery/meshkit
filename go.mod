@@ -29,6 +29,6 @@ require (
 	k8s.io/apimachinery v0.23.1
 	k8s.io/cli-runtime v0.23.1
 	k8s.io/client-go v0.23.1
-	k8s.io/kubectl v0.23.1 // indirect
+	k8s.io/kubectl v0.23.1
 	rsc.io/letsencrypt v0.0.3 // indirect
 )
