@@ -7,7 +7,7 @@ import (
 	"k8s.io/kubectl/pkg/describe"
 )
 
-// Describer is implemented from here https://github.com/kubernetes/kubernetes/blob/master/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L709
+// Meshkit Describe uses functions exposed from here https://github.com/kubernetes/kubernetes/blob/master/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L709
 
 // DescriberOptions give control of which kubernetes object to describe.
 type DescriberOptions struct {
