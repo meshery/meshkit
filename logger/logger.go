@@ -54,10 +54,16 @@ func New(appname string, opts Options) (Handler, error) {
 
 	// log.SetReportCaller(true)
 	log.SetOutput(os.Stdout)
+	log.SetLevel(logrus.InfoLevel)
+
+	if opts.DebugLevel {
+		log.SetLevel(logrus.DebugLevel)
+	}
 
 	switch opts.Format {
 	case TerminalLogFormat:
-		return &Logger{}, nil
+		entry := log.WithFields(logrus.Fields{"app": appname})
+		return &Logger{handler: entry}, nil
 	default:
 		entry := log.WithFields(logrus.Fields{
 			"app": appname,
