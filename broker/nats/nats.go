@@ -72,6 +72,10 @@ func (n *Nats) Info() string {
 	return n.ec.Conn.Opts.Name
 }
 
+func (n *Nats) Close() {
+	n.Close()
+}
+
 // Publish - to publish messages
 func (n *Nats) Publish(subject string, message *broker.Message) error {
 	err := n.ec.Publish(subject, message)
