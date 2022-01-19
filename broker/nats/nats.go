@@ -72,8 +72,8 @@ func (n *Nats) Info() string {
 	return n.ec.Conn.Opts.Name
 }
 
-func (n *Nats) Close() {
-	n.Close()
+func (n *Nats) CloseConnection() {
+	n.ec.Close()
 }
 
 // Publish - to publish messages

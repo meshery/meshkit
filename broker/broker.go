@@ -21,5 +21,5 @@ type Handler interface {
 	DeepCopyObject() Handler
 	DeepCopyInto(Handler)
 	IsEmpty() bool
-	Close()
+	CloseConnection()
 }
