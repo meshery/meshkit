@@ -7,7 +7,9 @@ import (
 	"k8s.io/kubectl/pkg/describe"
 )
 
-// ServiceOptions give control of which service to discover and which port to discover.
+// Describer is implemented from here https://github.com/kubernetes/kubernetes/blob/master/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L709
+
+// DescriberOptions give control of which kubernetes object to describe.
 type DescriberOptions struct {
 	Name       string // Name of the kubernetes obj
 	Namespace  string // Namespace of the kubernetes obj
@@ -48,6 +50,6 @@ func Describe(client kubernetes.Interface, options DescriberOptions) (string, er
 		describer.Interface = client
 		return describer.Describe(options.Namespace, options.Name, settings)
 	default:
-		return "", fmt.Errorf("invalid kubernetes object type")
+		return "", fmt.Errorf("invalid kubernetes object type or object type not supported in meshkit")
 	}
 }
