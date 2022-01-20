@@ -4,13 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
+	"gopkg.in/yaml.v2"
 )
+
+var templateExpression *regexp.Regexp
 
 func getDefinitions(crd string, resource int, cfg Config, filepath string, binPath string) (string, error) {
 	//the default input format is "yaml"
@@ -144,7 +149,6 @@ func populateTempyaml(yaml string, path string) error {
 		return err
 	}
 	defer file.Close()
-
 	_, err = file.WriteString(yaml)
 	if err != nil {
 		return err
@@ -155,6 +159,29 @@ func populateTempyaml(yaml string, path string) error {
 	}
 
 	return nil
+}
+
+//removeMetadataFromCRD is used because in few cases (like linkerd), helm templating might be used there which makes the yaml invalid.
+//As we do not need metadata anyways in the filters required to generate components, we can remove this field entirely.
+func removeMetadataFromCRD(crdyaml *string) {
+	y := strings.Split(*crdyaml, "\n---\n")
+	var yamlArr []string
+	for _, y0 := range y {
+		if y0 == "" {
+			continue
+		}
+		y0 = templateExpression.ReplaceAllString(y0, "meshery")
+		var c map[string]interface{}
+		err := yaml.Unmarshal([]byte(y0), &c)
+		if err != nil {
+			fmt.Println("Error unmarshalling: ", err.Error())
+			return
+		}
+		delete(c, "metadata")
+		temp, _ := yaml.Marshal(c)
+		yamlArr = append(yamlArr, string(temp))
+	}
+	*crdyaml = strings.Join(yamlArr, "\n---\n")
 }
 
 func getCrdnames(s string) []string {
@@ -322,4 +349,8 @@ func switchedCasing(a byte, b byte) int {
 		return bigToSmall
 	}
 	return samegroup
+}
+
+func init() {
+	templateExpression = regexp.MustCompile(`{{.+}}`)
 }

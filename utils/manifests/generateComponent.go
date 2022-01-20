@@ -45,6 +45,7 @@ func GenerateComponents(manifest string, resource int, cfg Config) (*Component, 
 		return nil, err
 	}
 	path := filepath.Join(wd, "test.yaml")
+	removeMetadataFromCRD(&manifest)
 	err := populateTempyaml(manifest, path)
 	if err != nil {
 		return nil, err
