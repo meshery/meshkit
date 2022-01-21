@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
-	"gopkg.in/yaml.v2"
 )
 
 var templateExpression *regexp.Regexp
@@ -171,15 +169,7 @@ func removeMetadataFromCRD(crdyaml *string) {
 			continue
 		}
 		y0 = templateExpression.ReplaceAllString(y0, "meshery")
-		var c map[string]interface{}
-		err := yaml.Unmarshal([]byte(y0), &c)
-		if err != nil {
-			fmt.Println("Error unmarshalling: ", err.Error())
-			return
-		}
-		delete(c, "metadata")
-		temp, _ := yaml.Marshal(c)
-		yamlArr = append(yamlArr, string(temp))
+		yamlArr = append(yamlArr, string(y0))
 	}
 	*crdyaml = strings.Join(yamlArr, "\n---\n")
 }
