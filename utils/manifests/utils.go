@@ -160,7 +160,7 @@ func populateTempyaml(yaml string, path string) error {
 }
 
 //removeMetadataFromCRD is used because in few cases (like linkerd), helm templating might be used there which makes the yaml invalid.
-//As we do not need metadata anyways in the filters required to generate components, we can remove this field entirely.
+//As those templates are useless for component creatin, we can replace them with "meshery" to make the YAML valid
 func removeMetadataFromCRD(crdyaml *string) {
 	y := strings.Split(*crdyaml, "\n---\n")
 	var yamlArr []string
