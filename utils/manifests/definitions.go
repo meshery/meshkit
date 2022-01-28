@@ -19,6 +19,7 @@ type Component struct {
 
 type Config struct {
 	Name            string                 // Name of the service mesh,or k8 or meshery
+	Type            string                 //Type of the workload like- Istio, TraefikMesh, Kuma, OSM, Linkerd,AppMesh,NginxMesh
 	MeshVersion     string                 // For service meshes
 	Filter          CrdFilter              //json path filters
 	K8sVersion      string                 //For K8ss

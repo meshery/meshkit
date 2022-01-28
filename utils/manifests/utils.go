@@ -45,6 +45,12 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
 			"k8sKind":       crd,
 		}
+		def.Spec.DefinitionRef.Name = strings.ToLower(crd)
+		if cfg.Type != "" {
+			def.ObjectMeta.Name += "." + cfg.Type
+			def.Spec.DefinitionRef.Name += "." + cfg.Type
+		}
+		def.Spec.DefinitionRef.Name += ".meshery.layer5.io"
 	case K8s:
 		def.Spec.Metadata = map[string]string{
 			"@type":         "pattern.meshery.io/k8s",
