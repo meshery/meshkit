@@ -7,10 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
 )
+
+var templateExpression *regexp.Regexp
 
 func getDefinitions(crd string, resource int, cfg Config, filepath string, binPath string) (string, error) {
 	//the default input format is "yaml"
@@ -144,7 +147,6 @@ func populateTempyaml(yaml string, path string) error {
 		return err
 	}
 	defer file.Close()
-
 	_, err = file.WriteString(yaml)
 	if err != nil {
 		return err
@@ -155,6 +157,21 @@ func populateTempyaml(yaml string, path string) error {
 	}
 
 	return nil
+}
+
+//removeMetadataFromCRD is used because in few cases (like linkerd), helm templating might be used there which makes the yaml invalid.
+//As those templates are useless for component creatin, we can replace them with "meshery" to make the YAML valid
+func removeHelmTemplatingFromCRD(crdyaml *string) {
+	y := strings.Split(*crdyaml, "\n---\n")
+	var yamlArr []string
+	for _, y0 := range y {
+		if y0 == "" {
+			continue
+		}
+		y0 = templateExpression.ReplaceAllString(y0, "meshery")
+		yamlArr = append(yamlArr, string(y0))
+	}
+	*crdyaml = strings.Join(yamlArr, "\n---\n")
 }
 
 func getCrdnames(s string) []string {
@@ -322,4 +339,8 @@ func switchedCasing(a byte, b byte) int {
 		return bigToSmall
 	}
 	return samegroup
+}
+
+func init() {
+	templateExpression = regexp.MustCompile(`{{.+}}`)
 }

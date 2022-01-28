@@ -13,13 +13,13 @@ require (
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v0.4.0
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.2.0
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/nats-io/nats-server/v2 v2.1.2 // indirect
 	github.com/nats-io/nats.go v1.9.1
 	github.com/onsi/ginkgo v1.14.1 // indirect
-	github.com/onsi/gomega v1.10.2 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
@@ -33,7 +33,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/sqlite v1.1.4
 	gorm.io/gorm v1.20.10
-	helm.sh/helm/v3 v3.6.3
+	helm.sh/helm/v3 v3.7.2
 	k8s.io/api v0.23.0-alpha.1
 	k8s.io/apimachinery v0.23.0-alpha.1
 	k8s.io/cli-runtime v0.23.0-alpha.1
@@ -42,6 +42,5 @@ require (
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
 	k8s.io/kubectl v0.23.0-alpha.1
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b // indirect
-	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/kustomize/api v0.10.1 // indirect
 )
