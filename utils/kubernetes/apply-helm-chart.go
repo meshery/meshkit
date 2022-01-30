@@ -423,7 +423,6 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 		return func(c *chart.Chart) error {
 			act := action.NewUninstall(actionConfig)
 			act.DryRun = cfg.DryRun
-			act.Wait = true
 			if _, err := act.Run(c.Name()); err != nil {
 				return ErrApplyHelmChart(err)
 			}
@@ -434,7 +433,6 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 			act := action.NewUpgrade(actionConfig)
 			act.Namespace = cfg.Namespace
 			act.DryRun = cfg.DryRun
-			act.Wait = true
 			if _, err := act.Run(c.Name(), c, cfg.OverrideValues); err != nil {
 				return ErrApplyHelmChart(err)
 			}
@@ -447,7 +445,6 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 			act.CreateNamespace = cfg.CreateNamespace
 			act.Namespace = cfg.Namespace
 			act.DryRun = cfg.DryRun
-			act.Wait = true
 			if _, err := act.Run(c, cfg.OverrideValues); err != nil {
 				return ErrApplyHelmChart(err)
 			}
