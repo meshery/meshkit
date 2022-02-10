@@ -54,8 +54,11 @@ func New(appname string, opts Options) (Handler, error) {
 
 	// log.SetReportCaller(true)
 	log.SetOutput(os.Stdout)
-	log.SetLevel(logrus.InfoLevel)
+	if opts.Output != nil {
+		log.SetOutput(opts.Output)
+	}
 
+	log.SetLevel(logrus.InfoLevel)
 	if opts.DebugLevel {
 		log.SetLevel(logrus.DebugLevel)
 	}
