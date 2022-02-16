@@ -3,7 +3,7 @@ package database
 import (
 	"sync"
 
-	"github.com/layer5io/meshkit/logger"
+	"github.com/meshery/meshkit/logger"
 	sqlite "gorm.io/driver/sqlite"
 	gormpkg "gorm.io/gorm"
 )

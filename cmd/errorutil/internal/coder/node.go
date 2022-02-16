@@ -5,15 +5,15 @@ import (
 	"go/ast"
 	"strings"
 
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 	"github.com/sirupsen/logrus"
 
-	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
+	errutilerr "github.com/meshery/meshkit/cmd/errorutil/internal/error"
 )
 
 // isNewDefaultCallExpr tests whether the node is a call expression for NewDefault.
 // It returns the package identifier for convenience, empty for a dot-import.
-// It does not verify that the actual type is from github.com/layer5io/meshkit/errors.
+// It does not verify that the actual type is from github.com/meshery/meshkit/errors.
 func isNewDefaultCallExpr(node ast.Node) (string, bool) {
 	if ce, ok := node.(*ast.CallExpr); ok {
 		pkg, name, ok2 := isSelectorOrIdent(ce.Fun)

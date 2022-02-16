@@ -1,6 +1,6 @@
 package walker
 
-import "github.com/layer5io/meshkit/errors"
+import "github.com/meshery/meshkit/errors"
 
 var (
 	ErrInvalidSizeFileCode = "11072"

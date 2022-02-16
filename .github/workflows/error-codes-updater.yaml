@@ -9,7 +9,7 @@ on:
 jobs:
   Update-error-codes:
     name: Error codes utility
-    if: github.repository == 'layer5io/meshkit'
+    if: github.repository == 'meshery/meshkit'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -25,7 +25,7 @@ jobs:
 
       - name: Run utility
         run: |
-          go run github.com/layer5io/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
+          go run github.com/meshery/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
 
       # to update errorutil* files in meshkit repo
       - name: Commit changes

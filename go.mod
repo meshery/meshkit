@@ -1,4 +1,4 @@
-module github.com/layer5io/meshkit
+module github.com/meshery/meshkit
 
 go 1.13
 

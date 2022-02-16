@@ -1,7 +1,7 @@
 package expose
 
 import (
-	"github.com/layer5io/meshkit/errors"
+	"github.com/meshery/meshkit/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"

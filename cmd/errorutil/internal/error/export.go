@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
+	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
+	"github.com/meshery/meshkit/cmd/errorutil/internal/config"
 	log "github.com/sirupsen/logrus"
 )
 

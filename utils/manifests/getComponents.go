@@ -1,8 +1,8 @@
 package manifests
 
 import (
-	"github.com/layer5io/meshkit/utils"
-	k8s "github.com/layer5io/meshkit/utils/kubernetes"
+	"github.com/meshery/meshkit/utils"
+	k8s "github.com/meshery/meshkit/utils/kubernetes"
 )
 
 func GetFromManifest(url string, resource int, cfg Config) (*Component, error) {

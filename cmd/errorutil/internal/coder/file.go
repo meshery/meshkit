@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
+	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
+	errutilerr "github.com/meshery/meshkit/cmd/errorutil/internal/error"
 	"github.com/sirupsen/logrus"
 )
 
