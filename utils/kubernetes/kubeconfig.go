@@ -20,7 +20,7 @@ func (c *Client) GetKubeConfig() (*models.Kubeconfig, error) {
 	var config *models.Kubeconfig
 	file, err := os.ReadFile(kubeconfig)
 	if err != nil {
-		err = errors.Wrap(err, "could not read kube config:")
+		err = errors.Wrap(err, "could not read kubeconfig:")
 		return nil, err
 	}
 	if err := yaml.Unmarshal(file, &config); err != nil {
