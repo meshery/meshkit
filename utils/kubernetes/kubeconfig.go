@@ -36,9 +36,5 @@ func (c *Client) GetCurrentContext() (string, error) {
 		return "", err
 	}
 
-	if config.CurrentContext == "" {
-		return "", errors.New("current context cluster not found or empty")
-	}
-
 	return config.CurrentContext, nil
 }
