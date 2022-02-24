@@ -481,6 +481,22 @@ func HelmConvertAppVersionToChartVersion(repo, chart, appVersion string) (string
 
 // HelmAppVersionToChartVersion takes in the repo, chart and app version and
 // returns the corresponding chart version for the same without normalizing the app version
+func HelmChartVersionToAppVersion(repo, chart, chartVersion string) (string, error) {
+	helmIndex, err := createHelmIndex(repo)
+	if err != nil {
+		return "", ErrCreatingHelmIndex(err)
+	}
+
+	entryMetadata, exists := helmIndex.Entries.GetEntryWithChartVersion(chart, chartVersion)
+	if !exists {
+		return "", ErrEntryWithChartVersionNotExists(chart, chartVersion)
+	}
+
+	return entryMetadata.AppVersion, nil
+}
+
+// HelmAppVersionToChartVersion takes in the repo, chart and app version and
+// returns the corresponding chart version for the same without normalizing the app version
 func HelmAppVersionToChartVersion(repo, chart, appVersion string) (string, error) {
 	helmIndex, err := createHelmIndex(repo)
 	if err != nil {
@@ -530,6 +546,23 @@ func (helmEntries HelmEntries) GetEntryWithAppVersion(entry, appVersion string) 
 
 	for _, v := range hem {
 		if v.Name == entry && v.AppVersion == appVersion {
+			return v, true
+		}
+	}
+
+	return HelmEntryMetadata{}, false
+}
+
+// GetEntryWithAppVersion takes in the entry name and the appversion and returns the corresponding
+// metadata for the parameters if it exists
+func (helmEntries HelmEntries) GetEntryWithChartVersion(entry, chartVersion string) (HelmEntryMetadata, bool) {
+	hem, ok := helmEntries[entry]
+	if !ok {
+		return HelmEntryMetadata{}, false
+	}
+
+	for _, v := range hem {
+		if v.Name == entry && v.Version == chartVersion {
 			return v, true
 		}
 	}
