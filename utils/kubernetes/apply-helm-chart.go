@@ -479,8 +479,8 @@ func HelmConvertAppVersionToChartVersion(repo, chart, appVersion string) (string
 	return HelmAppVersionToChartVersion(repo, chart, normalizeVersion(appVersion))
 }
 
-// HelmAppVersionToChartVersion takes in the repo, chart and app version and
-// returns the corresponding chart version for the same without normalizing the app version
+// HelmChartVersionToAppVersion takes in the repo, chart and chart version and
+// returns the corresponding app version for the same without normalizing the app version
 func HelmChartVersionToAppVersion(repo, chart, chartVersion string) (string, error) {
 	helmIndex, err := createHelmIndex(repo)
 	if err != nil {
