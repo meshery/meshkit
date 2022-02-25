@@ -33,9 +33,11 @@ var (
 	// ErrDecodeYamlCode represents the error which is generated when yaml
 	// decode process fails
 	ErrDecodeYamlCode = "11035"
-
-	ErrEndpointNotFound = errors.New(ErrEndpointNotFoundCode, errors.Alert, []string{"Unable to discover an endpoint"}, []string{}, []string{}, []string{})
-	ErrInvalidAPIServer = errors.New(ErrInvalidAPIServerCode, errors.Alert, []string{"Invalid API Server URL"}, []string{}, []string{}, []string{})
+	// ErrEntryWithChartVersionNotExistsCode represents the error which is generated
+	// when no entry is found with specified name and app version
+	ErrEntryWithChartVersionNotExistsCode = "11036"
+	ErrEndpointNotFound                   = errors.New(ErrEndpointNotFoundCode, errors.Alert, []string{"Unable to discover an endpoint"}, []string{}, []string{}, []string{})
+	ErrInvalidAPIServer                   = errors.New(ErrInvalidAPIServerCode, errors.Alert, []string{"Invalid API Server URL"}, []string{}, []string{}, []string{})
 )
 
 func ErrApplyManifest(err error) error {
@@ -90,6 +92,11 @@ func ErrCreatingHelmIndex(err error) error {
 // ErrEntryWithAppVersionNotExists is the error when an entry with the given app version is not found
 func ErrEntryWithAppVersionNotExists(entry, appVersion string) error {
 	return errors.New(ErrEntryWithAppVersionNotExistsCode, errors.Alert, []string{"Entry for the app version does not exist"}, []string{fmt.Sprintf("entry %s with app version %s does not exists", entry, appVersion)}, []string{}, []string{})
+}
+
+// ErrEntryWithChartVersionNotExists is the error when an entry with the given chart version is not found
+func ErrEntryWithChartVersionNotExists(entry, appVersion string) error {
+	return errors.New(ErrEntryWithChartVersionNotExistsCode, errors.Alert, []string{"Entry for the chart version does not exist"}, []string{fmt.Sprintf("entry %s with chart version %s does not exists", entry, appVersion)}, []string{}, []string{})
 }
 
 // ErrHelmRepositoryNotFound is the error when no valid remote helm repository is found
