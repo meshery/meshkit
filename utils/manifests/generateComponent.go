@@ -2,6 +2,7 @@ package manifests
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,7 +13,7 @@ import (
 )
 
 // GenerateComponents generates components given manifest(yaml/json) ,resource type, and additional configuration
-func GenerateComponents(manifest string, resource int, cfg Config) (*Component, error) {
+func GenerateComponents(ctx context.Context, manifest string, resource int, cfg Config) (*Component, error) {
 	var inputFormat = "yaml"
 	if cfg.Filter.IsJson {
 		inputFormat = "json"
@@ -61,7 +62,7 @@ func GenerateComponents(manifest string, resource int, cfg Config) (*Component, 
 			er  bytes.Buffer
 		)
 		filteroot := cfg.Filter.RootFilter
-		err = filterYaml(path, filteroot, binPath, inputFormat)
+		err = filterYaml(ctx, path, filteroot, binPath, inputFormat)
 		if err != nil {
 			return nil, err
 		}
@@ -69,7 +70,7 @@ func GenerateComponents(manifest string, resource int, cfg Config) (*Component, 
 		filteroot = append(filteroot, "-o", "json", "--o-filter")
 		filteroot = append(filteroot, filter...)
 		getCrdsCmdArgs := append([]string{"--location", path, "-t", inputFormat, "--filter"}, filteroot...)
-		cmd := exec.Command(binPath, getCrdsCmdArgs...)
+		cmd := exec.CommandContext(ctx, binPath, getCrdsCmdArgs...)
 		//emptying buffers
 		out.Reset()
 		er.Reset()
@@ -85,11 +86,11 @@ func GenerateComponents(manifest string, resource int, cfg Config) (*Component, 
 	}
 
 	for _, crd := range crds {
-		outDef, err := getDefinitions(crd, resource, cfg, path, binPath)
+		outDef, err := getDefinitions(crd, resource, cfg, path, binPath, ctx)
 		if err != nil {
 			return nil, err
 		}
-		outSchema, err := getSchema(crd, path, binPath, cfg)
+		outSchema, err := getSchema(crd, path, binPath, cfg, ctx)
 		if err != nil {
 			return nil, ErrGetSchemas(err)
 		}
