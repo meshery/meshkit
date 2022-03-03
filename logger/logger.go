@@ -17,7 +17,7 @@ type Handler interface {
 	Error(err error)
 
 	// Kubernetes Controller compliant logger
-	ControllerLogger() logr.LogSink
+	ControllerLogger() logr.Logger
 	DatabaseLogger() gormlogger.Interface
 }
 
