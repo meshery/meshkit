@@ -2,6 +2,7 @@ package manifests
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -15,7 +16,7 @@ import (
 
 var templateExpression *regexp.Regexp
 
-func getDefinitions(crd string, resource int, cfg Config, filepath string, binPath string) (string, error) {
+func getDefinitions(crd string, resource int, cfg Config, filepath string, binPath string, ctx context.Context) (string, error) {
 	//the default input format is "yaml"
 	inputFormat := "yaml"
 	if cfg.Filter.IsJson {
@@ -23,11 +24,11 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 	}
 	var def v1alpha1.WorkloadDefinition
 	definitionRef := strings.ToLower(crd) + ".meshery.layer5.io"
-	apiVersion, err := getApiVersion(binPath, filepath, crd, inputFormat, cfg)
+	apiVersion, err := getApiVersion(binPath, filepath, crd, inputFormat, cfg, ctx)
 	if err != nil {
 		return "", ErrGetAPIVersion(err)
 	}
-	apiGroup, err := getApiGrp(binPath, filepath, crd, inputFormat, cfg)
+	apiGroup, err := getApiGrp(ctx, binPath, filepath, crd, inputFormat, cfg)
 	if err != nil {
 		return "", ErrGetAPIGroup(err)
 	}
@@ -45,6 +46,12 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
 			"k8sKind":       crd,
 		}
+		def.Spec.DefinitionRef.Name = strings.ToLower(crd)
+		if cfg.Type != "" {
+			def.ObjectMeta.Name += "." + cfg.Type
+			def.Spec.DefinitionRef.Name += "." + cfg.Type
+		}
+		def.Spec.DefinitionRef.Name += ".meshery.layer5.io"
 	case K8s:
 		def.Spec.Metadata = map[string]string{
 			"@type":         "pattern.meshery.io/k8s",
@@ -66,7 +73,7 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 	return string(out), nil
 }
 
-func getSchema(crd string, fp string, binPath string, cfg Config) (string, error) {
+func getSchema(crd string, fp string, binPath string, cfg Config, ctx context.Context) (string, error) {
 	//few checks to avoid index out of bound panic
 	if len(cfg.Filter.ItrSpecFilter) == 0 {
 		return "", ErrAbsentFilter(errors.New("Empty ItrSpecFilter"))
@@ -87,7 +94,7 @@ func getSchema(crd string, fp string, binPath string, cfg Config) (string, error
 		}
 		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
 		getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.SpecFilter...)
-		schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
+		schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
 		schemaCmd.Stdout = &out
 		schemaCmd.Stderr = &er
 		err := schemaCmd.Run()
@@ -105,7 +112,7 @@ func getSchema(crd string, fp string, binPath string, cfg Config) (string, error
 		if len(cfg.Filter.ResolveFilter) != 0 {
 			getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.ResolveFilter...)
 		}
-		schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
+		schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
 		schemaCmd.Stdout = &out
 		schemaCmd.Stderr = &er
 		err := schemaCmd.Run()
@@ -185,7 +192,7 @@ func getCrdnames(s string) []string {
 	return crds[1 : len(crds)-2] // first and last characters are "[" and "]" respectively
 }
 
-func getApiVersion(binPath string, fp string, crd string, inputFormat string, cfg Config) (string, error) {
+func getApiVersion(binPath string, fp string, crd string, inputFormat string, cfg Config, ctx context.Context) (string, error) {
 	//few checks to avoid index out of bound panic
 	if len(cfg.Filter.ItrFilter) == 0 {
 		return "", ErrAbsentFilter(errors.New("Empty ItrFilter"))
@@ -202,7 +209,7 @@ func getApiVersion(binPath string, fp string, crd string, inputFormat string, cf
 	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
 	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.VersionFilter...)
 
-	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
+	schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
 	schemaCmd.Stdout = &out
 	schemaCmd.Stderr = &er
 	err := schemaCmd.Run()
@@ -224,7 +231,7 @@ func getApiVersion(binPath string, fp string, crd string, inputFormat string, cf
 	s := strings.ReplaceAll(string(output), "\"", "")
 	return s, nil
 }
-func getApiGrp(binPath string, fp string, crd string, inputFormat string, cfg Config) (string, error) {
+func getApiGrp(ctx context.Context, binPath string, fp string, crd string, inputFormat string, cfg Config) (string, error) {
 	//few checks to avoid index out of bound panic
 	if len(cfg.Filter.ItrFilter) == 0 {
 		return "", ErrAbsentFilter(errors.New("Empty ItrFilter"))
@@ -239,7 +246,7 @@ func getApiGrp(binPath string, fp string, crd string, inputFormat string, cfg Co
 	}
 	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
 	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.GroupFilter...)
-	schemaCmd := exec.Command(binPath, getAPIvCmdArgs...)
+	schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
 	schemaCmd.Stdout = &out
 	schemaCmd.Stderr = &er
 
@@ -263,14 +270,14 @@ func getApiGrp(binPath string, fp string, crd string, inputFormat string, cfg Co
 	return s, nil
 }
 
-func filterYaml(yamlPath string, filter []string, binPath string, inputFormat string) error {
+func filterYaml(ctx context.Context, yamlPath string, filter []string, binPath string, inputFormat string) error {
 	var (
 		out bytes.Buffer
 		er  bytes.Buffer
 	)
 	filter = append(filter, "-o", "yaml")
 	getCrdsCmdArgs := append([]string{"--location", yamlPath, "-t", inputFormat, "--filter"}, filter...)
-	cmd := exec.Command(binPath, getCrdsCmdArgs...)
+	cmd := exec.CommandContext(ctx, binPath, getCrdsCmdArgs...)
 	//emptying buffers
 	out.Reset()
 	er.Reset()

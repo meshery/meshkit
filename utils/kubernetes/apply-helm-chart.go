@@ -423,7 +423,6 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 		return func(c *chart.Chart) error {
 			act := action.NewUninstall(actionConfig)
 			act.DryRun = cfg.DryRun
-			act.Wait = true
 			if _, err := act.Run(c.Name()); err != nil {
 				return ErrApplyHelmChart(err)
 			}
@@ -434,7 +433,6 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 			act := action.NewUpgrade(actionConfig)
 			act.Namespace = cfg.Namespace
 			act.DryRun = cfg.DryRun
-			act.Wait = true
 			if _, err := act.Run(c.Name(), c, cfg.OverrideValues); err != nil {
 				return ErrApplyHelmChart(err)
 			}
@@ -447,7 +445,6 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 			act.CreateNamespace = cfg.CreateNamespace
 			act.Namespace = cfg.Namespace
 			act.DryRun = cfg.DryRun
-			act.Wait = true
 			if _, err := act.Run(c, cfg.OverrideValues); err != nil {
 				return ErrApplyHelmChart(err)
 			}
@@ -480,6 +477,22 @@ func createHelmPathFromHelmChartLocation(loc HelmChartLocation) (string, error) 
 // returns the corresponding chart version for the same
 func HelmConvertAppVersionToChartVersion(repo, chart, appVersion string) (string, error) {
 	return HelmAppVersionToChartVersion(repo, chart, normalizeVersion(appVersion))
+}
+
+// HelmChartVersionToAppVersion takes in the repo, chart and chart version and
+// returns the corresponding app version for the same without normalizing the app version
+func HelmChartVersionToAppVersion(repo, chart, chartVersion string) (string, error) {
+	helmIndex, err := createHelmIndex(repo)
+	if err != nil {
+		return "", ErrCreatingHelmIndex(err)
+	}
+
+	entryMetadata, exists := helmIndex.Entries.GetEntryWithChartVersion(chart, chartVersion)
+	if !exists {
+		return "", ErrEntryWithChartVersionNotExists(chart, chartVersion)
+	}
+
+	return entryMetadata.AppVersion, nil
 }
 
 // HelmAppVersionToChartVersion takes in the repo, chart and app version and
@@ -533,6 +546,23 @@ func (helmEntries HelmEntries) GetEntryWithAppVersion(entry, appVersion string) 
 
 	for _, v := range hem {
 		if v.Name == entry && v.AppVersion == appVersion {
+			return v, true
+		}
+	}
+
+	return HelmEntryMetadata{}, false
+}
+
+// GetEntryWithAppVersion takes in the entry name and the appversion and returns the corresponding
+// metadata for the parameters if it exists
+func (helmEntries HelmEntries) GetEntryWithChartVersion(entry, chartVersion string) (HelmEntryMetadata, bool) {
+	hem, ok := helmEntries[entry]
+	if !ok {
+		return HelmEntryMetadata{}, false
+	}
+
+	for _, v := range hem {
+		if v.Name == entry && v.Version == chartVersion {
 			return v, true
 		}
 	}
