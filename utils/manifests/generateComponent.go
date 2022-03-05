@@ -19,6 +19,10 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 		inputFormat = "json"
 	}
 	wd := filepath.Join(utils.GetHome(), ".meshery", "bin")
+	err := os.Mkdir(wd, 0750)
+	if err != nil && !os.IsExist(err) {
+		return nil, err
+	}
 	fmt.Println("Looking for kubeopenapi-jsonschema in ", wd)
 	var binPath string = filepath.Join(wd, "kubeopenapi-jsonschema")
 	var url string = "https://github.com/layer5io/kubeopenapi-jsonschema/releases/download/v0.1.2/kubeopenapi-jsonschema"
@@ -47,7 +51,7 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 	}
 	path := filepath.Join(wd, "test.yaml")
 	removeHelmTemplatingFromCRD(&manifest)
-	err := populateTempyaml(manifest, path)
+	err = populateTempyaml(manifest, path)
 	if err != nil {
 		return nil, err
 	}
