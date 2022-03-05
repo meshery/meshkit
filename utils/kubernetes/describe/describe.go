@@ -98,6 +98,7 @@ func Describe(client *meshkitkube.Client, options DescriberOptions) (string, err
 
 	describerSetting := describe.DescriberSettings{
 		ShowEvents: options.ShowEvents,
+		ChunkSize:  options.ChunkSize,
 	}
 	output, err := describer.Describe(options.Namespace, options.Name, describerSetting)
 	if err != nil {
