@@ -21,7 +21,7 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 	wd := filepath.Join(utils.GetHome(), ".meshery", "bin")
 	err := os.Mkdir(wd, 0750)
 	if err != nil && !os.IsExist(err) {
-		return nil, err
+		return nil, ErrCreatingDirectory(err)
 	}
 	fmt.Println("Looking for kubeopenapi-jsonschema in ", wd)
 	var binPath string = filepath.Join(wd, "kubeopenapi-jsonschema")

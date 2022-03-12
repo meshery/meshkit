@@ -3,12 +3,13 @@ package manifests
 import "github.com/layer5io/meshkit/errors"
 
 const (
-	ErrGetCrdNamesCode    = "1001"
-	ErrGetSchemasCode     = "1002"
-	ErrGetAPIVersionCode  = "1003"
-	ErrGetAPIGroupCode    = "1004"
-	ErrPopulatingYamlCode = "1005"
-	ErrAbsentFilterCode   = "1006"
+	ErrGetCrdNamesCode       = "1001"
+	ErrGetSchemasCode        = "1002"
+	ErrGetAPIVersionCode     = "1003"
+	ErrGetAPIGroupCode       = "1004"
+	ErrPopulatingYamlCode    = "1005"
+	ErrAbsentFilterCode      = "1006"
+	ErrCreatingDirectoryCode = "1007"
 )
 
 func ErrGetCrdNames(err error) error {
@@ -30,4 +31,7 @@ func ErrPopulatingYaml(err error) error {
 }
 func ErrAbsentFilter(err error) error {
 	return errors.New(ErrAbsentFilterCode, errors.Alert, []string{"Error with passed filters"}, []string{err.Error()}, []string{"ItrFilter or ItrSpecFilter is either not passed or empty"}, []string{"Pass the correct ItrFilter and ItrSpecFilter"})
+}
+func ErrCreatingDirectory(err error) error {
+	return errors.New(ErrCreatingDirectoryCode, errors.Alert, []string{"could not create directory"}, []string{err.Error()}, []string{"proper file permissions were not set"}, []string{"check the appropriate file permissions"})
 }
