@@ -117,6 +117,12 @@ type ApplyHelmChartConfig struct {
 	// are defined then URL is given the preferenece
 	ChartLocation HelmChartLocation
 
+	// ReleaseName for deploying charts
+	ReleaseName string
+
+	// SkipCRDs while installation
+	SkipCRDs bool
+
 	// URL is the url for charts
 	//
 	// Either ChartLocation or URL can be defined, if both of them
@@ -279,7 +285,7 @@ func updateActionIfReleaseFound(actionConfig *action.Configuration, cfg *ApplyHe
 	}
 
 	for _, r := range releases {
-		if r.Name == c.Name() {
+		if r.Name == cfg.ReleaseName {
 			cfg.Action = UPGRADE
 			return nil
 		}
@@ -441,7 +447,7 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 	default:
 		return func(c *chart.Chart) error {
 			act := action.NewInstall(actionConfig)
-			act.ReleaseName = c.Name()
+			act.ReleaseName = cfg.ReleaseName
 			act.CreateNamespace = cfg.CreateNamespace
 			act.Namespace = cfg.Namespace
 			act.DryRun = cfg.DryRun
