@@ -251,7 +251,9 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
-
+	if cfg.ReleaseName == "" {
+		cfg.ReleaseName = helmChart.Name()
+	}
 	if err = checkIfInstallable(helmChart); err != nil {
 		return ErrApplyHelmChart(err)
 	}
