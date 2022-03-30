@@ -10,6 +10,7 @@ replace (
 )
 
 require (
+	github.com/aws/aws-sdk-go v1.34.9
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v0.4.0
