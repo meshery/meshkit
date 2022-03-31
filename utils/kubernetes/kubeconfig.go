@@ -46,7 +46,7 @@ func (c *Client) GetCurrentContext() (string, error) {
 	return config.CurrentContext, nil
 }
 
-func WriteEKSConfig(clusterName, region, namespace string) error {
+func WriteEKSConfig(clusterName, region, configPath string) error {
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region: aws.String(region),
 	}))
@@ -71,7 +71,7 @@ func WriteEKSConfig(clusterName, region, namespace string) error {
 	contexts[cname] = &clientcmdapi.Context{
 		Cluster: cname,
 	}
-	// Can be switched for k8s.io/client-go/rest.Config
+
 	clientConfig := clientcmdapi.Config{
 		Kind:           "Config",
 		APIVersion:     "v1",
@@ -79,5 +79,8 @@ func WriteEKSConfig(clusterName, region, namespace string) error {
 		Contexts:       contexts,
 		CurrentContext: cname,
 	}
-	clientcmd.WriteToFile(clientConfig, namespace+utils.ConfigPath)
+	if err := clientcmd.WriteToFile(clientConfig, configPath); err != nil {
+		return err
+	}
+	return nil
 }
