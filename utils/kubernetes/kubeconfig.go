@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -79,8 +80,20 @@ func WriteEKSConfig(clusterName, region, configPath string) error {
 		Contexts:       contexts,
 		CurrentContext: cname,
 	}
+
+	prevConfigbytes, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+	tmpArch := "tmp/kube/config"
+	err = os.WriteFile(tmpArch, prevConfigbytes, 0644)
+	if err != nil {
+		return err
+	}
+	log.Printf("Warning: Overwriting previous config, archived config at %s", tmpArch)
 	if err := clientcmd.WriteToFile(clientConfig, configPath); err != nil {
 		return err
 	}
+	// O_CREATE   O_TRUNC
 	return nil
 }
