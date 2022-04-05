@@ -9,8 +9,23 @@ replace (
 	vbom.ml/util => github.com/fvbommel/util v0.0.0-20180919145318-efcd4e0f9787
 )
 
+replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.6.0
+
+replace github.com/docker/libcompose => github.com/docker/libcompose v0.4.1-0.20190808084053-143e0f3f1ab9
+
+replace github.com/docker/cli => github.com/docker/cli v20.10.0-beta1.0.20201029214301-1d20b15adc38+incompatible
+
+replace github.com/xeipuuv/gojsonschema => github.com/xeipuuv/gojsonschema v1.2.1-0.20201027075954-b076d39a02e5
+
+replace github.com/containerd/containerd => github.com/containerd/containerd v1.4.1-0.20201030150014-3662dc4c0b12
+
+replace golang.org/x/sys => golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
+
+require github.com/kubernetes/kompose v1.26.1
+
 require (
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
+	github.com/garyburd/redigo v1.6.3 // indirect
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v0.4.0
 	github.com/google/uuid v1.2.0
