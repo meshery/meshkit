@@ -1,6 +1,6 @@
 module github.com/layer5io/meshkit
 
-go 1.13
+go 1.17
 
 replace (
 	github.com/docker/docker => github.com/moby/moby v17.12.0-ce-rc1.0.20200618181300-9dc6525e6118+incompatible
