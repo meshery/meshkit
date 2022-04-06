@@ -1,3 +1,6 @@
+include build/Makefile.core.mk
+include build/Makefile.show-help.mk
+
 check:
 	golangci-lint run
 
