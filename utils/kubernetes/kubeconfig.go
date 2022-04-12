@@ -1,10 +1,11 @@
 package kubernetes
 
 import (
+	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -15,6 +16,7 @@ import (
 	"github.com/layer5io/meshkit/models"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/pkg/errors"
+	logger "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -58,7 +60,7 @@ func WriteEKSConfig(clusterName, region, configPath string) error {
 	}
 	result, err := eksSvc.DescribeCluster(input)
 	if err != nil {
-		log.Fatalf("Error calling DescribeCluster: %v", err)
+		return errors.New(fmt.Sprintf("Error calling DescribeCluster: %v", err))
 	}
 
 	cname := *result.Cluster.Arn
@@ -70,7 +72,8 @@ func WriteEKSConfig(clusterName, region, configPath string) error {
 	}
 	contexts := make(map[string]*clientcmdapi.Context)
 	contexts[cname] = &clientcmdapi.Context{
-		Cluster: cname,
+		Cluster:  cname,
+		AuthInfo: cname,
 	}
 
 	clientConfig := clientcmdapi.Config{
@@ -85,12 +88,18 @@ func WriteEKSConfig(clusterName, region, configPath string) error {
 	if err != nil {
 		return err
 	}
-	tmpArch := "tmp/kube/config"
+	t := time.Now().Local().Format(time.RFC3339)
+	// Need for a common project wide directory to dump these archived config
+	err = os.MkdirAll("/tmp/meshery/", os.ModePerm)
+	if err != nil {
+		return err
+	}
+	tmpArch := "tmp/meshery/config" + t + ".yaml"
 	err = os.WriteFile(tmpArch, prevConfigbytes, 0644)
 	if err != nil {
 		return err
 	}
-	log.Printf("Warning: Overwriting previous config, archived config at %s", tmpArch)
+	logger.WithFields(logger.Fields{"archived": tmpArch}).Warn("Overwriting previous config, archived config at %s", tmpArch)
 	if err := clientcmd.WriteToFile(clientConfig, configPath); err != nil {
 		return err
 	}
