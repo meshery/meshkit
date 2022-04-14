@@ -520,12 +520,12 @@ func HelmAppVersionToChartVersion(repo, chart, appVersion string) (string, error
 }
 
 // createHelmIndex takes in the repo name and creates a
-// helm index for it. Helm index is basically marshalled version of
+// helm index for it. Helm index is basically marshaled version of
 // index.yaml file present in the remote helm repository
 func createHelmIndex(repo string) (*HelmIndex, error) {
 	url := fmt.Sprintf("%s/index.yaml", repo)
 
-	// helm repository path will alaways be varaible hence,
+	// helm repository path will alaways be variable hence,
 	// #nosec
 	resp, err := http.Get(url)
 	if err != nil || resp.StatusCode != http.StatusOK {

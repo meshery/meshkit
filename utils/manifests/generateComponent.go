@@ -33,7 +33,6 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 	case "darwin":
 		binPath += "-darwin"
 		url += "-darwin"
-
 	}
 	//download the binary on that path if it doesn't exist
 	if _, err := os.Stat(binPath); os.IsNotExist(err) {
