@@ -12,7 +12,6 @@ import (
 
 // DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
-
 	if len(configfile) > 0 {
 		cfgFile, err := processConfig(configfile)
 		if err != nil {

@@ -19,18 +19,20 @@ type Controller struct {
 	base    *Logger
 }
 
-func (l *Logger) ControllerLogger() logr.Logger {
+func (l *Logger) ControllerLogger() logr.LogSink {
 	return &Controller{
 		enabled: true,
 		base:    l,
 	}
 }
 
-func (c *Controller) Enabled() bool {
+func (c *Controller) Init(info logr.RuntimeInfo) {}
+
+func (c *Controller) Enabled(level int) bool {
 	return c.enabled
 }
 
-func (c *Controller) Info(msg string, keysAndValues ...interface{}) {
+func (c *Controller) Info(level int, msg string, keysAndValues ...interface{}) {
 	c.base.Info(msg)
 }
 
@@ -38,16 +40,16 @@ func (c *Controller) Error(err error, msg string, keysAndValues ...interface{}) 
 	c.base.Error(ErrController(err, msg))
 }
 
-func (c *Controller) V(level int) logr.Logger {
+func (c *Controller) V(level int) *Controller {
 	return c
 }
 
-func (c *Controller) WithValues(keysAndValues ...interface{}) logr.Logger {
+func (c *Controller) WithValues(keysAndValues ...interface{}) logr.LogSink {
 	c.base.handler.Log(logrus.InfoLevel, keysAndValues...)
 	return c
 }
 
-func (c *Controller) WithName(name string) logr.Logger {
+func (c *Controller) WithName(name string) logr.LogSink {
 	c.base.handler.WithField("name", name)
 	return c
 }

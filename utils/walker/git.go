@@ -177,7 +177,6 @@ func clonewalk(g *Git) error {
 		return err
 	}
 	for _, f := range files {
-
 		path := filepath.Join(path, g.root, f.Name())
 		if f.IsDir() && g.dirInterceptor != nil {
 			name := f.Name()

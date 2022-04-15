@@ -93,7 +93,7 @@ linters:
     # - gocyclo
     - gofmt
     - goimports
-    - revive
+    # - revive
     # todo[kusthedude]: restore gosec check, once this issue is resolved https://github.com/golangci/golangci-lint/issues/177
     # - gosec
     # - gomnd
@@ -110,7 +110,7 @@ linters:
     # - scopelint
     - staticcheck
     # - structcheck
-    - stylecheck
+    # - stylecheck
     - typecheck
     # - unconvert
     # - unparam

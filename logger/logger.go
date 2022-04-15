@@ -17,7 +17,7 @@ type Handler interface {
 	Error(err error)
 
 	// Kubernetes Controller compliant logger
-	ControllerLogger() logr.Logger
+	ControllerLogger() logr.LogSink
 	DatabaseLogger() gormlogger.Interface
 }
 
@@ -35,7 +35,6 @@ func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 }
 
 func New(appname string, opts Options) (Handler, error) {
-
 	log := logrus.New()
 
 	switch opts.Format {

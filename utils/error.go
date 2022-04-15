@@ -69,5 +69,12 @@ func ErrReadingLocalFile(err error) error {
 }
 
 func ErrGettingLatestReleaseTag(err error) error {
-	return errors.New(ErrGettingLatestReleaseTagCode, errors.Alert, []string{"Could not fetch latest stable release from github"}, []string{err.Error()}, []string{"Failed to make GET request to github", "Invalid response recieved on github.com/<org>/<repo>/releases/stable"}, []string{"Make sure Github is reachable", "Make sure a valid response is available on github.com/<org>/<repo>/releases/stable"})
+	return errors.New(
+		ErrGettingLatestReleaseTagCode,
+		errors.Alert,
+		[]string{"Could not fetch latest stable release from github"},
+		[]string{err.Error()},
+		[]string{"Failed to make GET request to github", "Invalid response received on github.com/<org>/<repo>/releases/stable"},
+		[]string{"Make sure Github is reachable", "Make sure a valid response is available on github.com/<org>/<repo>/releases/stable"},
+	)
 }

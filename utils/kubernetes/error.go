@@ -106,5 +106,5 @@ func ErrHelmRepositoryNotFound(repo string, err error) error {
 
 // ErrDecodeYaml is the error when the yaml unmarshal fails
 func ErrDecodeYaml(err error) error {
-	return errors.New(ErrDecodeYamlCode, errors.Alert, []string{"Error occured while decoding YAML"}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrDecodeYamlCode, errors.Alert, []string{"Error occurred while decoding YAML"}, []string{err.Error()}, []string{}, []string{})
 }

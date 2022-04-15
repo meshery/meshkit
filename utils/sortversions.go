@@ -66,7 +66,7 @@ func cleanup(s string) string {
 	return s1
 }
 
-//SortDottedStringsByDigits takes version-like dot seperated digits in string format and returns them in sorted normalized form.
+//SortDottedStringsByDigits takes version-like dot separated digits in string format and returns them in sorted normalized form.
 // Takes [v1.4.3,0.9.3,v0.0.0]=> returns [v0.0.0,0.9.3,v1.4.3]
 // This function ignores all letters except for:
 // - numeric digits
