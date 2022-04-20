@@ -12,9 +12,9 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 )
 
@@ -406,13 +406,20 @@ func createHelmActionConfig(restConfig rest.Config, cfg ApplyHelmChartConfig) (*
 	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
 
 	// KubeConfig setup
-	kubeConfig := genericclioptions.NewConfigFlags(false)
-	kubeConfig.APIServer = &restConfig.Host
-	kubeConfig.BearerToken = &restConfig.BearerToken
-	kubeConfig.CAFile = &restConfig.CAFile
+	kubeConfig := cli.New()
+	kubeConfig.KubeAPIServer = restConfig.Host
+	kubeConfig.KubeToken = restConfig.BearerToken
+	kubeConfig.KubeCaFile = restConfig.CAFile
+	kubeConfig.SetNamespace(cfg.Namespace)
 
 	actionConfig := new(action.Configuration)
-	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
+	err := actionConfig.Init(
+		kubeConfig.RESTClientGetter(),
+		kubeConfig.Namespace(),
+		string(cfg.HelmDriver),
+		cfg.Logger,
+	)
+	if err != nil {
 		return nil, ErrApplyHelmChart(err)
 	}
 
