@@ -19,11 +19,12 @@ type Controller struct {
 	base    *Logger
 }
 
-func (l *Logger) ControllerLogger() logr.LogSink {
-	return &Controller{
+func (l *Logger) ControllerLogger() logr.Logger {
+	c := &Controller{
 		enabled: true,
 		base:    l,
 	}
+	return logr.New(c)
 }
 
 func (c *Controller) Init(info logr.RuntimeInfo) {}
