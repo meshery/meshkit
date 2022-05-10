@@ -22,4 +22,5 @@ type Handler interface {
 	DeepCopyInto(Handler)
 	IsEmpty() bool
 	CloseConnection()
+	ConnectedEndpoints() []string //To get the IP addresses of connected endpoints
 }
