@@ -64,6 +64,12 @@ func New(opts Options) (broker.Handler, error) {
 
 	return &Nats{ec: ec}, nil
 }
+func (n *Nats) ConnectedEndpoints() (endpoints []string) {
+	for _, server := range n.ec.Conn.Servers() {
+		endpoints = append(endpoints, strings.TrimPrefix(server, "nats://"))
+	}
+	return
+}
 
 func (n *Nats) Info() string {
 	if n.ec == nil || n.ec.Conn == nil {
