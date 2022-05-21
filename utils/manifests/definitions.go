@@ -1,5 +1,9 @@
 package manifests
 
+import (
+	"cuelang.org/go/cue"
+)
+
 // Type of resource
 const (
 	// service mesh resource
@@ -24,6 +28,7 @@ type Config struct {
 	Filter          CrdFilter              //json path filters
 	K8sVersion      string                 //For K8ss
 	ModifyDefSchema func(*string, *string) //takes in definition and schema, does some manipulation on them and returns the new def and schema
+	CueFilter       CueCrdFilter           // cue filters
 }
 
 /* How to customize these filters (These comments to be updated if the behavior changes in future)-
@@ -63,4 +68,15 @@ type CrdFilter struct {
 	GField        string
 	IsJson        bool
 	OnlyRes       []string
+}
+
+// takes in the parsed root cue value and resource identifier as its inputs and returns the extracted value
+type CueFilter func(rootCueVal cue.Value, resourceIdentifier string) (cue.Value, error)
+
+type CueCrdFilter struct {
+	NameExtractor              CueFilter
+	GroupExtractor             CueFilter
+	VersionExtractor           CueFilter
+	SpecExtractor              CueFilter
+	GetResourceIdentifiersList func(rootCueVal cue.Value) ([]string, error)
 }

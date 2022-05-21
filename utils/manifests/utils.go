@@ -11,27 +11,28 @@ import (
 	"regexp"
 	"strings"
 
+	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
 )
 
 var templateExpression *regexp.Regexp
 
-func getDefinitions(crd string, resource int, cfg Config, filepath string, binPath string, ctx context.Context) (string, error) {
-	//the default input format is "yaml"
-	inputFormat := "yaml"
-	if cfg.Filter.IsJson {
-		inputFormat = "json"
-	}
+func getDefinitions(crd string, resource int, parsedManifest cue.Value, cfg Config, ctx context.Context) (string, error) {
+
 	var def v1alpha1.WorkloadDefinition
 	definitionRef := strings.ToLower(crd) + ".meshery.layer5.io"
-	apiVersion, err := getApiVersion(binPath, filepath, crd, inputFormat, cfg, ctx)
+	apiVersionCueVal, err := cfg.CueFilter.VersionExtractor(parsedManifest, crd)
+	apiVersion, err := apiVersionCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIVersion(err)
 	}
-	apiGroup, err := getApiGrp(ctx, binPath, filepath, crd, inputFormat, cfg)
+
+	apiGroupCueVal, err := cfg.CueFilter.GroupExtractor(parsedManifest, crd)
+	apiGroup, err := apiGroupCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIGroup(err)
 	}
+
 	//getting defintions for different native resources
 	def.Spec.DefinitionRef.Name = definitionRef
 	def.ObjectMeta.Name = crd
@@ -73,64 +74,22 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 	return string(out), nil
 }
 
-func getSchema(crd string, fp string, binPath string, cfg Config, ctx context.Context) (string, error) {
-	//few checks to avoid index out of bound panic
-	if len(cfg.Filter.ItrSpecFilter) == 0 {
-		return "", ErrAbsentFilter(errors.New("Empty ItrSpecFilter"))
-	}
-	inputFormat := "yaml"
-	if cfg.Filter.IsJson {
-		inputFormat = "json"
-	}
-
-	var (
-		out bytes.Buffer
-		er  bytes.Buffer
-	)
-	if len(cfg.Filter.SpecFilter) != 0 { //If SpecFilter is passed then it will evaluated in output filter. [currently this case is for service meshes]
-		itr := cfg.Filter.ItrSpecFilter[0] + "=='" + crd + "')]"
-		for _, f := range cfg.Filter.ItrSpecFilter[1:] {
-			itr += f
-		}
-		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
-		getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.SpecFilter...)
-		schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
-		schemaCmd.Stdout = &out
-		schemaCmd.Stderr = &er
-		err := schemaCmd.Run()
-		if err != nil {
-			return er.String(), err
-		}
-	} else { //If no specfilter is passed then root filter is applied and iterator filter is used in output filter
-		itr := cfg.Filter.ItrSpecFilter[0] + "=='" + crd + "')]"
-		for _, f := range cfg.Filter.ItrSpecFilter[1:] {
-			itr += f
-		}
-		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter"}
-		getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.RootFilter...)
-		getAPIvCmdArgs = append(getAPIvCmdArgs, "--o-filter", itr)
-		if len(cfg.Filter.ResolveFilter) != 0 {
-			getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.ResolveFilter...)
-		}
-		schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
-		schemaCmd.Stdout = &out
-		schemaCmd.Stderr = &er
-		err := schemaCmd.Run()
-		if err != nil {
-			return er.String(), err
-		}
-	}
-
+func getSchema(crd string, parsedManifest cue.Value, cfg Config, ctx context.Context) (string, error) {
 	schema := []map[string]interface{}{}
-	if err := json.Unmarshal(out.Bytes(), &schema); err != nil {
-		return "", err
+
+	specCueVal, err := cfg.CueFilter.SpecExtractor(parsedManifest, crd)
+	err = specCueVal.Decode(schema)
+	if err != nil {
+		return err.Error(), err
 	}
+
 	if len(schema) == 0 {
 		return "", nil
 	}
+
 	(schema)[0]["title"] = FormatToReadableString(crd)
 	var output []byte
-	output, err := json.MarshalIndent(schema[0], "", " ")
+	output, err = json.MarshalIndent(schema[0], "", " ")
 	if err != nil {
 		return "", err
 	}
