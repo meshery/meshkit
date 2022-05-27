@@ -2,7 +2,10 @@ package manifests
 
 import (
 	"context"
+	"fmt"
+
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/encoding/yaml"
 )
 
 func GenerateComponents(ctx context.Context, manifest string, resource int, cfg Config) (*Component, error) {
@@ -13,27 +16,27 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 		Definitions: []string{},
 	}
 
-	cueCtx := cuecontext.New()
-	parsedManifest := cueCtx.CompileString(manifest) // parsing the manifest into cue Value
-
-	if len(cfg.Filter.OnlyRes) == 0 { //If the resources are not given by default, then extract using filter
-		var err error
-		crds, err = cfg.CueFilter.GetResourceIdentifiersList(parsedManifest)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		crds = cfg.Filter.OnlyRes
-	}
+	crds = cfg.ExtractCrds(manifest)
 
 	for _, crd := range crds {
-		outDef, err := getDefinitions(crd, resource, parsedManifest, cfg, ctx)
+
+		file, err := yaml.Extract("dummy", crd)
 		if err != nil {
 			return nil, err
 		}
-		outSchema, err := getSchema(crd, parsedManifest, cfg, ctx)
+
+		cueCtx := cuecontext.New()
+		parsedCrd := cueCtx.BuildFile(file)
+
+		outDef, err := getDefinitions(parsedCrd, resource, cfg, ctx)
 		if err != nil {
-			return nil, ErrGetSchemas(err)
+			continue
+			// return nil, err
+		}
+		outSchema, err := getSchema(parsedCrd, cfg, ctx)
+		if err != nil {
+			continue
+			// return nil, ErrGetSchemas(err)
 		}
 		if cfg.ModifyDefSchema != nil {
 			cfg.ModifyDefSchema(&outDef, &outSchema) //definition and schema can be modified using some call back function
@@ -42,5 +45,6 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 		c.Schemas = append(c.Schemas, outSchema)
 	}
 
+	fmt.Printf("%v", c)
 	return c, nil
 }

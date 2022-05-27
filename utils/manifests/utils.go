@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,17 +16,22 @@ import (
 
 var templateExpression *regexp.Regexp
 
-func getDefinitions(crd string, resource int, parsedManifest cue.Value, cfg Config, ctx context.Context) (string, error) {
+func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.Context) (string, error) {
 
 	var def v1alpha1.WorkloadDefinition
-	definitionRef := strings.ToLower(crd) + ".meshery.layer5.io"
-	apiVersionCueVal, err := cfg.CueFilter.VersionExtractor(parsedManifest, crd)
+	idCueVal, err := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
+	id, err := idCueVal.String()
+	if err != nil {
+		return "", ErrGetAPIVersion(err) // have to change it to Id error
+	}
+	definitionRef := strings.ToLower(id) + ".meshery.layer5.io"
+	apiVersionCueVal, err := cfg.CrdFilter.VersionExtractor(parsedCrd)
 	apiVersion, err := apiVersionCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIVersion(err)
 	}
 
-	apiGroupCueVal, err := cfg.CueFilter.GroupExtractor(parsedManifest, crd)
+	apiGroupCueVal, err := cfg.CrdFilter.GroupExtractor(parsedCrd)
 	apiGroup, err := apiGroupCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIGroup(err)
@@ -35,7 +39,7 @@ func getDefinitions(crd string, resource int, parsedManifest cue.Value, cfg Conf
 
 	//getting defintions for different native resources
 	def.Spec.DefinitionRef.Name = definitionRef
-	def.ObjectMeta.Name = crd
+	def.ObjectMeta.Name = id
 	def.APIVersion = "core.oam.dev/v1alpha1"
 	def.Kind = "WorkloadDefinition"
 	switch resource {
@@ -45,9 +49,9 @@ func getDefinitions(crd string, resource int, parsedManifest cue.Value, cfg Conf
 			"meshVersion":   cfg.MeshVersion,
 			"meshName":      cfg.Name,
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
-			"k8sKind":       crd,
+			"k8sKind":       id,
 		}
-		def.Spec.DefinitionRef.Name = strings.ToLower(crd)
+		def.Spec.DefinitionRef.Name = strings.ToLower(id)
 		if cfg.Type != "" {
 			def.ObjectMeta.Name += "." + cfg.Type
 			def.Spec.DefinitionRef.Name += "." + cfg.Type
@@ -57,11 +61,11 @@ func getDefinitions(crd string, resource int, parsedManifest cue.Value, cfg Conf
 		def.Spec.Metadata = map[string]string{
 			"@type":         "pattern.meshery.io/k8s",
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
-			"k8sKind":       crd,
+			"k8sKind":       id,
 			"version":       cfg.K8sVersion,
 		}
 		def.ObjectMeta.Name += ".K8s"
-		def.Spec.DefinitionRef.Name = strings.ToLower(crd) + ".k8s.meshery.layer5.io"
+		def.Spec.DefinitionRef.Name = strings.ToLower(id) + ".k8s.meshery.layer5.io"
 	case MESHERY:
 		def.Spec.Metadata = map[string]string{
 			"@type": "pattern.meshery.io/core",
@@ -74,22 +78,27 @@ func getDefinitions(crd string, resource int, parsedManifest cue.Value, cfg Conf
 	return string(out), nil
 }
 
-func getSchema(crd string, parsedManifest cue.Value, cfg Config, ctx context.Context) (string, error) {
-	schema := []map[string]interface{}{}
+func getSchema(parsedCrd cue.Value, cfg Config, ctx context.Context) (string, error) {
+	schema := map[string]interface{}{}
 
-	specCueVal, err := cfg.CueFilter.SpecExtractor(parsedManifest, crd)
-	err = specCueVal.Decode(schema)
+	specCueVal, err := cfg.CrdFilter.SpecExtractor(parsedCrd)
+	marshalledJson, err := specCueVal.MarshalJSON()
+	err = json.Unmarshal(marshalledJson, &schema)
+
 	if err != nil {
-		return err.Error(), err
+		return "", err
 	}
 
-	if len(schema) == 0 {
-		return "", nil
+	idCueVal, err := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
+
+	id, err := idCueVal.String()
+	if err != nil {
+		return "", ErrGetSchemas(err) // have to change it to Id error
 	}
 
-	(schema)[0]["title"] = FormatToReadableString(crd)
+	(schema)["title"] = FormatToReadableString(id)
 	var output []byte
-	output, err = json.MarshalIndent(schema[0], "", " ")
+	output, err = json.MarshalIndent(schema, "", " ")
 	if err != nil {
 		return "", err
 	}
@@ -149,84 +158,6 @@ func getCrdnames(s string) []string {
 		return []string{}
 	}
 	return crds[1 : len(crds)-2] // first and last characters are "[" and "]" respectively
-}
-
-func getApiVersion(binPath string, fp string, crd string, inputFormat string, cfg Config, ctx context.Context) (string, error) {
-	//few checks to avoid index out of bound panic
-	if len(cfg.Filter.ItrFilter) == 0 {
-		return "", ErrAbsentFilter(errors.New("Empty ItrFilter"))
-	}
-
-	var (
-		out bytes.Buffer
-		er  bytes.Buffer
-	)
-	itr := cfg.Filter.ItrFilter[0] + "=='" + crd + "')]"
-	for _, f := range cfg.Filter.ItrFilter[1:] {
-		itr += f
-	}
-	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
-	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.VersionFilter...)
-
-	schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
-	schemaCmd.Stdout = &out
-	schemaCmd.Stderr = &er
-	err := schemaCmd.Run()
-	if err != nil {
-		return er.String(), err
-	}
-	grp := []map[string]interface{}{}
-	if err := json.Unmarshal(out.Bytes(), &grp); err != nil {
-		return "", err
-	}
-	if len(grp) == 0 {
-		return "", err
-	}
-	var output []byte
-	output, err = json.Marshal(grp[0][cfg.Filter.VField])
-	if err != nil {
-		return "", err
-	}
-	s := strings.ReplaceAll(string(output), "\"", "")
-	return s, nil
-}
-func getApiGrp(ctx context.Context, binPath string, fp string, crd string, inputFormat string, cfg Config) (string, error) {
-	//few checks to avoid index out of bound panic
-	if len(cfg.Filter.ItrFilter) == 0 {
-		return "", ErrAbsentFilter(errors.New("Empty ItrFilter"))
-	}
-	var (
-		out bytes.Buffer
-		er  bytes.Buffer
-	)
-	itr := cfg.Filter.ItrFilter[0] + "=='" + crd + "')]"
-	for _, f := range cfg.Filter.ItrFilter[1:] {
-		itr += f
-	}
-	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
-	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.GroupFilter...)
-	schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
-	schemaCmd.Stdout = &out
-	schemaCmd.Stderr = &er
-
-	err := schemaCmd.Run()
-	if err != nil {
-		return er.String(), err
-	}
-	grp := []map[string]interface{}{}
-	if err := json.Unmarshal(out.Bytes(), &grp); err != nil {
-		return "", err
-	}
-	if len(grp) == 0 {
-		return "", err
-	}
-	var output []byte
-	output, err = json.Marshal(grp[0][cfg.Filter.GField])
-	if err != nil {
-		return "", err
-	}
-	s := strings.ReplaceAll(string(output), "\"", "")
-	return s, nil
 }
 
 func filterYaml(ctx context.Context, yamlPath string, filter []string, binPath string, inputFormat string) error {

@@ -21,18 +21,20 @@ type Component struct {
 	Definitions []string
 }
 
+// all the data that is needed to get a certain value should be present in the config created by the adapter.
+
 type Config struct {
-	Name            string                 // Name of the service mesh,or k8 or meshery
-	Type            string                 //Type of the workload like- Istio, TraefikMesh, Kuma, OSM, Linkerd,AppMesh,NginxMesh
-	MeshVersion     string                 // For service meshes
-	Filter          CrdFilter              //json path filters
-	K8sVersion      string                 //For K8ss
-	ModifyDefSchema func(*string, *string) //takes in definition and schema, does some manipulation on them and returns the new def and schema
-	CueFilter       CueCrdFilter           // cue filters
+	Name            string                         // Name of the service mesh,or k8 or meshery
+	Type            string                         //Type of the workload like- Istio, TraefikMesh, Kuma, OSM, Linkerd,AppMesh,NginxMesh
+	MeshVersion     string                         // For service meshes
+	K8sVersion      string                         //For K8ss
+	ModifyDefSchema func(*string, *string)         //takes in definition and schema, does some manipulation on them and returns the new def and schema
+	CrdFilter       CueCrdFilter                   // these filters are a representation of the things that are needed for generating a component from a manifest
+	ExtractCrds     func(manifest string) []string // takes in the manifest and returns a list of crds
 }
 
 /* How to customize these filters (These comments to be updated if the behavior changes in future)-
-There are only two types of filters used internally by kubeopenapi-jsonschema which is being used here- filter(input filter) and output filter.
+There are only two types of filters used internally by kubeopenapi-jsonschema which is being used here- filter(yinput filter) and output filter.
 The filters described below are an abstraction over those filters.
 1. RootFilter- is used at two places
 	(a) For fetching the crd names or api resources on which we will iterate over, first we apply the root filter to get the objects we are interested in and then
@@ -70,13 +72,16 @@ type CrdFilter struct {
 	OnlyRes       []string
 }
 
-// takes in the parsed root cue value and resource identifier as its inputs and returns the extracted value
-type CueFilter func(rootCueVal cue.Value, resourceIdentifier string) (cue.Value, error)
+// takes in the parsed root cue value of the CRD as its input and returns the extracted value
+type CueFilter func(rootCRDCueVal cue.Value) (cue.Value, error)
 
+// these are basically getter functions
+// these are filters for a single CRD
+// these filters are a reflection of the things that are needed for generating a Component
 type CueCrdFilter struct {
-	NameExtractor              CueFilter
-	GroupExtractor             CueFilter
-	VersionExtractor           CueFilter
-	SpecExtractor              CueFilter
-	GetResourceIdentifiersList func(rootCueVal cue.Value) ([]string, error)
+	NameExtractor       CueFilter
+	GroupExtractor      CueFilter
+	VersionExtractor    CueFilter
+	SpecExtractor       CueFilter
+	IdentifierExtractor CueFilter // identifiers are the values that uniquely identify a CRD
 }
