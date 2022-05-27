@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/encoding/json"
 	"cuelang.org/go/encoding/yaml"
 )
 
@@ -14,14 +16,23 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 		Schemas:     []string{},
 		Definitions: []string{},
 	}
+	cueCtx := cuecontext.New()
 	crds = cfg.ExtractCrds(manifest)
 	for _, crd := range crds {
-		file, err := yaml.Extract("crds", crd) // first arguement is dummy
-		if err != nil {
-			return nil, err
+		var parsedCrd cue.Value
+		if cfg.CrdFilter.IsJson != true {
+			file, err := yaml.Extract("crds", crd) // first argument is dummy
+			if err != nil {
+				return nil, err
+			}
+			parsedCrd = cueCtx.BuildFile(file)
+		} else {
+			expr, err := json.Extract("", []byte(crd))
+			if err != nil {
+				return nil, err
+			}
+			parsedCrd = cueCtx.BuildExpr(expr)
 		}
-		cueCtx := cuecontext.New()
-		parsedCrd := cueCtx.BuildFile(file)
 		outDef, err := getDefinitions(parsedCrd, resource, cfg, ctx)
 		if err != nil {
 			// inability to generate component for a single crd should not affect the rest

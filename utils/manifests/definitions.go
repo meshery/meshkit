@@ -35,11 +35,12 @@ type CueFilter func(rootCRDCueVal cue.Value) (cue.Value, error)
 
 // basically getter functions
 // applicable for a single CRD
-// can be intrepreted as the things that are needed for generating a Component
+// can be interpreted as the things that are needed for generating a Component
 type CueCrdFilter struct {
 	NameExtractor       CueFilter
 	GroupExtractor      CueFilter
 	VersionExtractor    CueFilter
 	SpecExtractor       CueFilter
+	IsJson              bool
 	IdentifierExtractor CueFilter // identifiers are the values that uniquely identify a CRD (in most of the cases, it is the 'Name' field)
 }
