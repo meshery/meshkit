@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -240,4 +242,77 @@ func switchedCasing(a byte, b byte) int {
 
 func init() {
 	templateExpression = regexp.MustCompile(`{{.+}}`)
+}
+
+// we are manually dereferencing this because there are no other alternatives
+// other alternatives to lookout for
+//   1. cue's jsonschema encoding package
+//   2. cue's openapi encoding package (currently it only supports openapiv3)
+func ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {
+	var val map[string]interface{}
+	err := json.Unmarshal(manifest, &val)
+	if err != nil {
+		return nil, err
+	}
+
+	// to get rid of cycles
+	if val["$ref"] != nil {
+		if reflect.ValueOf(val["$ref"]).Kind() != reflect.String {
+			return manifest, nil
+		}
+	}
+
+	for k, v := range val {
+		if k == "$ref" {
+			splt := strings.Split(v.(string), "/")
+			path := splt[len(splt)-1]
+
+			refVal := definitions.LookupPath(cue.ParsePath(fmt.Sprintf(`"%v"`, path)))
+
+			if refVal.Err() != nil {
+				return nil, refVal.Err()
+			}
+			marshalledVal, err := refVal.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			def, err := ResolveReferences(marshalledVal, definitions)
+			if err != nil {
+				return nil, err
+			}
+			if def != nil {
+				replaceRefWithVal(def, val, k)
+			}
+			return def, nil
+		}
+		if reflect.ValueOf(v).Kind() == reflect.Map {
+			marVal, err := json.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
+			def, err := ResolveReferences(marVal, definitions)
+			if err != nil {
+				return nil, err
+			}
+			if def != nil {
+				replaceRefWithVal(def, val, k)
+			}
+		}
+	}
+
+	res, err := json.Marshal(val)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func replaceRefWithVal(def []byte, val map[string]interface{}, k string) error {
+	var defVal map[string]interface{}
+	err := json.Unmarshal([]byte(def), &defVal)
+	if err != nil {
+		return err
+	}
+	val[k] = defVal
+	return nil
 }
