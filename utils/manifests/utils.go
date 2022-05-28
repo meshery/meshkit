@@ -19,29 +19,27 @@ import (
 var templateExpression *regexp.Regexp
 
 func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.Context) (string, error) {
-
 	var def v1alpha1.WorkloadDefinition
-	idCueVal, err := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
-	id, err := idCueVal.String()
+	// get the resource identifier
+	idCueVal, _ := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
+	resourceId, err := idCueVal.String()
 	if err != nil {
-		return "", ErrGetAPIVersion(err) // have to change it to Id error
+		return "", ErrGetResourceIdentifier(err)
 	}
-	definitionRef := strings.ToLower(id) + ".meshery.layer5.io"
-	apiVersionCueVal, err := cfg.CrdFilter.VersionExtractor(parsedCrd)
+	definitionRef := strings.ToLower(resourceId) + ".meshery.layer5.io"
+	apiVersionCueVal, _ := cfg.CrdFilter.VersionExtractor(parsedCrd)
 	apiVersion, err := apiVersionCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIVersion(err)
 	}
-
-	apiGroupCueVal, err := cfg.CrdFilter.GroupExtractor(parsedCrd)
+	apiGroupCueVal, _ := cfg.CrdFilter.GroupExtractor(parsedCrd)
 	apiGroup, err := apiGroupCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIGroup(err)
 	}
-
 	//getting defintions for different native resources
 	def.Spec.DefinitionRef.Name = definitionRef
-	def.ObjectMeta.Name = id
+	def.ObjectMeta.Name = resourceId
 	def.APIVersion = "core.oam.dev/v1alpha1"
 	def.Kind = "WorkloadDefinition"
 	switch resource {
@@ -51,9 +49,9 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 			"meshVersion":   cfg.MeshVersion,
 			"meshName":      cfg.Name,
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
-			"k8sKind":       id,
+			"k8sKind":       resourceId,
 		}
-		def.Spec.DefinitionRef.Name = strings.ToLower(id)
+		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId)
 		if cfg.Type != "" {
 			def.ObjectMeta.Name += "." + cfg.Type
 			def.Spec.DefinitionRef.Name += "." + cfg.Type
@@ -63,11 +61,11 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 		def.Spec.Metadata = map[string]string{
 			"@type":         "pattern.meshery.io/k8s",
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
-			"k8sKind":       id,
+			"k8sKind":       resourceId,
 			"version":       cfg.K8sVersion,
 		}
 		def.ObjectMeta.Name += ".K8s"
-		def.Spec.DefinitionRef.Name = strings.ToLower(id) + ".k8s.meshery.layer5.io"
+		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId) + ".k8s.meshery.layer5.io"
 	case MESHERY:
 		def.Spec.Metadata = map[string]string{
 			"@type": "pattern.meshery.io/core",
@@ -82,23 +80,21 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 
 func getSchema(parsedCrd cue.Value, cfg Config, ctx context.Context) (string, error) {
 	schema := map[string]interface{}{}
-
-	specCueVal, err := cfg.CrdFilter.SpecExtractor(parsedCrd)
+	specCueVal, _ := cfg.CrdFilter.SpecExtractor(parsedCrd)
 	marshalledJson, err := specCueVal.MarshalJSON()
+	if err != nil {
+		return "", ErrGetSchemas(err)
+	}
 	err = json.Unmarshal(marshalledJson, &schema)
-
 	if err != nil {
-		return "", err
+		return "", ErrGetSchemas(err)
 	}
-
-	idCueVal, err := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
-
-	id, err := idCueVal.String()
+	idCueVal, _ := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
+	resourceId, err := idCueVal.String()
 	if err != nil {
-		return "", ErrGetSchemas(err) // have to change it to Id error
+		return "", ErrGetResourceIdentifier(err)
 	}
-
-	(schema)["title"] = FormatToReadableString(id)
+	(schema)["title"] = FormatToReadableString(resourceId)
 	var output []byte
 	output, err = json.MarshalIndent(schema, "", " ")
 	if err != nil {
@@ -106,6 +102,7 @@ func getSchema(parsedCrd cue.Value, cfg Config, ctx context.Context) (string, er
 	}
 	return string(output), nil
 }
+
 func populateTempyaml(yaml string, path string) error {
 	var _, err = os.Stat(path)
 	if os.IsNotExist(err) {
@@ -245,9 +242,14 @@ func init() {
 }
 
 // we are manually dereferencing this because there are no other alternatives
-// other alternatives to lookout for
+// other alternatives to lookout for in the future are
 //   1. cue's jsonschema encoding package
 //   2. cue's openapi encoding package (currently it only supports openapiv3)
+// currently, it does not support resolving refs from external world
+
+//  for resolving refs in kubernetes openapiv2 jsonschema
+// definitions - parsed CUE value of the 'definitions' in openapiv2
+// manifest - jsonschema manifest to resolve refs for
 func ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {
 	var val map[string]interface{}
 	err := json.Unmarshal(manifest, &val)
@@ -266,9 +268,7 @@ func ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {
 		if k == "$ref" {
 			splt := strings.Split(v.(string), "/")
 			path := splt[len(splt)-1]
-
 			refVal := definitions.LookupPath(cue.ParsePath(fmt.Sprintf(`"%v"`, path)))
-
 			if refVal.Err() != nil {
 				return nil, refVal.Err()
 			}
@@ -281,7 +281,10 @@ func ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {
 				return nil, err
 			}
 			if def != nil {
-				replaceRefWithVal(def, val, k)
+				err := replaceRefWithVal(def, val, k)
+				if err != nil {
+					return def, nil
+				}
 			}
 			return def, nil
 		}
@@ -295,11 +298,13 @@ func ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {
 				return nil, err
 			}
 			if def != nil {
-				replaceRefWithVal(def, val, k)
+				err := replaceRefWithVal(def, val, k)
+				if err != nil {
+					return def, nil
+				}
 			}
 		}
 	}
-
 	res, err := json.Marshal(val)
 	if err != nil {
 		return nil, err
