@@ -321,3 +321,52 @@ func replaceRefWithVal(def []byte, val map[string]interface{}, k string) error {
 	val[k] = defVal
 	return nil
 }
+
+type ExtractorPaths struct {
+	NamePath    string
+	GroupPath   string
+	VersionPath string
+	SpecPath    string
+	IdPath      string
+}
+
+func NewCueCrdFilter(ep ExtractorPaths, isJson bool) CueCrdFilter {
+	return CueCrdFilter{
+		IsJson: isJson,
+		IdentifierExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.IdPath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+		NameExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.NamePath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+		VersionExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.VersionPath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+		GroupExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.GroupPath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+		SpecExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.SpecPath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+	}
+}
