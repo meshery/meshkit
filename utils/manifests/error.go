@@ -3,14 +3,19 @@ package manifests
 import "github.com/layer5io/meshkit/errors"
 
 const (
-	ErrGetCrdNamesCode       = "1001"
-	ErrGetSchemasCode        = "1002"
-	ErrGetAPIVersionCode     = "1003"
-	ErrGetAPIGroupCode       = "1004"
-	ErrPopulatingYamlCode    = "1005"
-	ErrAbsentFilterCode      = "1006"
-	ErrCreatingDirectoryCode = "1007"
+	ErrGetCrdNamesCode           = "1001"
+	ErrGetSchemasCode            = "1002"
+	ErrGetAPIVersionCode         = "1003"
+	ErrGetAPIGroupCode           = "1004"
+	ErrPopulatingYamlCode        = "1005"
+	ErrAbsentFilterCode          = "1006"
+	ErrCreatingDirectoryCode     = "1007"
+	ErrGetResourceIdentifierCode = "11075"
 )
+
+func ErrGetResourceIdentifier(err error) error {
+	return errors.New(ErrGetResourceIdentifierCode, errors.Alert, []string{"Error extracting the resource identifier name"}, []string{err.Error()}, []string{"Could not extract the value with the given filter configuration"}, []string{"Make sure to input a valid manifest", "Make sure to provide the right filter configurations", "Make sure the filters are appropriate for the given manifest"})
+}
 
 func ErrGetCrdNames(err error) error {
 	return errors.New(ErrGetCrdNamesCode, errors.Alert, []string{"Error getting crd names"}, []string{err.Error()}, []string{"Could not execute kubeopenapi-jsonschema correctly"}, []string{"Make sure the binary is valid and correct", "Make sure the filter passed is correct"})

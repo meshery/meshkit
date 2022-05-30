@@ -4,37 +4,42 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 
+	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
 )
 
 var templateExpression *regexp.Regexp
 
-func getDefinitions(crd string, resource int, cfg Config, filepath string, binPath string, ctx context.Context) (string, error) {
-	//the default input format is "yaml"
-	inputFormat := "yaml"
-	if cfg.Filter.IsJson {
-		inputFormat = "json"
-	}
+func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.Context) (string, error) {
 	var def v1alpha1.WorkloadDefinition
-	definitionRef := strings.ToLower(crd) + ".meshery.layer5.io"
-	apiVersion, err := getApiVersion(binPath, filepath, crd, inputFormat, cfg, ctx)
+	// get the resource identifier
+	idCueVal, _ := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
+	resourceId, err := idCueVal.String()
+	if err != nil {
+		return "", ErrGetResourceIdentifier(err)
+	}
+	definitionRef := strings.ToLower(resourceId) + ".meshery.layer5.io"
+	apiVersionCueVal, _ := cfg.CrdFilter.VersionExtractor(parsedCrd)
+	apiVersion, err := apiVersionCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIVersion(err)
 	}
-	apiGroup, err := getApiGrp(ctx, binPath, filepath, crd, inputFormat, cfg)
+	apiGroupCueVal, _ := cfg.CrdFilter.GroupExtractor(parsedCrd)
+	apiGroup, err := apiGroupCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIGroup(err)
 	}
 	//getting defintions for different native resources
 	def.Spec.DefinitionRef.Name = definitionRef
-	def.ObjectMeta.Name = crd
+	def.ObjectMeta.Name = resourceId
 	def.APIVersion = "core.oam.dev/v1alpha1"
 	def.Kind = "WorkloadDefinition"
 	switch resource {
@@ -44,9 +49,9 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 			"meshVersion":   cfg.MeshVersion,
 			"meshName":      cfg.Name,
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
-			"k8sKind":       crd,
+			"k8sKind":       resourceId,
 		}
-		def.Spec.DefinitionRef.Name = strings.ToLower(crd)
+		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId)
 		if cfg.Type != "" {
 			def.ObjectMeta.Name += "." + cfg.Type
 			def.Spec.DefinitionRef.Name += "." + cfg.Type
@@ -56,11 +61,11 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 		def.Spec.Metadata = map[string]string{
 			"@type":         "pattern.meshery.io/k8s",
 			"k8sAPIVersion": apiGroup + "/" + apiVersion,
-			"k8sKind":       crd,
+			"k8sKind":       resourceId,
 			"version":       cfg.K8sVersion,
 		}
 		def.ObjectMeta.Name += ".K8s"
-		def.Spec.DefinitionRef.Name = strings.ToLower(crd) + ".k8s.meshery.layer5.io"
+		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId) + ".k8s.meshery.layer5.io"
 	case MESHERY:
 		def.Spec.Metadata = map[string]string{
 			"@type": "pattern.meshery.io/core",
@@ -73,69 +78,31 @@ func getDefinitions(crd string, resource int, cfg Config, filepath string, binPa
 	return string(out), nil
 }
 
-func getSchema(crd string, fp string, binPath string, cfg Config, ctx context.Context) (string, error) {
-	//few checks to avoid index out of bound panic
-	if len(cfg.Filter.ItrSpecFilter) == 0 {
-		return "", ErrAbsentFilter(errors.New("Empty ItrSpecFilter"))
+func getSchema(parsedCrd cue.Value, cfg Config, ctx context.Context) (string, error) {
+	schema := map[string]interface{}{}
+	specCueVal, _ := cfg.CrdFilter.SpecExtractor(parsedCrd)
+	marshalledJson, err := specCueVal.MarshalJSON()
+	if err != nil {
+		return "", ErrGetSchemas(err)
 	}
-	inputFormat := "yaml"
-	if cfg.Filter.IsJson {
-		inputFormat = "json"
+	err = json.Unmarshal(marshalledJson, &schema)
+	if err != nil {
+		return "", ErrGetSchemas(err)
 	}
-
-	var (
-		out bytes.Buffer
-		er  bytes.Buffer
-	)
-	if len(cfg.Filter.SpecFilter) != 0 { //If SpecFilter is passed then it will evaluated in output filter. [currently this case is for service meshes]
-		itr := cfg.Filter.ItrSpecFilter[0] + "=='" + crd + "')]"
-		for _, f := range cfg.Filter.ItrSpecFilter[1:] {
-			itr += f
-		}
-		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
-		getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.SpecFilter...)
-		schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
-		schemaCmd.Stdout = &out
-		schemaCmd.Stderr = &er
-		err := schemaCmd.Run()
-		if err != nil {
-			return er.String(), err
-		}
-	} else { //If no specfilter is passed then root filter is applied and iterator filter is used in output filter
-		itr := cfg.Filter.ItrSpecFilter[0] + "=='" + crd + "')]"
-		for _, f := range cfg.Filter.ItrSpecFilter[1:] {
-			itr += f
-		}
-		getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter"}
-		getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.RootFilter...)
-		getAPIvCmdArgs = append(getAPIvCmdArgs, "--o-filter", itr)
-		if len(cfg.Filter.ResolveFilter) != 0 {
-			getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.ResolveFilter...)
-		}
-		schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
-		schemaCmd.Stdout = &out
-		schemaCmd.Stderr = &er
-		err := schemaCmd.Run()
-		if err != nil {
-			return er.String(), err
-		}
+	idCueVal, _ := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
+	resourceId, err := idCueVal.String()
+	if err != nil {
+		return "", ErrGetResourceIdentifier(err)
 	}
-
-	schema := []map[string]interface{}{}
-	if err := json.Unmarshal(out.Bytes(), &schema); err != nil {
-		return "", err
-	}
-	if len(schema) == 0 {
-		return "", nil
-	}
-	(schema)[0]["title"] = FormatToReadableString(crd)
+	(schema)["title"] = FormatToReadableString(resourceId)
 	var output []byte
-	output, err := json.MarshalIndent(schema[0], "", " ")
+	output, err = json.MarshalIndent(schema, "", " ")
 	if err != nil {
 		return "", err
 	}
 	return string(output), nil
 }
+
 func populateTempyaml(yaml string, path string) error {
 	var _, err = os.Stat(path)
 	if os.IsNotExist(err) {
@@ -190,84 +157,6 @@ func getCrdnames(s string) []string {
 		return []string{}
 	}
 	return crds[1 : len(crds)-2] // first and last characters are "[" and "]" respectively
-}
-
-func getApiVersion(binPath string, fp string, crd string, inputFormat string, cfg Config, ctx context.Context) (string, error) {
-	//few checks to avoid index out of bound panic
-	if len(cfg.Filter.ItrFilter) == 0 {
-		return "", ErrAbsentFilter(errors.New("Empty ItrFilter"))
-	}
-
-	var (
-		out bytes.Buffer
-		er  bytes.Buffer
-	)
-	itr := cfg.Filter.ItrFilter[0] + "=='" + crd + "')]"
-	for _, f := range cfg.Filter.ItrFilter[1:] {
-		itr += f
-	}
-	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
-	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.VersionFilter...)
-
-	schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
-	schemaCmd.Stdout = &out
-	schemaCmd.Stderr = &er
-	err := schemaCmd.Run()
-	if err != nil {
-		return er.String(), err
-	}
-	grp := []map[string]interface{}{}
-	if err := json.Unmarshal(out.Bytes(), &grp); err != nil {
-		return "", err
-	}
-	if len(grp) == 0 {
-		return "", err
-	}
-	var output []byte
-	output, err = json.Marshal(grp[0][cfg.Filter.VField])
-	if err != nil {
-		return "", err
-	}
-	s := strings.ReplaceAll(string(output), "\"", "")
-	return s, nil
-}
-func getApiGrp(ctx context.Context, binPath string, fp string, crd string, inputFormat string, cfg Config) (string, error) {
-	//few checks to avoid index out of bound panic
-	if len(cfg.Filter.ItrFilter) == 0 {
-		return "", ErrAbsentFilter(errors.New("Empty ItrFilter"))
-	}
-	var (
-		out bytes.Buffer
-		er  bytes.Buffer
-	)
-	itr := cfg.Filter.ItrFilter[0] + "=='" + crd + "')]"
-	for _, f := range cfg.Filter.ItrFilter[1:] {
-		itr += f
-	}
-	getAPIvCmdArgs := []string{"--location", fp, "-t", inputFormat, "--filter", itr, "--o-filter"}
-	getAPIvCmdArgs = append(getAPIvCmdArgs, cfg.Filter.GroupFilter...)
-	schemaCmd := exec.CommandContext(ctx, binPath, getAPIvCmdArgs...)
-	schemaCmd.Stdout = &out
-	schemaCmd.Stderr = &er
-
-	err := schemaCmd.Run()
-	if err != nil {
-		return er.String(), err
-	}
-	grp := []map[string]interface{}{}
-	if err := json.Unmarshal(out.Bytes(), &grp); err != nil {
-		return "", err
-	}
-	if len(grp) == 0 {
-		return "", err
-	}
-	var output []byte
-	output, err = json.Marshal(grp[0][cfg.Filter.GField])
-	if err != nil {
-		return "", err
-	}
-	s := strings.ReplaceAll(string(output), "\"", "")
-	return s, nil
 }
 
 func filterYaml(ctx context.Context, yamlPath string, filter []string, binPath string, inputFormat string) error {
@@ -350,4 +239,134 @@ func switchedCasing(a byte, b byte) int {
 
 func init() {
 	templateExpression = regexp.MustCompile(`{{.+}}`)
+}
+
+// we are manually dereferencing this because there are no other alternatives
+// other alternatives to lookout for in the future are
+//   1. cue's jsonschema encoding package
+//   2. cue's openapi encoding package (currently it only supports openapiv3)
+// currently, it does not support resolving refs from external world
+
+//  for resolving refs in kubernetes openapiv2 jsonschema
+// definitions - parsed CUE value of the 'definitions' in openapiv2
+// manifest - jsonschema manifest to resolve refs for
+func ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {
+	var val map[string]interface{}
+	err := json.Unmarshal(manifest, &val)
+	if err != nil {
+		return nil, err
+	}
+
+	// to get rid of cycles
+	if val["$ref"] != nil {
+		if reflect.ValueOf(val["$ref"]).Kind() != reflect.String {
+			return manifest, nil
+		}
+	}
+
+	for k, v := range val {
+		if k == "$ref" {
+			splt := strings.Split(v.(string), "/")
+			path := splt[len(splt)-1]
+			refVal := definitions.LookupPath(cue.ParsePath(fmt.Sprintf(`"%v"`, path)))
+			if refVal.Err() != nil {
+				return nil, refVal.Err()
+			}
+			marshalledVal, err := refVal.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			def, err := ResolveReferences(marshalledVal, definitions)
+			if err != nil {
+				return nil, err
+			}
+			if def != nil {
+				err := replaceRefWithVal(def, val, k)
+				if err != nil {
+					return def, nil
+				}
+			}
+			return def, nil
+		}
+		if reflect.ValueOf(v).Kind() == reflect.Map {
+			marVal, err := json.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
+			def, err := ResolveReferences(marVal, definitions)
+			if err != nil {
+				return nil, err
+			}
+			if def != nil {
+				err := replaceRefWithVal(def, val, k)
+				if err != nil {
+					return def, nil
+				}
+			}
+		}
+	}
+	res, err := json.Marshal(val)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func replaceRefWithVal(def []byte, val map[string]interface{}, k string) error {
+	var defVal map[string]interface{}
+	err := json.Unmarshal([]byte(def), &defVal)
+	if err != nil {
+		return err
+	}
+	val[k] = defVal
+	return nil
+}
+
+type ExtractorPaths struct {
+	NamePath    string
+	GroupPath   string
+	VersionPath string
+	SpecPath    string
+	IdPath      string
+}
+
+func NewCueCrdFilter(ep ExtractorPaths, isJson bool) CueCrdFilter {
+	return CueCrdFilter{
+		IsJson: isJson,
+		IdentifierExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.IdPath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+		NameExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.NamePath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+		VersionExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.VersionPath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+		GroupExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.GroupPath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+		SpecExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
+			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.SpecPath))
+			if !res.Exists() {
+				return res, fmt.Errorf("Could not find the value")
+			}
+			return res.Value(), nil
+		},
+	}
 }
