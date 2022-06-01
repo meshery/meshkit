@@ -27,7 +27,7 @@ func TestFormatToReadableString(t *testing.T) {
 		},
 		{
 			input:          "idConnectedToIPs",
-			expectedOutput: "id Connected to IPs",
+			expectedOutput: "id Connected To IPs",
 		},
 	}
 	for _, tt := range testCases {
