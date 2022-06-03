@@ -195,21 +195,25 @@ func deleteFile(path string) error {
 
 //While going from Capital letter to small, insert a whitespace before the capital letter.
 //While going from small letter to capital, insert a whitespace after the small letter
+//The above is a general rule and further "exceptions" are used.
 func FormatToReadableString(input string) string {
 	if len(input) == 0 {
 		return ""
 	}
-	finalWord := ""
+	finalWord := string(input[0])
 	for i := range input {
+		if i == 0 {
+			continue
+		}
 		if i == len(input)-1 {
 			break
 		}
-		switch switchedCasing(input[i], input[i+1]) {
-		case samegroup:
+		switch actionToPerform(i-1, i, i+1, input) {
+		case dontaddspace:
 			finalWord += string(input[i])
-		case smallToBig:
+		case addleadingspace:
 			finalWord += string(input[i]) + " "
-		case bigToSmall:
+		case addtrailingspace:
 			finalWord += " " + string(input[i])
 		}
 	}
@@ -217,28 +221,54 @@ func FormatToReadableString(input string) string {
 }
 
 const (
-	samegroup  = 0
-	smallToBig = 1
-	bigToSmall = -1
+	dontaddspace     = 0
+	addtrailingspace = -1
+	addleadingspace  = 1
 )
 
-//switchedCasting returns 0 if a and b are both small, or both Capital letter.
-//returns 1 when a is small, but b is capital
-//returns -1 otherwise
-func switchedCasing(a byte, b byte) int {
-	aisSmall := int(a) >= 97 && int(a) <= 122
-	bisSmall := int(b) >= 97 && int(b) <= 122
-	if aisSmall && !bisSmall {
-		return smallToBig
+func isBig(ch byte) bool {
+	return int(ch) >= 65 && int(ch) <= 90
+}
+func isSmall(ch byte) bool {
+	return int(ch) >= 97 && int(ch) <= 122
+}
+
+func actionToPerform(prev int, curr int, next int, input string) int {
+	if isException(prev, curr, next, input) {
+		return dontaddspace
 	}
-	if bisSmall && !aisSmall {
-		return bigToSmall
+	// previsSmall := isBig(input[prev])
+	previsBig := isBig(input[prev])
+	currisSmall := isSmall(input[curr])
+	currisBig := isBig(input[curr])
+	nextisSmall := isSmall(input[next])
+	nextisBig := isBig(input[next])
+	if currisSmall && nextisBig {
+		return addleadingspace
 	}
-	return samegroup
+	if currisBig && previsBig && nextisSmall {
+		return addtrailingspace
+	}
+
+	return dontaddspace
 }
 
 func init() {
 	templateExpression = regexp.MustCompile(`{{.+}}`)
+}
+
+//Change this code to add more exception logic to bypass addition of space
+func isException(prev int, curr int, next int, input string) (isException bool) {
+	if next != len(input)-1 && isBig(input[curr]) && isBig(input[prev]) && isSmall(input[next]) && isBig(input[next+1]) { //For alternating text, like ClusterIPsRoute => Cluster Ips Route
+		isException = true
+	}
+	if next == len(input)-1 && isSmall(input[next]) {
+		isException = true
+	}
+	if isBig(input[curr]) && isSmall(input[next]) && next != len(input)-1 && isBig(input[next+1]) {
+		isException = true
+	}
+	return
 }
 
 // we are manually dereferencing this because there are no other alternatives
