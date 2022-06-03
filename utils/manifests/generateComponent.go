@@ -2,7 +2,6 @@ package manifests
 
 import (
 	"context"
-	"fmt"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -53,6 +52,5 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 		c.Definitions = append(c.Definitions, outDef)
 		c.Schemas = append(c.Schemas, outSchema)
 	}
-	fmt.Printf("%v", c)
 	return c, nil
 }
