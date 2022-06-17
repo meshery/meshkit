@@ -16,7 +16,7 @@ var (
 
 // converts a given docker-compose file into kubernetes manifests
 func Convert(dockerCompose string) (string, error) {
-	err := ioutil.WriteFile("temp.data", []byte(dockerCompose), 0777)
+	err := ioutil.WriteFile("temp.data", []byte(dockerCompose), 0666)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
