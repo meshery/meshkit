@@ -7,6 +7,7 @@ import (
 
 	"github.com/kubernetes/kompose/pkg/app"
 	"github.com/kubernetes/kompose/pkg/kobject"
+	"github.com/layer5io/meshkit/utils"
 	"gopkg.in/yaml.v2"
 )
 
@@ -15,8 +16,8 @@ var (
 )
 
 // converts a given docker-compose file into kubernetes manifests
-func Convert(dockerCompose string) (string, error) {
-	err := ioutil.WriteFile("temp.data", []byte(dockerCompose), 0666)
+func Convert(dockerCompose []byte) (string, error) {
+	err := utils.CreateFile(dockerCompose, "temp.data", "./")
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
