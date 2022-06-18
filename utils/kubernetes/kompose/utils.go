@@ -15,11 +15,17 @@ func IsManifestADockerCompose(yamlManifest []byte) bool {
 	if err := yaml.Unmarshal(yamlManifest, &data); err != nil {
 		return false
 	}
-	if data.Services == nil {
-		return false
+	if data.Services != nil {
+		if data.Configs != nil || data.Networks != nil || data.Secrets != nil || data.Volumes != nil {
+			return true
+		}
 	}
-	return true
+	return false
 }
+
+// TODO: parse the original schema provided by docker (https://github.com/docker/cli/blob/master/cli/compose/schema/data/config_schema_v3.3.json) using cuelang and use cue's vetting capabilities to
+// validate the docker compose file.
+// ideally, we would have a `Validator` struct which we will use across our codebase to validate manifests. That will leverage cue's vetting capabilities to verify manifests.
 
 // VaildateDockerComposeFile takes in a manifest and returns validates it
 func VaildateDockerComposeFile(yamlManifest []byte) error {
