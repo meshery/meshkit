@@ -22,10 +22,20 @@ var (
 	ErrReadingLocalFileCode          = "11054"
 	ErrGettingLatestReleaseTagCode   = "11055"
 	ErrInvalidProtocol               = errors.New(ErrInvalidProtocolCode, errors.Alert, []string{"invalid protocol: only http, https and file are valid protocols"}, []string{}, []string{"Network protocol is incorrect"}, []string{"Make sure to specify the right network protocol"})
+	ErrMissingFieldCode              = "11076"
+	ErrExpectedTypeMismatchCode      = "11079"
 )
 
+func ErrExpectedTypeMismatch(err error, expectedType string) error {
+	return errors.New(ErrExpectedTypeMismatchCode, errors.Alert, []string{"Expected the type to be: ", expectedType}, []string{err.Error()}, []string{"Invalid manifest"}, []string{"Make sure that the value provided in the manifest has the needed type."})
+}
+
+func ErrMissingField(err error, missingFieldName string) error {
+	return errors.New(ErrMissingFieldCode, errors.Alert, []string{"Missing field or property with name: ", missingFieldName}, []string{err.Error()}, []string{"Invalid manifest"}, []string{"Make sure that the concerned data type has all the required fields/values."})
+}
+
 func ErrUnmarshal(err error) error {
-	return errors.New(ErrUnmarshalCode, errors.Alert, []string{"Unmarshal unknown error: %s"}, []string{err.Error()}, []string{"Invalid object format"}, []string{"Make sure to input a valid JSON object"})
+	return errors.New(ErrUnmarshalCode, errors.Alert, []string{"Unmarshal unknown error: "}, []string{err.Error()}, []string{"Invalid object format"}, []string{"Make sure to input a valid JSON object"})
 }
 
 func ErrUnmarshalInvalid(err error, typ reflect.Type) error {
