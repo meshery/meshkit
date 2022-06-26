@@ -1,7 +1,9 @@
 package kubernetes
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -45,6 +47,7 @@ const (
 	INSTALL HelmChartAction = iota
 	UPGRADE
 	UNINSTALL
+	TEMPLATE
 )
 
 const (
@@ -178,6 +181,9 @@ type ApplyHelmChartConfig struct {
 	// DownloadLocation defines the location where the user wants to download the helm charts
 	// If this is not provided, the helm chart is downloaded to the "/tmp" folder
 	DownloadLocation string
+
+	//TemplateOut is used to write the generated templated onto
+	TemplateOut io.Writer
 }
 
 // ApplyHelmChart takes in the url for the helm chart
@@ -237,7 +243,6 @@ type ApplyHelmChartConfig struct {
 //
 func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	setupDefaults(&cfg)
-
 	if err := setupChartVersion(&cfg); err != nil {
 		return ErrApplyHelmChart(err)
 	}
@@ -251,6 +256,7 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
+
 	if cfg.ReleaseName == "" {
 		cfg.ReleaseName = helmChart.Name()
 	}
@@ -441,6 +447,7 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 			if _, err := act.Run(c.Name()); err != nil {
 				return ErrApplyHelmChart(err)
 			}
+
 			return nil
 		}
 	case UPGRADE:
@@ -449,6 +456,22 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 			act.Namespace = cfg.Namespace
 			act.DryRun = cfg.DryRun
 			if _, err := act.Run(c.Name(), c, cfg.OverrideValues); err != nil {
+				return ErrApplyHelmChart(err)
+			}
+			return nil
+		}
+	case TEMPLATE:
+		return func(c *chart.Chart) error {
+			act := action.NewInstall(actionConfig)
+			act.ReleaseName = "test-release"
+			act.CreateNamespace = true
+			act.Namespace = "default"
+			act.DryRun = true
+			rel, err := act.Run(c, cfg.OverrideValues)
+			var manifests bytes.Buffer
+			fmt.Fprintln(&manifests, strings.TrimSpace(rel.Manifest))
+			_, err = cfg.TemplateOut.Write(manifests.Bytes())
+			if err != nil {
 				return ErrApplyHelmChart(err)
 			}
 			return nil
