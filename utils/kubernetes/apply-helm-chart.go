@@ -468,6 +468,9 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 			act.Namespace = "default"
 			act.DryRun = true
 			rel, err := act.Run(c, cfg.OverrideValues)
+			if err != nil {
+				return ErrApplyHelmChart(err)
+			}
 			var manifests bytes.Buffer
 			fmt.Fprintln(&manifests, strings.TrimSpace(rel.Manifest))
 			_, err = cfg.TemplateOut.Write(manifests.Bytes())
