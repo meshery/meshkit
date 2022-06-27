@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
@@ -51,7 +53,10 @@ func (mb *mesheryBroker) GetPublicEndpoint() (string, error) {
 		return "", ErrGetControllerPublicEndpoint(err)
 	}
 	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
-	if err != nil || broker.Status.Endpoint.External == "" {
+	if broker.Status.Endpoint.External == "" {
+		if err == nil {
+			err = fmt.Errorf("Could not get the External endpoint for meshery-broker")
+		}
 		// broker is not available
 		return "", ErrGetControllerPublicEndpoint(err)
 	}
