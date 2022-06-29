@@ -32,6 +32,7 @@ func (ms *meshsync) GetName() string {
 
 func (ms *meshsync) GetStatus() MesheryControllerStatus {
 	operatorClient, err := opClient.New(&ms.kclient.RestConfig)
+	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
 	meshSync, err := operatorClient.CoreV1Alpha1().MeshSyncs("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
 	if err == nil {
 		if meshSync.Status.PublishingTo != "" {
@@ -41,6 +42,10 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 		ms.status = NotDeployed
 		return ms.status
 	} else {
+		if kubeerror.IsNotFound(err) {
+			ms.status = NotDeployed
+			return ms.status
+		}
 		// when we are not able to get meshSync resource from OperatorClient, we try to get it using kubernetes client
 		meshSync, err := ms.kclient.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}).Namespace("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
 		if err != nil {

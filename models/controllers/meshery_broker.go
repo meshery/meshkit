@@ -32,6 +32,7 @@ func (mb *mesheryBroker) GetName() string {
 
 func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 	operatorClient, err := opClient.New(&mb.kclient.RestConfig)
+	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
 	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
 	if err == nil {
 		if broker.Status.Endpoint.External != "" {
@@ -41,7 +42,11 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 		mb.status = NotDeployed
 		return mb.status
 	} else {
-		// when operatorClient is not able to get meshesry-broker, we try again with kubernetes client
+		if kubeerror.IsNotFound(err) {
+			mb.status = NotDeployed
+			return mb.status
+		}
+		// when operatorClient is not able to get meshesry-broker, we try again with kubernetes client as a fallback
 		broker, err := mb.kclient.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}).Namespace("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
 		if err != nil {
 			// if the resource is not found, then it is NotDeployed
