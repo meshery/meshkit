@@ -193,14 +193,14 @@ func deleteFile(path string) error {
 	return nil
 }
 
-// This helps in formating the leftover fields using a pre-defined dictionary 
+// This helps in formating the leftover fields using a pre-defined dictionary
 func useDictionary(input string) string {
-	dic := map[interface{}]interface{} {  // includes Whitelist words
+	dict := map[interface{}]interface{}{ // includes Whitelist words
 		"Mesh Sync": "MeshSync",
 	}
-	for comp := range dic {
+	for comp := range dict {
 		if comp == input {
-			return dic[comp].(string)
+			return dict[comp].(string)
 		}
 	}
 	return input
