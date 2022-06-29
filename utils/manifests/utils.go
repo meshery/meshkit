@@ -197,17 +197,6 @@ func deleteFile(path string) error {
 func useDictionary(input string) string {
 	dic := map[interface{}]interface{} {  // includes Whitelist words
 		"Mesh Sync": "MeshSync",
-		"api"      : "API",
-		"http"     : "HTTP",
-		"tcp"      : "TCP",
-		"uid"      : "UID",
-		"id"       : "ID",
-		"ip"       : "IP",
-		"url"      : "URL",
-		"tls"      : "TLS",
-		"mtls"     : "MTLS",
-		"os"       : "OS",
-		"fs"       : "FS",
 	}
 	for comp := range dic {
 		if comp == input {
@@ -241,14 +230,7 @@ func FormatToReadableString(input string) string {
 			finalWord += " " + string(input[i])
 		}
 	}
-	finalWord = useDictionary(strings.Join(strings.Fields(strings.TrimSpace(finalWord+input[len(input)-1:])), " "))
-	i := strings.Split(finalWord, " ")
-	var nw []string
-	for _, w := range i {
-		nw = append(nw, useDictionary(w))
-	}
-	finalWord = strings.Join(nw, " ")
-	return finalWord
+	return useDictionary(strings.Join(strings.Fields(strings.TrimSpace(finalWord+input[len(input)-1:])), " "))
 }
 
 const (
