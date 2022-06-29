@@ -4,9 +4,12 @@ import (
 	"context"
 
 	// opClient "github.com/layer5io/meshery-operator/pkg/client"
+	opClient "github.com/layer5io/meshery-operator/pkg/client"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 )
 
 type meshsync struct {
@@ -17,7 +20,7 @@ type meshsync struct {
 
 func NewMeshsyncHandler(kubernetesClient *mesherykube.Client) IMesheryController {
 	return &meshsync{
-		name:    "Meshsync",
+		name:    "MeshSync",
 		status:  Unknown,
 		kclient: kubernetesClient,
 	}
@@ -28,17 +31,38 @@ func (ms *meshsync) GetName() string {
 }
 
 func (ms *meshsync) GetStatus() MesheryControllerStatus {
-	meshsync, err := ms.kclient.KubeClient.AppsV1().Deployments("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
-	// if the deployment is not found, then it is NotDeployed
-	if err != nil && !kubeerror.IsNotFound(err) {
+	operatorClient, err := opClient.New(&ms.kclient.RestConfig)
+	meshSync, err := operatorClient.CoreV1Alpha1().MeshSyncs("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
+	if err == nil {
+		if meshSync.Status.PublishingTo != "" {
+			ms.status = Deployed
+			return ms.status
+		}
 		ms.status = NotDeployed
 		return ms.status
+	} else {
+		// when we are not able to get meshSync resource from OperatorClient, we try to get it using kubernetes client
+		meshSync, err := ms.kclient.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}).Namespace("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
+		if err != nil {
+			// if the resource is not found, then it is NotDeployed
+			if kubeerror.IsNotFound(err) {
+				ms.status = NotDeployed
+				return ms.status
+			}
+			return Unknown
+		}
+		ms.status = Deploying
+		sv, err := polymorphichelpers.StatusViewerFor(meshSync.GroupVersionKind().GroupKind())
+		_, done, err := sv.Status(meshSync, 0)
+		if err != nil {
+			ms.status = Unknown
+			return ms.status
+		}
+		if done {
+			ms.status = Deployed
+		}
+		return ms.status
 	}
-	ms.status = Deploying
-	if mesherykube.IsDeploymentDone(*meshsync) {
-		ms.status = Deployed
-	}
-	return ms.status
 }
 
 func (ms *meshsync) Deploy() error {

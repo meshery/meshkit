@@ -7,6 +7,8 @@ import (
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 )
 
 type mesheryOperator struct {
@@ -37,7 +39,7 @@ func (mo *mesheryOperator) GetName() string {
 
 func (mo *mesheryOperator) GetStatus() MesheryControllerStatus {
 	// check if the deployment exists
-	deployment, err := mo.client.KubeClient.AppsV1().Deployments("meshery").Get(context.TODO(), "meshery-operator", metav1.GetOptions{})
+	deployment, err := mo.client.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}).Namespace("meshery").Get(context.TODO(), "meshery-operator", metav1.GetOptions{})
 	if err != nil {
 		if kubeerror.IsNotFound(err) {
 			mo.status = NotDeployed
@@ -45,9 +47,15 @@ func (mo *mesheryOperator) GetStatus() MesheryControllerStatus {
 		}
 		return Unknown
 	}
-
 	mo.status = Deploying
-	if mesherykube.IsDeploymentDone(*deployment) {
+
+	sv, err := polymorphichelpers.StatusViewerFor(deployment.GroupVersionKind().GroupKind())
+	_, done, err := sv.Status(deployment, 0)
+	if err != nil {
+		mo.status = Unknown
+		return mo.status
+	}
+	if done {
 		mo.status = Deployed
 	}
 	return mo.status
