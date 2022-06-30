@@ -8,6 +8,8 @@ import (
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 )
 
 type mesheryBroker struct {
@@ -29,17 +31,43 @@ func (mb *mesheryBroker) GetName() string {
 }
 
 func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
-	broker, err := mb.kclient.KubeClient.AppsV1().Deployments("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
-	// if the deployment is not found, then it is NotDeployed
-	if err != nil && !kubeerror.IsNotFound(err) {
+	operatorClient, err := opClient.New(&mb.kclient.RestConfig)
+	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
+	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
+	if err == nil {
+		if broker.Status.Endpoint.External != "" {
+			mb.status = Deployed
+			return mb.status
+		}
 		mb.status = NotDeployed
 		return mb.status
+	} else {
+		if kubeerror.IsNotFound(err) {
+			mb.status = NotDeployed
+			return mb.status
+		}
+		// when operatorClient is not able to get meshesry-broker, we try again with kubernetes client as a fallback
+		broker, err := mb.kclient.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}).Namespace("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
+		if err != nil {
+			// if the resource is not found, then it is NotDeployed
+			if kubeerror.IsNotFound(err) {
+				mb.status = NotDeployed
+				return mb.status
+			}
+			return Unknown
+		}
+		mb.status = Deploying
+		sv, err := polymorphichelpers.StatusViewerFor(broker.GroupVersionKind().GroupKind())
+		_, done, err := sv.Status(broker, 0)
+		if err != nil {
+			mb.status = Unknown
+			return mb.status
+		}
+		if done {
+			mb.status = Deployed
+		}
+		return mb.status
 	}
-	mb.status = Deploying
-	if mesherykube.IsDeploymentDone(*broker) {
-		mb.status = Deployed
-	}
-	return mb.status
 }
 
 func (mb *mesheryBroker) Deploy() error {
