@@ -15,6 +15,7 @@ type Component struct {
 // ComponentSpec is the structure for the core OAM Application Component Spec
 type ComponentSpec struct {
 	Type       string                 `json:"type"`
+	Version    string                 `json:"version"`
 	Settings   map[string]interface{} `json:"settings"`
 	Parameters []ComponentParameter   `json:"parameters"`
 }
