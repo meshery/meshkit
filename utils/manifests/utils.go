@@ -16,6 +16,10 @@ import (
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
 )
 
+const (
+	JsonSchemaPropsRef = "JSONSchemaProps"
+)
+
 var templateExpression *regexp.Regexp
 
 func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.Context) (string, error) {
@@ -284,6 +288,12 @@ func isException(prev int, curr int, next int, input string) (isException bool) 
 	return
 }
 
+type ResolveOpenApiRefs struct {
+	// this is used to track whether we have a JsonSchemaProp inside a JsonSchemaProp
+	// which on resolving would cause infinite loops
+	isInsideJsonSchemaProps bool
+}
+
 // we are manually dereferencing this because there are no other alternatives
 // other alternatives to lookout for in the future are
 //   1. cue's jsonschema encoding package
@@ -293,50 +303,63 @@ func isException(prev int, curr int, next int, input string) (isException bool) 
 //  for resolving refs in kubernetes openapiv2 jsonschema
 // definitions - parsed CUE value of the 'definitions' in openapiv2
 // manifest - jsonschema manifest to resolve refs for
-func ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {
+func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {
+	setIsJsonFalse := func() {
+		ro.isInsideJsonSchemaProps = false
+	}
 	var val map[string]interface{}
 	err := json.Unmarshal(manifest, &val)
 	if err != nil {
 		return nil, err
 	}
-
-	// to get rid of cycles
 	if val["$ref"] != nil {
-		if reflect.ValueOf(val["$ref"]).Kind() != reflect.String {
-			return manifest, nil
+		if ref, ok := val["$ref"].(string); ok {
+			splitRef := strings.Split(ref, ".")
+			ref := splitRef[len(splitRef)-1]
+			// if we have a JsonSchemaProp inside a JsonSchema Prop
+			if ro.isInsideJsonSchemaProps && (ref == JsonSchemaPropsRef) {
+				return manifest, nil
+			}
 		}
 	}
-
 	for k, v := range val {
 		if k == "$ref" {
-			splt := strings.Split(v.(string), "/")
-			path := splt[len(splt)-1]
-			refVal := definitions.LookupPath(cue.ParsePath(fmt.Sprintf(`"%v"`, path)))
-			if refVal.Err() != nil {
-				return nil, refVal.Err()
-			}
-			marshalledVal, err := refVal.MarshalJSON()
-			if err != nil {
-				return nil, err
-			}
-			def, err := ResolveReferences(marshalledVal, definitions)
-			if err != nil {
-				return nil, err
-			}
-			if def != nil {
-				err := replaceRefWithVal(def, val, k)
-				if err != nil {
-					return def, nil
+			if v, ok := v.(string); ok {
+				splitRef := strings.Split(v, ".")
+				ref := splitRef[len(splitRef)-1]
+				if ref == JsonSchemaPropsRef {
+					ro.isInsideJsonSchemaProps = true
+					defer setIsJsonFalse()
 				}
+				splt := strings.Split(v, "/")
+				path := splt[len(splt)-1]
+				refVal := definitions.LookupPath(cue.ParsePath(fmt.Sprintf(`"%v"`, path)))
+				if refVal.Err() != nil {
+					return nil, refVal.Err()
+				}
+				marshalledVal, err := refVal.MarshalJSON()
+				if err != nil {
+					return nil, err
+				}
+				def, err := ro.ResolveReferences(marshalledVal, definitions)
+				if err != nil {
+					return nil, err
+				}
+				if def != nil {
+					err := replaceRefWithVal(def, val, k)
+					if err != nil {
+						return def, nil
+					}
+				}
+				return def, nil
 			}
-			return def, nil
 		}
 		if reflect.ValueOf(v).Kind() == reflect.Map {
 			marVal, err := json.Marshal(v)
 			if err != nil {
 				return nil, err
 			}
-			def, err := ResolveReferences(marVal, definitions)
+			def, err := ro.ResolveReferences(marVal, definitions)
 			if err != nil {
 				return nil, err
 			}
