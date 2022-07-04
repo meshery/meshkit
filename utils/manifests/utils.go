@@ -193,6 +193,19 @@ func deleteFile(path string) error {
 	return nil
 }
 
+// This helps in formating the leftover fields using a pre-defined dictionary
+func useDictionary(input string) string {
+	dict := map[string]string{ // includes Whitelist words
+		"Mesh Sync": "MeshSync",
+	}
+	for comp := range dict {
+		if comp == input {
+			return dict[comp]
+		}
+	}
+	return input
+}
+
 //While going from Capital letter to small, insert a whitespace before the capital letter.
 //While going from small letter to capital, insert a whitespace after the small letter
 //The above is a general rule and further "exceptions" are used.
@@ -217,7 +230,7 @@ func FormatToReadableString(input string) string {
 			finalWord += " " + string(input[i])
 		}
 	}
-	return strings.Join(strings.Fields(strings.TrimSpace(finalWord+input[len(input)-1:])), " ")
+	return useDictionary(strings.Join(strings.Fields(strings.TrimSpace(finalWord+input[len(input)-1:])), " "))
 }
 
 const (

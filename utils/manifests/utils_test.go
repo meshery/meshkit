@@ -29,6 +29,10 @@ func TestFormatToReadableString(t *testing.T) {
 			input:          "idConnectedToIPs",
 			expectedOutput: "id Connected To IPs",
 		},
+		{
+			input:          "Mesh Sync",
+			expectedOutput: "MeshSync",
+		},
 	}
 	for _, tt := range testCases {
 		output := FormatToReadableString(tt.input)
