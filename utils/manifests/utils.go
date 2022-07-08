@@ -200,7 +200,8 @@ func deleteFile(path string) error {
 // This helps in formating the leftover fields using a pre-defined dictionary
 func useDictionary(input string) string {
 	dict := map[string]string{ // includes Whitelist words
-		"Mesh Sync": "MeshSync",
+		"Mesh Sync":             "MeshSync",
+		"additional Properties": "additionalProperties", //This field is used by RJSF and should not include white space
 	}
 	for comp := range dict {
 		if comp == input {
