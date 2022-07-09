@@ -297,8 +297,8 @@ type ResolveOpenApiRefs struct {
 // we are manually dereferencing this because there are no other alternatives
 // other alternatives to lookout for in the future are
 //   1. cue's jsonschema encoding package
+//    currently, it does not support resolving refs from external world
 //   2. cue's openapi encoding package (currently it only supports openapiv3)
-// currently, it does not support resolving refs from external world
 
 //  for resolving refs in kubernetes openapiv2 jsonschema
 // definitions - parsed CUE value of the 'definitions' in openapiv2
@@ -318,7 +318,13 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 			ref := splitRef[len(splitRef)-1]
 			// if we have a JsonSchemaProp inside a JsonSchema Prop
 			if ro.isInsideJsonSchemaProps && (ref == JsonSchemaPropsRef) {
-				return manifest, nil
+				// hack so that the UI doesn't crash
+				val["$ref"] = "string"
+				marVal, err := json.Marshal(val)
+				if err != nil {
+					return manifest, nil
+				}
+				return marVal, nil
 			}
 		}
 	}
