@@ -50,6 +50,10 @@ func (mo *mesheryOperator) GetStatus() MesheryControllerStatus {
 	mo.status = Deploying
 
 	sv, err := polymorphichelpers.StatusViewerFor(deployment.GroupVersionKind().GroupKind())
+	if err != nil {
+		mo.status = Unknown
+		return mo.status
+	}
 	_, done, err := sv.Status(deployment, 0)
 	if err != nil {
 		mo.status = Unknown
