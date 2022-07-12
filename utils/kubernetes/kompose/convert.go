@@ -49,7 +49,11 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 		os.Remove("result.yaml")
 	}()
 
+<<<<<<< HEAD
 	err = formatComposeFile(&dockerCompose)
+=======
+	formatComposeFile(&dockerCompose)
+>>>>>>> upstream/master
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
@@ -158,18 +162,18 @@ func versionCheck(dc DockerComposeFile) error {
 
 // formatComposeFile takes in a pointer to the compose file byte array and formats it so that it is compatible with `Kompose`
 // it expects a validated docker compose file and does not validate
-func formatComposeFile(yamlManifest *DockerComposeFile) error {
+func formatComposeFile(yamlManifest *DockerComposeFile) {
 	data := composeFile{}
 	err := yaml.Unmarshal(*yamlManifest, &data)
 	if err != nil {
-		return utils.ErrUnmarshal(err)
+		return
 	}
 	// so that "3.3" and 3.3 are treated differently by `Kompose`
 	data.Version = fmt.Sprintf("%s", data.Version)
 	out, err := yaml.Marshal(data)
 	if err != nil {
-		return utils.ErrMarshal(err)
+		return
 	}
 	*yamlManifest = out
-	return nil
+	return
 }

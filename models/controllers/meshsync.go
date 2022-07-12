@@ -31,7 +31,7 @@ func (ms *meshsync) GetName() string {
 }
 
 func (ms *meshsync) GetStatus() MesheryControllerStatus {
-	operatorClient, err := opClient.New(&ms.kclient.RestConfig)
+	operatorClient, _ := opClient.New(&ms.kclient.RestConfig)
 	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
 	meshSync, err := operatorClient.CoreV1Alpha1().MeshSyncs("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
 	if err == nil {
@@ -58,6 +58,10 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 		}
 		ms.status = Deploying
 		sv, err := polymorphichelpers.StatusViewerFor(meshSync.GroupVersionKind().GroupKind())
+		if err != nil {
+			ms.status = Unknown
+			return ms.status
+		}
 		_, done, err := sv.Status(meshSync, 0)
 		if err != nil {
 			ms.status = Unknown

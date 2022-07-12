@@ -60,9 +60,13 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 			return Unknown
 		}
 		mb.status = Deploying
-		sv, err := polymorphichelpers.StatusViewerFor(broker.GroupVersionKind().GroupKind())
-		_, done, er := sv.Status(broker, 0)
+		sv, er := polymorphichelpers.StatusViewerFor(broker.GroupVersionKind().GroupKind())
 		if er != nil {
+			mb.status = Unknown
+			return mb.status
+		}
+		_, done, statuser := sv.Status(broker, 0)
+		if statuser != nil {
 			mb.status = Unknown
 			return mb.status
 		}
