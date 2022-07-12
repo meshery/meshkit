@@ -50,6 +50,9 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	}()
 
 	err = formatComposeFile(&dockerCompose)
+	if err != nil {
+		return "", ErrCvrtKompose(err)
+	}
 	err = versionCheck(dockerCompose)
 	if err != nil {
 		return "", ErrCvrtKompose(err)

@@ -32,6 +32,9 @@ func (mb *mesheryBroker) GetName() string {
 
 func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 	operatorClient, err := opClient.New(&mb.kclient.RestConfig)
+	if err != nil || operatorClient == nil {
+		return Unknown
+	}
 	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
 	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
 	if err == nil {
@@ -58,8 +61,8 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 		}
 		mb.status = Deploying
 		sv, err := polymorphichelpers.StatusViewerFor(broker.GroupVersionKind().GroupKind())
-		_, done, err := sv.Status(broker, 0)
-		if err != nil {
+		_, done, er := sv.Status(broker, 0)
+		if er != nil {
 			mb.status = Unknown
 			return mb.status
 		}
