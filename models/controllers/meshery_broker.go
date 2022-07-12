@@ -65,8 +65,8 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 			mb.status = Unknown
 			return mb.status
 		}
-		_, done, statuser := sv.Status(broker, 0)
-		if statuser != nil {
+		_, done, statusErr := sv.Status(broker, 0)
+		if statusErr != nil {
 			mb.status = Unknown
 			return mb.status
 		}
