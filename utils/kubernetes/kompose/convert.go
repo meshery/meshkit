@@ -49,14 +49,7 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 		os.Remove("result.yaml")
 	}()
 
-<<<<<<< HEAD
-	err = formatComposeFile(&dockerCompose)
-=======
 	formatComposeFile(&dockerCompose)
->>>>>>> upstream/master
-	if err != nil {
-		return "", ErrCvrtKompose(err)
-	}
 	err = versionCheck(dockerCompose)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
