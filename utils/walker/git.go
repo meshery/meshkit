@@ -180,15 +180,15 @@ func clonewalk(g *Git) error {
 		path := filepath.Join(path, g.root, f.Name())
 		if f.IsDir() && g.dirInterceptor != nil {
 			name := f.Name()
-			go func(name string, path string) {
+			go func(name string, path string, filename string) {
 				err := g.dirInterceptor(Directory{
-					Name: f.Name(),
+					Name: filename,
 					Path: path,
 				})
 				if err != nil {
 					fmt.Println(err.Error())
 				}
-			}(name, path)
+			}(name, path, f.Name())
 			continue
 		}
 		if f.IsDir() {
