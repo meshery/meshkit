@@ -24,7 +24,17 @@ var (
 	ErrInvalidProtocol               = errors.New(ErrInvalidProtocolCode, errors.Alert, []string{"invalid protocol: only http, https and file are valid protocols"}, []string{}, []string{"Network protocol is incorrect"}, []string{"Make sure to specify the right network protocol"})
 	ErrMissingFieldCode              = "11076"
 	ErrExpectedTypeMismatchCode      = "11079"
+	ErrJsonToCueCode                 = "11085"
+	ErrYamlToCueCode                 = "11086"
 )
+
+func ErrYamlToCue(err error) error {
+	return errors.New(ErrYamlToCueCode, errors.Alert, []string{"Could not convert given yaml object into a CUE Value"}, []string{err.Error()}, []string{"Invalid yaml"}, []string{"Make sure that the given value is a valid YAML"})
+}
+
+func ErrJsonToCue(err error) error {
+	return errors.New(ErrJsonToCueCode, errors.Alert, []string{"Could not convert given json object into a CUE Value"}, []string{err.Error()}, []string{"Invalid json object"}, []string{"Make sure that the given value is a valid JSON"})
+}
 
 func ErrExpectedTypeMismatch(err error, expectedType string) error {
 	return errors.New(ErrExpectedTypeMismatchCode, errors.Alert, []string{"Expected the type to be: ", expectedType}, []string{err.Error()}, []string{"Invalid manifest"}, []string{"Make sure that the value provided in the manifest has the needed type."})
