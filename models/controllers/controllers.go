@@ -3,12 +3,13 @@ package controllers
 type MesheryControllerStatus int
 
 const (
-	Deployed MesheryControllerStatus = iota
-	Deploying
-	Undeployed
+	Deployed    MesheryControllerStatus = iota //The controller is deployed(default behavior)
+	Deploying                                  //The controller is being deployed
+	NotDeployed                                //The controller is not deployed yet
+	Undeployed                                 //The controller has been intentionally undeployed. This state is useful to avoid automatic redeployment.
+	// we don't know since we have not checked yet
 	Enabled
 	Running
-	// we don't know since we have not checked yet
 	Unknown
 )
 
@@ -18,12 +19,12 @@ func (mcs MesheryControllerStatus) String() string {
 		return "Deployed"
 	case Deploying:
 		return "Deploying"
+	case Undeployed:
+		return "Undeployed"
 	case Enabled:
 		return "Enabled"
 	case Running:
 		return "Running"
-	case Undeployed:
-		return "Undeployed"
 	case Unknown:
 		return "Unknown"
 	}
