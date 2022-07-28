@@ -6,6 +6,7 @@ import (
 	// opClient "github.com/layer5io/meshery-operator/pkg/client"
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
+	v1 "k8s.io/api/core/v1"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,14 +34,24 @@ func (ms *meshsync) GetName() string {
 func (ms *meshsync) GetStatus() MesheryControllerStatus {
 	operatorClient, _ := opClient.New(&ms.kclient.RestConfig)
 	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
-	meshSync, err := operatorClient.CoreV1Alpha1().MeshSyncs("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
+	_, err := operatorClient.CoreV1Alpha1().MeshSyncs("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
 	if err == nil {
-		if meshSync.Status.PublishingTo != "" {
+		ms.status = Enabled
+		meshSyncPod, err := ms.kclient.KubeClient.CoreV1().Pods("meshery").List(context.TODO(), metav1.ListOptions{
+			LabelSelector: "component=meshsync",
+		})
+		if len(meshSyncPod.Items) == 0 || kubeerror.IsNotFound(err) {
+			return ms.status
+		}
+
+		switch meshSyncPod.Items[0].Status.Phase {
+		case v1.PodRunning:
+			ms.status = Running
+			return ms.status
+		default:
 			ms.status = Deployed
 			return ms.status
 		}
-		ms.status = NotDeployed
-		return ms.status
 	} else {
 		if kubeerror.IsNotFound(err) {
 			ms.status = NotDeployed

@@ -6,6 +6,8 @@ const (
 	Deployed MesheryControllerStatus = iota
 	Deploying
 	NotDeployed
+	Enabled
+	Running
 	// we don't know since we have not checked yet
 	Unknown
 )
@@ -18,6 +20,10 @@ func (mcs MesheryControllerStatus) String() string {
 		return "Deploying"
 	case NotDeployed:
 		return "Not Deployed"
+	case Enabled:
+		return "Enabled"
+	case Running:
+		return "Running"
 	case Unknown:
 		return "Unknown"
 	}

@@ -3,9 +3,11 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
+	v1 "k8s.io/api/core/v1"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,6 +18,7 @@ type mesheryBroker struct {
 	name    string
 	status  MesheryControllerStatus
 	kclient *mesherykube.Client
+	version string
 }
 
 func NewMesheryBrokerHandler(kubernetesClient *mesherykube.Client) IMesheryController {
@@ -23,6 +26,7 @@ func NewMesheryBrokerHandler(kubernetesClient *mesherykube.Client) IMesheryContr
 		name:    "MesheryBroker",
 		status:  Unknown,
 		kclient: kubernetesClient,
+		version: "",
 	}
 }
 
@@ -100,5 +104,22 @@ func (mb *mesheryBroker) GetPublicEndpoint() (string, error) {
 }
 
 func (mb *mesheryBroker) GetVersion() (string, error) {
-	return "", nil
+	if len(mb.version) == 0 {
+		statefulSet, err := mb.kclient.KubeClient.AppsV1().StatefulSets("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
+		if kubeerror.IsNotFound(err) {
+			return "", err
+		}
+		return getImageVersionOfContainer(statefulSet.Spec.Template, "nats"), nil
+	}
+	return mb.version, nil
+}
+
+func getImageVersionOfContainer(container v1.PodTemplateSpec, containerName string) string {
+	var version string
+	for _, container := range container.Spec.Containers {
+		if strings.Compare(container.Name, containerName) == 0 {
+			version = strings.Split(container.Image, ":")[1]
+		}
+	}
+	return version
 }
