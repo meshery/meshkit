@@ -9,6 +9,10 @@ import (
 
 	"github.com/kubernetes/kompose/pkg/app"
 	"github.com/kubernetes/kompose/pkg/kobject"
+	"github.com/kubernetes/kompose/pkg/loader"
+	"github.com/kubernetes/kompose/pkg/transformer"
+	"github.com/kubernetes/kompose/pkg/transformer/kubernetes"
+	"github.com/kubernetes/kompose/pkg/transformer/openshift"
 	"github.com/layer5io/meshkit/utils"
 	"gopkg.in/yaml.v2"
 )
@@ -88,7 +92,11 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 		ServiceGroupMode:            "",
 		ServiceGroupName:            "",
 	}
-	app.Convert(ConvertOpt)
+
+	err = convert(ConvertOpt)
+	if err != nil {
+		return "", err
+	}
 
 	result, err := ioutil.ReadFile("result.yaml")
 	if err != nil {
@@ -169,4 +177,104 @@ func formatComposeFile(yamlManifest *DockerComposeFile) {
 	}
 	*yamlManifest = out
 	return
+}
+
+var inputFormat = "compose"
+
+func convert(opt kobject.ConvertOptions) error {
+	err := validateControllers(&opt)
+	if err != nil {
+		return err
+	}
+
+	// loader parses input from file into komposeObject.
+	l, err := loader.GetLoader(inputFormat)
+	if err != nil {
+		return err
+	}
+
+	komposeObject := kobject.KomposeObject{
+		ServiceConfigs: make(map[string]kobject.ServiceConfig),
+	}
+	komposeObject, err = l.LoadFile(opt.InputFiles)
+	if err != nil {
+		return err
+	}
+
+	// Get a transformer that maps komposeObject to provider's primitives
+	t := getTransformer(opt)
+
+	// Do the transformation
+	objects, err := t.Transform(komposeObject, opt)
+
+	if err != nil {
+		return err
+	}
+
+	// Print output
+	err = kubernetes.PrintList(objects, opt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Convenience method to return the appropriate Transformer based on
+// what provider we are using.
+func getTransformer(opt kobject.ConvertOptions) transformer.Transformer {
+	var t transformer.Transformer
+	if opt.Provider == app.DefaultProvider {
+		// Create/Init new Kubernetes object with CLI opts
+		t = &kubernetes.Kubernetes{Opt: opt}
+	} else {
+		// Create/Init new OpenShift object that is initialized with a newly
+		// created Kubernetes object. Openshift inherits from Kubernetes
+		t = &openshift.OpenShift{Kubernetes: kubernetes.Kubernetes{Opt: opt}}
+	}
+	return t
+}
+
+func validateControllers(opt *kobject.ConvertOptions) error {
+	singleOutput := len(opt.OutFile) != 0 || opt.OutFile == "-" || opt.ToStdout
+	if opt.Provider == app.ProviderKubernetes {
+		// create deployment by default if no controller has been set
+		if !opt.CreateD && !opt.CreateDS && !opt.CreateRC && opt.Controller == "" {
+			opt.CreateD = true
+		}
+		if singleOutput {
+			count := 0
+			if opt.CreateD {
+				count++
+			}
+			if opt.CreateDS {
+				count++
+			}
+			if opt.CreateRC {
+				count++
+			}
+			if count > 1 {
+				return fmt.Errorf("Error: only one kind of Kubernetes resource can be generated when --out or --stdout is specified")
+			}
+		}
+	} else if opt.Provider == app.ProviderOpenshift {
+		// create deploymentconfig by default if no controller has been set
+		if !opt.CreateDeploymentConfig {
+			opt.CreateDeploymentConfig = true
+		}
+		if singleOutput {
+			count := 0
+			if opt.CreateDeploymentConfig {
+				count++
+			}
+			// Add more controllers here once they are available in OpenShift
+			// if opt.foo {count++}
+
+			if count > 1 {
+				return fmt.Errorf("Error: only one kind of OpenShift resource can be generated when --out or --stdout is specified")
+			}
+		}
+	}
+
+	return nil
 }
