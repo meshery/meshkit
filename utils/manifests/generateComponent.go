@@ -22,13 +22,17 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 		if cfg.CrdFilter.IsJson != true {
 			file, err := yaml.Extract("crds", crd) // first argument is dummy
 			if err != nil {
-				return nil, err
+				// inability to generate component for a single crd should not affect the rest
+				// TODO: Maintain a list of errors and keep pushing the errors to the list so that it can be displayed at last
+				continue
 			}
 			parsedCrd = cueCtx.BuildFile(file)
 		} else {
 			expr, err := json.Extract("", []byte(crd))
 			if err != nil {
-				return nil, err
+				// inability to generate component for a single crd should not affect the rest
+				// TODO: Maintain a list of errors and keep pushing the errors to the list so that it can be displayed at last
+				continue
 			}
 			parsedCrd = cueCtx.BuildExpr(expr)
 		}
@@ -37,14 +41,12 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 			// inability to generate component for a single crd should not affect the rest
 			// TODO: Maintain a list of errors and keep pushing the errors to the list so that it can be displayed at last
 			continue
-			// return nil, err
 		}
 		outSchema, err := getSchema(parsedCrd, cfg, ctx)
 		if err != nil {
 			// inability to generate component for a single crd should not affect the rest
 			// TODO: Maintain a list of errors and keep pushing the errors to the list so that it can be displayed at last
 			continue
-			// return nil, ErrGetSchemas(err)
 		}
 		if cfg.ModifyDefSchema != nil {
 			cfg.ModifyDefSchema(&outDef, &outSchema) //definition and schema can be modified using some call back function
