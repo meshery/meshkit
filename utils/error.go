@@ -26,7 +26,12 @@ var (
 	ErrExpectedTypeMismatchCode      = "11079"
 	ErrJsonToCueCode                 = "11085"
 	ErrYamlToCueCode                 = "11086"
+	ErrJsonSchemaToCueCode           = "11087"
 )
+
+func ErrJsonSchemaToCue(err error) error {
+	return errors.New(ErrJsonSchemaToCueCode, errors.Alert, []string{"Could not convert given JsonSchema into a CUE Value"}, []string{err.Error()}, []string{"Invalid jsonschema"}, []string{"Make sure that the given value is a valid JSONSCHEMA"})
+}
 
 func ErrYamlToCue(err error) error {
 	return errors.New(ErrYamlToCueCode, errors.Alert, []string{"Could not convert given yaml object into a CUE Value"}, []string{err.Error()}, []string{"Invalid yaml"}, []string{"Make sure that the given value is a valid YAML"})
