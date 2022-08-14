@@ -192,7 +192,7 @@ func clonewalk(g *Git) error {
 			continue
 		}
 		if f.IsDir() {
-			return nil
+			continue
 		}
 		err := g.readFile(f, path)
 		if err != nil {
