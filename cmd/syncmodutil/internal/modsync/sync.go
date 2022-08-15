@@ -148,7 +148,6 @@ func getReplacedVersionsFromString(s string) (p [][]Package) {
 			if len(p0) != 0 {
 				p = append(p, p0)
 			}
-
 		}
 	}
 	return p
