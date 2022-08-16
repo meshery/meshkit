@@ -1,7 +1,6 @@
 package compgen
 
 import (
-	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -10,9 +9,10 @@ import (
 // in this case, it is to generate the components from CRDS
 // other conversion stuff should be done beforehand
 // it expects the crds to be sent when initialized
-type crdComponentGenerator struct {
+type crdComponentsGenerator struct {
 	crds                []string
 	extractorPathConfig CuePathConfig
+	resourceMetadata    map[string]string
 }
 
 // all paths should be a valid CUE expression
@@ -25,30 +25,33 @@ type CuePathConfig struct {
 }
 
 // crds should be yaml
-func (cg crdComponentGenerator) generate() ([]Component, error) {
+func (cg crdComponentsGenerator) generate() ([]Component, error) {
 	components := make([]Component, 0)
 	for _, crd := range cg.crds {
 		// crd shoudl be YAML
 		crdCue, err := utils.YamlToCue(crd)
 		if err != nil {
-			logrus.Warn(ErrCrdYaml(err))
+			logrus.Warn(ErrCrdGenerate(err))
 			continue
 		}
+		definition, err := getDefinition(crdCue, cg.extractorPathConfig, cg.resourceMetadata)
+		if err != nil {
+			logrus.Warn(ErrCrdGenerate(err))
+			continue
+		}
+		schema, err := getSchema(crdCue, cg.extractorPathConfig)
+		if err != nil {
+			logrus.Warn(ErrCrdGenerate(err))
+			continue
+		}
+		components = append(components, Component{Definition: definition, Schema: schema})
 	}
 	return components, nil
 }
 
-func NewCrdComponentGenerator(crds []string, pathConf CuePathConfig) ComponentGenerator {
-	return &crdComponentGenerator{
+func NewCrdComponentGenerator(crds []string, pathConf CuePathConfig) ComponentsGenerator {
+	return &crdComponentsGenerator{
 		crds:                crds,
 		extractorPathConfig: pathConf,
 	}
-}
-
-func getDefinition(crd cue.Value, pathConf CuePathConfig) (string, error) {
-	resourceId, err := utils.Lookup(crd, pathConf.IdentifierPath)
-	if err != nil {
-
-	}
-	return "", nil
 }

@@ -1,11 +1,11 @@
 package compgen
 
 // responsible for generating components using different sorts of manifests
-type ComponentGenerator interface {
+type ComponentsGenerator interface {
 	generate() ([]Component, error)
 }
 
 type Component struct {
-	Schema     []string
-	Definition []string
+	Schema     string
+	Definition string
 }
