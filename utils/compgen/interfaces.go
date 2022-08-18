@@ -6,5 +6,5 @@ import (
 
 // responsible for generating components using different sorts of manifests
 type ComponentsGenerator interface {
-	generate() ([]v1alpha1.Component, error)
+	Generate() ([]v1alpha1.Component, error)
 }
