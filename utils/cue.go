@@ -14,6 +14,10 @@ func Validate(schema cue.Value, value cue.Value) (bool, error) {
 	if uval.Err() != nil {
 		return false, uval.Err()
 	}
+	_, err := uval.MarshalJSON()
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
