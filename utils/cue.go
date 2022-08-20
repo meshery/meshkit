@@ -1,24 +1,49 @@
 package utils
 
 import (
+	"fmt"
+
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/encoding/json"
 	"cuelang.org/go/encoding/jsonschema"
 	"cuelang.org/go/encoding/yaml"
 )
 
-func Validate(schema cue.Value, value cue.Value) (bool, error) {
-	uval := schema.Unify(value)
-	if uval.Err() != nil {
-		return false, uval.Err()
-	}
-	_, err := uval.MarshalJSON()
+func Validate(schema cue.Value, value cue.Value) (bool, []errors.Error) {
+	var errs []errors.Error
+	uval := value.Unify(schema)
+	err := uval.Validate()
 	if err != nil {
-		return false, err
+		cueErr := errors.Errors(err)
+		errs = append(errs, cueErr...)
 	}
-	return true, nil
+	// check for required fields
+	schema.Walk(func(v cue.Value) bool {
+		val := value.LookupPath(v.Path())
+		if !(val.Err() == nil && val.IsConcrete()) {
+			cueErr := errors.Errors(errors.New(fmt.Sprintf("%v is a required field", v.Path().String())))
+			errs = append(errs, cueErr...)
+		}
+		return true
+	}, nil)
+	if len(errs) != 0 {
+		return false, errs
+	}
+	return true, make([]errors.Error, 0)
+}
+
+func GetNonConcreteFields(val cue.Value) []string {
+	res := make([]string, 0)
+	val.Walk(func(v cue.Value) bool {
+		if !v.IsConcrete() {
+			res = append(res, v.Path().String())
+		}
+		return true
+	}, nil)
+	return res
 }
 
 func JsonToCue(value []byte) (cue.Value, error) {
