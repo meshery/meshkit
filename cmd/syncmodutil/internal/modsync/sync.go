@@ -88,7 +88,7 @@ func (g *GoMod) SyncRequire(f io.Reader) (gomod string, err error) {
 					version = pkgversion[1]
 				}
 				if strings.HasPrefix(pkg, replaced[0].Name) && (version == "" || version == replaced[0].Version) {
-					data[i] = fmt.Sprintf("\t%s %s=>%s  %s", replaced[0].Name, replaced[0].Version, replaced[1].Name, replaced[1].Version)
+					data[i] = fmt.Sprintf("\t%s %s => %s %s", replaced[0].Name, replaced[0].Version, replaced[1].Name, replaced[1].Version)
 				}
 			}
 		}
