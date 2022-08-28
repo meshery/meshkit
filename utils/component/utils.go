@@ -1,4 +1,4 @@
-package compgen
+package component
 
 import (
 	"encoding/json"

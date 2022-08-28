@@ -1,4 +1,4 @@
-package compgen
+package component
 
 import "github.com/layer5io/meshkit/errors"
 
