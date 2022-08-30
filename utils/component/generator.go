@@ -1,10 +1,8 @@
 package component
 
 import (
-	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils"
-	"github.com/sirupsen/logrus"
 )
 
 const ComponentMetaNameKey = "name"
@@ -19,53 +17,31 @@ type CuePathConfig struct {
 	IdentifierPath string
 }
 
-type ComponentsGenerator struct {
-	crds                []string
-	extractorPathConfig CuePathConfig
-	resourceMetadata    map[string]interface{}
+var DefaultPathConfig = CuePathConfig{
+	NamePath:       "spec.names.kind",
+	IdentifierPath: "spec.names.kind",
+	VersionPath:    "spec.versions[0].name",
+	GroupPath:      "spec.group",
+	SpecPath:       "spec.versions[0].schema.openAPIV3Schema.properties.spec",
 }
 
-func (cg ComponentsGenerator) Generate() ([]v1alpha1.Component, error) {
-	components := make([]v1alpha1.Component, 0)
-	for _, crd := range cg.crds {
-		comp := v1alpha1.NewComponent()
-		crdCue, err := utils.YamlToCue(crd)
-		if err != nil {
-			logrus.Warn(ErrCrdGenerate(err))
-			continue
-		}
-		// update component spec
-		schema, err := getSchema(crdCue, cg.extractorPathConfig)
-		if err != nil {
-			logrus.Warn(ErrCrdGenerate(err))
-			continue
-		}
-		comp.Spec = schema
-		// update metadata fields
-		err = cg.updateComponentMetadata(crdCue, comp)
-		if err != nil {
-			logrus.Warn(ErrCrdGenerate(err))
-			continue
-		}
-		components = append(components, comp)
-	}
-	return components, nil
-}
-
-func (cg ComponentsGenerator) updateComponentMetadata(crdCue cue.Value, comp v1alpha1.Component) error {
-	meta := cg.resourceMetadata
-	name, err := extractCueValueFromPath(crdCue, cg.extractorPathConfig.NamePath)
+func Generate(crd string) (v1alpha1.Component, error) {
+	component := v1alpha1.NewComponent()
+	crdCue, err := utils.YamlToCue(crd)
 	if err != nil {
-		return err
+		return component, err
 	}
-	meta[ComponentMetaNameKey] = name
-	for k, v := range cg.resourceMetadata {
-		meta[k] = v
+	schema, err := getSchema(crdCue, DefaultPathConfig)
+	if err != nil {
+		return component, err
 	}
-	comp.Metadata = meta
-	return nil
-}
-
-func NewComponentsGenerator(crds []string, pathConf CuePathConfig, meta map[string]interface{}) *ComponentsGenerator {
-	return &ComponentsGenerator{crds: crds, extractorPathConfig: pathConf, resourceMetadata: meta}
+	component.Spec = schema
+	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)
+	if err != nil {
+		return component, err
+	}
+	metadata := map[string]interface{}{}
+	metadata[ComponentMetaNameKey] = name
+	component.Metadata = metadata
+	return component, nil
 }
