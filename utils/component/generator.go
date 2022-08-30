@@ -1,12 +1,13 @@
 package component
 
 import (
+	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/sirupsen/logrus"
 )
 
-const DefaultPrometheusComponentIconURL = "https://google.com"
+const ComponentMetaNameKey = "name"
 
 // all paths should be a valid CUE expression
 type CuePathConfig struct {
@@ -27,35 +28,42 @@ type ComponentsGenerator struct {
 func (cg ComponentsGenerator) Generate() ([]v1alpha1.Component, error) {
 	components := make([]v1alpha1.Component, 0)
 	for _, crd := range cg.crds {
-		meta := cg.resourceMetadata
 		comp := v1alpha1.NewComponent()
-		// crds should be yaml
 		crdCue, err := utils.YamlToCue(crd)
 		if err != nil {
 			logrus.Warn(ErrCrdGenerate(err))
 			continue
 		}
-
+		// update component spec
 		schema, err := getSchema(crdCue, cg.extractorPathConfig)
 		if err != nil {
 			logrus.Warn(ErrCrdGenerate(err))
 			continue
 		}
 		comp.Spec = schema
-		name, err := extractValueFromPath(crdCue, cg.extractorPathConfig.NamePath)
+		// update metadata fields
+		err = cg.updateComponentMetadata(crdCue, comp)
 		if err != nil {
 			logrus.Warn(ErrCrdGenerate(err))
 			continue
 		}
-		meta["name"] = name
-		// append given metadata
-		for k, v := range cg.resourceMetadata {
-			meta[k] = v
-		}
-		comp.Metadata = meta
 		components = append(components, comp)
 	}
 	return components, nil
+}
+
+func (cg ComponentsGenerator) updateComponentMetadata(crdCue cue.Value, comp v1alpha1.Component) error {
+	meta := cg.resourceMetadata
+	name, err := extractCueValueFromPath(crdCue, cg.extractorPathConfig.NamePath)
+	if err != nil {
+		return err
+	}
+	meta[ComponentMetaNameKey] = name
+	for k, v := range cg.resourceMetadata {
+		meta[k] = v
+	}
+	comp.Metadata = meta
+	return nil
 }
 
 func NewComponentsGenerator(crds []string, pathConf CuePathConfig, meta map[string]interface{}) *ComponentsGenerator {

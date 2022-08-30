@@ -2,57 +2,19 @@ package component
 
 import (
 	"encoding/json"
-	"strings"
 
 	"cuelang.org/go/cue"
-	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
 )
 
-func getDefinition(crd cue.Value, pathConf CuePathConfig, metadata map[string]string) (string, error) {
-	var def v1alpha1.WorkloadDefinition
-
-	resourceId, err := extractValueFromPath(crd, pathConf.IdentifierPath)
-	if err != nil {
-		return "", ErrGetDefinition(err)
-	}
-	// apiVersion, err := extractValueFromPath(crd, pathConf.VersionPath)
-	// if err != nil {
-	// 	return "", ErrGetDefinition(err)
-	// }
-	// apiGroup, err := extractValueFromPath(crd, pathConf.GroupPath)
-	// if err != nil {
-	// 	return "", ErrGetDefinition(err)
-	// }
-
-	definitionRef := strings.ToLower(resourceId) + ".meshery.layer5.io"
-	def.Spec.DefinitionRef.Name = definitionRef
-	def.ObjectMeta.Name = resourceId
-	def.APIVersion = "core.oam.dev/v1alpha1"
-	def.Kind = "WorkloadDefinition"
-	def.Spec.Metadata = map[string]string{
-		"@type": "pattern.meshery.io/core",
-	}
-	// append metadata
-	for k, v := range metadata {
-		def.Spec.Metadata[k] = v
-	}
-	out, err := json.MarshalIndent(def, "", " ")
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
-}
-
+// extracts the JSONSCHEMA of the CRD and outputs the json encoded string of the schema
 func getSchema(parsedCrd cue.Value, pathConf CuePathConfig) (string, error) {
 	schema := map[string]interface{}{}
-
 	specCueVal, err := utils.Lookup(parsedCrd, pathConf.SpecPath)
 	if err != nil {
 		return "", err
 	}
-
 	marshalledJson, err := specCueVal.MarshalJSON()
 	if err != nil {
 		return "", ErrGetSchema(err)
@@ -61,12 +23,10 @@ func getSchema(parsedCrd cue.Value, pathConf CuePathConfig) (string, error) {
 	if err != nil {
 		return "", ErrGetSchema(err)
 	}
-
-	resourceId, err := extractValueFromPath(parsedCrd, pathConf.IdentifierPath)
+	resourceId, err := extractCueValueFromPath(parsedCrd, pathConf.IdentifierPath)
 	if err != nil {
 		return "", ErrGetSchema(err)
 	}
-
 	(schema)["title"] = manifests.FormatToReadableString(resourceId)
 	var output []byte
 	output, err = json.MarshalIndent(schema, "", " ")
@@ -76,7 +36,7 @@ func getSchema(parsedCrd cue.Value, pathConf CuePathConfig) (string, error) {
 	return string(output), nil
 }
 
-func extractValueFromPath(crd cue.Value, pathConf string) (string, error) {
+func extractCueValueFromPath(crd cue.Value, pathConf string) (string, error) {
 	cueRes, err := utils.Lookup(crd, pathConf)
 	if err != nil {
 		return "", err
