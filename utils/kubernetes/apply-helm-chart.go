@@ -198,21 +198,23 @@ type ApplyHelmChartConfig struct {
 // Examples:
 //
 // Install Traefik Mesh using URL:
-//    err = client.ApplyHelmChart(k8s.ApplyHelmChartConfig{
-//            Namespace:       "traefik-mesh",
-//            CreateNamespace: true,
-//            URL:             "https://helm.traefik.io/mesh/traefik-mesh-3.0.6.tgz",
-//    })
+//
+//	err = client.ApplyHelmChart(k8s.ApplyHelmChartConfig{
+//	        Namespace:       "traefik-mesh",
+//	        CreateNamespace: true,
+//	        URL:             "https://helm.traefik.io/mesh/traefik-mesh-3.0.6.tgz",
+//	})
 //
 // Install Traefik Mesh using repository:
-//    err = cl.ApplyHelmChart(k8s.ApplyHelmChartConfig{
-//            ChartLocation: k8s.HelmChartLocation{
-//                Repository: "https://helm.traefik.io/mesh",
-//                Chart:      "traefik-mesh",
-//            },
-//            Namespace:       "traefik-mesh",
-//            CreateNamespace: true,
-//    })
+//
+//	err = cl.ApplyHelmChart(k8s.ApplyHelmChartConfig{
+//	        ChartLocation: k8s.HelmChartLocation{
+//	            Repository: "https://helm.traefik.io/mesh",
+//	            Chart:      "traefik-mesh",
+//	        },
+//	        Namespace:       "traefik-mesh",
+//	        CreateNamespace: true,
+//	})
 //
 // Install Consul Service Mesh overriding values using a values file (equivalent to -f/--values in helm):
 //
@@ -234,7 +236,6 @@ type ApplyHelmChartConfig struct {
 //		},
 //		OverrideValues: vals,
 //	})
-//
 func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	setupDefaults(&cfg)
 

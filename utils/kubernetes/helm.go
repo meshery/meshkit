@@ -9,8 +9,8 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 )
 
-//Though we are using the same config that is used for installing/uninstalling helm charts.
-//We will only make use of URL/ChartLocation/LocalPath to get and load the helm chart
+// Though we are using the same config that is used for installing/uninstalling helm charts.
+// We will only make use of URL/ChartLocation/LocalPath to get and load the helm chart
 func ConvertHelmChartToK8sManifest(cfg ApplyHelmChartConfig) (manifest []byte, err error) {
 	setupDefaults(&cfg)
 	if err := setupChartVersion(&cfg); err != nil {

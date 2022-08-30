@@ -99,7 +99,7 @@ func (g *Git) Branch(branch string) *Git {
 // If the root parameter ends with a "/**" then github walker
 // will run in "traversal" mode, ie. it will look into each sub
 // directory of the root node
-//If path will be prefixed with "/" if not already.
+// If path will be prefixed with "/" if not already.
 func (g *Git) Root(root string) *Git {
 	if !strings.HasPrefix(root, "/") {
 		root = "/" + root

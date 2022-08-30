@@ -24,15 +24,16 @@
 // See also the doc command of errorutil, and https://docs.meshery.io/project/contributing-error.
 //
 // Example:
-//  const  ErrConnectCode        = "11000"
-//  func ErrConnect(err error) error {
-//	  return errors.New(ErrConnectCode,
-//	                    errors.Alert,
-//	                    []string{"Connection to broker failed"},
-//	                    []string{err.Error()},
-//	                    []string{"Endpoint might not be reachable"},
-//	                    []string{"Make sure the NATS endpoint is reachable"})
-//  }
+//
+//	 const  ErrConnectCode        = "11000"
+//	 func ErrConnect(err error) error {
+//		  return errors.New(ErrConnectCode,
+//		                    errors.Alert,
+//		                    []string{"Connection to broker failed"},
+//		                    []string{err.Error()},
+//		                    []string{"Endpoint might not be reachable"},
+//		                    []string{"Make sure the NATS endpoint is reachable"})
+//	 }
 package errors
 
 import "strings"
@@ -64,12 +65,13 @@ func NewDefault(code string, ldescription ...string) *Error {
 // Do not concatenate strings using the '+' operator, just add multiple elements to the string array.
 //
 // Example:
-//	 errors.New(ErrConnectCode,
-//	            errors.Alert,
-//	            []string{"Connection to broker failed"},
-//	            []string{err.Error()},
-//	            []string{"Endpoint might not be reachable"},
-//	            []string{"Make sure the NATS endpoint is reachable"})
+//
+//	errors.New(ErrConnectCode,
+//	           errors.Alert,
+//	           []string{"Connection to broker failed"},
+//	           []string{err.Error()},
+//	           []string{"Endpoint might not be reachable"},
+//	           []string{"Make sure the NATS endpoint is reachable"})
 func New(code string, severity Severity, sdescription []string, ldescription []string, probablecause []string, remedy []string) *Error {
 	return &Error{
 		Code:                 code,
