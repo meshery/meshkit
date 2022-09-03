@@ -38,5 +38,15 @@ func GetCrdsFromHelm(url string) ([]string, error) {
 		return nil, err
 	}
 	mans := strings.Split(manifest, "---")
-	return mans, nil
+	return removeNonCrdValues(mans), nil
+}
+
+func removeNonCrdValues(crds []string) []string {
+	out := make([]string, 0)
+	for _, crd := range crds {
+		if crd != "" && crd != " " {
+			out = append(out, crd)
+		}
+	}
+	return out
 }
