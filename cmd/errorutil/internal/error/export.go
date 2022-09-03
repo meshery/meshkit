@@ -2,7 +2,7 @@ package error
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 
@@ -91,5 +91,5 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 		return err
 	}
 	log.Infof("exporting to %s", fname)
-	return ioutil.WriteFile(fname, jsn, 0600)
+	return os.WriteFile(fname, jsn, 0600)
 }

@@ -3,7 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/csv"
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -14,7 +14,7 @@ var (
 
 // git method which allows fetch the git HEAD tag version and commit number
 func Git() (version, commitHead string) {
-	b, _ := ioutil.ReadFile(gitVersionFilePath)
+	b, _ := os.ReadFile(gitVersionFilePath)
 	if b != nil {
 		reader := bytes.NewReader(b)
 		r := csv.NewReader(reader)

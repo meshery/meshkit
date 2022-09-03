@@ -3,8 +3,8 @@ package walker
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -172,10 +172,19 @@ func clonewalk(g *Git) error {
 	}
 
 	// If recurse mode is off, we only walk the root directory passed with g.root
-	files, err := ioutil.ReadDir(filepath.Join(path, g.root))
+	entries, err := os.ReadDir(filepath.Join(path, g.root))
 	if err != nil {
 		return err
 	}
+	files := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		file, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		files = append(files, file)
+	}
+
 	for _, f := range files {
 		path := filepath.Join(path, g.root, f.Name())
 		if f.IsDir() && g.dirInterceptor != nil {
@@ -211,7 +220,7 @@ func (g *Git) readFile(f fs.FileInfo, path string) error {
 	if err != nil {
 		return err
 	}
-	content, err := ioutil.ReadAll(filename)
+	content, err := io.ReadAll(filename)
 	if err != nil {
 		return err
 	}

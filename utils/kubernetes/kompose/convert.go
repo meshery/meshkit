@@ -2,7 +2,6 @@ package kompose
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -98,7 +97,7 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 		return "", err
 	}
 
-	result, err := ioutil.ReadFile("result.yaml")
+	result, err := os.ReadFile("result.yaml")
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
