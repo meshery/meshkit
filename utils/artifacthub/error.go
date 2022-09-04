@@ -5,8 +5,9 @@ import (
 )
 
 var (
-	ErrGetChartUrlCode  = "11092"
-	ErrGetAhPackageCode = "1093"
+	ErrGetChartUrlCode       = "11092"
+	ErrGetAhPackageCode      = "1093"
+	ErrComponentGenerateCode = "11094"
 )
 
 func ErrGetChartUrl(err error) error {
@@ -15,4 +16,8 @@ func ErrGetChartUrl(err error) error {
 
 func ErrGetAhPackage(err error) error {
 	return errors.New(ErrGetAhPackageCode, errors.Alert, []string{"Could not get the ArtifactHub package with the given name"}, []string{err.Error()}, []string{""}, []string{"make sure that the package exists"})
+}
+
+func ErrComponentGenerate(err error) error {
+	return errors.New(ErrComponentGenerateCode, errors.Alert, []string{"failed to generate components for the package"}, []string{err.Error()}, []string{}, []string{"Make sure that the package is compatible"})
 }

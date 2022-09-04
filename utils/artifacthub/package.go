@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/utils/component"
+	"github.com/layer5io/meshkit/utils/manifests"
 )
 
 const ArtifactHubAPIEndpint = "https://artifacthub.io/api/v1"
@@ -20,8 +24,26 @@ type AhPackage struct {
 	VerifiedPublisher bool
 }
 
+func (pkg AhPackage) GenerateComponents() ([]v1alpha1.Component, error) {
+	components := make([]v1alpha1.Component, 0)
+
+	// TODO: Move this to the configuration
+	crds, err := manifests.GetCrdsFromHelm(pkg.Url)
+	if err != nil {
+		return components, ErrComponentGenerate(err)
+	}
+	for _, crd := range crds {
+		comp, err := component.Generate(crd)
+		if err != nil {
+			continue
+		}
+		components = append(components, comp)
+	}
+	return components, nil
+}
+
 // function that will take the AhPackage as input and give the helm chart url for that package
-func (pkg *AhPackage) UpdateChartData() error {
+func (pkg *AhPackage) UpdatePackageData() error {
 	if pkg.Url != "" {
 		return nil
 	}

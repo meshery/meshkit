@@ -7,7 +7,7 @@ var RankingParameterWeightage = map[string]int{
 	"verifiedPublisher": 10,
 }
 
-func GetPackageScore(pkg AhPackage) int {
+func getPackageScore(pkg AhPackage) int {
 	score := 1
 	if pkg.VerifiedPublisher {
 		score = score + RankingParameterWeightage["verifiedPublisher"]
@@ -20,7 +20,7 @@ func GetPackageScore(pkg AhPackage) int {
 
 func SortPackagesWithScore(pkgs []AhPackage) []AhPackage {
 	sort.SliceStable(pkgs, func(i, j int) bool {
-		return GetPackageScore(pkgs[j]) < GetPackageScore(pkgs[i])
+		return getPackageScore(pkgs[j]) < getPackageScore(pkgs[i])
 	})
 	return pkgs
 }

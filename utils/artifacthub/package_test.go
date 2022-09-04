@@ -13,8 +13,8 @@ func TestGetChartUrl(t *testing.T) {
 		{AhPackage{Name: "crossplane-types", Repository: "crossplane", Organisation: ""}, "https://charts.crossplane.io/master/crossplane-types-0.13.0-rc.98.g1eb0776.tgz"},
 	}
 	for _, tt := range tests {
-		t.Run("UpdateChartData", func(t *testing.T) {
-			tt.ahpkg.UpdateChartData()
+		t.Run("UpdatePackageData", func(t *testing.T) {
+			tt.ahpkg.UpdatePackageData()
 			if tt.ahpkg.Url != tt.want {
 				t.Errorf("got %v, want %v", tt.ahpkg.Url, tt.want)
 			}
