@@ -18,7 +18,7 @@ const ArtifactHubChartUrlFieldName = "content_url"
 type AhPackage struct {
 	Name              string
 	Repository        string
-	Organisation      string
+	Organization      string
 	Url               string
 	Official          bool
 	VerifiedPublisher bool
