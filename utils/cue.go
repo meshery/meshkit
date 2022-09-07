@@ -101,3 +101,15 @@ func JsonSchemaToCue(value string) (cue.Value, error) {
 	}
 	return out, nil
 }
+
+func Lookup(rootVal cue.Value, path string) (cue.Value, error) {
+	res := rootVal.LookupPath(cue.ParsePath(path))
+	if res.Err() != nil {
+		return res, ErrCueLookup(res.Err())
+	}
+	if !res.Exists() {
+		return res, ErrCueLookup(fmt.Errorf("Could not find the value at the path: %s", path))
+	}
+
+	return res.Value(), nil
+}
