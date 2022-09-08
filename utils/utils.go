@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/user"
@@ -191,7 +190,7 @@ func ReadLocalFile(location string) (string, error) {
 
 	// Need to support variable file locations hence
 	// #nosec
-	data, err := ioutil.ReadFile(location)
+	data, err := os.ReadFile(location)
 	if err != nil {
 		return "", ErrReadingLocalFile(err)
 	}

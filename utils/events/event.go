@@ -23,7 +23,6 @@ func (e *EventStreamer) Publish(i interface{}) {
 			ch <- i
 		}(ch)
 	}
-
 }
 
 func (e *EventStreamer) Subscribe(ch chan interface{}) {
