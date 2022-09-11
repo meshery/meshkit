@@ -202,6 +202,7 @@ func useDictionary(input string) string {
 	dict := map[string]string{ // includes Whitelist words
 		"Mesh Sync":             "MeshSync",
 		"additional Properties": "additionalProperties", //This field is used by RJSF and should not include white space
+		"ca Bundle" : "CA Bundle",
 	}
 	for comp := range dict {
 		if comp == input {
