@@ -203,6 +203,8 @@ func useDictionary(input string) string {
 		"Mesh Sync":             "MeshSync",
 		"additional Properties": "additionalProperties", //This field is used by RJSF and should not include white space
 		"ca Bundle":             "CA Bundle",
+		"mtls":                  "mTLS",
+		"m TLS":								 "mTLS",
 	}
 	for comp := range dict {
 		if comp == input {
