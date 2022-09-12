@@ -14,7 +14,11 @@ func TestGetChartUrl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run("UpdatePackageData", func(t *testing.T) {
-			tt.ahpkg.UpdatePackageData()
+			err := tt.ahpkg.UpdatePackageData()
+			if err != nil {
+				t.Errorf("error while updating package data = %v", err)
+				return
+			}
 			if tt.ahpkg.Url != tt.want {
 				t.Errorf("got %v, want %v", tt.ahpkg.Url, tt.want)
 			}
