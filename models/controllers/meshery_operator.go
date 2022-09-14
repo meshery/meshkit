@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
@@ -16,6 +17,7 @@ type mesheryOperator struct {
 	status         MesheryControllerStatus
 	client         *mesherykube.Client
 	deploymentConf OperatorDeploymentConfig
+	mx             sync.Mutex
 }
 
 type OperatorDeploymentConfig struct {
@@ -38,41 +40,58 @@ func (mo *mesheryOperator) GetName() string {
 }
 
 func (mo *mesheryOperator) GetStatus() MesheryControllerStatus {
+	if mo.status == Undeployed {
+		return Undeployed
+	}
 	// check if the deployment exists
 	deployment, err := mo.client.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}).Namespace("meshery").Get(context.TODO(), "meshery-operator", metav1.GetOptions{})
 	if err != nil {
 		if kubeerror.IsNotFound(err) {
-			mo.status = NotDeployed
+			mo.setStatus(NotDeployed)
 			return mo.status
 		}
 		return Unknown
 	}
-	mo.status = Deploying
 
 	sv, err := polymorphichelpers.StatusViewerFor(deployment.GroupVersionKind().GroupKind())
 	if err != nil {
-		mo.status = Unknown
+		mo.setStatus(Unknown)
 		return mo.status
 	}
 	_, done, err := sv.Status(deployment, 0)
 	if err != nil {
-		mo.status = Unknown
+		mo.setStatus(Unknown)
 		return mo.status
 	}
 	if done {
-		mo.status = Deployed
+		mo.setStatus(Deployed)
+	} else {
+		mo.setStatus(Deploying)
 	}
 	return mo.status
 }
 
-func (mo *mesheryOperator) Deploy() error {
-	if mo.status == Deploying {
+func (mo *mesheryOperator) Deploy(force bool) error {
+	status := mo.GetStatus()
+	if status == Undeployed && !force {
+		return nil
+	}
+	if status == Deploying {
 		return ErrDeployController(fmt.Errorf("Already a Meshery Operator is being deployed."))
 	}
 	err := applyOperatorHelmChart(mo.deploymentConf.HelmChartRepo, *mo.client, mo.deploymentConf.MesheryReleaseVersion, false, mo.deploymentConf.GetHelmOverrides(false))
 	if err != nil {
 		return ErrDeployController(err)
 	}
+	mo.setStatus(Deployed)
+	return nil
+}
+func (mo *mesheryOperator) Undeploy() error {
+	err := applyOperatorHelmChart(mo.deploymentConf.HelmChartRepo, *mo.client, mo.deploymentConf.MesheryReleaseVersion, true, mo.deploymentConf.GetHelmOverrides(false))
+	if err != nil {
+		return ErrDeployController(err)
+	}
+	mo.setStatus(Undeployed)
 	return nil
 }
 
@@ -82,4 +101,10 @@ func (mo *mesheryOperator) GetPublicEndpoint() (string, error) {
 
 func (mo *mesheryOperator) GetVersion() (string, error) {
 	return "", nil
+}
+
+func (mo *mesheryOperator) setStatus(st MesheryControllerStatus) {
+	mo.mx.Lock()
+	defer mo.mx.Unlock()
+	mo.status = st
 }

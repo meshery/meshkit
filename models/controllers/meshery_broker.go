@@ -46,7 +46,9 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 		return mb.status
 	} else {
 		if kubeerror.IsNotFound(err) {
-			mb.status = NotDeployed
+			if mb.status != Undeployed {
+				mb.status = NotDeployed
+			}
 			return mb.status
 		}
 		// when operatorClient is not able to get meshesry-broker, we try again with kubernetes client as a fallback
@@ -77,8 +79,12 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 	}
 }
 
-func (mb *mesheryBroker) Deploy() error {
+func (mb *mesheryBroker) Deploy(force bool) error {
 	// deploying the operator will deploy broker. Right now, we don't need to implement this functionality. But we may implement in the future
+	return nil
+}
+func (mb *mesheryBroker) Undeploy() error {
+	// currently we do not allow the manual undeployment of broker
 	return nil
 }
 
