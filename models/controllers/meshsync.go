@@ -43,7 +43,9 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 		return ms.status
 	} else {
 		if kubeerror.IsNotFound(err) {
-			ms.status = NotDeployed
+			if ms.status != Undeployed {
+				ms.status = NotDeployed
+			}
 			return ms.status
 		}
 		// when we are not able to get meshSync resource from OperatorClient, we try to get it using kubernetes client
@@ -74,8 +76,12 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 	}
 }
 
-func (ms *meshsync) Deploy() error {
+func (ms *meshsync) Deploy(force bool) error {
 	// deploying the operator will deploy meshsync. Right now, we don't need to implement this functionality. But we may implement in the future
+	return nil
+}
+func (ms *meshsync) Undeploy() error {
+	// currently we do not allow the manual undeployment of meshsync
 	return nil
 }
 
