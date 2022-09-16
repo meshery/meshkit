@@ -25,7 +25,7 @@ type Logger struct {
 	handler *logrus.Entry
 }
 
-//TerminalFormatter is exported
+// TerminalFormatter is exported
 type TerminalFormatter struct{}
 
 // Format defined the format of output for Logrus logs

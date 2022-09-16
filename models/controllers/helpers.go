@@ -61,7 +61,7 @@ func applyOperatorHelmChart(chartRepo string, client mesherykube.Client, meshery
 	}
 	err := client.ApplyHelmChart(mesherykube.ApplyHelmChartConfig{
 		Namespace:   "meshery",
-		ReleaseName: "meshery",
+		ReleaseName: "meshery-operator",
 		ChartLocation: mesherykube.HelmChartLocation{
 			Repository: chartRepo,
 			Chart:      chart,

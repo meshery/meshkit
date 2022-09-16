@@ -137,8 +137,8 @@ func populateTempyaml(yaml string, path string) error {
 	return nil
 }
 
-//removeMetadataFromCRD is used because in few cases (like linkerd), helm templating might be used there which makes the yaml invalid.
-//As those templates are useless for component creatin, we can replace them with "meshery" to make the YAML valid
+// removeMetadataFromCRD is used because in few cases (like linkerd), helm templating might be used there which makes the yaml invalid.
+// As those templates are useless for component creatin, we can replace them with "meshery" to make the YAML valid
 func RemoveHelmTemplatingFromCRD(crdyaml *string) {
 	y := strings.Split(*crdyaml, "\n---\n")
 	var yamlArr []string
@@ -188,7 +188,7 @@ func filterYaml(ctx context.Context, yamlPath string, filter []string, binPath s
 	return nil
 }
 
-//cleanup
+// cleanup
 func deleteFile(path string) error {
 	err := os.Remove(path)
 	if err != nil {
@@ -202,6 +202,9 @@ func useDictionary(input string) string {
 	dict := map[string]string{ // includes Whitelist words
 		"Mesh Sync":             "MeshSync",
 		"additional Properties": "additionalProperties", //This field is used by RJSF and should not include white space
+		"ca Bundle":             "CA Bundle",
+		"mtls":                  "mTLS",
+		"m TLS":                 "mTLS",
 	}
 	for comp := range dict {
 		if comp == input {
@@ -211,9 +214,9 @@ func useDictionary(input string) string {
 	return input
 }
 
-//While going from Capital letter to small, insert a whitespace before the capital letter.
-//While going from small letter to capital, insert a whitespace after the small letter
-//The above is a general rule and further "exceptions" are used.
+// While going from Capital letter to small, insert a whitespace before the capital letter.
+// While going from small letter to capital, insert a whitespace after the small letter
+// The above is a general rule and further "exceptions" are used.
 func FormatToReadableString(input string) string {
 	if len(input) == 0 {
 		return ""
@@ -275,7 +278,7 @@ func init() {
 	templateExpression = regexp.MustCompile(`{{.+}}`)
 }
 
-//Change this code to add more exception logic to bypass addition of space
+// Change this code to add more exception logic to bypass addition of space
 func isException(prev int, curr int, next int, input string) (isException bool) {
 	if next != len(input)-1 && isBig(input[curr]) && isBig(input[prev]) && isSmall(input[next]) && isBig(input[next+1]) { //For alternating text, like ClusterIPsRoute => Cluster Ips Route
 		isException = true
@@ -301,7 +304,8 @@ type ResolveOpenApiRefs struct {
 //    currently, it does not support resolving refs from external world
 //   2. cue's openapi encoding package (currently it only supports openapiv3)
 
-//  for resolving refs in kubernetes openapiv2 jsonschema
+//	for resolving refs in kubernetes openapiv2 jsonschema
+//
 // definitions - parsed CUE value of the 'definitions' in openapiv2
 // manifest - jsonschema manifest to resolve refs for
 func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {

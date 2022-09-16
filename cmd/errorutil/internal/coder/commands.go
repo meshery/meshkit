@@ -2,7 +2,7 @@ package coder
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
@@ -84,7 +84,7 @@ func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) e
 		return err
 	}
 	fname := filepath.Join(globalFlags.outDir, config.App+"_analyze_errors.json")
-	err = ioutil.WriteFile(fname, jsn, 0600)
+	err = os.WriteFile(fname, jsn, 0600)
 	if err != nil {
 		return err
 	}

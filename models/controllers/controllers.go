@@ -5,7 +5,7 @@ type MesheryControllerStatus int
 const (
 	Deployed MesheryControllerStatus = iota
 	Deploying
-	NotDeployed
+  Undeployed
 	Enabled
 	Running
 	// we don't know since we have not checked yet
@@ -18,12 +18,12 @@ func (mcs MesheryControllerStatus) String() string {
 		return "Deployed"
 	case Deploying:
 		return "Deploying"
-	case NotDeployed:
-		return "Not Deployed"
 	case Enabled:
 		return "Enabled"
 	case Running:
 		return "Running"
+	case Undeployed:
+		return "Undeployed"
 	case Unknown:
 		return "Unknown"
 	}
@@ -33,7 +33,8 @@ func (mcs MesheryControllerStatus) String() string {
 type IMesheryController interface {
 	GetName() string
 	GetStatus() MesheryControllerStatus
-	Deploy() error
+	Deploy(force bool) error //If force is set to false && controller is in "Undeployed", then Deployment will be skipped. Set force=true for explicit install.
+	Undeploy() error
 	GetPublicEndpoint() (string, error)
 	GetVersion() (string, error)
 }

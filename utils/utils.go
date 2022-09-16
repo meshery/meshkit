@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/user"
@@ -18,6 +17,21 @@ import (
 
 	log "github.com/sirupsen/logrus"
 )
+
+// transforms the keys of a Map recursively with the given transform function
+func TransformMapKeys(input map[string]interface{}, transformFunc func(string) string) map[string]interface{} {
+	output := make(map[string]interface{})
+	for k, v := range input {
+		transformedKey := transformFunc(k)
+		value, ok := v.(map[string]interface{})
+		if !ok {
+			output[transformedKey] = v
+		} else {
+			output[transformedKey] = TransformMapKeys(value, transformFunc)
+		}
+	}
+	return output
+}
 
 // unmarshal returns parses the JSON config data and stores the value in the reference to result
 func Unmarshal(obj string, result interface{}) error {
@@ -176,7 +190,7 @@ func ReadLocalFile(location string) (string, error) {
 
 	// Need to support variable file locations hence
 	// #nosec
-	data, err := ioutil.ReadFile(location)
+	data, err := os.ReadFile(location)
 	if err != nil {
 		return "", ErrReadingLocalFile(err)
 	}

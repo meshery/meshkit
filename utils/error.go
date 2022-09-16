@@ -26,7 +26,17 @@ var (
 	ErrExpectedTypeMismatchCode      = "11079"
 	ErrJsonToCueCode                 = "11085"
 	ErrYamlToCueCode                 = "11086"
+	ErrJsonSchemaToCueCode           = "11087"
+	ErrCueLookupCode                 = "11089"
 )
+
+func ErrCueLookup(err error) error {
+	return errors.New(ErrCueLookupCode, errors.Alert, []string{"Could not lookup the given path in the CUE value"}, []string{err.Error()}, []string{""}, []string{"make sure that the path is a valid cue expression and is correct", "make sure that there exists a field with the given path", "make sure that the given root value is correct"})
+}
+
+func ErrJsonSchemaToCue(err error) error {
+	return errors.New(ErrJsonSchemaToCueCode, errors.Alert, []string{"Could not convert given JsonSchema into a CUE Value"}, []string{err.Error()}, []string{"Invalid jsonschema"}, []string{"Make sure that the given value is a valid JSONSCHEMA"})
+}
 
 func ErrYamlToCue(err error) error {
 	return errors.New(ErrYamlToCueCode, errors.Alert, []string{"Could not convert given yaml object into a CUE Value"}, []string{err.Error()}, []string{"Invalid yaml"}, []string{"Make sure that the given value is a valid YAML"})
