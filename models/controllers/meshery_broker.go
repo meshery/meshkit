@@ -125,9 +125,9 @@ func getImageVersionOfContainer(container v1.PodTemplateSpec, containerName stri
 	for _, container := range container.Spec.Containers {
 		if strings.Compare(container.Name, containerName) == 0 {
 			versionTag := strings.Split(container.Image, ":")
-			if (len(versionTag) > 1) {
+			if len(versionTag) > 1 {
 				version = versionTag[1]
-			} 
+			}
 		}
 	}
 	return version

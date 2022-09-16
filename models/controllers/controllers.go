@@ -5,7 +5,7 @@ type MesheryControllerStatus int
 const (
 	Deployed MesheryControllerStatus = iota
 	Deploying
-  Undeployed
+	Undeployed
 	Enabled
 	Running
 	// we don't know since we have not checked yet
