@@ -55,7 +55,7 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 	} else {
 		if kubeerror.IsNotFound(err) {
 			if ms.status != Undeployed {
-				ms.status = NotDeployed
+				ms.status = Undeployed
 			}
 			return ms.status
 		}
@@ -64,7 +64,7 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 		if err != nil {
 			// if the resource is not found, then it is NotDeployed
 			if kubeerror.IsNotFound(err) {
-				ms.status = NotDeployed
+				ms.status = Undeployed
 				return ms.status
 			}
 			return Unknown

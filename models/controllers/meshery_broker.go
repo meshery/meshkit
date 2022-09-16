@@ -46,12 +46,12 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 			mb.status = Deployed
 			return mb.status
 		}
-		mb.status = NotDeployed
+		mb.status = Undeployed
 		return mb.status
 	} else {
 		if kubeerror.IsNotFound(err) {
 			if mb.status != Undeployed {
-				mb.status = NotDeployed
+				mb.status = Undeployed
 			}
 			return mb.status
 		}
@@ -60,7 +60,7 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 		if err != nil {
 			// if the resource is not found, then it is NotDeployed
 			if kubeerror.IsNotFound(err) {
-				mb.status = NotDeployed
+				mb.status = Undeployed
 				return mb.status
 			}
 			return Unknown
@@ -124,7 +124,10 @@ func getImageVersionOfContainer(container v1.PodTemplateSpec, containerName stri
 	var version string
 	for _, container := range container.Spec.Containers {
 		if strings.Compare(container.Name, containerName) == 0 {
-			version = strings.Split(container.Image, ":")[1]
+			versionTag := strings.Split(container.Image, ":")
+			if (len(versionTag) > 1) {
+				version = versionTag[1]
+			} 
 		}
 	}
 	return version
