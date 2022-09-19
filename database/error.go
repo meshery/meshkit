@@ -43,7 +43,7 @@ func ErrSQLMapUnmarshalScanned(err error) error {
 	return errors.New(ErrSQLMapUnmarshalScannedCode, errors.Alert, []string{"failed to unmarshal scanned data", err.Error()}, []string{err.Error()}, []string{}, []string{})
 }
 
-//ErrClosingDatabaseConnection represents the error which will occur when the database connection fails to get closed
+// ErrClosingDatabaseConnection represents the error which will occur when the database connection fails to get closed
 func ErrClosingDatabaseConnection(err error) error {
 	return errors.New(ErrClosingDatabaseConnectionCode, errors.Alert, []string{"failed to close database connection"}, []string{err.Error()}, []string{"Invalid database instance passed."}, []string{"Make sure the DB handler has a valid database instance."})
 }

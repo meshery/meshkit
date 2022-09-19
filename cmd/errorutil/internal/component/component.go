@@ -2,7 +2,7 @@ package component
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 
@@ -31,7 +31,7 @@ type Component interface {
 func New(dir string) (*Info, error) {
 	info := Info{file: filepath.Join(dir, filename)}
 	logrus.Debugf("reading %s", info.file)
-	file, err := ioutil.ReadFile(info.file)
+	file, err := os.ReadFile(info.file)
 	if err != nil {
 		return &info, err
 	}
@@ -54,5 +54,5 @@ func (i *Info) Write() error {
 		return err
 	}
 	logrus.Debugf("writing %s", i.file)
-	return ioutil.WriteFile(i.file, jsn, 0600)
+	return os.WriteFile(i.file, jsn, 0600)
 }

@@ -6,7 +6,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strconv"
 
@@ -57,7 +57,7 @@ func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.In
 		if err != nil {
 			return err
 		}
-		err = ioutil.WriteFile(path, buf.Bytes(), 0600)
+		err = os.WriteFile(path, buf.Bytes(), 0600)
 		if err != nil {
 			return err
 		}

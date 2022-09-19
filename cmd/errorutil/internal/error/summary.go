@@ -2,7 +2,7 @@ package error
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -85,7 +85,7 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 	}
 	fname := filepath.Join(outputDir, config.App+"_analyze_summary.json")
 	log.Infof("writing summary to %s", fname)
-	return ioutil.WriteFile(fname, jsn, 0600)
+	return os.WriteFile(fname, jsn, 0600)
 }
 
 func contains(s []int, str int) bool {
