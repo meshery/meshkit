@@ -60,7 +60,7 @@ func (g *GoMod) SyncRequire(f io.Reader) (gomod string, err error) {
 	data := strings.Split(string(b), "\n")
 	for _, required := range g.RequiredVersions {
 		for i, d := range data {
-			if !strings.Contains(d, "=>") && strings.Contains(d, required.Name) && !strings.Contains(d, required.Version) {
+			if !strings.Contains(d, "=>") && strings.Contains(d, required.Name+" ") && !strings.Contains(d, required.Version) {
 				indirect := strings.Contains(d, "//indirect")
 				updateVersion := "\t" + required.Name + " " + required.Version
 				if indirect {
