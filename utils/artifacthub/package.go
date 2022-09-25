@@ -22,6 +22,7 @@ type AhPackage struct {
 	Url               string
 	Official          bool
 	VerifiedPublisher bool
+	Version           string
 }
 
 func (pkg AhPackage) GenerateComponents() ([]v1alpha1.Component, error) {
@@ -37,6 +38,7 @@ func (pkg AhPackage) GenerateComponents() ([]v1alpha1.Component, error) {
 		if err != nil {
 			continue
 		}
+		comp.Metadata["version"] = pkg.Version
 		components = append(components, comp)
 	}
 	return components, nil
@@ -65,8 +67,10 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	chartUrl := res[ArtifactHubChartUrlFieldName].(string)
 	official := res["repository"].(map[string]interface{})["official"].(bool)
 	verPub := res["repository"].(map[string]interface{})["verified_publisher"].(bool)
+	version := res["version"].(string)
 	pkg.Url = chartUrl
 	pkg.Official = official
 	pkg.VerifiedPublisher = verPub
+	pkg.Version = version
 	return nil
 }
