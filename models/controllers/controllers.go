@@ -10,6 +10,7 @@ const (
 	// we don't know since we have not checked yet
 	Enabled
 	Running
+	Connected
 	Unknown
 )
 
@@ -19,12 +20,16 @@ func (mcs MesheryControllerStatus) String() string {
 		return "Deployed"
 	case Deploying:
 		return "Deploying"
+	case NotDeployed:
+		return "Not Deployed"
 	case Undeployed:
 		return "Undeployed"
 	case Enabled:
 		return "Enabled"
 	case Running:
 		return "Running"
+	case Connected:
+		return "Connected"
 	case Unknown:
 		return "Unknown"
 	}
