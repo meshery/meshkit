@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"strings"
 
 	// opClient "github.com/layer5io/meshery-operator/pkg/client"
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
@@ -47,6 +48,16 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 		switch meshSyncPod.Items[0].Status.Phase {
 		case v1.PodRunning:
 			ms.status = Running
+			broker := NewMesheryBrokerHandler(ms.kclient)
+			brokerEndpoint, err := broker.GetPublicEndpoint()
+			if err != nil {
+				return ms.status
+			}
+			hostIP := strings.Split(brokerEndpoint, ":")[0]
+			isConnected := ConnectivityTest(MeshSync, hostIP)
+			if isConnected {
+				ms.status = Connected
+			}
 			return ms.status
 		default:
 			ms.status = Deployed

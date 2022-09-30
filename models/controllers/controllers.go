@@ -14,6 +14,12 @@ const (
 	Unknown
 )
 
+const (
+	MeshSync      = "meshsync"
+	MesheryBroker = "meshery-broker"
+	MesheryServer = "meshery-server"
+)
+
 func (mcs MesheryControllerStatus) String() string {
 	switch mcs {
 	case Deployed:

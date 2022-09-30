@@ -42,11 +42,13 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
 	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
 	if err == nil {
-		if broker.Status.Endpoint.External != "" {
-			mb.status = Deployed
+		brokerEndpoint := broker.Status.Endpoint.External
+		hostIP := strings.Split(brokerEndpoint, ":")[0]
+		if broker.Status.Endpoint.External != "" && ConnectivityTest(MesheryServer, hostIP) {
+			mb.status = Connected
 			return mb.status
 		}
-		mb.status = Undeployed
+		mb.status = Deployed
 		return mb.status
 	} else {
 		if kubeerror.IsNotFound(err) {
@@ -56,7 +58,7 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 			return mb.status
 		}
 		// when operatorClient is not able to get meshesry-broker, we try again with kubernetes client as a fallback
-		broker, err := mb.kclient.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}).Namespace("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
+		broker, err := mb.kclient.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}).Namespace("meshery").Get(context.TODO(), MesheryBroker, metav1.GetOptions{})
 		if err != nil {
 			// if the resource is not found, then it is NotDeployed
 			if kubeerror.IsNotFound(err) {
@@ -97,7 +99,7 @@ func (mb *mesheryBroker) GetPublicEndpoint() (string, error) {
 	if err != nil {
 		return "", ErrGetControllerPublicEndpoint(err)
 	}
-	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
+	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), MesheryBroker, metav1.GetOptions{})
 	if broker.Status.Endpoint.External == "" {
 		if err == nil {
 			err = fmt.Errorf("Could not get the External endpoint for meshery-broker")
@@ -111,7 +113,7 @@ func (mb *mesheryBroker) GetPublicEndpoint() (string, error) {
 
 func (mb *mesheryBroker) GetVersion() (string, error) {
 	if len(mb.version) == 0 {
-		statefulSet, err := mb.kclient.KubeClient.AppsV1().StatefulSets("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
+		statefulSet, err := mb.kclient.KubeClient.AppsV1().StatefulSets("meshery").Get(context.TODO(), MesheryBroker, metav1.GetOptions{})
 		if kubeerror.IsNotFound(err) {
 			return "", err
 		}
