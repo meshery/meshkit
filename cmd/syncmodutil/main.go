@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -30,7 +29,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(dest, []byte(newgomod), 0777)
+	err = os.WriteFile(dest, []byte(newgomod), 0777)
 	if err != nil {
 		log.Fatal(err)
 	}
