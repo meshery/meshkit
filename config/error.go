@@ -29,10 +29,10 @@ var (
 
 // ErrViper returns a MeshKit error indicating an (initialization) error in the Viper provider.
 func ErrViper(err error) error {
-	return errors.New(ErrViperCode, errors.Fatal, []string{"Viper configuration initialization failed"}, []string{}, []string{"Viper is crashing"}, []string{"Make sure viper is configured properly"})
+	return errors.New(ErrViperCode, errors.Fatal, []string{"Viper configuration initialization failed"}, []string{err.Error()}, []string{"Viper is crashing"}, []string{"Make sure viper is configured properly"})
 }
 
 // ErrViper returns a MeshKit error indicating an (initialization) error in the in-memory provider.
 func ErrInMem(err error) error {
-	return errors.New(ErrInMemCode, errors.Fatal, []string{"InMem configuration initialization failed"}, []string{}, []string{"In memory map is crashing"}, []string{"Make sure map is configured properly"})
+	return errors.New(ErrInMemCode, errors.Fatal, []string{"InMem configuration initialization failed"}, []string{err.Error()}, []string{"In memory map is crashing"}, []string{"Make sure map is configured properly"})
 }
