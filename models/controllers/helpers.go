@@ -1,10 +1,13 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
+	"net/http"
 	"net/url"
 
 	"github.com/layer5io/meshery-operator/api/v1alpha1"
@@ -12,6 +15,16 @@ import (
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	"github.com/spf13/viper"
 )
+
+const BrokerPingEndpoint = "8222/connz"
+
+type Connections struct {
+	Connections []connection `json:"connections"`
+}
+
+type connection struct {
+	Name string `json:"name"`
+}
 
 func GetBrokerEndpoint(kclient *mesherykube.Client, broker *v1alpha1.Broker) string {
 	endpoint := broker.Status.Endpoint.Internal
@@ -77,4 +90,34 @@ func applyOperatorHelmChart(chartRepo string, client mesherykube.Client, meshery
 		return err
 	}
 	return nil
+}
+
+func ConnectivityTest(clientName, externalIP string) bool {
+	endpoint, err := url.Parse("http://" + externalIP + ":" + BrokerPingEndpoint)
+	if err != nil {
+		return false
+	}
+
+	resp, err := http.Get(endpoint.String())
+	if err != nil {
+		return false
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false
+	}
+
+	var natsResponse Connections
+	err = json.Unmarshal(body, &natsResponse)
+	if err != nil {
+		return false
+	}
+
+	for _, client := range natsResponse.Connections {
+		if client.Name == clientName {
+			return true
+		}
+	}
+	return false
 }

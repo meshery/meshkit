@@ -8,7 +8,16 @@ const (
 	NotDeployed                                //The controller is not deployed yet
 	Undeployed                                 //The controller has been intentionally undeployed. This state is useful to avoid automatic redeployment.
 	// we don't know since we have not checked yet
+	Enabled
+	Running
+	Connected
 	Unknown
+)
+
+const (
+	MeshSync      = "meshsync"
+	MesheryBroker = "meshery-broker"
+	MesheryServer = "meshery-server"
 )
 
 func (mcs MesheryControllerStatus) String() string {
@@ -21,6 +30,12 @@ func (mcs MesheryControllerStatus) String() string {
 		return "Not Deployed"
 	case Undeployed:
 		return "Undeployed"
+	case Enabled:
+		return "Enabled"
+	case Running:
+		return "Running"
+	case Connected:
+		return "Connected"
 	case Unknown:
 		return "Unknown"
 	}
