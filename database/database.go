@@ -1,11 +1,13 @@
 package database
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/layer5io/meshkit/logger"
+	"gorm.io/driver/postgres"
 	sqlite "gorm.io/driver/sqlite"
-	gormpkg "gorm.io/gorm"
+	"gorm.io/gorm"
 )
 
 const (
@@ -14,6 +16,10 @@ const (
 )
 
 type Options struct {
+	Username string `json:"username,omitempty"`
+	Host     string `json:"host,omitempty"`
+	Port     string `json:"port,omitempty"`
+	Password string `json:"password,omitempty"`
 	Filename string `json:"filename,omitempty"`
 	Engine   string `json:"engine,omitempty"`
 	Logger   logger.Handler
@@ -27,7 +33,7 @@ type Model struct {
 }
 
 type Handler struct {
-	*gormpkg.DB
+	*gorm.DB
 	*sync.Mutex
 	// Implement methods if necessary
 }
@@ -46,14 +52,22 @@ func (h *Handler) DBClose() error {
 func New(opts Options) (Handler, error) {
 	switch opts.Engine {
 	case POSTGRES:
-		return Handler{}, ErrNoneDatabase
+		dsn := fmt.Sprintf("host=%s user=%s password=%s port=%s", opts.Host, opts.Username, opts.Password, opts.Port)
+		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err != nil {
+			return Handler{}, ErrDatabaseOpen(err)
+		}
+		return Handler{
+			db,
+			&sync.Mutex{},
+		}, nil
 	case SQLITE:
-		config := &gormpkg.Config{}
+		config := &gorm.Config{}
 		if opts.Logger != nil {
 			config.Logger = opts.Logger.DatabaseLogger()
 		}
 
-		db, err := gormpkg.Open(sqlite.Open(opts.Filename), config)
+		db, err := gorm.Open(sqlite.Open(opts.Filename), config)
 		if err != nil {
 			return Handler{}, ErrDatabaseOpen(err)
 		}
