@@ -2,19 +2,21 @@ package kubernetes
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/layer5io/meshkit/utils"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 )
 
@@ -401,26 +403,37 @@ func checkIfInstallable(ch *chart.Chart) error {
 	return ErrApplyHelmChart(fmt.Errorf("%s charts are not installable", ch.Metadata.Type))
 }
 
+var mx sync.Mutex
+
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
 func createHelmActionConfig(restConfig rest.Config, cfg ApplyHelmChartConfig) (*action.Configuration, error) {
+	mx.Lock()         //We need the lock here because we are setting environment variables to signal helm about kubeconfig data and two functions might concurrently try to set these variable causing issues.
+	defer mx.Unlock() //Once we exist this function, we can release the lock and environment variables can be reset by another function as the input to helm would have been set by the end of this function.
 	// Set the environment variable needed by the Init method
 	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
-
+	os.Setenv("HELM_KUBEAPISERVER", restConfig.Host)
+	os.Setenv("HELM_KUBETOKEN", restConfig.BearerToken)
+	f, err := os.CreateTemp("", "*")
+	if err != nil {
+		return nil, fmt.Errorf("could not create temporary CAFile: " + err.Error())
+	}
+	defer func() {
+		_ = os.Remove(f.Name())
+	}()
+	_, err = io.WriteString(f, restConfig.CAFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not create temporary CAFile: " + err.Error())
+	}
+	os.Setenv("HELM_KUBECAFILE", f.Name())
 	// KubeConfig setup
-	kubeConfig := cli.New()
-	kubeConfig.KubeAPIServer = restConfig.Host
-	kubeConfig.KubeToken = restConfig.BearerToken
-	kubeConfig.KubeCaFile = restConfig.CAFile
-	kubeConfig.SetNamespace(cfg.Namespace)
+	kubeConfig := genericclioptions.NewConfigFlags(false)
+	//We were setting the below fields earlier but it is of no use as helm cli function doesn't respect these passed fields.
+	// kubeConfig.APIServer = &restConfig.Host
+	// kubeConfig.BearerToken = &restConfig.BearerToken
+	// kubeConfig.CAFile = &restConfig.CAFile
 
 	actionConfig := new(action.Configuration)
-	err := actionConfig.Init(
-		kubeConfig.RESTClientGetter(),
-		kubeConfig.Namespace(),
-		string(cfg.HelmDriver),
-		cfg.Logger,
-	)
-	if err != nil {
+	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
 		return nil, ErrApplyHelmChart(err)
 	}
 
