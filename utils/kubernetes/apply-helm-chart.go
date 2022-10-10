@@ -2,12 +2,10 @@ package kubernetes
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/layer5io/meshkit/utils"
 	"gopkg.in/yaml.v2"
@@ -17,7 +15,6 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/rest"
 )
 
 // HelmDriver is the type for helm drivers
@@ -261,7 +258,7 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	actionConfig, err := createHelmActionConfig(client.RestConfig, cfg)
+	actionConfig, err := createHelmActionConfig(client, cfg)
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
@@ -403,41 +400,37 @@ func checkIfInstallable(ch *chart.Chart) error {
 	return ErrApplyHelmChart(fmt.Errorf("%s charts are not installable", ch.Metadata.Type))
 }
 
-var mx sync.Mutex
-
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
-func createHelmActionConfig(restConfig rest.Config, cfg ApplyHelmChartConfig) (*action.Configuration, error) {
-	mx.Lock()         //We need the lock here because we are setting environment variables to signal helm about kubeconfig data and two functions might concurrently try to set these variable causing issues.
-	defer mx.Unlock() //Once we exist this function, we can release the lock and environment variables can be reset by another function as the input to helm would have been set by the end of this function.
-	// Set the environment variable needed by the Init method
+func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Configuration, error) {
+	// Set the environment variable needed by the Init methods
 	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
-	os.Setenv("HELM_KUBEAPISERVER", restConfig.Host)
-	os.Setenv("HELM_KUBETOKEN", restConfig.BearerToken)
-	f, err := os.CreateTemp("", "*")
-	if err != nil {
-		return nil, fmt.Errorf("could not create temporary CAFile: " + err.Error())
-	}
-	defer func() {
-		_ = os.Remove(f.Name())
-	}()
-	_, err = io.WriteString(f, restConfig.CAFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not create temporary CAFile: " + err.Error())
-	}
-	os.Setenv("HELM_KUBECAFILE", f.Name())
+	os.Setenv("HELM_KUBEAPISERVER", c.RestConfig.Host)
 	// KubeConfig setup
+	cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)
+	if err != nil {
+		return nil, err
+	}
+	cafilename := cafile.Name()
+	os.Setenv("HELM_KUBECAFILE", cafilename)
 	kubeConfig := genericclioptions.NewConfigFlags(false)
-	//We were setting the below fields earlier but it is of no use as helm cli function doesn't respect these passed fields.
-	// kubeConfig.APIServer = &restConfig.Host
-	// kubeConfig.BearerToken = &restConfig.BearerToken
-	// kubeConfig.CAFile = &restConfig.CAFile
-
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
 		return nil, ErrApplyHelmChart(err)
 	}
-
 	return actionConfig, nil
+}
+
+// Populates a file in temp directory with the passed data and returns the data handler
+func setDataAndReturnFileHandler(data []byte) (*os.File, error) {
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		return nil, err
+	}
+	_, err = f.Write(data)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 // generateAction generates an action function using action.Configuration
