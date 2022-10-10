@@ -32,6 +32,7 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig != "" {
 		if config, err = clientcmd.BuildConfigFromFlags("", kubeconfig); err == nil {
+
 			return config, err
 		}
 	}
@@ -39,6 +40,7 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	// Look for kubeconfig at the default path
 	path := filepath.Join(utils.GetHome(), ".kube", "config")
 	if config, err = clientcmd.BuildConfigFromFlags("", path); err == nil {
+
 		return config, err
 	}
 

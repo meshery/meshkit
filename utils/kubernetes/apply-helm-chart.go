@@ -12,10 +12,9 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
-	"k8s.io/client-go/rest"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // HelmDriver is the type for helm drivers
@@ -259,7 +258,7 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	actionConfig, err := createHelmActionConfig(client.RestConfig, cfg)
+	actionConfig, err := createHelmActionConfig(client, cfg)
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
@@ -402,29 +401,36 @@ func checkIfInstallable(ch *chart.Chart) error {
 }
 
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
-func createHelmActionConfig(restConfig rest.Config, cfg ApplyHelmChartConfig) (*action.Configuration, error) {
-	// Set the environment variable needed by the Init method
+func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Configuration, error) {
+	// Set the environment variable needed by the Init methods
 	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
-
+	os.Setenv("HELM_KUBEAPISERVER", c.RestConfig.Host)
 	// KubeConfig setup
-	kubeConfig := cli.New()
-	kubeConfig.KubeAPIServer = restConfig.Host
-	kubeConfig.KubeToken = restConfig.BearerToken
-	kubeConfig.KubeCaFile = restConfig.CAFile
-	kubeConfig.SetNamespace(cfg.Namespace)
-
-	actionConfig := new(action.Configuration)
-	err := actionConfig.Init(
-		kubeConfig.RESTClientGetter(),
-		kubeConfig.Namespace(),
-		string(cfg.HelmDriver),
-		cfg.Logger,
-	)
+	cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)
 	if err != nil {
+		return nil, err
+	}
+	cafilename := cafile.Name()
+	os.Setenv("HELM_KUBECAFILE", cafilename)
+	kubeConfig := genericclioptions.NewConfigFlags(false)
+	actionConfig := new(action.Configuration)
+	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
 		return nil, ErrApplyHelmChart(err)
 	}
-
 	return actionConfig, nil
+}
+
+// Populates a file in temp directory with the passed data and returns the data handler
+func setDataAndReturnFileHandler(data []byte) (*os.File, error) {
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		return nil, err
+	}
+	_, err = f.Write(data)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 // generateAction generates an action function using action.Configuration

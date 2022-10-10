@@ -13,7 +13,6 @@ import (
 	"github.com/layer5io/meshery-operator/api/v1alpha1"
 	"github.com/layer5io/meshkit/utils"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
-	"github.com/spf13/viper"
 )
 
 const BrokerPingEndpoint = "8222/connz"
@@ -66,10 +65,7 @@ func applyOperatorHelmChart(chartRepo string, client mesherykube.Client, meshery
 		act   = mesherykube.INSTALL
 		chart = "meshery-operator"
 	)
-	if viper.GetString("KUBERNETES_SERVICE_HOST") != "" {
-		act = mesherykube.UPGRADE
-		chart = "meshery"
-	} else if delete {
+	if delete {
 		act = mesherykube.UNINSTALL
 	}
 	err := client.ApplyHelmChart(mesherykube.ApplyHelmChartConfig{
