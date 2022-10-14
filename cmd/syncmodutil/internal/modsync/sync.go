@@ -37,14 +37,14 @@ type GoMod struct {
 	RequiredVersions []Package
 }
 
-//For debugging
+// For debugging
 func (g *GoMod) PrintRequiredVersions() {
 	for _, v := range g.RequiredVersions {
 		fmt.Printf("package=%s ;version=%s\n", v.Name, v.Version)
 	}
 }
 
-//For debugging
+// For debugging
 func (g *GoMod) PrintReplacedVersions() {
 	for _, v := range g.ReplacedVersions {
 		fmt.Printf("%s replaced by %s\n", v[0].Name+v[0].Version, v[1].Name+v[1].Version)
@@ -96,7 +96,7 @@ func (g *GoMod) SyncRequire(f io.Reader) (gomod string, err error) {
 	return
 }
 
-//NewGoMod takes an io.Reader to a go.mod and returns GoMod struct
+// NewGoMod takes an io.Reader to a go.mod and returns GoMod struct
 func New(f io.Reader) (*GoMod, error) {
 	var b = make([]byte, 1000)
 	b, err := io.ReadAll(f)
