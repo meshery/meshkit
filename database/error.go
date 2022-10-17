@@ -12,7 +12,7 @@ var (
 	ErrSQLMapInvalidScanCode         = "11016"
 	ErrClosingDatabaseConnectionCode = "11017"
 	ErrNoneDatabase                  = errors.New(ErrNoneDatabaseCode, errors.Alert, []string{"No Database selected"}, []string{}, []string{"database name is empty"}, []string{"Input a name for the database"})
-	ErrSQLMapInvalidScan             = errors.New(ErrSQLMapUnmarshalScannedCode, errors.Alert, []string{"invalid data type: expected []byte"}, []string{}, []string{}, []string{})
+	ErrSQLMapInvalidScan             = errors.New(ErrSQLMapInvalidScanCode, errors.Alert, []string{"invalid data type: expected []byte"}, []string{}, []string{}, []string{})
 )
 
 func ErrDatabaseOpen(err error) error {
