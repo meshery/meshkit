@@ -10,5 +10,5 @@ func ErrComponentGenerate(err error) error {
 }
 
 func ErrGetGHPackage(err error) error {
-	return errors.New(ErrGetGHPackageCode, errors.Alert, []string{"Could not get the Github package with the given name"}, []string{err.Error()}, []string{""}, []string{"make sure that the package exists"})
+	return errors.New(ErrGetGHPackageCode, errors.Alert, []string{"Could not get the Github package with the given name"}, []string{err.Error()}, []string{"Github could be unreachable", "passed version could be invalid", "passed filename could be invalid"}, []string{"make sure that the package exists", "make sure version or filename passed is correct"})
 }
