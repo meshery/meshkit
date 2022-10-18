@@ -3,7 +3,8 @@ package github
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"os"
 	"testing"
 )
 
@@ -34,9 +35,16 @@ func TestGetPackage(t *testing.T) {
 
 		if len(comp) != 0 {
 			gotData, _ := json.Marshal(comp)
-			expectedData, _ := ioutil.ReadFile(tt.filepath)
-			if string(gotData) != string(expectedData) {
-				t.Errorf(fmt.Sprintf("expected %s, \ngot %s", string(expectedData), string(gotData)))
+			file, err := os.Open(tt.filepath)
+			if err != nil {
+				t.Error(err)
+			}
+			buf, err := io.ReadAll(file)
+			if err != nil {
+				t.Error(err)
+			}
+			if string(gotData) != string(buf) {
+				t.Errorf(fmt.Sprintf("expected %s, \ngot %s", string(buf), string(gotData)))
 			}
 		}
 	}

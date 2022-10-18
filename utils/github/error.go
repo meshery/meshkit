@@ -10,5 +10,5 @@ func ErrComponentGenerate(err error) error {
 }
 
 func ErrGetGHPackage(err error) error {
-	return errors.New(ErrGetGHPackageCode, errors.Alert, []string{"Could not get the ArtifactHub package with the given name"}, []string{err.Error()}, []string{""}, []string{"make sure that the package exists"})
+	return errors.New(ErrGetGHPackageCode, errors.Alert, []string{"Could not get the Github package with the given name"}, []string{err.Error()}, []string{""}, []string{"make sure that the package exists"})
 }

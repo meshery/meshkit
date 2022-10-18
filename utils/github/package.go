@@ -11,7 +11,7 @@ import (
 )
 
 // This package is used when helm chart is fetched directly from github releases
-// the format https://github.com/<Owner>/<Repository>/releases/download/<Github-tag>/<Name-Version.tgz>
+// the format https://github.com/<Owner>/<Repository>/releases/download/Version/<Version/Filename.tgz>
 
 type GithubReleasePackage struct {
 	Owner      string
@@ -57,12 +57,10 @@ func (pkg *GithubReleasePackage) GetPackage() (models.Package, error) {
 			return nil, fmt.Errorf("no versions found for given github package")
 		}
 		pkg.Version = versions[len(versions)-1]
-		fmt.Println("this: ", versions)
 	}
 	if pkg.FileName == "" {
 		pkg.FileName = fmt.Sprintf("%s.tgz", pkg.Version)
 	}
 	pkg.URL = fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/%s", pkg.Owner, pkg.Repository, pkg.Version, pkg.FileName)
-	fmt.Println("url is", pkg.URL)
 	return pkg, nil
 }
