@@ -5,10 +5,15 @@ import (
 )
 
 var (
-	ErrGetChartUrlCode       = "11092"
-	ErrGetAhPackageCode      = "1093"
-	ErrComponentGenerateCode = "11094"
+	ErrGetChartUrlCode        = "11092"
+	ErrGetAhPackageCode       = "1093"
+	ErrComponentGenerateCode  = "11094"
+	ErrGetAllHelmPackagesCode = "11095"
 )
+
+func ErrGetAllHelmPackages(err error) error {
+	return errors.New(ErrGetAllHelmPackagesCode, errors.Alert, []string{"Could not get HELM packages from Artifacthub"}, []string{err.Error()}, []string{""}, []string{"make sure that the artifacthub API service is available"})
+}
 
 func ErrGetChartUrl(err error) error {
 	return errors.New(ErrGetChartUrlCode, errors.Alert, []string{"Could not get the chart url for this ArtifactHub package"}, []string{err.Error()}, []string{""}, []string{"make sure that the package exists"})

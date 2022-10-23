@@ -4,14 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/component"
 	"github.com/layer5io/meshkit/utils/manifests"
+	"gopkg.in/yaml.v2"
 )
 
 const ArtifactHubAPIEndpint = "https://artifacthub.io/api/v1"
 const ArtifactHubChartUrlFieldName = "content_url"
+const AhHelmExporterEndpoint = ArtifactHubAPIEndpint + "/helm-exporter"
 
 // internal representation of artifacthub package
 // it contains information we need to identify a package using ArtifactHub API
@@ -19,7 +23,8 @@ type AhPackage struct {
 	Name              string
 	Repository        string
 	Organization      string
-	Url               string
+	RepoUrl           string
+	ChartUrl          string
 	Official          bool
 	VerifiedPublisher bool
 	Version           string
@@ -27,9 +32,8 @@ type AhPackage struct {
 
 func (pkg AhPackage) GenerateComponents() ([]v1alpha1.Component, error) {
 	components := make([]v1alpha1.Component, 0)
-
 	// TODO: Move this to the configuration
-	crds, err := manifests.GetCrdsFromHelm(pkg.Url)
+	crds, err := manifests.GetCrdsFromHelm(pkg.ChartUrl)
 	if err != nil {
 		return components, ErrComponentGenerate(err)
 	}
@@ -46,31 +50,65 @@ func (pkg AhPackage) GenerateComponents() ([]v1alpha1.Component, error) {
 
 // function that will take the AhPackage as input and give the helm chart url for that package
 func (pkg *AhPackage) UpdatePackageData() error {
-	if pkg.Url != "" {
+	if pkg.ChartUrl != "" {
 		return nil
 	}
-	url := fmt.Sprintf("%s/packages/helm/%s/%s", ArtifactHubAPIEndpint, pkg.Repository, pkg.Name)
-	resp, err := http.Get(url)
+	urlSuffix := "/index.yaml"
+	if strings.HasSuffix(pkg.RepoUrl, "/") {
+		urlSuffix = "index.yaml"
+	}
+	charts, err := utils.ReadRemoteFile(pkg.RepoUrl + urlSuffix)
 	if err != nil {
 		return ErrGetChartUrl(err)
+	}
+	var out map[string]interface{}
+	err = yaml.Unmarshal([]byte(charts), &out)
+	if err != nil {
+		return ErrGetChartUrl(err)
+	}
+	entries, ok := out["entries"].(map[interface{}]interface{})
+	if entries == nil || !ok {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	pkgEntry, ok := entries[pkg.Name]
+	if pkgEntry == nil || !ok {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	urls, ok := pkgEntry.([]interface{})[0].(map[interface{}]interface{})["urls"]
+	if urls == nil || !ok {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	chartUrl, ok := urls.([]interface{})[0].(string)
+	if !ok || chartUrl == "" {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	pkg.ChartUrl = chartUrl
+	return nil
+}
+
+func GetAllAhHelmPackages() ([]AhPackage, error) {
+	pkgs := make([]AhPackage, 0)
+	resp, err := http.Get(AhHelmExporterEndpoint)
+	if err != nil {
+		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("status code %d for %s", resp.StatusCode, url)
-		return ErrGetChartUrl(err)
+		err = fmt.Errorf("status code %d for %s", resp.StatusCode, AhHelmExporterEndpoint)
+		return nil, ErrGetAllHelmPackages(err)
 	}
 	defer resp.Body.Close()
-	var res map[string]interface{}
+	var res []map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
-		return ErrGetChartUrl(err)
+		return nil, err
 	}
-	chartUrl := res[ArtifactHubChartUrlFieldName].(string)
-	official := res["repository"].(map[string]interface{})["official"].(bool)
-	verPub := res["repository"].(map[string]interface{})["verified_publisher"].(bool)
-	version := res["version"].(string)
-	pkg.Url = chartUrl
-	pkg.Official = official
-	pkg.VerifiedPublisher = verPub
-	pkg.Version = version
-	return nil
+	for _, p := range res {
+		pkgs = append(pkgs, AhPackage{
+			Name:       p["name"].(string),
+			Version:    p["version"].(string),
+			Repository: p["repository"].(map[string]interface{})["name"].(string),
+			RepoUrl:    p["repository"].(map[string]interface{})["url"].(string),
+		})
+	}
+	return pkgs, nil
 }

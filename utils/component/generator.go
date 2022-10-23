@@ -25,15 +25,28 @@ var DefaultPathConfig = CuePathConfig{
 	SpecPath:       "spec.versions[0].schema.openAPIV3Schema.properties.spec",
 }
 
+var DefaultPathConfig2 = CuePathConfig{
+	NamePath:       "spec.names.kind",
+	IdentifierPath: "spec.names.kind",
+	VersionPath:    "spec.versions[0].name",
+	GroupPath:      "spec.group",
+	SpecPath:       "spec.validation.openAPIV3Schema.properties.spec",
+}
+
+var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
+
 func Generate(crd string) (v1alpha1.Component, error) {
 	component := v1alpha1.NewComponent()
 	crdCue, err := utils.YamlToCue(crd)
 	if err != nil {
 		return component, err
 	}
-	schema, err := getSchema(crdCue, DefaultPathConfig)
-	if err != nil {
-		return component, err
+	var schema string
+	for _, cfg := range Configs {
+		schema, err = getSchema(crdCue, cfg)
+		if err == nil {
+			break
+		}
 	}
 	component.Spec = schema
 	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)

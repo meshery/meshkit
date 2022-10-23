@@ -39,8 +39,8 @@ func TestFilterPackagesWithCrds(t *testing.T) {
 		want  []string
 	}{
 		{[]AhPackage{
-			{Name: "crossplane-types", Repository: "crossplane", Organization: "", Url: "https://charts.crossplane.io/master/crossplane-types-0.13.0-rc.98.g1eb0776.tgz"},
-			{Name: "crossplane", Repository: "crossplane", Organization: "", Url: "https://charts.crossplane.io/master/crossplane-1.10.0-rc.0.99.g7f471c48.tgz"},
+			{Name: "crossplane-types", Repository: "crossplane", Organization: "", ChartUrl: "https://charts.crossplane.io/master/crossplane-types-0.13.0-rc.98.g1eb0776.tgz"},
+			{Name: "crossplane", Repository: "crossplane", Organization: "", ChartUrl: "https://charts.crossplane.io/master/crossplane-1.10.0-rc.0.99.g7f471c48.tgz"},
 		},
 			[]string{
 				"crossplane-types",

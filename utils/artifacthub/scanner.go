@@ -54,7 +54,7 @@ func GetAhPackagesWithName(name string) ([]AhPackage, error) {
 func FilterPackagesWithCrds(pkgs []AhPackage) []AhPackage {
 	out := make([]AhPackage, 0)
 	for _, ap := range pkgs {
-		crds, err := manifests.GetCrdsFromHelm(ap.Url)
+		crds, err := manifests.GetCrdsFromHelm(ap.ChartUrl)
 		if err == nil && len(crds) != 0 {
 			out = append(out, ap)
 		}
