@@ -19,8 +19,8 @@ func TestGetChartUrl(t *testing.T) {
 				t.Errorf("error while updating package data = %v", err)
 				return
 			}
-			if tt.ahpkg.Url != tt.want {
-				t.Errorf("got %v, want %v", tt.ahpkg.Url, tt.want)
+			if tt.ahpkg.ChartUrl != tt.want {
+				t.Errorf("got %v, want %v", tt.ahpkg.ChartUrl, tt.want)
 			}
 		})
 	}
