@@ -35,9 +35,37 @@ type Model struct {
 type Handler struct {
 	*gorm.DB
 	*sync.Mutex
+	options Options
 	// Implement methods if necessary
 }
 
+func (h *Handler) GetInfo() Options {
+	return h.options
+}
+
+// ChangeDatabase takes new set of options and creates a new database instance, attaching it to the database handler.
+// Make sure to Migrate tables after switching the database, whenever this function is called.
+func (h *Handler) ChangeDatabase(opts Options) error {
+	h.Lock()
+	defer h.Unlock()
+	err := h.DBClose()
+	if err != nil {
+		return err
+	}
+	opts.Logger = h.options.Logger
+	if opts.Engine == "" {
+		opts.Engine = h.options.Engine
+	}
+
+	newHandler, err := New(opts)
+	if err != nil {
+		return err
+	}
+	h.DB = newHandler.DB
+	h.options = newHandler.options
+	h.options.Logger.Info("Database switched")
+	return nil
+}
 func (h *Handler) DBClose() error {
 	db, err := h.DB.DB()
 	if err != nil {
@@ -60,6 +88,7 @@ func New(opts Options) (Handler, error) {
 		return Handler{
 			db,
 			&sync.Mutex{},
+			opts,
 		}, nil
 	case SQLITE:
 		config := &gorm.Config{}
@@ -75,6 +104,7 @@ func New(opts Options) (Handler, error) {
 		return Handler{
 			db,
 			&sync.Mutex{},
+			opts,
 		}, nil
 	}
 
