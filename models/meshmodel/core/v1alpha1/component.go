@@ -9,20 +9,30 @@ type TypeMeta struct {
 
 // use NewComponent function for instantiating
 type Component struct {
-	TypeMeta
-	ComponentSpec
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	TypeMeta      `gorm:"embedded"`
+	ComponentSpec `gorm:"embedded"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty" gorm:"type:JSONB"`
 	// for backward compatibility
 	Spec string `json:"spec,omitempty"`
 }
-
+type capability struct {
+	ID string `json:"id,omitempty"`
+	// Host is the address of the service registering the capability
+	Host string `json:"host,omitempty"`
+}
 type ComponentSpec struct {
-	Schematic map[string]interface{} `json:"schematic,omitempty"`
+	Schematic map[string]interface{} `json:"schematic,omitempty" gorm:"type:JSONB"`
 }
 
 func NewComponent() Component {
 	comp := Component{}
 	comp.APIVersion = "core.meshery.io/v1alpha1"
 	comp.Kind = ComponentDefinitionKindKey
+	comp.Metadata = make(map[string]interface{}, 1)
 	return comp
+}
+
+type ComponentCapability struct {
+	Component
+	capability
 }
