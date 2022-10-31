@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// This file consists of methods and structs that database(gorm) will use to interact with meshmodel components
+// This file consists of helper methods and structs that database(gorm) will use to interact with meshmodel components
 type ComponentDB struct {
 	TypeMeta
 	ComponentSpecDB
@@ -22,15 +22,11 @@ type ComponentSpecDB struct {
 type ComponentCapabilityDB struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	ComponentDB
-	capability
-}
-type capabilityDB struct {
-	// Host is the address of the service registering the capability
-	Host string `json:"host,omitempty"`
+	Capability
 }
 
 func ComponentCapabilityFromCCDB(cdb ComponentCapabilityDB) (c ComponentCapability) {
-	c.capability = cdb.capability
+	c.Capability = cdb.Capability
 	c.TypeMeta = cdb.TypeMeta
 	c.Spec = cdb.Spec
 	m := make(map[string]interface{})
@@ -42,7 +38,7 @@ func ComponentCapabilityFromCCDB(cdb ComponentCapabilityDB) (c ComponentCapabili
 	return
 }
 func ComponentCapabilityDBFromCC(c ComponentCapability) (cdb ComponentCapabilityDB) {
-	cdb.capability = c.capability
+	cdb.Capability = c.Capability
 	cdb.TypeMeta = c.TypeMeta
 	cdb.Spec = c.Spec
 	cdb.Metadata, _ = json.Marshal(c.Metadata)
