@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// This file consists of methods and structs that database(gorm) will use to interact with meshmodel components
+// This file consists of helper methods and structs that database(gorm) will use to interact with meshmodel components
 type ComponentDB struct {
 	TypeMeta
 	ComponentSpecDB
@@ -22,27 +22,28 @@ type ComponentSpecDB struct {
 type ComponentCapabilityDB struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	ComponentDB
-	capability
-}
-type capabilityDB struct {
-	// Host is the address of the service registering the capability
-	Host string `json:"host,omitempty"`
+	Capability
 }
 
+// ComponentCapabilityFromCCDB produces a client facing instance of ComponentCapability from a database representation of ComponentCapability.
+// Use this function to interconvert any time the ComponentCapability is fetched from the database and is to be returned to client.
 func ComponentCapabilityFromCCDB(cdb ComponentCapabilityDB) (c ComponentCapability) {
-	c.capability = cdb.capability
+	c.Capability = cdb.Capability
 	c.TypeMeta = cdb.TypeMeta
 	c.Spec = cdb.Spec
 	m := make(map[string]interface{})
-	json.Unmarshal(cdb.Metadata, &m)
+	_ = json.Unmarshal(cdb.Metadata, &m)
 	c.Metadata = m
 	schematic := make(map[string]interface{})
-	json.Unmarshal(cdb.Schematic, &schematic)
+	_ = json.Unmarshal(cdb.Schematic, &schematic)
 	c.Schematic = schematic
 	return
 }
+
+// ComponentCapabilityDBFromCC produces a database compatible instance of ComponentCapability from a client representation of ComponentCapability.
+// Use this function to interconvert any time the ComponentCapability is created by some client and is to be saved to the database.
 func ComponentCapabilityDBFromCC(c ComponentCapability) (cdb ComponentCapabilityDB) {
-	cdb.capability = c.capability
+	cdb.Capability = c.Capability
 	cdb.TypeMeta = c.TypeMeta
 	cdb.Spec = c.Spec
 	cdb.Metadata, _ = json.Marshal(c.Metadata)
