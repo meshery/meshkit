@@ -130,6 +130,7 @@ func getNewComponent(spec string, name string) v1alpha1.Component {
 	meta := map[string]interface{}{
 		ComponentMetaNameKey: name,
 	}
+
 	comp.Metadata = meta
 	return comp
 }
