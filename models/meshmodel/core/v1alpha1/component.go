@@ -55,11 +55,6 @@ func (c Component) Type() types.CapabilityType {
 	return types.ComponentDefinition
 }
 
-// Do not directly use this function. In order to register any component, use the Register() methods in RegistryManager
-func (c Component) Add() {
-
-}
-
 type ComponentMetadata struct {
 	ID          uuid.UUID
 	ComponentID uuid.UUID
