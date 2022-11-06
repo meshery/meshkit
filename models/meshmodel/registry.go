@@ -45,7 +45,7 @@ type RegistryManager struct {
 
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
-	case v1alpha1.Component:
+	case v1alpha1.ComponentDefinition:
 		componentID, err := v1alpha1.CreateComponent(rm.db, entity)
 		if err != nil {
 			return err
@@ -73,8 +73,12 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 	switch filter := f.(type) {
 	case v1alpha1.ComponentFilter:
-		v1alpha1.GetComponents(rm.db, filter)
-		return nil
+		en := make([]Entity, 1)
+		comps := v1alpha1.GetComponents(rm.db, filter)
+		for _, comp := range comps {
+			en = append(en, comp)
+		}
+		return en
 	default:
 		return nil
 	}
