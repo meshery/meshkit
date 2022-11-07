@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -80,22 +81,41 @@ type ComponentMetadata struct {
 	Version     string
 	Category    string
 	SubCategory string
+	Metadata    map[string]interface{}
+}
+
+// This struct is internal to the system
+type componentMetadataDB struct {
+	ID          uuid.UUID
+	ComponentID uuid.UUID
+	Model       string
+	Version     string
+	Category    string
+	SubCategory string
 	Metadata    []byte
 }
 
-func NewComponent(kind string, apiVersion string, format string, model string, version string, metadata []byte, schema []byte) ComponentDefinition {
-	comp := ComponentDefinition{}
-	comp.ID = uuid.New()
-	comp.APIVersion = apiVersion
-	comp.Kind = kind
-	comp.Format = format
-	comp.Schema = schema
+func (cmd *componentMetadataDB) ToComponentMetadata() (c ComponentMetadata) {
+	c.ID = cmd.ID
+	c.ComponentID = cmd.ComponentID
+	c.Model = cmd.Model
+	c.Version = cmd.Version
+	c.Category = cmd.Category
+	c.SubCategory = cmd.SubCategory
 
-	compMeta := ComponentMetadata{}
-	compMeta.ID = uuid.New()
-	compMeta.ComponentID = comp.ID
-	compMeta.Model = model
-	compMeta.Version = version
-	comp.Metadata = compMeta
-	return comp
+	byt, _ := json.Marshal(cmd.Metadata)
+	_ = json.Unmarshal(byt, &c.Metadata)
+	return
+}
+func (cmd *componentMetadataDB) FromComponentMetadata(c ComponentMetadata) {
+	cmd.ID = c.ID
+	cmd.ComponentID = c.ComponentID
+	cmd.Model = c.Model
+	cmd.Version = c.Version
+	cmd.Category = c.Category
+	cmd.SubCategory = c.SubCategory
+
+	byt, _ := json.Marshal(c.Metadata)
+	_ = json.Unmarshal(byt, &cmd.Metadata)
+	return
 }
