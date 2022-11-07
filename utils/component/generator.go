@@ -1,5 +1,10 @@
 package component
 
+import (
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/utils"
+)
+
 const ComponentMetaNameKey = "name"
 
 // all paths should be a valid CUE expression
@@ -30,26 +35,26 @@ var DefaultPathConfig2 = CuePathConfig{
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
-// func Generate(crd string) (v1alpha1.Component, error) {
-// 	component := v1alpha1.NewComponent()
-// 	crdCue, err := utils.YamlToCue(crd)
-// 	if err != nil {
-// 		return component, err
-// 	}
-// 	var schema string
-// 	for _, cfg := range Configs {
-// 		schema, err = getSchema(crdCue, cfg)
-// 		if err == nil {
-// 			break
-// 		}
-// 	}
-// 	component.Spec = schema
-// 	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)
-// 	if err != nil {
-// 		return component, err
-// 	}
-// 	metadata := map[string]interface{}{}
-// 	metadata[ComponentMetaNameKey] = name
-// 	component.Metadata = metadata
-// 	return component, nil
-// }
+func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
+	component := v1alpha1.ComponentDefinition{}
+	crdCue, err := utils.YamlToCue(crd)
+	if err != nil {
+		return component, err
+	}
+	var schema string
+	for _, cfg := range Configs {
+		schema, err = getSchema(crdCue, cfg)
+		if err == nil {
+			break
+		}
+	}
+	component.Schema = []byte(schema)
+	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)
+	if err != nil {
+		return component, err
+	}
+	// metadata := map[string]interface{}{}
+	// metadata[ComponentMetaNameKey] = name
+	component.Kind = name
+	return component, nil
+}

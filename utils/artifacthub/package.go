@@ -6,7 +6,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/layer5io/meshkit/utils/component"
+	"github.com/layer5io/meshkit/utils/manifests"
 	"gopkg.in/yaml.v2"
 )
 
@@ -27,23 +30,26 @@ type AhPackage struct {
 	Version           string
 }
 
-// func (pkg AhPackage) GenerateComponents() ([]v1alpha1.Component, error) {
-// 	components := make([]v1alpha1.Component, 0)
-// 	// TODO: Move this to the configuration
-// 	crds, err := manifests.GetCrdsFromHelm(pkg.ChartUrl)
-// 	if err != nil {
-// 		return components, ErrComponentGenerate(err)
-// 	}
-// 	for _, crd := range crds {
-// 		comp, err := component.Generate(crd)
-// 		if err != nil {
-// 			continue
-// 		}
-// 		// comp.Metadata["version"] = pkg.Version
-// 		components = append(components, comp)
-// 	}
-// 	return components, nil
-// }
+func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error) {
+	components := make([]v1alpha1.ComponentDefinition, 0)
+	// TODO: Move this to the configuration
+	crds, err := manifests.GetCrdsFromHelm(pkg.ChartUrl)
+	if err != nil {
+		return components, ErrComponentGenerate(err)
+	}
+	for _, crd := range crds {
+		comp, err := component.Generate(crd)
+		if err != nil {
+			continue
+		}
+		if comp.Metadata.Metadata == nil {
+			comp.Metadata.Metadata = make(map[string]interface{})
+		}
+		comp.Metadata.Metadata["version"] = pkg.Version
+		components = append(components, comp)
+	}
+	return components, nil
+}
 
 // function that will take the AhPackage as input and give the helm chart url for that package
 func (pkg *AhPackage) UpdatePackageData() error {
