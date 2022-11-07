@@ -67,7 +67,7 @@ type ComponentFilter struct {
 }
 
 // Create the filter from map[string]interface{}
-func (cf ComponentFilter) Create(m map[string]interface{}) {
+func (cf *ComponentFilter) Create(m map[string]interface{}) {
 	if m == nil {
 		return
 	}

@@ -67,14 +67,13 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	default:
 		return nil
 	}
-
 }
 
 func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 	switch filter := f.(type) {
-	case v1alpha1.ComponentFilter:
+	case *v1alpha1.ComponentFilter:
 		en := make([]Entity, 1)
-		comps := v1alpha1.GetComponents(rm.db, filter)
+		comps := v1alpha1.GetComponents(rm.db, *filter)
 		for _, comp := range comps {
 			en = append(en, comp)
 		}
@@ -82,5 +81,4 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 	default:
 		return nil
 	}
-
 }
