@@ -46,6 +46,7 @@ func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error
 			comp.Metadata.Metadata = make(map[string]interface{})
 		}
 		comp.Metadata.Metadata["version"] = pkg.Version
+		comp.Metadata.Model = pkg.Repository
 		components = append(components, comp)
 	}
 	return components, nil

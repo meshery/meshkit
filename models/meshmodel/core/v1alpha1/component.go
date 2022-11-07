@@ -13,16 +13,23 @@ type TypeMeta struct {
 	Kind       string `json:"kind,omitempty" yaml:"kind"`
 	APIVersion string `json:"apiVersion,omitempty" yaml:"apiVersion"`
 }
+type ComponentFormat string
+
+const (
+	JSON ComponentFormat = "JSON"
+	YAML ComponentFormat = "YAML"
+	CUE  ComponentFormat = "CUE"
+)
 
 // use NewComponent function for instantiating
 type ComponentDefinition struct {
-	ID        uuid.UUID
+	ID        uuid.UUID `json:"-"`
 	TypeMeta  `gorm:"embedded" yaml:"typemeta"`
-	Format    string
+	Format    ComponentFormat   `gorm:"format"`
 	Metadata  ComponentMetadata `gorm:"-"`
-	Schema    []byte            `gorm:"embedded" yaml:"schema"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Schema    string            `gorm:"embedded" yaml:"schema"`
+	CreatedAt time.Time         `json:"-"`
+	UpdatedAt time.Time         `json:"-"`
 }
 
 func (c ComponentDefinition) Type() types.CapabilityType {
@@ -75,8 +82,8 @@ func (cf *ComponentFilter) Create(m map[string]interface{}) {
 }
 
 type ComponentMetadata struct {
-	ID          uuid.UUID
-	ComponentID uuid.UUID
+	ID          uuid.UUID `json:"-"`
+	ComponentID uuid.UUID `json:"-"`
 	Model       string
 	Version     string
 	Category    string
@@ -93,6 +100,8 @@ type componentMetadataDB struct {
 	Category    string
 	SubCategory string
 	Metadata    []byte
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func (cmd *componentMetadataDB) ToComponentMetadata() (c ComponentMetadata) {
