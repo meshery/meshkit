@@ -1,5 +1,14 @@
 package component
 
+import (
+	"encoding/json"
+	"io/ioutil"
+	"reflect"
+	"testing"
+
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+)
+
 var istioCrd = `
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -117,38 +126,41 @@ spec:
       status: {}
 `
 
-// func getNewComponent(spec string, name string) v1alpha1.Component {
-// 	comp := v1alpha1.NewComponent()
-// 	comp.Spec = spec
-// 	meta := map[string]interface{}{
-// 		ComponentMetaNameKey: name,
-// 	}
-// 	comp.Metadata = meta
-// 	return comp
-// }
+func getNewComponent(spec string, name string) v1alpha1.ComponentDefinition {
+	comp := v1alpha1.ComponentDefinition{}
+	comp.Schema = spec
+	meta := map[string]interface{}{
+		ComponentMetaNameKey: name,
+	}
+	comp.Kind = name
+	comp.Metadata.Metadata = meta
+	return comp
+}
 
-// func TestGenerate(t *testing.T) {
-// 	var tests = []struct {
-// 		crd  string
-// 		want v1alpha1.Component
-// 	}{
-// 		{istioCrd, getNewComponent("", "WasmPlugin")},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run("generateComponent", func(t *testing.T) {
-// 			got, _ := Generate(tt.crd)
-// 			if !reflect.DeepEqual(got.Metadata, tt.want.Metadata) {
-// 				t.Errorf("got %v, want %v", got, tt.want)
-// 			}
-// 			if !(got.Kind == tt.want.Kind) {
-// 				t.Errorf("got %v, want %v", got, tt.want)
-// 			}
-// 			if !(got.APIVersion == tt.want.APIVersion) {
-// 				t.Errorf("got %v, want %v", got, tt.want)
-// 			}
-// 			if got.Spec == "" {
-// 				t.Errorf("got %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+func TestGenerate(t *testing.T) {
+	var tests = []struct {
+		crd  string
+		want v1alpha1.ComponentDefinition
+	}{
+		{istioCrd, getNewComponent("", "WasmPlugin")},
+	}
+	for _, tt := range tests {
+		t.Run("generateComponent", func(t *testing.T) {
+			got, _ := Generate(tt.crd)
+			byt, _ := json.Marshal(got)
+			ioutil.WriteFile("./test.json", byt, 0777)
+			if !reflect.DeepEqual(got.Metadata, tt.want.Metadata) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+			if !(got.Kind == tt.want.Kind) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+			if !(got.APIVersion == tt.want.APIVersion) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+			if string(got.Schema) == "" {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
