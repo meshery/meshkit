@@ -50,13 +50,15 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 	c.ID = uuid.New()
 	c.Metadata.ID = uuid.New()
 	c.Metadata.ComponentID = c.ID
-	compMetaDB := ComponentMetadataDB{}
-	compMetaDB.FromComponentMetadata(c.Metadata)
+
 	cdb.FromComponentMetadata(c)
 	err := db.Create(&cdb).Error
 	if err != nil {
 		return uuid.UUID{}, err
 	}
+
+	compMetaDB := ComponentMetadataDB{}
+	compMetaDB.FromComponentMetadata(c.Metadata)
 	err = db.Create(&compMetaDB).Error
 	return c.ID, err
 }
@@ -70,7 +72,8 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 		mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
 		for _, m := range metas {
 			ids = append(ids, m.ComponentID)
-			mapIDsToComponentsMetadata[m.ComponentID] = &m
+			m2 := m
+			mapIDsToComponentsMetadata[m.ComponentID] = &m2
 		}
 		var ctemp []ComponentDefinitionDB
 		if f.Name == "" {
@@ -92,7 +95,8 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 		mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
 		for _, m := range metas {
 			ids = append(ids, m.ComponentID)
-			mapIDsToComponentsMetadata[m.ComponentID] = &m
+			m2 := m
+			mapIDsToComponentsMetadata[m.ComponentID] = &m2
 		}
 		var ctemp []ComponentDefinitionDB
 		_ = db.Where("id IN ?", ids).Where("kind = ?", f.Name).Find(&ctemp).Error
@@ -108,7 +112,8 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 	mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
 	for _, m := range metas {
 		ids = append(ids, m.ComponentID)
-		mapIDsToComponentsMetadata[m.ComponentID] = &m
+		m2 := m
+		mapIDsToComponentsMetadata[m.ComponentID] = &m2
 	}
 	var ctemp []ComponentDefinitionDB
 	if f.Name == "" {
