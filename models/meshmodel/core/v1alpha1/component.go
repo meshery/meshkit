@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -168,7 +167,6 @@ func (cmd *ComponentMetadataDB) ToComponentMetadata() (c ComponentMetadata) {
 	c.Category = cmd.Category
 	c.SubCategory = cmd.SubCategory
 	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
-	fmt.Println("unmarshallled", c.Metadata)
 	return
 }
 func (cmd *ComponentMetadataDB) FromComponentMetadata(c ComponentMetadata) {
