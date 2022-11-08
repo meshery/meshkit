@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,40 +32,95 @@ type ComponentDefinition struct {
 	CreatedAt time.Time         `json:"-"`
 	UpdatedAt time.Time         `json:"-"`
 }
+type ComponentDefinitionDB struct {
+	ID        uuid.UUID `json:"-"`
+	TypeMeta  `yaml:"typemeta"`
+	Format    ComponentFormat     `gorm:"format"`
+	Metadata  ComponentMetadataDB `gorm:"-"`
+	Schema    string              `yaml:"schema"`
+	CreatedAt time.Time           `json:"-"`
+	UpdatedAt time.Time           `json:"-"`
+}
 
 func (c ComponentDefinition) Type() types.CapabilityType {
 	return types.ComponentDefinition
 }
 
 func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
+	cdb := ComponentDefinitionDB{}
 	c.ID = uuid.New()
 	c.Metadata.ID = uuid.New()
-	compMeta := c.Metadata
-	err := db.Create(&compMeta).Error
+	c.Metadata.ComponentID = c.ID
+	compMetaDB := ComponentMetadataDB{}
+	compMetaDB.FromComponentMetadata(c.Metadata)
+	cdb.FromComponentMetadata(c)
+	err := db.Create(&cdb).Error
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	err = db.Create(&c).Error
+	err = db.Create(&compMetaDB).Error
 	return c.ID, err
 }
+
+// TODO: Code duplication in below function, minor refactor needed
 func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
 	if f.ModelName != "" {
-		var metas []ComponentMetadata
+		var metas []ComponentMetadataDB
 		_ = db.Where("model = ?", f.ModelName).Find(&metas).Error
 		var ids []uuid.UUID
-		mapIDsToComponentsMetadata := make(map[uuid.UUID]ComponentMetadata)
+		mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
 		for _, m := range metas {
 			ids = append(ids, m.ComponentID)
-			mapIDsToComponentsMetadata[m.ComponentID] = m
+			mapIDsToComponentsMetadata[m.ComponentID] = &m
 		}
-		var ctemp []ComponentDefinition
-		_ = db.Where("id IN ?", ids).Where("name = ?", f.Name).Find(&ctemp).Error
+		var ctemp []ComponentDefinitionDB
+		if f.Name == "" {
+			_ = db.Where("id IN ?", ids).Find(&ctemp).Error
+		} else {
+			_ = db.Where("id IN ?", ids).Where("kind = ?", f.Name).Find(&ctemp).Error
+		}
 		for _, comp := range ctemp {
-			comp.Metadata = mapIDsToComponentsMetadata[comp.ID]
-			c = append(c, comp)
+			comp.Metadata = *mapIDsToComponentsMetadata[comp.ID]
+			c = append(c, comp.ToComponent())
 		}
+		return
 	}
 
+	if f.Name != "" {
+		var metas []ComponentMetadataDB
+		_ = db.Find(&metas).Error
+		var ids []uuid.UUID
+		mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
+		for _, m := range metas {
+			ids = append(ids, m.ComponentID)
+			mapIDsToComponentsMetadata[m.ComponentID] = &m
+		}
+		var ctemp []ComponentDefinitionDB
+		_ = db.Where("id IN ?", ids).Where("kind = ?", f.Name).Find(&ctemp).Error
+		for _, comp := range ctemp {
+			comp.Metadata = *mapIDsToComponentsMetadata[comp.ID]
+			c = append(c, comp.ToComponent())
+		}
+		return
+	}
+	var metas []ComponentMetadataDB
+	_ = db.Find(&metas).Error
+	var ids []uuid.UUID
+	mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
+	for _, m := range metas {
+		ids = append(ids, m.ComponentID)
+		mapIDsToComponentsMetadata[m.ComponentID] = &m
+	}
+	var ctemp []ComponentDefinitionDB
+	if f.Name == "" {
+		_ = db.Where("id IN ?", ids).Find(&ctemp).Error
+	} else {
+		_ = db.Where("id IN ?", ids).Find(&ctemp).Error
+	}
+	for _, compdb := range ctemp {
+		compdb.Metadata = *mapIDsToComponentsMetadata[compdb.ID]
+		c = append(c, compdb.ToComponent())
+	}
 	return
 }
 
@@ -92,7 +148,7 @@ type ComponentMetadata struct {
 }
 
 // This struct is internal to the system
-type componentMetadataDB struct {
+type ComponentMetadataDB struct {
 	ID          uuid.UUID
 	ComponentID uuid.UUID
 	Model       string
@@ -104,19 +160,19 @@ type componentMetadataDB struct {
 	UpdatedAt   time.Time
 }
 
-func (cmd *componentMetadataDB) ToComponentMetadata() (c ComponentMetadata) {
+func (cmd *ComponentMetadataDB) ToComponentMetadata() (c ComponentMetadata) {
 	c.ID = cmd.ID
 	c.ComponentID = cmd.ComponentID
 	c.Model = cmd.Model
 	c.Version = cmd.Version
 	c.Category = cmd.Category
 	c.SubCategory = cmd.SubCategory
-
-	byt, _ := json.Marshal(cmd.Metadata)
-	_ = json.Unmarshal(byt, &c.Metadata)
+	fmt.Println("will unmarshall ", string(cmd.Metadata))
+	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
+	fmt.Println("unmarshallled", c.Metadata)
 	return
 }
-func (cmd *componentMetadataDB) FromComponentMetadata(c ComponentMetadata) {
+func (cmd *ComponentMetadataDB) FromComponentMetadata(c ComponentMetadata) {
 	cmd.ID = c.ID
 	cmd.ComponentID = c.ComponentID
 	cmd.Model = c.Model
@@ -124,7 +180,23 @@ func (cmd *componentMetadataDB) FromComponentMetadata(c ComponentMetadata) {
 	cmd.Category = c.Category
 	cmd.SubCategory = c.SubCategory
 
-	byt, _ := json.Marshal(c.Metadata)
-	_ = json.Unmarshal(byt, &cmd.Metadata)
+	cmd.Metadata, _ = json.Marshal(c.Metadata)
+	return
+}
+
+func (cmd *ComponentDefinitionDB) ToComponent() (c ComponentDefinition) {
+	c.ID = cmd.ID
+	c.TypeMeta = cmd.TypeMeta
+	c.Format = cmd.Format
+	c.Metadata = cmd.Metadata.ToComponentMetadata()
+	c.Schema = cmd.Schema
+	return
+}
+func (cmd *ComponentDefinitionDB) FromComponentMetadata(c ComponentDefinition) {
+	cmd.ID = c.ID
+	cmd.TypeMeta = c.TypeMeta
+	cmd.Format = c.Format
+	cmd.Metadata.FromComponentMetadata(c.Metadata)
+	cmd.Schema = c.Schema
 	return
 }

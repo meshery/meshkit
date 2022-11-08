@@ -18,12 +18,12 @@ type Registry struct {
 	UpdatedAt    time.Time
 }
 type Host struct {
-	ID        uuid.UUID
+	ID        uuid.UUID `json:"-"`
 	Hostname  string
 	Port      int
 	ContextID string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
 }
 
 func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
@@ -43,6 +43,23 @@ type RegistryManager struct {
 	db *database.Handler //This database handler will be used to perform queries inside the database
 }
 
+// NewRegistryManager initializes the registry manager by creating appropriate tables.
+// Any new entities that are added to the registry should be migrated here into the database
+func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
+	rm := RegistryManager{
+		db: db,
+	}
+	err := rm.db.AutoMigrate(
+		&Registry{},
+		&Host{},
+		&v1alpha1.ComponentDefinitionDB{},
+		&v1alpha1.ComponentMetadataDB{},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &rm, nil
+}
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
