@@ -1,8 +1,6 @@
 package component
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"reflect"
 	"testing"
 
@@ -147,8 +145,6 @@ func TestGenerate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run("generateComponent", func(t *testing.T) {
 			got, _ := Generate(tt.crd)
-			byt, _ := json.Marshal(got)
-			ioutil.WriteFile("./test.json", byt, 0777)
 			if !reflect.DeepEqual(got.Metadata, tt.want.Metadata) {
 				t.Errorf("got %v, want %v", got, tt.want)
 			}

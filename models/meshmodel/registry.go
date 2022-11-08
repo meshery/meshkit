@@ -65,7 +65,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	return &rm, nil
 }
 func (rm *RegistryManager) Cleanup() {
-	rm.db.Migrator().DropTable(
+	_ = rm.db.Migrator().DropTable(
 		&Registry{},
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
