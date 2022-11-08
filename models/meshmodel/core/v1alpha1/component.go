@@ -167,7 +167,6 @@ func (cmd *ComponentMetadataDB) ToComponentMetadata() (c ComponentMetadata) {
 	c.Version = cmd.Version
 	c.Category = cmd.Category
 	c.SubCategory = cmd.SubCategory
-	fmt.Println("will unmarshall ", string(cmd.Metadata))
 	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
 	fmt.Println("unmarshallled", c.Metadata)
 	return

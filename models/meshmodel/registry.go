@@ -1,6 +1,7 @@
 package meshmodel
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,6 +47,9 @@ type RegistryManager struct {
 // NewRegistryManager initializes the registry manager by creating appropriate tables.
 // Any new entities that are added to the registry should be migrated here into the database
 func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
+	if db == nil {
+		return nil, fmt.Errorf("nil database handler")
+	}
 	rm := RegistryManager{
 		db: db,
 	}
@@ -59,6 +63,14 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		return nil, err
 	}
 	return &rm, nil
+}
+func (rm *RegistryManager) Cleanup() {
+	rm.db.Migrator().DropTable(
+		&Registry{},
+		&Host{},
+		&v1alpha1.ComponentDefinitionDB{},
+		&v1alpha1.ComponentMetadataDB{},
+	)
 }
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
