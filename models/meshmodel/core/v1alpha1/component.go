@@ -86,7 +86,6 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 			comp.Metadata = *mapIDsToComponentsMetadata[comp.ID]
 			c = append(c, comp.ToComponent())
 		}
-
 	} else if f.Name != "" {
 		var metas []ComponentMetadataDB
 		_ = db.Find(&metas).Error
@@ -103,7 +102,6 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 			comp.Metadata = *mapIDsToComponentsMetadata[comp.ID]
 			c = append(c, comp.ToComponent())
 		}
-
 	} else {
 		var metas []ComponentMetadataDB
 		_ = db.Find(&metas).Error
