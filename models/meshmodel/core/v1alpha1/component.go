@@ -23,20 +23,20 @@ const (
 
 // use NewComponent function for instantiating
 type ComponentDefinition struct {
-	ID        uuid.UUID `json:"-"`
-	TypeMeta  `gorm:"embedded" yaml:"typemeta"`
-	Format    ComponentFormat   `gorm:"format"`
-	Metadata  ComponentMetadata `gorm:"-"`
-	Schema    string            `gorm:"embedded" yaml:"schema"`
+	ID uuid.UUID `json:"-"`
+	TypeMeta
+	Format    ComponentFormat   `json:"format" yaml:"format"`
+	Metadata  ComponentMetadata `json:"metadata" yaml:"metadata"`
+	Schema    string            `json:"schema" yaml:"schema"`
 	CreatedAt time.Time         `json:"-"`
 	UpdatedAt time.Time         `json:"-"`
 }
 type ComponentDefinitionDB struct {
-	ID        uuid.UUID `json:"-"`
-	TypeMeta  `yaml:"typemeta"`
-	Format    ComponentFormat     `gorm:"format"`
-	Metadata  ComponentMetadataDB `gorm:"-"`
-	Schema    string              `yaml:"schema"`
+	ID uuid.UUID
+	TypeMeta
+	Format    ComponentFormat     `gorm:"format" json:"format"`
+	Metadata  ComponentMetadataDB `gorm:"-" json:"metadata"`
+	Schema    string              `yaml:"schema" json:"schema"`
 	CreatedAt time.Time           `json:"-"`
 	UpdatedAt time.Time           `json:"-"`
 }
@@ -64,6 +64,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 }
 
 // TODO: Code duplication in below function, minor refactor needed
+// TODO: Perform these filters through query at db level instead of in application
 func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
 	if f.ModelName != "" {
 		var metas []ComponentMetadataDB
@@ -85,10 +86,8 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 			comp.Metadata = *mapIDsToComponentsMetadata[comp.ID]
 			c = append(c, comp.ToComponent())
 		}
-		return
-	}
 
-	if f.Name != "" {
+	} else if f.Name != "" {
 		var metas []ComponentMetadataDB
 		_ = db.Find(&metas).Error
 		var ids []uuid.UUID
@@ -104,26 +103,36 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 			comp.Metadata = *mapIDsToComponentsMetadata[comp.ID]
 			c = append(c, comp.ToComponent())
 		}
-		return
-	}
-	var metas []ComponentMetadataDB
-	_ = db.Find(&metas).Error
-	var ids []uuid.UUID
-	mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
-	for _, m := range metas {
-		ids = append(ids, m.ComponentID)
-		m2 := m
-		mapIDsToComponentsMetadata[m.ComponentID] = &m2
-	}
-	var ctemp []ComponentDefinitionDB
-	if f.Name == "" {
-		_ = db.Where("id IN ?", ids).Find(&ctemp).Error
+
 	} else {
-		_ = db.Where("id IN ?", ids).Find(&ctemp).Error
+		var metas []ComponentMetadataDB
+		_ = db.Find(&metas).Error
+		var ids []uuid.UUID
+		mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
+		for _, m := range metas {
+			ids = append(ids, m.ComponentID)
+			m2 := m
+			mapIDsToComponentsMetadata[m.ComponentID] = &m2
+		}
+		var ctemp []ComponentDefinitionDB
+		if f.Name == "" {
+			_ = db.Where("id IN ?", ids).Find(&ctemp).Error
+		} else {
+			_ = db.Where("id IN ?", ids).Find(&ctemp).Error
+		}
+		for _, compdb := range ctemp {
+			compdb.Metadata = *mapIDsToComponentsMetadata[compdb.ID]
+			c = append(c, compdb.ToComponent())
+		}
 	}
-	for _, compdb := range ctemp {
-		compdb.Metadata = *mapIDsToComponentsMetadata[compdb.ID]
-		c = append(c, compdb.ToComponent())
+	if f.Version != "" {
+		var vcomp []ComponentDefinition
+		for _, comp := range c {
+			if comp.Metadata.Version == f.Version {
+				vcomp = append(vcomp, comp)
+			}
+		}
+		return vcomp
 	}
 	return
 }
@@ -131,6 +140,7 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 type ComponentFilter struct {
 	Name      string
 	ModelName string
+	Version   string
 }
 
 // Create the filter from map[string]interface{}
@@ -142,13 +152,13 @@ func (cf *ComponentFilter) Create(m map[string]interface{}) {
 }
 
 type ComponentMetadata struct {
-	ID          uuid.UUID `json:"-"`
-	ComponentID uuid.UUID `json:"-"`
-	Model       string
-	Version     string
-	Category    string
-	SubCategory string
-	Metadata    map[string]interface{}
+	ID          uuid.UUID              `json:"-"`
+	ComponentID uuid.UUID              `json:"-"`
+	Model       string                 `json:"model"`
+	Version     string                 `json:"version"`
+	Category    string                 `json:"category"`
+	SubCategory string                 `json:"sub-category"`
+	Metadata    map[string]interface{} `json:"metadata"`
 }
 
 // This struct is internal to the system
