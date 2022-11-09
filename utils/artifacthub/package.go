@@ -30,8 +30,8 @@ type AhPackage struct {
 	Version           string
 }
 
-func (pkg AhPackage) GenerateComponents() ([]v1alpha1.Component, error) {
-	components := make([]v1alpha1.Component, 0)
+func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error) {
+	components := make([]v1alpha1.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
 	crds, err := manifests.GetCrdsFromHelm(pkg.ChartUrl)
 	if err != nil {
@@ -42,7 +42,11 @@ func (pkg AhPackage) GenerateComponents() ([]v1alpha1.Component, error) {
 		if err != nil {
 			continue
 		}
-		comp.Metadata["version"] = pkg.Version
+		if comp.Metadata.Metadata == nil {
+			comp.Metadata.Metadata = make(map[string]interface{})
+		}
+		comp.Metadata.Version = pkg.Version
+		comp.Metadata.Model = pkg.Repository
 		components = append(components, comp)
 	}
 	return components, nil

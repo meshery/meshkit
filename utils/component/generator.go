@@ -3,6 +3,7 @@ package component
 import (
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/layer5io/meshkit/utils/manifests"
 )
 
 const ComponentMetaNameKey = "name"
@@ -35,8 +36,9 @@ var DefaultPathConfig2 = CuePathConfig{
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
-func Generate(crd string) (v1alpha1.Component, error) {
-	component := v1alpha1.NewComponent()
+func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
+	component := v1alpha1.ComponentDefinition{}
+	component.Metadata.Metadata = make(map[string]interface{})
 	crdCue, err := utils.YamlToCue(crd)
 	if err != nil {
 		return component, err
@@ -48,13 +50,18 @@ func Generate(crd string) (v1alpha1.Component, error) {
 			break
 		}
 	}
-	component.Spec = schema
+	component.Schema = schema
 	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)
 	if err != nil {
 		return component, err
 	}
-	metadata := map[string]interface{}{}
-	metadata[ComponentMetaNameKey] = name
-	component.Metadata = metadata
+	version, err := extractCueValueFromPath(crdCue, DefaultPathConfig.VersionPath)
+	if err != nil {
+		return component, err
+	}
+	component.Kind = name
+	component.APIVersion = version
+	component.Format = v1alpha1.JSON
+	component.Metadata.Metadata["display-name"] = manifests.FormatToReadableString(name)
 	return component, nil
 }

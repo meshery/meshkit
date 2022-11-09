@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/utils/manifests"
 )
 
 var istioCrd = `
@@ -124,37 +125,36 @@ spec:
       status: {}
 `
 
-func getNewComponent(spec string, name string) v1alpha1.Component {
-	comp := v1alpha1.NewComponent()
-	comp.Spec = spec
+func getNewComponent(spec string, name string, version string) v1alpha1.ComponentDefinition {
+	comp := v1alpha1.ComponentDefinition{}
+	comp.Schema = spec
 	meta := map[string]interface{}{
-		ComponentMetaNameKey: name,
+		"display-name": manifests.FormatToReadableString(name),
 	}
-	comp.Metadata = meta
+	comp.APIVersion = version
+	comp.Kind = name
+	comp.Metadata.Metadata = meta
 	return comp
 }
 
 func TestGenerate(t *testing.T) {
 	var tests = []struct {
 		crd  string
-		want v1alpha1.Component
+		want v1alpha1.ComponentDefinition
 	}{
-		{istioCrd, getNewComponent("", "WasmPlugin")},
+		{istioCrd, getNewComponent("", "WasmPlugin", "v1alpha1")},
 	}
 	for _, tt := range tests {
 		t.Run("generateComponent", func(t *testing.T) {
 			got, _ := Generate(tt.crd)
 			if !reflect.DeepEqual(got.Metadata, tt.want.Metadata) {
-				t.Errorf("got %v, want %v", got, tt.want)
+				t.Errorf("got %v, want %v", got.Metadata, tt.want.Metadata)
 			}
 			if !(got.Kind == tt.want.Kind) {
-				t.Errorf("got %v, want %v", got, tt.want)
+				t.Errorf("got %v, want %v", got.Kind, tt.want.Kind)
 			}
 			if !(got.APIVersion == tt.want.APIVersion) {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
-			if got.Spec == "" {
-				t.Errorf("got %v, want %v", got, tt.want)
+				t.Errorf("got %v, want %v", got.APIVersion, tt.want.APIVersion)
 			}
 		})
 	}
