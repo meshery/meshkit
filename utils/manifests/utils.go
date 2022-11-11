@@ -197,21 +197,51 @@ func deleteFile(path string) error {
 	return nil
 }
 
+//TODO: After finalizing on where to keep dictionary.json, use that file to initialize dict map in init()
+// var dict = map[string]string{}
+
+// func init() {
+// 	dictf, err := os.Open("./dictionary.json")
+// 	if err != nil {
+// 		return
+// 	}
+// 	byt, err := io.ReadAll(dictf)
+// 	if err != nil {
+// 		return
+// 	}
+
+// 	err = json.Unmarshal(byt, &dict)
+// 	if err != nil {
+// 		return
+// 	}
+// }
+
 // This helps in formating the leftover fields using a pre-defined dictionary
-func useDictionary(input string) string {
-	dict := map[string]string{ // includes Whitelist words
-		"Mesh Sync":             "MeshSync",
-		"additional Properties": "additionalProperties", //This field is used by RJSF and should not include white space
-		"ca Bundle":             "CA Bundle",
-		"mtls":                  "mTLS",
-		"m TLS":                 "mTLS",
+// If dictionary returns true then any other formatting should be skipped
+// The key in the dictionary contains completely unedited fields that are expected in certain input files
+// The value is then the in-place replacement for those specific words
+func useDictionary(input string, invert bool) (string, bool) {
+	dict := map[string]string{
+		"MeshSync":             "MeshSync",
+		"additionalProperties": "additionalProperties",
+		"caBundle":             "CA Bundle",
+		"mtls":                 "mTLS",
+		"mTLS":                 "mTLS",
 	}
-	for comp := range dict {
-		if comp == input {
-			return dict[comp]
+	for comp, val := range dict {
+		if invert {
+			if val == input {
+				fmt.Println("inverted ", val, " to ", comp)
+				return comp, true
+			}
+		} else {
+			if comp == input {
+				return val, true
+			}
 		}
+
 	}
-	return input
+	return input, false
 }
 
 // While going from Capital letter to small, insert a whitespace before the capital letter.
@@ -220,6 +250,10 @@ func useDictionary(input string) string {
 func FormatToReadableString(input string) string {
 	if len(input) == 0 {
 		return ""
+	}
+	input, found := useDictionary(input, false)
+	if found {
+		return input
 	}
 	finalWord := string(input[0])
 	for i := range input {
@@ -238,7 +272,15 @@ func FormatToReadableString(input string) string {
 			finalWord += " " + string(input[i])
 		}
 	}
-	return useDictionary(strings.Join(strings.Fields(strings.TrimSpace(finalWord+input[len(input)-1:])), " "))
+	return strings.Join(strings.Fields(strings.TrimSpace(finalWord+input[len(input)-1:])), " ")
+}
+
+func DeFormatReadableString(input string) string {
+	output, found := useDictionary(input, true)
+	if found {
+		return output
+	}
+	return strings.ReplaceAll(output, " ", "")
 }
 
 const (
