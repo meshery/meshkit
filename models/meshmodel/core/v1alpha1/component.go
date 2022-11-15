@@ -14,11 +14,16 @@ type TypeMeta struct {
 	APIVersion string `json:"apiVersion,omitempty" yaml:"apiVersion"`
 }
 type ComponentFormat string
+type Status string
 
 const (
 	JSON ComponentFormat = "JSON"
 	YAML ComponentFormat = "YAML"
 	CUE  ComponentFormat = "CUE"
+)
+const (
+	VALID   Status = "VALID"
+	INVALID Status = "INVALID"
 )
 
 // use NewComponent function for instantiating
@@ -37,8 +42,9 @@ type ComponentDefinitionDB struct {
 	Format    ComponentFormat     `gorm:"format" json:"format"`
 	Metadata  ComponentMetadataDB `gorm:"-" json:"metadata"`
 	Schema    string              `yaml:"schema" json:"schema"`
-	CreatedAt time.Time           `json:"-"`
-	UpdatedAt time.Time           `json:"-"`
+	Status    Status
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
 }
 
 func (c ComponentDefinition) Type() types.CapabilityType {
@@ -168,6 +174,7 @@ type ComponentMetadataDB struct {
 	Category    string
 	SubCategory string
 	Metadata    []byte
+	Status      Status
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -208,5 +215,6 @@ func (cmd *ComponentDefinitionDB) FromComponentMetadata(c ComponentDefinition) {
 	cmd.Format = c.Format
 	cmd.Metadata.FromComponentMetadata(c.Metadata)
 	cmd.Schema = c.Schema
+	cmd.Status = VALID
 	return
 }

@@ -32,6 +32,9 @@ func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 	err := db.Create(&h).Error
 	return h.ID, err
 }
+func deleteHost(db *database.Handler, h Host) error {
+	return db.Where("id = ?", h.ID).Delete(&h).Error
+}
 
 // Entity is referred as any type of schema managed by the registry
 // ComponentDefinitions and PolicyDefinitions are examples of entities
@@ -72,6 +75,38 @@ func (rm *RegistryManager) Cleanup() {
 		&v1alpha1.ComponentMetadataDB{},
 	)
 }
+
+// Any host that unregisters will have its entry removed from the registry and all the components registered by it will be marked as INVALID status
+// First mark the components invalid, then delete the host entry and finally remove the registry entry.
+func (rm *RegistryManager) Unregister(h Host) error {
+	entries := []Registry{}
+	err := rm.db.Where("registrantid = ?", h.ID).Find(&entries).Error
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		switch entry.Type {
+		case types.ComponentDefinition:
+			err := rm.db.Model(&v1alpha1.ComponentDefinitionDB{}).Where("id = ?", entry.Entity).Update("status", v1alpha1.INVALID).Error
+			if err != nil {
+				return err
+			}
+			err = rm.db.Model(&v1alpha1.ComponentMetadataDB{}).Where("componentid = ?", entry.Entity).Update("status", v1alpha1.INVALID).Error
+			if err != nil {
+				return err
+			}
+			err = deleteHost(rm.db, h)
+			if err != nil {
+				return err
+			}
+		//Add logic for Policies and other entities below
+		default:
+			return nil
+		}
+	}
+	return rm.db.Where("registrantid = ?", h.ID).Delete(&Registry{}).Error
+}
+
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
