@@ -196,7 +196,7 @@ func (cmd *ComponentMetadataDB) FromComponentMetadata(c ComponentMetadata) {
 	cmd.Version = c.Version
 	cmd.Category = c.Category
 	cmd.SubCategory = c.SubCategory
-
+	cmd.Status = VALID
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
 	return
 }
