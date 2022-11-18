@@ -10,6 +10,18 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 )
 
+// MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
+// registry (Meshery)
+//
+// The body contains the
+// 1. Host information
+// 2. Entity type
+// 3. Entity
+type MeshModelRegistrantData struct {
+	Host       Host                 `json:"host"`
+	EntityType types.CapabilityType `json:"entityType"`
+	Entity     []byte               `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
+}
 type Registry struct {
 	ID           uuid.UUID
 	RegistrantID uuid.UUID
