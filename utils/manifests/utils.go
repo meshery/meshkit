@@ -239,7 +239,6 @@ func useDictionary(input string, invert bool) (string, bool) {
 				return val, true
 			}
 		}
-
 	}
 	return input, false
 }

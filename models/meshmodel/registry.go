@@ -69,7 +69,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&Registry{},
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
-		&v1alpha1.ComponentMetadataDB{},
+		&v1alpha1.Models{},
 	)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (rm *RegistryManager) Cleanup() {
 		&Registry{},
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
-		&v1alpha1.ComponentMetadataDB{},
+		&v1alpha1.Models{},
 	)
 }
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {

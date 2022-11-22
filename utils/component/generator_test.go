@@ -133,7 +133,7 @@ func getNewComponent(spec string, name string, version string) v1alpha1.Componen
 	}
 	comp.APIVersion = version
 	comp.Kind = name
-	comp.Metadata.Metadata = meta
+	comp.Metadata = meta
 	return comp
 }
 

@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,108 +26,106 @@ const (
 type ComponentDefinition struct {
 	ID uuid.UUID `json:"-"`
 	TypeMeta
-	Format    ComponentFormat   `json:"format" yaml:"format"`
-	Metadata  ComponentMetadata `json:"metadata" yaml:"metadata"`
-	Schema    string            `json:"schema" yaml:"schema"`
-	CreatedAt time.Time         `json:"-"`
-	UpdatedAt time.Time         `json:"-"`
+	DisplayName string                 `json:"display-name" gorm:"display-name"`
+	Format      ComponentFormat        `json:"format" yaml:"format"`
+	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
+	Model       Models
+	Schema      string    `json:"schema" yaml:"schema"`
+	CreatedAt   time.Time `json:"-"`
+	UpdatedAt   time.Time `json:"-"`
 }
 type ComponentDefinitionDB struct {
-	ID uuid.UUID
+	ID      uuid.UUID `json:"-"`
+	ModelID uuid.UUID `json:"-" gorm:"modelID"`
 	TypeMeta
-	Format    ComponentFormat     `gorm:"format" json:"format"`
-	Metadata  ComponentMetadataDB `gorm:"-" json:"metadata"`
-	Schema    string              `yaml:"schema" json:"schema"`
-	CreatedAt time.Time           `json:"-"`
-	UpdatedAt time.Time           `json:"-"`
+	DisplayName string          `json:"display-name" gorm:"display-name"`
+	Format      ComponentFormat `json:"format" yaml:"format"`
+	Metadata    []byte          `json:"metadata" yaml:"metadata"`
+	Schema      string          `json:"schema" yaml:"schema"`
+	CreatedAt   time.Time       `json:"-"`
+	UpdatedAt   time.Time       `json:"-"`
+}
+type Models struct {
+	ID          uuid.UUID `json:"-"`
+	Name        string    `json:"name"`
+	Version     string    `json:"version"`
+	DisplayName string    `json:"display-name" gorm:"display-name"`
+	Category    string    `json:"category"`
+	SubCategory string    `json:"sub-category"`
 }
 
 func (c ComponentDefinition) Type() types.CapabilityType {
 	return types.ComponentDefinition
 }
 
-func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
-	cdb := ComponentDefinitionDB{}
-	c.ID = uuid.New()
-	c.Metadata.ID = uuid.New()
-	c.Metadata.ComponentID = c.ID
+var componentCreationLock sync.Mutex
 
-	cdb.FromComponentMetadata(c)
-	err := db.Create(&cdb).Error
+func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
+	c.ID = uuid.New()
+	tempModelID := uuid.New()
+	byt, err := json.Marshal(c.Model)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-
-	compMetaDB := ComponentMetadataDB{}
-	compMetaDB.FromComponentMetadata(c.Metadata)
-	err = db.Create(&compMetaDB).Error
+	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
+	var model Models
+	componentCreationLock.Lock()
+	err = db.First(&model, "id = ?", modelID).Error
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	if model.ID == tempModelID { //The model is already not present and needs to be inserted
+		model.ID = modelID
+		err = db.Create(&model).Error
+		if err != nil {
+			componentCreationLock.Unlock()
+			return uuid.UUID{}, err
+		}
+	}
+	componentCreationLock.Unlock()
+	cdb := c.GetComponentDefinitionDB()
+	err = db.Create(&cdb).Error
+	if err != nil {
+		return uuid.UUID{}, err
+	}
 	return c.ID, err
 }
 
-// TODO: Code duplication in below function, minor refactor needed
-// TODO: Perform these filters through query at db level instead of in application
 func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
+	var cdb []ComponentDefinitionDB
 	if f.ModelName != "" {
-		var metas []ComponentMetadataDB
-		_ = db.Where("model = ?", f.ModelName).Find(&metas).Error
-		var ids []uuid.UUID
-		mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
-		for _, m := range metas {
-			ids = append(ids, m.ComponentID)
-			m2 := m
-			mapIDsToComponentsMetadata[m.ComponentID] = &m2
-		}
-		var ctemp []ComponentDefinitionDB
+		var model Models
+		_ = db.Where("name = ?", f.ModelName).First(&model, "name = ?", f.ModelName).Error
 		if f.Name == "" {
-			_ = db.Where("id IN ?", ids).Find(&ctemp).Error
+			_ = db.Where("modelID = ?", model.ID).Find(&cdb).Error
 		} else {
-			_ = db.Where("id IN ?", ids).Where("kind = ?", f.Name).Find(&ctemp).Error
+			_ = db.Where("modelID = ?", model.ID).Where("kind = ?", f.Name).Find(&cdb).Error
 		}
-		for _, comp := range ctemp {
-			comp.Metadata = *mapIDsToComponentsMetadata[comp.ID]
-			c = append(c, comp.ToComponent())
+		for _, comp := range cdb {
+			c = append(c, comp.GetComponentDefinition(model))
 		}
 	} else if f.Name != "" {
-		var metas []ComponentMetadataDB
-		_ = db.Find(&metas).Error
-		var ids []uuid.UUID
-		mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
-		for _, m := range metas {
-			ids = append(ids, m.ComponentID)
-			m2 := m
-			mapIDsToComponentsMetadata[m.ComponentID] = &m2
-		}
-		var ctemp []ComponentDefinitionDB
-		_ = db.Where("id IN ?", ids).Where("kind = ?", f.Name).Find(&ctemp).Error
-		for _, comp := range ctemp {
-			comp.Metadata = *mapIDsToComponentsMetadata[comp.ID]
-			c = append(c, comp.ToComponent())
+		_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
+		for _, compdb := range cdb {
+			var model Models
+			db.First(&model, "id = ?", compdb.ModelID)
+			comp := compdb.GetComponentDefinition(model)
+			c = append(c, comp)
 		}
 	} else {
-		var metas []ComponentMetadataDB
-		_ = db.Find(&metas).Error
-		var ids []uuid.UUID
-		mapIDsToComponentsMetadata := make(map[uuid.UUID]*ComponentMetadataDB)
-		for _, m := range metas {
-			ids = append(ids, m.ComponentID)
-			m2 := m
-			mapIDsToComponentsMetadata[m.ComponentID] = &m2
-		}
-		var ctemp []ComponentDefinitionDB
-		if f.Name == "" {
-			_ = db.Where("id IN ?", ids).Find(&ctemp).Error
-		} else {
-			_ = db.Where("id IN ?", ids).Find(&ctemp).Error
-		}
-		for _, compdb := range ctemp {
-			compdb.Metadata = *mapIDsToComponentsMetadata[compdb.ID]
-			c = append(c, compdb.ToComponent())
+		db.Find(&cdb)
+		for _, compdb := range cdb {
+			var model Models
+			db.First(&model, "id = ?", compdb.ModelID)
+			comp := compdb.GetComponentDefinition(model)
+			c = append(c, comp)
 		}
 	}
+
 	if f.Version != "" {
 		var vcomp []ComponentDefinition
 		for _, comp := range c {
-			if comp.Metadata.Version == f.Version {
+			if comp.Model.Version == f.Version {
 				vcomp = append(vcomp, comp)
 			}
 		}
@@ -149,64 +148,25 @@ func (cf *ComponentFilter) Create(m map[string]interface{}) {
 	cf.Name = m["name"].(string)
 }
 
-type ComponentMetadata struct {
-	ID          uuid.UUID              `json:"-"`
-	ComponentID uuid.UUID              `json:"-"`
-	Model       string                 `json:"model"`
-	Version     string                 `json:"version"`
-	Category    string                 `json:"category"`
-	SubCategory string                 `json:"sub-category"`
-	Metadata    map[string]interface{} `json:"metadata"`
-}
-
-// This struct is internal to the system
-type ComponentMetadataDB struct {
-	ID          uuid.UUID
-	ComponentID uuid.UUID
-	Model       string
-	Version     string
-	Category    string
-	SubCategory string
-	Metadata    []byte
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-func (cmd *ComponentMetadataDB) ToComponentMetadata() (c ComponentMetadata) {
-	c.ID = cmd.ID
-	c.ComponentID = cmd.ComponentID
-	c.Model = cmd.Model
-	c.Version = cmd.Version
-	c.Category = cmd.Category
-	c.SubCategory = cmd.SubCategory
-	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
-	return
-}
-func (cmd *ComponentMetadataDB) FromComponentMetadata(c ComponentMetadata) {
-	cmd.ID = c.ID
-	cmd.ComponentID = c.ComponentID
-	cmd.Model = c.Model
-	cmd.Version = c.Version
-	cmd.Category = c.Category
-	cmd.SubCategory = c.SubCategory
-
-	cmd.Metadata, _ = json.Marshal(c.Metadata)
-	return
-}
-
-func (cmd *ComponentDefinitionDB) ToComponent() (c ComponentDefinition) {
+func (cmd *ComponentDefinitionDB) GetComponentDefinition(model Models) (c ComponentDefinition) {
 	c.ID = cmd.ID
 	c.TypeMeta = cmd.TypeMeta
 	c.Format = cmd.Format
-	c.Metadata = cmd.Metadata.ToComponentMetadata()
+	c.DisplayName = cmd.DisplayName
+	if c.Metadata == nil {
+		c.Metadata = make(map[string]interface{})
+	}
+	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
 	c.Schema = cmd.Schema
+	c.Model = model
 	return
 }
-func (cmd *ComponentDefinitionDB) FromComponentMetadata(c ComponentDefinition) {
+func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitionDB) {
 	cmd.ID = c.ID
 	cmd.TypeMeta = c.TypeMeta
 	cmd.Format = c.Format
-	cmd.Metadata.FromComponentMetadata(c.Metadata)
+	cmd.Metadata, _ = json.Marshal(c.Metadata)
+	cmd.DisplayName = c.DisplayName
 	cmd.Schema = c.Schema
 	return
 }

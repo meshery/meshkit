@@ -42,11 +42,11 @@ func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error
 		if err != nil {
 			continue
 		}
-		if comp.Metadata.Metadata == nil {
-			comp.Metadata.Metadata = make(map[string]interface{})
+		if comp.Metadata == nil {
+			comp.Metadata = make(map[string]interface{})
 		}
-		comp.Metadata.Version = pkg.Version
-		comp.Metadata.Model = pkg.Repository
+		comp.Model.Version = pkg.Version
+		comp.Model.Name = pkg.Repository
 		components = append(components, comp)
 	}
 	return components, nil
