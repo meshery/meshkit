@@ -30,7 +30,7 @@ func TestFormatToReadableString(t *testing.T) {
 			expectedOutput: "id Connected To IPs",
 		},
 		{
-			input:          "Mesh Sync",
+			input:          "MeshSync",
 			expectedOutput: "MeshSync",
 		},
 	}
