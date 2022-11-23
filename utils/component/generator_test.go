@@ -1,7 +1,6 @@
 package component
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
@@ -128,12 +127,9 @@ spec:
 func getNewComponent(spec string, name string, version string) v1alpha1.ComponentDefinition {
 	comp := v1alpha1.ComponentDefinition{}
 	comp.Schema = spec
-	meta := map[string]interface{}{
-		"display-name": manifests.FormatToReadableString(name),
-	}
+	comp.DisplayName = manifests.FormatToReadableString(name)
 	comp.APIVersion = version
 	comp.Kind = name
-	comp.Metadata.Metadata = meta
 	return comp
 }
 
@@ -147,8 +143,8 @@ func TestGenerate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run("generateComponent", func(t *testing.T) {
 			got, _ := Generate(tt.crd)
-			if !reflect.DeepEqual(got.Metadata, tt.want.Metadata) {
-				t.Errorf("got %v, want %v", got.Metadata, tt.want.Metadata)
+			if got.DisplayName != tt.want.DisplayName {
+				t.Errorf("got %v, want %v", got.DisplayName, tt.want.DisplayName)
 			}
 			if !(got.Kind == tt.want.Kind) {
 				t.Errorf("got %v, want %v", got.Kind, tt.want.Kind)

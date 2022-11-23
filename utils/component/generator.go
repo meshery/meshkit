@@ -38,7 +38,7 @@ var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
 func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 	component := v1alpha1.ComponentDefinition{}
-	component.Metadata.Metadata = make(map[string]interface{})
+	component.Metadata = make(map[string]interface{})
 	crdCue, err := utils.YamlToCue(crd)
 	if err != nil {
 		return component, err
@@ -62,6 +62,6 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 	component.Kind = name
 	component.APIVersion = version
 	component.Format = v1alpha1.JSON
-	component.Metadata.Metadata["display-name"] = manifests.FormatToReadableString(name)
+	component.DisplayName = manifests.FormatToReadableString(name)
 	return component, nil
 }
