@@ -62,6 +62,6 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 	component.Kind = name
 	component.APIVersion = version
 	component.Format = v1alpha1.JSON
-	component.Metadata["display-name"] = manifests.FormatToReadableString(name)
+	component.DisplayName = manifests.FormatToReadableString(name)
 	return component, nil
 }

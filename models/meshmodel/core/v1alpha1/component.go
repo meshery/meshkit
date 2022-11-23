@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"gorm.io/gorm"
 )
 
 type TypeMeta struct {
@@ -29,10 +30,10 @@ type ComponentDefinition struct {
 	DisplayName string                 `json:"display-name" gorm:"display-name"`
 	Format      ComponentFormat        `json:"format" yaml:"format"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
-	Model       Models
-	Schema      string    `json:"schema" yaml:"schema"`
-	CreatedAt   time.Time `json:"-"`
-	UpdatedAt   time.Time `json:"-"`
+	Model       Models                 `json:"model"`
+	Schema      string                 `json:"schema" yaml:"schema"`
+	CreatedAt   time.Time              `json:"-"`
+	UpdatedAt   time.Time              `json:"-"`
 }
 type ComponentDefinitionDB struct {
 	ID      uuid.UUID `json:"-"`
@@ -71,10 +72,11 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 	var model Models
 	componentCreationLock.Lock()
 	err = db.First(&model, "id = ?", modelID).Error
-	if err != nil {
+	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
 	}
-	if model.ID == tempModelID { //The model is already not present and needs to be inserted
+	if model.ID == tempModelID || err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
+		model = c.Model
 		model.ID = modelID
 		err = db.Create(&model).Error
 		if err != nil {
@@ -84,6 +86,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 	}
 	componentCreationLock.Unlock()
 	cdb := c.GetComponentDefinitionDB()
+	cdb.ModelID = model.ID
 	err = db.Create(&cdb).Error
 	if err != nil {
 		return uuid.UUID{}, err
@@ -91,18 +94,23 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 	return c.ID, err
 }
 
+// TODO: Optimize the below queries with joins
 func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
 	var cdb []ComponentDefinitionDB
 	if f.ModelName != "" {
-		var model Models
-		_ = db.Where("name = ?", f.ModelName).First(&model, "name = ?", f.ModelName).Error
+		var models []Models
+		_ = db.Where("name = ?", f.ModelName).Find(&models).Error
 		if f.Name == "" {
-			_ = db.Where("modelID = ?", model.ID).Find(&cdb).Error
+			_ = db.Find(&cdb).Error
 		} else {
-			_ = db.Where("modelID = ?", model.ID).Where("kind = ?", f.Name).Find(&cdb).Error
+			_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
 		}
 		for _, comp := range cdb {
-			c = append(c, comp.GetComponentDefinition(model))
+			for _, mod := range models {
+				if mod.ID == comp.ModelID {
+					c = append(c, comp.GetComponentDefinition(mod))
+				}
+			}
 		}
 	} else if f.Name != "" {
 		_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
