@@ -227,6 +227,8 @@ func useDictionary(input string, invert bool) (string, bool) {
 		"caBundle":             "CA Bundle",
 		"mtls":                 "mTLS",
 		"mTLS":                 "mTLS",
+		"fs group policy":      "fsGroupPolicy",
+		"fsGroupPolicy":        "fsGroupPolicy",
 	}
 	for comp, val := range dict {
 		if invert {
