@@ -50,7 +50,7 @@ func (g *GoMod) PrintReplacedVersions() {
 		fmt.Printf("%s replaced by %s\n", v[0].Name+v[0].Version, v[1].Name+v[1].Version)
 	}
 }
-func (g *GoMod) SyncRequire(f io.Reader) (gomod string, err error) {
+func (g *GoMod) SyncRequire(f io.Reader, throwerr bool) (gomod string, err error) {
 	var b = make([]byte, 1000)
 	b, err = io.ReadAll(f)
 	if err != nil {
@@ -60,6 +60,9 @@ func (g *GoMod) SyncRequire(f io.Reader) (gomod string, err error) {
 	for _, required := range g.RequiredVersions {
 		for i, d := range data {
 			if !strings.Contains(d, "=>") && strings.Contains(d, required.Name+" ") && !strings.Contains(d, required.Version) {
+				if throwerr {
+					return "", fmt.Errorf("version mismatch for %s. Meshery has: %s but extension has %s", required.Name, required.Version, d)
+				}
 				indirect := strings.Contains(d, "//indirect")
 				updateVersion := "\t" + required.Name + " " + required.Version
 				if indirect {
