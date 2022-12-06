@@ -13,6 +13,11 @@ func main() {
 	}
 	src := os.Args[1]
 	dest := os.Args[2]
+	var throwerr bool
+	if len(os.Args) > 3 && os.Args[3] == "--err" {
+		throwerr = true
+	}
+
 	f, err := os.Open(src)
 	if err != nil {
 		log.Fatal(err)
@@ -25,7 +30,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	newgomod, err := g.SyncRequire(f2)
+	newgomod, err := g.SyncRequire(f2, throwerr)
 	if err != nil {
 		log.Fatal(err)
 	}
