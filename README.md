@@ -1,9 +1,19 @@
 # MeshKit for Layer5 projects
 A toolkit for Layer5's microservices. Learn more: [Introducing MeshKit and the Meshery Adapter Library](https://layer5.io/blog/meshery/introducing-meshkit-and-the-meshery-adapter-library)
 
+### Instructions for making custom dictionary entries
+
+Enter new key:value pairs into the `useDictionary()` map in https://github.com/meshery/meshkit/blob/master/utils/utils.go
+
+- Key: string to match
+- Value: string to display
+
+The custom dictionary entries are case insensitive.
+  
+
 <div>&nbsp;</div>
 
-## Join the service mesh community!
+## Join the community!
 
 <a name="contributing"></a><a name="community"></a>
 Our projects are community-built and welcome collaboration. 👍 Be sure to see the <a href="https://docs.google.com/document/d/17OPtDE_rdnPQxmk2Kauhm3GwXF1R5dZ3Cj8qZLKdo5E/edit">Layer5 Community Welcome Guide</a> for a tour of resources available to you and jump into our <a href="http://slack.layer5.io">Slack</a>!
