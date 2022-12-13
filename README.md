@@ -41,7 +41,7 @@ Find out more on the <a href="https://layer5.io/community">Layer5 community</a>.
 </picture>
 </a>
 
-<a href="https://meshery.io/community"><img alt="Layer5 cloud native management company" src=".github/readme/images//community.svg" style="margin-right:8px;padding-top:5px;" width="140px" align="left" /></a>
+<a href="https://meshery.io/community"><img alt="Layer5 Cloud Native Community" src=".github/readme/images//community.svg" style="margin-right:8px;padding-top:5px;" width="140px" align="left" /></a>
 
 <p>
 ✔️ <em><strong>Join</strong></em> any or all of the weekly meetings on <a href="https://calendar.google.com/calendar/b/1?cid=bGF5ZXI1LmlvX2VoMmFhOWRwZjFnNDBlbHZvYzc2MmpucGhzQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20">community calendar</a>.<br />
