@@ -15,8 +15,7 @@ import (
 type RelationshipDefinition struct {
 	ID uuid.UUID `json:"-"`
 	TypeMeta
-	Metadata map[string]interface{} `json:"metadata" yaml:"metadata"`
-	// using RelType since there is a method called `Type`
+	Metadata  map[string]interface{} `json:"metadata" yaml:"metadata"`
 	SubType   string                 `json:"subType" yaml:"subType" gorm:"subType"`
 	Selectors map[string]interface{} `json:"selectors" yaml:"selectors"`
 	CreatedAt time.Time              `json:"-"`
@@ -33,7 +32,7 @@ type RelationshipDefinitionDB struct {
 	UpdatedAt time.Time `json:"-"`
 }
 
-// For now, only filtering by Kind, Type or SubType can be done.
+// For now, only filtering by Kind and SubType are allowed.
 // In the future, we will add support to query using `selectors` (using CUE)
 // TODO: Add support for Model
 type RelationshipFilter struct {
@@ -50,36 +49,12 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 
 func GetRelationships(db *database.Handler, f RelationshipFilter) (rs []RelationshipDefinition) {
 	var rdb []RelationshipDefinitionDB
-	if f.Kind != "" {
-		_ = db.Where("kind = ?", f.Kind).Find(&rdb).Error
-		for _, reldb := range rdb {
-			rel := reldb.GetRelationshipDefinition()
-			rs = append(rs, rel)
-		}
-	}
-	if f.SubType != "" {
-		if len(rs) == 0 {
-			_ = db.Where("subtype = ?", f.SubType).Find(&rdb).Error
-			for _, reldb := range rdb {
-				rel := reldb.GetRelationshipDefinition()
-				rs = append(rs, rel)
-			}
-		} else {
-			filteredRs := []RelationshipDefinition{}
-			for _, rd := range rs {
-				if rd.SubType == f.SubType {
-					filteredRs = append(filteredRs, rd)
-				}
-			}
-			rs = filteredRs
-		}
-	}
-	if len(rs) == 0 {
-		db.Find(&rdb)
-		for _, reldb := range rdb {
-			rel := reldb.GetRelationshipDefinition()
-			rs = append(rs, rel)
-		}
+	// GORM takes care of drafting the correct SQL
+	// https://gorm.io/docs/query.html#Struct-amp-Map-Conditions
+	_ = db.Where(&RelationshipDefinitionDB{SubType: f.SubType, TypeMeta: TypeMeta{Kind: f.Kind}}).Find(&rdb)
+	for _, reldb := range rdb {
+		rel := reldb.GetRelationshipDefinition()
+		rs = append(rs, rel)
 	}
 	return
 }
