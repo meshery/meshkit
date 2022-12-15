@@ -74,6 +74,13 @@ func GetRelationships(db *database.Handler, f RelationshipFilter) (rs []Relation
 			rs = filteredRs
 		}
 	}
+	if len(rs) == 0 {
+		db.Find(&rdb)
+		for _, reldb := range rdb {
+			rel := reldb.GetRelationshipDefinition()
+			rs = append(rs, rel)
+		}
+	}
 	return
 }
 

@@ -69,6 +69,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&Registry{},
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
+		&v1alpha1.RelationshipDefinitionDB{},
 		&v1alpha1.Models{},
 	)
 	if err != nil {
@@ -99,6 +100,24 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			ID:           uuid.New(),
 			RegistrantID: registrantID,
 			Entity:       componentID,
+			Type:         en.Type(),
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+		return rm.db.Create(&entry).Error
+	case v1alpha1.RelationshipDefinition:
+		relationshipID, err := v1alpha1.CreateRelationship(rm.db, entity)
+		if err != nil {
+			return err
+		}
+		registrantID, err := createHost(rm.db, h)
+		if err != nil {
+			return err
+		}
+		entry := Registry{
+			ID:           uuid.New(),
+			RegistrantID: registrantID,
+			Entity:       relationshipID,
 			Type:         en.Type(),
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
