@@ -119,6 +119,13 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 			en = append(en, comp)
 		}
 		return en
+	case *v1alpha1.RelationshipFilter:
+		en := make([]Entity, 1)
+		relationships := v1alpha1.GetRelationships(rm.db, *filter)
+		for _, rel := range relationships {
+			en = append(en, rel)
+		}
+		return en
 	default:
 		return nil
 	}
