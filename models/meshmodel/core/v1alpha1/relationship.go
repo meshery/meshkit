@@ -11,12 +11,12 @@ import (
 
 // https://docs.google.com/drawings/d/1_qzQ_YxvCWPYrOBcdqGMlMwfbsZx96SBuIkbn8TfKhU/edit?pli=1
 // see RELATIONSHIPDEFINITIONS table in the diagram
+// TODO: Add support for Model
 type RelationshipDefinition struct {
 	ID uuid.UUID `json:"-"`
 	TypeMeta
 	Metadata map[string]interface{} `json:"metadata" yaml:"metadata"`
 	// using RelType since there is a method called `Type`
-	RelType   string                 `json:"type" yaml:"type"`
 	SubType   string                 `json:"subType" yaml:"subType" gorm:"subType"`
 	Selectors map[string]interface{} `json:"selectors" yaml:"selectors"`
 	CreatedAt time.Time              `json:"-"`
@@ -27,7 +27,6 @@ type RelationshipDefinitionDB struct {
 	ID uuid.UUID `json:"-"`
 	TypeMeta
 	Metadata  []byte    `json:"metadata" yaml:"metadata"`
-	RelType   string    `json:"type" yaml:"type" gorm:"type"`
 	SubType   string    `json:"subType" yaml:"subType"`
 	Selectors []byte    `json:"selectors" yaml:"selectors"`
 	CreatedAt time.Time `json:"-"`
@@ -36,9 +35,9 @@ type RelationshipDefinitionDB struct {
 
 // For now, only filtering by Kind, Type or SubType can be done.
 // In the future, we will add support to query using `selectors` (using CUE)
+// TODO: Add support for Model
 type RelationshipFilter struct {
 	Kind    string
-	Type    string
 	SubType string
 }
 
@@ -51,28 +50,11 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 
 func GetRelationships(db *database.Handler, f RelationshipFilter) (rs []RelationshipDefinition) {
 	var rdb []RelationshipDefinitionDB
-	if f.Type != "" {
-		_ = db.Where("type = ?", f.Type).Find(&rdb).Error
+	if f.Kind != "" {
+		_ = db.Where("kind = ?", f.Kind).Find(&rdb).Error
 		for _, reldb := range rdb {
 			rel := reldb.GetRelationshipDefinition()
 			rs = append(rs, rel)
-		}
-	}
-	if f.Kind != "" {
-		if len(rs) == 0 {
-			_ = db.Where("kind = ?", f.Kind).Find(&rdb).Error
-			for _, reldb := range rdb {
-				rel := reldb.GetRelationshipDefinition()
-				rs = append(rs, rel)
-			}
-		} else {
-			filteredRs := []RelationshipDefinition{}
-			for _, rd := range rs {
-				if rd.Kind == f.Kind {
-					filteredRs = append(filteredRs, rd)
-				}
-			}
-			rs = filteredRs
 		}
 	}
 	if f.SubType != "" {
@@ -107,7 +89,7 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition() (r Relationship
 	}
 	_ = json.Unmarshal(rdb.Selectors, &r.Selectors)
 	r.SubType = rdb.SubType
-	r.RelType = rdb.RelType
+	r.Kind = rdb.Kind
 	return
 }
 
@@ -130,7 +112,7 @@ func (r *RelationshipDefinition) GetRelationshipDefinitionDB() (rdb Relationship
 	rdb.TypeMeta = r.TypeMeta
 	rdb.Metadata, _ = json.Marshal(r.Metadata)
 	rdb.Selectors, _ = json.Marshal(r.Selectors)
-	rdb.RelType = r.RelType
+	rdb.Kind = r.Kind
 	rdb.SubType = r.SubType
 	return
 }
