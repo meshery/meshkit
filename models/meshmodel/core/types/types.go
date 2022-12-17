@@ -3,8 +3,9 @@ package types
 type CapabilityType string
 
 const (
-	ComponentDefinition CapabilityType = "component"
-	PolicyDefinition    CapabilityType = "policy"
+	ComponentDefinition    CapabilityType = "component"
+	PolicyDefinition       CapabilityType = "policy"
+	RelationshipDefinition CapabilityType = "relationship"
 )
 
 // Each entity will have it's own Filter implementation via which it exposes the nobs and dials to fetch entities
