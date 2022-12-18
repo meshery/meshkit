@@ -58,6 +58,9 @@ type Models struct {
 func (c ComponentDefinition) Type() types.CapabilityType {
 	return types.ComponentDefinition
 }
+func (c ComponentDefinition) GetID() uuid.UUID {
+	return c.ID
+}
 
 var componentCreationLock sync.Mutex
 

@@ -78,6 +78,9 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition() (r Relationship
 func (r RelationshipDefinition) Type() types.CapabilityType {
 	return types.RelationshipDefinition
 }
+func (r RelationshipDefinition) GetID() uuid.UUID {
+	return r.ID
+}
 
 func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UUID, error) {
 	r.ID = uuid.New()

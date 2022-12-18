@@ -16,6 +16,8 @@ type Component struct {
 type ComponentSpec struct {
 	Type       string                 `json:"type"`
 	Version    string                 `json:"version"`
+	APIVersion string                 `json:"apiVersion"`
+	Model      string                 `json:"model"`
 	Settings   map[string]interface{} `json:"settings"`
 	Parameters []ComponentParameter   `json:"parameters"`
 }
