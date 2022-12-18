@@ -1,6 +1,9 @@
 package artifacthub
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestGetChartUrl(t *testing.T) {
 	var tests = []struct {
@@ -9,7 +12,7 @@ func TestGetChartUrl(t *testing.T) {
 	}{
 		// these might change in the future, so the tests have to be changed as well when the urls change
 		// because the urls will change with every new version update to the package
-		{AhPackage{Name: "consul", Repository: "bitnami", Organization: "", RepoUrl: "https://charts.bitnami.com/bitnami"}, "https://charts.bitnami.com/bitnami/consul-10.9.5.tgz"},
+		{AhPackage{Name: "consul", Repository: "bitnami", Organization: "", RepoUrl: "https://charts.bitnami.com/bitnami"}, "https://charts.bitnami.com/bitnami/consul"},
 		{AhPackage{Name: "crossplane-types", Repository: "crossplane", Organization: "", RepoUrl: "https://charts.crossplane.io/master"}, "https://charts.crossplane.io/master/crossplane-types-0.13.0-rc.191.g3a18fb7.tgz"},
 	}
 	for _, tt := range tests {
@@ -19,7 +22,7 @@ func TestGetChartUrl(t *testing.T) {
 				t.Errorf("error while updating package data = %v", err)
 				return
 			}
-			if tt.ahpkg.ChartUrl != tt.want {
+			if !strings.HasPrefix(tt.ahpkg.ChartUrl, tt.want) {
 				t.Errorf("got %v, want %v", tt.ahpkg.ChartUrl, tt.want)
 			}
 		})

@@ -70,6 +70,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&Registry{},
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
+		&v1alpha1.RelationshipDefinitionDB{},
 		&v1alpha1.Models{},
 	)
 	if err != nil {
@@ -105,6 +106,24 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			UpdatedAt:    time.Now(),
 		}
 		return rm.db.Create(&entry).Error
+	case v1alpha1.RelationshipDefinition:
+		relationshipID, err := v1alpha1.CreateRelationship(rm.db, entity)
+		if err != nil {
+			return err
+		}
+		registrantID, err := createHost(rm.db, h)
+		if err != nil {
+			return err
+		}
+		entry := Registry{
+			ID:           uuid.New(),
+			RegistrantID: registrantID,
+			Entity:       relationshipID,
+			Type:         en.Type(),
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+		return rm.db.Create(&entry).Error
 	//Add logic for Policies and other entities below
 	default:
 		return nil
@@ -118,6 +137,13 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 		comps := v1alpha1.GetComponents(rm.db, *filter)
 		for _, comp := range comps {
 			en = append(en, comp)
+		}
+		return en
+	case *v1alpha1.RelationshipFilter:
+		en := make([]Entity, 1)
+		relationships := v1alpha1.GetRelationships(rm.db, *filter)
+		for _, rel := range relationships {
+			en = append(en, rel)
 		}
 		return en
 	default:
