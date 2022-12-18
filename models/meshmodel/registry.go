@@ -49,6 +49,7 @@ func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 // ComponentDefinitions and PolicyDefinitions are examples of entities
 type Entity interface {
 	Type() types.CapabilityType
+	GetID() uuid.UUID
 }
 
 // RegistryManager instance will expose methods for registry operations & sits between the database level operations and user facing API handlers.
@@ -122,4 +123,13 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 	default:
 		return nil
 	}
+}
+
+func (rm *RegistryManager) GetRegistrant(e Entity) Host {
+	eID := e.GetID()
+	var reg Registry
+	_ = rm.db.Where("entity = ?", eID).Find(&reg).Error
+	var h Host
+	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
+	return h
 }
