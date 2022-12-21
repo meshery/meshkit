@@ -23,6 +23,7 @@ const (
 	CUE  ComponentFormat = "CUE"
 )
 
+// swagger:response ComponentDefinition
 // use NewComponent function for instantiating
 type ComponentDefinition struct {
 	ID uuid.UUID `json:"-"`
