@@ -11,6 +11,7 @@ import (
 
 // https://docs.google.com/drawings/d/1_qzQ_YxvCWPYrOBcdqGMlMwfbsZx96SBuIkbn8TfKhU/edit?pli=1
 // see RELATIONSHIPDEFINITIONS table in the diagram
+// swagger:response RelationshipDefinition
 // TODO: Add support for Model
 type RelationshipDefinition struct {
 	ID uuid.UUID `json:"-"`
