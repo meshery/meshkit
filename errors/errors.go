@@ -85,6 +85,10 @@ func New(code string, severity Severity, sdescription []string, ldescription []s
 
 func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ".") }
 
+func (e *Error) ErrorV2(additionalInfo interface{}) ErrorV2 {
+	return ErrorV2{Code: e.Code, Severity: e.Severity, ShortDescription: e.ShortDescription, LongDescription: e.LongDescription, ProbableCause: e.ProbableCause, SuggestedRemediation: e.SuggestedRemediation, AdditionalInfo: additionalInfo}
+}
+
 func GetCode(err error) string {
 	if obj := err.(*Error); obj != nil && obj.Code != " " {
 		return obj.Code
