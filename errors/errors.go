@@ -83,6 +83,18 @@ func New(code string, severity Severity, sdescription []string, ldescription []s
 	}
 }
 
+func NewV2(code string, severity Severity, sdescription []string, ldescription []string, probablecause []string, remedy []string, additionalInfo interface{}) *ErrorV2 {
+	return &ErrorV2{
+		Code:                 code,
+		Severity:             severity,
+		ShortDescription:     sdescription,
+		LongDescription:      ldescription,
+		ProbableCause:        probablecause,
+		SuggestedRemediation: remedy,
+		AdditionalInfo:       additionalInfo,
+	}
+}
+
 func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ".") }
 
 func (e *Error) ErrorV2(additionalInfo interface{}) ErrorV2 {
