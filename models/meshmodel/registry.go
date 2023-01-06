@@ -71,7 +71,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
 		&v1alpha1.RelationshipDefinitionDB{},
-		&v1alpha1.Models{},
+		&v1alpha1.Model{},
 	)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func (rm *RegistryManager) Cleanup() {
 		&Registry{},
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
-		&v1alpha1.Models{},
+		&v1alpha1.Model{},
 	)
 }
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
@@ -150,7 +150,23 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 		return nil
 	}
 }
-
+func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
+	var mod []v1alpha1.Model
+	finder := rm.db.Model(&mod)
+	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
+		if mf.Name != "" {
+			finder = finder.Where("name = ?", mf.Name)
+		}
+		if mf.Version != "" {
+			finder = finder.Where("version = ?", mf.Version)
+		}
+		if mf.Category != "" {
+			finder = finder.Where("category = ?", mf.Category)
+		}
+	}
+	_ = finder.Find(&mod).Error
+	return mod
+}
 func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	eID := e.GetID()
 	var reg Registry
