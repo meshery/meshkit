@@ -31,7 +31,7 @@ type ComponentDefinition struct {
 	DisplayName string                 `json:"display-name" gorm:"display-name"`
 	Format      ComponentFormat        `json:"format" yaml:"format"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
-	Model       Models                 `json:"model"`
+	Model       Model                  `json:"model"`
 	Schema      string                 `json:"schema" yaml:"schema"`
 	CreatedAt   time.Time              `json:"-"`
 	UpdatedAt   time.Time              `json:"-"`
@@ -47,7 +47,7 @@ type ComponentDefinitionDB struct {
 	CreatedAt   time.Time       `json:"-"`
 	UpdatedAt   time.Time       `json:"-"`
 }
-type Models struct {
+type Model struct {
 	ID          uuid.UUID `json:"-"`
 	Name        string    `json:"name"`
 	Version     string    `json:"version"`
@@ -73,7 +73,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 		return uuid.UUID{}, err
 	}
 	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var model Models
+	var model Model
 	componentCreationLock.Lock()
 	err = db.First(&model, "id = ?", modelID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -102,7 +102,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
 	var cdb []ComponentDefinitionDB
 	if f.ModelName != "" {
-		var models []Models
+		var models []Model
 		_ = db.Where("name = ?", f.ModelName).Find(&models).Error
 		if f.Name == "" {
 			_ = db.Find(&cdb).Error
@@ -119,7 +119,7 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 	} else if f.Name != "" {
 		_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
 		for _, compdb := range cdb {
-			var model Models
+			var model Model
 			db.First(&model, "id = ?", compdb.ModelID)
 			comp := compdb.GetComponentDefinition(model)
 			c = append(c, comp)
@@ -127,7 +127,7 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 	} else {
 		db.Find(&cdb)
 		for _, compdb := range cdb {
-			var model Models
+			var model Model
 			db.First(&model, "id = ?", compdb.ModelID)
 			comp := compdb.GetComponentDefinition(model)
 			c = append(c, comp)
@@ -160,7 +160,7 @@ func (cf *ComponentFilter) Create(m map[string]interface{}) {
 	cf.Name = m["name"].(string)
 }
 
-func (cmd *ComponentDefinitionDB) GetComponentDefinition(model Models) (c ComponentDefinition) {
+func (cmd *ComponentDefinitionDB) GetComponentDefinition(model Model) (c ComponentDefinition) {
 	c.ID = cmd.ID
 	c.TypeMeta = cmd.TypeMeta
 	c.Format = cmd.Format
