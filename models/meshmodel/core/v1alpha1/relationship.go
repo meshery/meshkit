@@ -41,6 +41,7 @@ type RelationshipDefinitionDB struct {
 // TODO: Add support for Model
 type RelationshipFilter struct {
 	Kind      string
+	Greedy    bool //when set to true - instead of an exact match, kind will be prefix matched
 	SubType   string
 	ModelName string
 }
@@ -60,7 +61,11 @@ func GetRelationships(db *database.Handler, f RelationshipFilter) (rs []Relation
 	for _, reldb := range rdb {
 		var mod Model
 		if f.ModelName != "" {
-			db.Where("id = ?", reldb.ModelID).Where("name = ?", f.ModelName).Find(&mod)
+			if f.Greedy {
+				db.Where("id = ?", reldb.ModelID).Where("name LIKE ?", f.ModelName+"%").Find(&mod)
+			} else {
+				db.Where("id = ?", reldb.ModelID).Where("name = ?", f.ModelName).Find(&mod)
+			}
 		}
 		if mod.Name != "" { //relationships with a valid model name will be returned
 			rel := reldb.GetRelationshipDefinition(mod)

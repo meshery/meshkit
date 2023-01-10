@@ -2,6 +2,7 @@ package v1alpha1
 
 type ModelFilter struct {
 	Name     string
+	Greedy   bool //when set to true - instead of an exact match, name will be prefix matched
 	Version  string
 	Category string
 }

@@ -107,7 +107,11 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 		if f.Name == "" {
 			_ = db.Find(&cdb).Error
 		} else {
-			_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
+			if f.Greedy {
+				_ = db.Where("kind LIKE ?", f.Name+"%").Find(&cdb).Error
+			} else {
+				_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
+			}
 		}
 		for _, comp := range cdb {
 			for _, mod := range models {
@@ -117,7 +121,11 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 			}
 		}
 	} else if f.Name != "" {
-		_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
+		if f.Greedy {
+			_ = db.Where("kind LIKE ?", f.Name+"%").Find(&cdb).Error
+		} else {
+			_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
+		}
 		for _, compdb := range cdb {
 			var model Model
 			db.First(&model, "id = ?", compdb.ModelID)
@@ -148,6 +156,7 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 
 type ComponentFilter struct {
 	Name      string
+	Greedy    bool //when set to true - instead of an exact match, name will be prefix matched
 	ModelName string
 	Version   string
 }
