@@ -163,6 +163,15 @@ func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
 		if mf.Category != "" {
 			finder = finder.Where("category = ?", mf.Category)
 		}
+		if mf.Sort {
+			finder = finder.Order("name")
+		}
+		if mf.Limit != 0 {
+			finder = finder.Limit(mf.Limit)
+		}
+		if mf.Offset != 0 {
+			finder = finder.Offset(mf.Offset)
+		}
 	}
 	_ = finder.Find(&mod).Error
 	return mod

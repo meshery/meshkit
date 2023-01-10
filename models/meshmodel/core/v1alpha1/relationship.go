@@ -44,6 +44,9 @@ type RelationshipFilter struct {
 	Greedy    bool //when set to true - instead of an exact match, kind will be prefix matched
 	SubType   string
 	ModelName string
+	Sort      bool //when set to true -  the returned entities will be sorted on Name
+	Limit     int  //If 0 or  unspecified then all records are returned and limit is not used
+	Offset    int
 }
 
 // Create the filter from map[string]interface{}
@@ -57,19 +60,32 @@ func GetRelationships(db *database.Handler, f RelationshipFilter) (rs []Relation
 	var rdb []RelationshipDefinitionDB
 	// GORM takes care of drafting the correct SQL
 	// https://gorm.io/docs/query.html#Struct-amp-Map-Conditions
-	_ = db.Where(&RelationshipDefinitionDB{SubType: f.SubType, TypeMeta: TypeMeta{Kind: f.Kind}}).Find(&rdb)
+	finder := db.Where(&RelationshipDefinitionDB{SubType: f.SubType, TypeMeta: TypeMeta{Kind: f.Kind}})
+	if f.Sort {
+		finder = finder.Order("kind")
+	}
+	_ = finder.Find(&rdb)
+	var skipLimit bool
+	if f.Limit == 0 {
+		skipLimit = true
+	}
 	for _, reldb := range rdb {
 		var mod Model
 		if f.ModelName != "" {
-			if f.Greedy {
-				db.Where("id = ?", reldb.ModelID).Where("name LIKE ?", f.ModelName+"%").Find(&mod)
-			} else {
-				db.Where("id = ?", reldb.ModelID).Where("name = ?", f.ModelName).Find(&mod)
-			}
+			finder := db.Model(&mod)
+			finder = finder.Where("id = ?", reldb.ModelID).Where("name = ?", f.ModelName)
+			finder.Find(&mod)
 		}
 		if mod.Name != "" { //relationships with a valid model name will be returned
-			rel := reldb.GetRelationshipDefinition(mod)
-			rs = append(rs, rel)
+			if f.Offset == 0 {
+				if skipLimit || f.Limit > 0 {
+					rel := reldb.GetRelationshipDefinition(mod)
+					rs = append(rs, rel)
+					f.Limit--
+				}
+			} else {
+				f.Offset--
+			}
 		}
 	}
 	return

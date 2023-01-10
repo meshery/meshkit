@@ -104,28 +104,56 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 	if f.ModelName != "" {
 		var models []Model
 		_ = db.Where("name = ?", f.ModelName).Find(&models).Error
-		if f.Name == "" {
-			_ = db.Find(&cdb).Error
-		} else {
+		finder := db.Model(&cdb)
+		if f.Sort {
+			finder = finder.Order("kind")
+		}
+		skipLimit := false
+		if f.Limit == 0 {
+			skipLimit = true
+		}
+		if f.Name != "" {
 			if f.Greedy {
-				_ = db.Where("kind LIKE ?", f.Name+"%").Find(&cdb).Error
+				finder = finder.Where("kind LIKE ?", f.Name+"%")
 			} else {
-				_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
+				finder = finder.Where("kind = ?", f.Name)
 			}
 		}
+		_ = finder.Find(&cdb).Error
 		for _, comp := range cdb {
-			for _, mod := range models {
-				if mod.ID == comp.ModelID {
-					c = append(c, comp.GetComponentDefinition(mod))
+			//TODO: Use model id as foreign key in above DB calls instead of making comparisons here
+			if f.Offset == 0 {
+				if skipLimit || f.Limit > 0 {
+					for _, mod := range models {
+						if mod.ID == comp.ModelID {
+							c = append(c, comp.GetComponentDefinition(mod))
+							f.Limit--
+							continue
+						}
+					}
 				}
+			} else {
+				f.Offset--
 			}
+
 		}
 	} else if f.Name != "" {
+		finder := db.Model(&cdb)
 		if f.Greedy {
-			_ = db.Where("kind LIKE ?", f.Name+"%").Find(&cdb).Error
+			finder = finder.Where("kind LIKE ?", f.Name+"%")
 		} else {
-			_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
+			finder = finder.Where("kind = ?", f.Name)
 		}
+		if f.Sort {
+			finder = finder.Order("kind")
+		}
+		if f.Limit != 0 {
+			finder = finder.Limit(f.Limit)
+		}
+		if f.Offset != 0 {
+			finder = finder.Offset(f.Offset)
+		}
+		_ = finder.Find(&cdb).Error
 		for _, compdb := range cdb {
 			var model Model
 			db.First(&model, "id = ?", compdb.ModelID)
@@ -133,7 +161,14 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 			c = append(c, comp)
 		}
 	} else {
-		db.Find(&cdb)
+		finder := db.Model(&cdb)
+		if f.Limit != 0 {
+			finder = finder.Limit(f.Limit)
+		}
+		if f.Offset != 0 {
+			finder = finder.Offset(f.Offset)
+		}
+		finder.Find(&cdb)
 		for _, compdb := range cdb {
 			var model Model
 			db.First(&model, "id = ?", compdb.ModelID)
@@ -159,6 +194,9 @@ type ComponentFilter struct {
 	Greedy    bool //when set to true - instead of an exact match, name will be prefix matched
 	ModelName string
 	Version   string
+	Sort      bool //when set to true -  the returned entities will be sorted on Name
+	Limit     int  //If 0 or  unspecified then all records are returned and limit is not used
+	Offset    int
 }
 
 // Create the filter from map[string]interface{}
