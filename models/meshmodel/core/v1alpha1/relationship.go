@@ -60,7 +60,12 @@ func GetRelationships(db *database.Handler, f RelationshipFilter) (rs []Relation
 	var rdb []RelationshipDefinitionDB
 	// GORM takes care of drafting the correct SQL
 	// https://gorm.io/docs/query.html#Struct-amp-Map-Conditions
-	finder := db.Where(&RelationshipDefinitionDB{SubType: f.SubType, TypeMeta: TypeMeta{Kind: f.Kind}})
+	finder := db.Where(&RelationshipDefinitionDB{SubType: f.SubType})
+	if f.Greedy {
+		finder = finder.Where("kind LIKE ?", f.Kind+"%")
+	} else {
+		finder = finder.Where("kind = ?", f.Kind)
+	}
 	if f.Sort {
 		finder = finder.Order("kind")
 	}
