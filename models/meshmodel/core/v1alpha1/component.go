@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TypeMeta struct {
@@ -47,6 +49,8 @@ type ComponentDefinitionDB struct {
 	CreatedAt   time.Time       `json:"-"`
 	UpdatedAt   time.Time       `json:"-"`
 }
+
+// swagger:response Model
 type Model struct {
 	ID          uuid.UUID `json:"-"`
 	Name        string    `json:"name"`
@@ -105,8 +109,12 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 		var models []Model
 		_ = db.Where("name = ?", f.ModelName).Find(&models).Error
 		finder := db.Model(&cdb)
-		if f.Sort {
-			finder = finder.Order("kind")
+		if f.OrderOn != "" {
+			if f.Sort == "desc" {
+				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: f.OrderOn}, Desc: true})
+			} else {
+				finder = finder.Order(f.OrderOn)
+			}
 		}
 		skipLimit := false
 		if f.Limit == 0 {
@@ -144,8 +152,12 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 		} else {
 			finder = finder.Where("kind = ?", f.Name)
 		}
-		if f.Sort {
-			finder = finder.Order("kind")
+		if f.OrderOn != "" {
+			if f.Sort == "desc" {
+				finder = finder.Order(fmt.Sprintf("%s DESC", f.OrderOn))
+			} else {
+				finder = finder.Order(f.OrderOn)
+			}
 		}
 		if f.Limit != 0 {
 			finder = finder.Limit(f.Limit)
@@ -194,8 +206,9 @@ type ComponentFilter struct {
 	Greedy    bool //when set to true - instead of an exact match, name will be prefix matched
 	ModelName string
 	Version   string
-	Sort      bool //when set to true -  the returned entities will be sorted on Name
-	Limit     int  //If 0 or  unspecified then all records are returned and limit is not used
+	Sort      string //asc or desc. Default behavior is asc
+	OrderOn   string
+	Limit     int //If 0 or  unspecified then all records are returned and limit is not used
 	Offset    int
 }
 

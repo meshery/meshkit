@@ -2,12 +2,14 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // https://docs.google.com/drawings/d/1_qzQ_YxvCWPYrOBcdqGMlMwfbsZx96SBuIkbn8TfKhU/edit?pli=1
@@ -43,9 +45,11 @@ type RelationshipFilter struct {
 	Kind      string
 	Greedy    bool //when set to true - instead of an exact match, kind will be prefix matched
 	SubType   string
+	Version   string
 	ModelName string
-	Sort      bool //when set to true -  the returned entities will be sorted on Name
-	Limit     int  //If 0 or  unspecified then all records are returned and limit is not used
+	OrderOn   string
+	Sort      string //asc or desc. Default behavior is asc
+	Limit     int    //If 0 or  unspecified then all records are returned and limit is not used
 	Offset    int
 }
 
@@ -58,40 +62,98 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 
 func GetRelationships(db *database.Handler, f RelationshipFilter) (rs []RelationshipDefinition) {
 	var rdb []RelationshipDefinitionDB
-	// GORM takes care of drafting the correct SQL
-	// https://gorm.io/docs/query.html#Struct-amp-Map-Conditions
-	finder := db.Where(&RelationshipDefinitionDB{SubType: f.SubType})
-	if f.Greedy {
-		finder = finder.Where("kind LIKE ?", f.Kind+"%")
-	} else {
-		finder = finder.Where("kind = ?", f.Kind)
-	}
-	if f.Sort {
-		finder = finder.Order("kind")
-	}
-	_ = finder.Find(&rdb)
-	var skipLimit bool
-	if f.Limit == 0 {
-		skipLimit = true
-	}
-	for _, reldb := range rdb {
-		var mod Model
-		if f.ModelName != "" {
-			finder := db.Model(&mod)
-			finder = finder.Where("id = ?", reldb.ModelID).Where("name = ?", f.ModelName)
-			finder.Find(&mod)
+	if f.ModelName != "" {
+		var models []Model
+		_ = db.Where("name = ?", f.ModelName).Find(&models).Error
+		finder := db.Model(&rdb)
+		if f.OrderOn != "" {
+			if f.Sort == "desc" {
+				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: f.OrderOn}, Desc: true})
+			} else {
+				finder = finder.Order(f.OrderOn)
+			}
 		}
-		if mod.Name != "" { //relationships with a valid model name will be returned
+		skipLimit := false
+		if f.Limit == 0 {
+			skipLimit = true
+		}
+		if f.Kind != "" {
+			if f.Greedy {
+				finder = finder.Where("kind LIKE ?", f.Kind+"%")
+			} else {
+				finder = finder.Where("kind = ?", f.Kind)
+			}
+		}
+		_ = finder.Find(&rdb).Error
+		for _, rel := range rdb {
+			//TODO: Use model id as foreign key in above DB calls instead of making comparisons here
 			if f.Offset == 0 {
 				if skipLimit || f.Limit > 0 {
-					rel := reldb.GetRelationshipDefinition(mod)
-					rs = append(rs, rel)
-					f.Limit--
+					for _, mod := range models {
+						if mod.ID == rel.ModelID {
+							rs = append(rs, rel.GetRelationshipDefinition(mod))
+							f.Limit--
+							continue
+						}
+					}
 				}
 			} else {
 				f.Offset--
 			}
+
 		}
+	} else if f.Kind != "" {
+		finder := db.Model(&rdb)
+		if f.Greedy {
+			finder = finder.Where("kind LIKE ?", f.Kind+"%")
+		} else {
+			finder = finder.Where("kind = ?", f.Kind)
+		}
+		if f.OrderOn != "" {
+			if f.Sort == "desc" {
+				finder = finder.Order(fmt.Sprintf("%s DESC", f.OrderOn))
+			} else {
+				finder = finder.Order(f.OrderOn)
+			}
+		}
+		if f.Limit != 0 {
+			finder = finder.Limit(f.Limit)
+		}
+		if f.Offset != 0 {
+			finder = finder.Offset(f.Offset)
+		}
+		_ = finder.Find(&rdb).Error
+		for _, compdb := range rdb {
+			var model Model
+			db.First(&model, "id = ?", compdb.ModelID)
+			comp := compdb.GetRelationshipDefinition(model)
+			rs = append(rs, comp)
+		}
+	} else {
+		finder := db.Model(&rdb)
+		if f.Limit != 0 {
+			finder = finder.Limit(f.Limit)
+		}
+		if f.Offset != 0 {
+			finder = finder.Offset(f.Offset)
+		}
+		finder.Find(&rdb)
+		for _, compdb := range rdb {
+			var model Model
+			db.First(&model, "id = ?", compdb.ModelID)
+			comp := compdb.GetRelationshipDefinition(model)
+			rs = append(rs, comp)
+		}
+	}
+
+	if f.Version != "" {
+		var vrel []RelationshipDefinition
+		for _, r := range rs {
+			if r.Model.Version == f.Version {
+				vrel = append(vrel, r)
+			}
+		}
+		return vrel
 	}
 	return
 }

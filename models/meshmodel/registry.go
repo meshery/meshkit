@@ -8,6 +8,7 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"gorm.io/gorm/clause"
 )
 
 // MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
@@ -155,7 +156,12 @@ func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
 	finder := rm.db.Model(&mod)
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Name != "" {
-			finder = finder.Where("name = ?", mf.Name)
+			if mf.Greedy {
+				finder = finder.Where("name LIKE ?", mf.Name+"%")
+			} else {
+				finder = finder.Where("name = ?", mf.Name)
+			}
+
 		}
 		if mf.Version != "" {
 			finder = finder.Where("version = ?", mf.Version)
@@ -163,8 +169,12 @@ func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
 		if mf.Category != "" {
 			finder = finder.Where("category = ?", mf.Category)
 		}
-		if mf.Sort {
-			finder = finder.Order("name")
+		if mf.OrderOn != "" {
+			if mf.Sort == "desc" {
+				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: mf.OrderOn}, Desc: true})
+			} else {
+				finder = finder.Order(mf.OrderOn)
+			}
 		}
 		if mf.Limit != 0 {
 			finder = finder.Limit(mf.Limit)
