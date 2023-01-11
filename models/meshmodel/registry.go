@@ -161,7 +161,6 @@ func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
 			} else {
 				finder = finder.Where("name = ?", mf.Name)
 			}
-
 		}
 		if mf.Version != "" {
 			finder = finder.Where("version = ?", mf.Version)

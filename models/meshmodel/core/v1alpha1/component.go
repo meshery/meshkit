@@ -143,7 +143,6 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 			} else {
 				f.Offset--
 			}
-
 		}
 	} else if f.Name != "" {
 		finder := db.Model(&cdb)

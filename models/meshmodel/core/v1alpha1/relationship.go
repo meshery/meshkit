@@ -100,7 +100,6 @@ func GetRelationships(db *database.Handler, f RelationshipFilter) (rs []Relation
 			} else {
 				f.Offset--
 			}
-
 		}
 	} else if f.Kind != "" {
 		finder := db.Model(&rdb)
