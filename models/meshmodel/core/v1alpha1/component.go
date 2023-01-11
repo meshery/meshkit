@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TypeMeta struct {
@@ -47,6 +49,8 @@ type ComponentDefinitionDB struct {
 	CreatedAt   time.Time       `json:"-"`
 	UpdatedAt   time.Time       `json:"-"`
 }
+
+// swagger:response Model
 type Model struct {
 	ID          uuid.UUID `json:"-"`
 	Name        string    `json:"name"`
@@ -104,20 +108,63 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 	if f.ModelName != "" {
 		var models []Model
 		_ = db.Where("name = ?", f.ModelName).Find(&models).Error
-		if f.Name == "" {
-			_ = db.Find(&cdb).Error
-		} else {
-			_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
+		finder := db.Model(&cdb)
+		if f.OrderOn != "" {
+			if f.Sort == "desc" {
+				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: f.OrderOn}, Desc: true})
+			} else {
+				finder = finder.Order(f.OrderOn)
+			}
 		}
+		skipLimit := false
+		if f.Limit == 0 {
+			skipLimit = true
+		}
+		if f.Name != "" {
+			if f.Greedy {
+				finder = finder.Where("kind LIKE ?", f.Name+"%")
+			} else {
+				finder = finder.Where("kind = ?", f.Name)
+			}
+		}
+		_ = finder.Find(&cdb).Error
 		for _, comp := range cdb {
-			for _, mod := range models {
-				if mod.ID == comp.ModelID {
-					c = append(c, comp.GetComponentDefinition(mod))
+			//TODO: Use model id as foreign key in above DB calls instead of making comparisons here
+			if f.Offset == 0 {
+				if skipLimit || f.Limit > 0 {
+					for _, mod := range models {
+						if mod.ID == comp.ModelID {
+							c = append(c, comp.GetComponentDefinition(mod))
+							f.Limit--
+							continue
+						}
+					}
 				}
+			} else {
+				f.Offset--
 			}
 		}
 	} else if f.Name != "" {
-		_ = db.Where("kind = ?", f.Name).Find(&cdb).Error
+		finder := db.Model(&cdb)
+		if f.Greedy {
+			finder = finder.Where("kind LIKE ?", f.Name+"%")
+		} else {
+			finder = finder.Where("kind = ?", f.Name)
+		}
+		if f.OrderOn != "" {
+			if f.Sort == "desc" {
+				finder = finder.Order(fmt.Sprintf("%s DESC", f.OrderOn))
+			} else {
+				finder = finder.Order(f.OrderOn)
+			}
+		}
+		if f.Limit != 0 {
+			finder = finder.Limit(f.Limit)
+		}
+		if f.Offset != 0 {
+			finder = finder.Offset(f.Offset)
+		}
+		_ = finder.Find(&cdb).Error
 		for _, compdb := range cdb {
 			var model Model
 			db.First(&model, "id = ?", compdb.ModelID)
@@ -125,7 +172,14 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 			c = append(c, comp)
 		}
 	} else {
-		db.Find(&cdb)
+		finder := db.Model(&cdb)
+		if f.Limit != 0 {
+			finder = finder.Limit(f.Limit)
+		}
+		if f.Offset != 0 {
+			finder = finder.Offset(f.Offset)
+		}
+		finder.Find(&cdb)
 		for _, compdb := range cdb {
 			var model Model
 			db.First(&model, "id = ?", compdb.ModelID)
@@ -148,8 +202,13 @@ func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefini
 
 type ComponentFilter struct {
 	Name      string
+	Greedy    bool //when set to true - instead of an exact match, name will be prefix matched
 	ModelName string
 	Version   string
+	Sort      string //asc or desc. Default behavior is asc
+	OrderOn   string
+	Limit     int //If 0 or  unspecified then all records are returned and limit is not used
+	Offset    int
 }
 
 // Create the filter from map[string]interface{}
