@@ -85,6 +85,7 @@ func (rm *RegistryManager) Cleanup() {
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
 		&v1alpha1.Model{},
+		&v1alpha1.RelationshipDefinitionDB{},
 	)
 }
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
