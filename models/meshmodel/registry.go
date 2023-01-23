@@ -136,14 +136,14 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 	switch filter := f.(type) {
 	case *v1alpha1.ComponentFilter:
 		en := make([]Entity, 0)
-		comps := v1alpha1.GetComponents(rm.db, *filter)
+		comps := v1alpha1.GetMeshModelComponents(rm.db, *filter)
 		for _, comp := range comps {
 			en = append(en, comp)
 		}
 		return en
 	case *v1alpha1.RelationshipFilter:
 		en := make([]Entity, 0)
-		relationships := v1alpha1.GetRelationships(rm.db, *filter)
+		relationships := v1alpha1.GetMeshModelRelationship(rm.db, *filter)
 		for _, rel := range relationships {
 			en = append(en, rel)
 		}

@@ -3,7 +3,6 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,27 +49,21 @@ type ComponentDefinitionDB struct {
 	UpdatedAt   time.Time       `json:"-"`
 }
 
-// swagger:response Model
-type Model struct {
-	ID          uuid.UUID `json:"-"`
-	Name        string    `json:"name"`
-	Version     string    `json:"version"`
-	DisplayName string    `json:"display-name" gorm:"display-name"`
-	Category    string    `json:"category"`
-	SubCategory string    `json:"sub-category"`
-}
-
 func (c ComponentDefinition) Type() types.CapabilityType {
 	return types.ComponentDefinition
 }
 func (c ComponentDefinition) GetID() uuid.UUID {
 	return c.ID
 }
-
-var componentCreationLock sync.Mutex
-
+func hash(val ...string) uuid.UUID {
+	p := make([]byte, 0)
+	for _, v := range val {
+		p = append(p, []byte(v)...)
+	}
+	return uuid.NewSHA1(uuid.UUID{}, p)
+}
 func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
-	c.ID = uuid.New()
+	c.ID = hash(c.Kind, c.APIVersion, c.Model.Name, c.Model.Version) //ComponentID is a composite hash of kind,apiversion and model.name. This enforces that two components cannot have same kind,apiVersion and model.Name
 	tempModelID := uuid.New()
 	byt, err := json.Marshal(c.Model)
 	if err != nil {
@@ -78,7 +71,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 	}
 	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
 	var model Model
-	componentCreationLock.Lock()
+	modelCreationLock.Lock()
 	err = db.First(&model, "id = ?", modelID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
@@ -88,127 +81,70 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 		model.ID = modelID
 		err = db.Create(&model).Error
 		if err != nil {
-			componentCreationLock.Unlock()
+			modelCreationLock.Unlock()
 			return uuid.UUID{}, err
 		}
 	}
-	componentCreationLock.Unlock()
+	modelCreationLock.Unlock()
 	cdb := c.GetComponentDefinitionDB()
 	cdb.ModelID = model.ID
 	err = db.Create(&cdb).Error
-	if err != nil {
-		return uuid.UUID{}, err
-	}
 	return c.ID, err
 }
+func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
+	type componentDefinitionWithModel struct {
+		ComponentDefinitionDB
+		Model
+	}
 
-// TODO: Optimize the below queries with joins
-func GetComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
-	var cdb []ComponentDefinitionDB
+	var componentDefinitionsWithModel []componentDefinitionWithModel
+	finder := db.Model(&ComponentDefinitionDB{}).
+		Select("component_definition_dbs.*, models.*").
+		Joins("JOIN models ON component_definition_dbs.model_id = models.id") //
+	if f.Name != "" {
+		finder = finder.Where("component_definition_dbs.kind = ?", f.Name)
+	}
+	if f.APIVersion != "" {
+		finder = finder.Where("component_definition_dbs.api_version = ?", f.APIVersion)
+	}
 	if f.ModelName != "" {
-		var models []Model
-		_ = db.Where("name = ?", f.ModelName).Find(&models).Error
-		finder := db.Model(&cdb)
-		if f.OrderOn != "" {
-			if f.Sort == "desc" {
-				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: f.OrderOn}, Desc: true})
-			} else {
-				finder = finder.Order(f.OrderOn)
-			}
-		}
-		skipLimit := false
-		if f.Limit == 0 {
-			skipLimit = true
-		}
-		if f.Name != "" {
-			if f.Greedy {
-				finder = finder.Where("kind LIKE ?", f.Name+"%")
-			} else {
-				finder = finder.Where("kind = ?", f.Name)
-			}
-		}
-		_ = finder.Find(&cdb).Error
-		for _, comp := range cdb {
-			//TODO: Use model id as foreign key in above DB calls instead of making comparisons here
-			if f.Offset == 0 {
-				if skipLimit || f.Limit > 0 {
-					for _, mod := range models {
-						if mod.ID == comp.ModelID {
-							c = append(c, comp.GetComponentDefinition(mod))
-							f.Limit--
-							continue
-						}
-					}
-				}
-			} else {
-				f.Offset--
-			}
-		}
-	} else if f.Name != "" {
-		finder := db.Model(&cdb)
-		if f.Greedy {
-			finder = finder.Where("kind LIKE ?", f.Name+"%")
-		} else {
-			finder = finder.Where("kind = ?", f.Name)
-		}
-		if f.OrderOn != "" {
-			if f.Sort == "desc" {
-				finder = finder.Order(fmt.Sprintf("%s DESC", f.OrderOn))
-			} else {
-				finder = finder.Order(f.OrderOn)
-			}
-		}
-		if f.Limit != 0 {
-			finder = finder.Limit(f.Limit)
-		}
-		if f.Offset != 0 {
-			finder = finder.Offset(f.Offset)
-		}
-		_ = finder.Find(&cdb).Error
-		for _, compdb := range cdb {
-			var model Model
-			db.First(&model, "id = ?", compdb.ModelID)
-			comp := compdb.GetComponentDefinition(model)
-			c = append(c, comp)
-		}
-	} else {
-		finder := db.Model(&cdb)
-		if f.Limit != 0 {
-			finder = finder.Limit(f.Limit)
-		}
-		if f.Offset != 0 {
-			finder = finder.Offset(f.Offset)
-		}
-		finder.Find(&cdb)
-		for _, compdb := range cdb {
-			var model Model
-			db.First(&model, "id = ?", compdb.ModelID)
-			comp := compdb.GetComponentDefinition(model)
-			c = append(c, comp)
-		}
+		finder = finder.Where("models.name = ?", f.ModelName)
 	}
-
 	if f.Version != "" {
-		var vcomp []ComponentDefinition
-		for _, comp := range c {
-			if comp.Model.Version == f.Version {
-				vcomp = append(vcomp, comp)
-			}
-		}
-		return vcomp
+		finder = finder.Where("models.version = ?", f.Version)
 	}
-	return
+	if f.OrderOn != "" {
+		if f.Sort == "desc" {
+			finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: f.OrderOn}, Desc: true})
+		} else {
+			finder = finder.Order(f.OrderOn)
+		}
+	}
+	finder = finder.Offset(f.Offset)
+	if f.Limit != 0 {
+		finder = finder.Limit(f.Limit)
+	}
+	err := finder.
+		Scan(&componentDefinitionsWithModel).Error
+	if err != nil {
+		fmt.Println("bruh: ", err.Error())
+	}
+	for _, cm := range componentDefinitionsWithModel {
+		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.Model))
+	}
+	return c
 }
 
 type ComponentFilter struct {
-	Name      string
-	Greedy    bool //when set to true - instead of an exact match, name will be prefix matched
-	ModelName string
-	Version   string
-	Sort      string //asc or desc. Default behavior is asc
-	OrderOn   string
-	Limit     int //If 0 or  unspecified then all records are returned and limit is not used
-	Offset    int
+	Name       string
+	APIVersion string
+	Greedy     bool //when set to true - instead of an exact match, name will be prefix matched
+	ModelName  string
+	Version    string
+	Sort       string //asc or desc. Default behavior is asc
+	OrderOn    string
+	Limit      int //If 0 or  unspecified then all records are returned and limit is not used
+	Offset     int
 }
 
 // Create the filter from map[string]interface{}

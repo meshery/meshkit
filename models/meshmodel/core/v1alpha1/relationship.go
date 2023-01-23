@@ -59,102 +59,51 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 		return
 	}
 }
-
-func GetRelationships(db *database.Handler, f RelationshipFilter) (rs []RelationshipDefinition) {
-	var rdb []RelationshipDefinitionDB
-	if f.ModelName != "" {
-		var models []Model
-		_ = db.Where("name = ?", f.ModelName).Find(&models).Error
-		finder := db.Model(&rdb)
-		if f.OrderOn != "" {
-			if f.Sort == "desc" {
-				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: f.OrderOn}, Desc: true})
-			} else {
-				finder = finder.Order(f.OrderOn)
-			}
-		}
-		skipLimit := false
-		if f.Limit == 0 {
-			skipLimit = true
-		}
-		if f.Kind != "" {
-			if f.Greedy {
-				finder = finder.Where("kind LIKE ?", f.Kind+"%")
-			} else {
-				finder = finder.Where("kind = ?", f.Kind)
-			}
-		}
-		_ = finder.Find(&rdb).Error
-		for _, rel := range rdb {
-			//TODO: Use model id as foreign key in above DB calls instead of making comparisons here
-			if f.Offset == 0 {
-				if skipLimit || f.Limit > 0 {
-					for _, mod := range models {
-						if mod.ID == rel.ModelID {
-							rs = append(rs, rel.GetRelationshipDefinition(mod))
-							f.Limit--
-							continue
-						}
-					}
-				}
-			} else {
-				f.Offset--
-			}
-		}
-	} else if f.Kind != "" {
-		finder := db.Model(&rdb)
+func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []RelationshipDefinition) {
+	type componentDefinitionWithModel struct {
+		RelationshipDefinitionDB
+		Model
+	}
+	var componentDefinitionsWithModel []componentDefinitionWithModel
+	finder := db.Model(&RelationshipDefinitionDB{}).
+		Select("relationship_definition_dbs.*, models.*").
+		Joins("JOIN models ON relationship_definition_dbs.model_id = models.id") //
+	if f.Kind != "" {
 		if f.Greedy {
-			finder = finder.Where("kind LIKE ?", f.Kind+"%")
+			finder = finder.Where("relationship_definition_dbs.kind LIKE ?", f.Kind)
 		} else {
-			finder = finder.Where("kind = ?", f.Kind)
-		}
-		if f.OrderOn != "" {
-			if f.Sort == "desc" {
-				finder = finder.Order(fmt.Sprintf("%s DESC", f.OrderOn))
-			} else {
-				finder = finder.Order(f.OrderOn)
-			}
-		}
-		if f.Limit != 0 {
-			finder = finder.Limit(f.Limit)
-		}
-		if f.Offset != 0 {
-			finder = finder.Offset(f.Offset)
-		}
-		_ = finder.Find(&rdb).Error
-		for _, compdb := range rdb {
-			var model Model
-			db.First(&model, "id = ?", compdb.ModelID)
-			comp := compdb.GetRelationshipDefinition(model)
-			rs = append(rs, comp)
-		}
-	} else {
-		finder := db.Model(&rdb)
-		if f.Limit != 0 {
-			finder = finder.Limit(f.Limit)
-		}
-		if f.Offset != 0 {
-			finder = finder.Offset(f.Offset)
-		}
-		finder.Find(&rdb)
-		for _, compdb := range rdb {
-			var model Model
-			db.First(&model, "id = ?", compdb.ModelID)
-			comp := compdb.GetRelationshipDefinition(model)
-			rs = append(rs, comp)
+			finder = finder.Where("relationship_definition_dbs.kind = ?", f.Kind)
 		}
 	}
-
+	if f.SubType != "" {
+		finder = finder.Where("relationship_definition_dbs.sub_type = ?", f.SubType)
+	}
+	if f.ModelName != "" {
+		finder = finder.Where("models.name = ?", f.ModelName)
+	}
 	if f.Version != "" {
-		var vrel []RelationshipDefinition
-		for _, r := range rs {
-			if r.Model.Version == f.Version {
-				vrel = append(vrel, r)
-			}
-		}
-		return vrel
+		finder = finder.Where("models.version = ?", f.Version)
 	}
-	return
+	if f.OrderOn != "" {
+		if f.Sort == "desc" {
+			finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: f.OrderOn}, Desc: true})
+		} else {
+			finder = finder.Order(f.OrderOn)
+		}
+	}
+	finder = finder.Offset(f.Offset)
+	if f.Limit != 0 {
+		finder = finder.Limit(f.Limit)
+	}
+	err := finder.
+		Scan(&componentDefinitionsWithModel).Error
+	if err != nil {
+		fmt.Println("bruh: ", err.Error())
+	}
+	for _, cm := range componentDefinitionsWithModel {
+		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.Model))
+	}
+	return r
 }
 
 func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r RelationshipDefinition) {
@@ -182,7 +131,7 @@ func (r RelationshipDefinition) GetID() uuid.UUID {
 }
 
 func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UUID, error) {
-	r.ID = uuid.New()
+	r.ID = hash(r.Kind, r.APIVersion, r.Model.Name, r.Model.Version)
 	tempModelID := uuid.New()
 	byt, err := json.Marshal(r.Model)
 	if err != nil {
@@ -190,7 +139,7 @@ func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UU
 	}
 	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
 	var model Model
-	componentCreationLock.Lock()
+	modelCreationLock.Lock()
 	err = db.First(&model, "id = ?", modelID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
@@ -200,11 +149,11 @@ func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UU
 		model.ID = modelID
 		err = db.Create(&model).Error
 		if err != nil {
-			componentCreationLock.Unlock()
+			modelCreationLock.Unlock()
 			return uuid.UUID{}, err
 		}
 	}
-	componentCreationLock.Unlock()
+	modelCreationLock.Unlock()
 	rdb := r.GetRelationshipDefinitionDB()
 	rdb.ModelID = model.ID
 	err = db.Create(&rdb).Error
