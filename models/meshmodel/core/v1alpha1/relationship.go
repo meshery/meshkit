@@ -98,7 +98,7 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 	err := finder.
 		Scan(&componentDefinitionsWithModel).Error
 	if err != nil {
-		fmt.Println("bruh: ", err.Error())
+		fmt.Println(err.Error()) //for debugging
 	}
 	for _, cm := range componentDefinitionsWithModel {
 		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.Model))

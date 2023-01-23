@@ -127,7 +127,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	err := finder.
 		Scan(&componentDefinitionsWithModel).Error
 	if err != nil {
-		fmt.Println("bruh: ", err.Error())
+		fmt.Println(err.Error()) //for debugging
 	}
 	for _, cm := range componentDefinitionsWithModel {
 		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.Model))
