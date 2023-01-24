@@ -55,15 +55,9 @@ func (c ComponentDefinition) Type() types.CapabilityType {
 func (c ComponentDefinition) GetID() uuid.UUID {
 	return c.ID
 }
-func hash(val ...string) uuid.UUID {
-	p := make([]byte, 0)
-	for _, v := range val {
-		p = append(p, []byte(v)...)
-	}
-	return uuid.NewSHA1(uuid.UUID{}, p)
-}
+
 func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
-	c.ID = hash(c.Kind, c.APIVersion, c.Model.Name, c.Model.Version) //ComponentID is a composite hash of kind,apiversion and model.name. This enforces that two components cannot have same kind,apiVersion and model.Name
+	c.ID = uuid.New()
 	tempModelID := uuid.New()
 	byt, err := json.Marshal(c.Model)
 	if err != nil {

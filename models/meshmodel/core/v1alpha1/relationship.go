@@ -131,7 +131,7 @@ func (r RelationshipDefinition) GetID() uuid.UUID {
 }
 
 func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UUID, error) {
-	r.ID = hash(r.Kind, r.APIVersion, r.Model.Name, r.Model.Version)
+	r.ID = uuid.New()
 	tempModelID := uuid.New()
 	byt, err := json.Marshal(r.Model)
 	if err != nil {
