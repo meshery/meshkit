@@ -85,6 +85,7 @@ func (rm *RegistryManager) Cleanup() {
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
 		&v1alpha1.Model{},
+		&v1alpha1.RelationshipDefinitionDB{},
 	)
 }
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
@@ -134,15 +135,15 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 	switch filter := f.(type) {
 	case *v1alpha1.ComponentFilter:
-		en := make([]Entity, 1)
-		comps := v1alpha1.GetComponents(rm.db, *filter)
+		en := make([]Entity, 0)
+		comps := v1alpha1.GetMeshModelComponents(rm.db, *filter)
 		for _, comp := range comps {
 			en = append(en, comp)
 		}
 		return en
 	case *v1alpha1.RelationshipFilter:
-		en := make([]Entity, 1)
-		relationships := v1alpha1.GetRelationships(rm.db, *filter)
+		en := make([]Entity, 0)
+		relationships := v1alpha1.GetMeshModelRelationship(rm.db, *filter)
 		for _, rel := range relationships {
 			en = append(en, rel)
 		}
