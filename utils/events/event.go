@@ -44,6 +44,7 @@ func New(op Options) (*cloudevents.Event, error) {
 	event.SetDataContentType(cloudevents.ApplicationJSON)
 	event.SetExtension("trace-id", op.TraceID)
 	event.SetExtension("parent-id", op.ParentID)
+	event.SetExtension("category", op.Category)
 	data, err := json.Marshal(op.EventData)
 	if err != nil {
 		return nil, err
