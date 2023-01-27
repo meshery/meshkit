@@ -24,7 +24,6 @@ func (s Severity) GetSeverityNumber() int {
 	default:
 		return -1
 	}
-
 }
 
 // Available Severity levels
