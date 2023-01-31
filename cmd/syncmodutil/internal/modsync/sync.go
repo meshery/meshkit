@@ -72,28 +72,17 @@ func (g *GoMod) SyncRequire(f io.Reader, throwerr bool) (gomod string, err error
 			}
 		}
 	}
+	if len(g.ReplacedVersions) != 0 {
+		data = append(data, "replace(")
+	}
+
+	//Add all the replaced versions from source to destination. Running go mod tidy after the utility will perform the cleanup in the destination go.mod and remove all the unwanted replace statements.
+	//Instead of trying to intelligently perform diffs, it is better to let the go mod tidy do the cleanup.
 	for _, replaced := range g.ReplacedVersions {
-		for i, d := range data {
-			if strings.Contains(d, "=>") {
-				ss := strings.Split(d, "=>")
-				if len(ss) < 2 {
-					log.Fatal("wow: ", ss)
-				}
-				pkgAndVersion := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(ss[0], "\t"), " "), " "), "\t")
-				pkgversion := strings.Split(pkgAndVersion, " ")
-				if len(pkgversion) < 1 {
-					log.Fatal("pkgAndVersion: ", pkgAndVersion)
-				}
-				pkg := pkgversion[0]
-				var version string
-				if len(pkgversion) == 2 {
-					version = pkgversion[1]
-				}
-				if strings.HasPrefix(pkg, replaced[0].Name) && (version == "" || version == replaced[0].Version) {
-					data[i] = fmt.Sprintf("\t%s %s => %s %s", replaced[0].Name, replaced[0].Version, replaced[1].Name, replaced[1].Version)
-				}
-			}
-		}
+		data = append(data, fmt.Sprintf("\t%s %s => %s %s", replaced[0].Name, replaced[0].Version, replaced[1].Name, replaced[1].Version))
+	}
+	if len(g.ReplacedVersions) != 0 {
+		data = append(data, ")")
 	}
 	gomod = strings.Join(data, "\n")
 	return
