@@ -26,7 +26,7 @@ require (
 	gorm.io/driver/postgres v1.3.10
 	gorm.io/driver/sqlite v1.3.1
 	gorm.io/gorm v1.23.7
-	helm.sh/helm/v3 v3.11.0
+	helm.sh/helm/v3 v3.11.1
 	k8s.io/api v0.26.0
 	k8s.io/apimachinery v0.26.1
 	k8s.io/cli-runtime v0.26.0
