@@ -46,13 +46,17 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 	def.ObjectMeta.Name = resourceId
 	def.APIVersion = "core.oam.dev/v1alpha1"
 	def.Kind = "WorkloadDefinition"
+	k8sAPIVersion := apiVersion
+	if apiGroup != "" {
+		k8sAPIVersion = apiGroup + "/" + k8sAPIVersion
+	}
 	switch resource {
 	case SERVICE_MESH:
 		def.Spec.Metadata = map[string]string{
 			"@type":         "pattern.meshery.io/mesh/workload",
 			"meshVersion":   cfg.MeshVersion,
 			"meshName":      cfg.Name,
-			"k8sAPIVersion": apiGroup + "/" + apiVersion,
+			"k8sAPIVersion": k8sAPIVersion,
 			"k8sKind":       resourceId,
 		}
 		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId)
@@ -64,7 +68,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 	case K8s:
 		def.Spec.Metadata = map[string]string{
 			"@type":         "pattern.meshery.io/k8s",
-			"k8sAPIVersion": apiGroup + "/" + apiVersion,
+			"k8sAPIVersion": k8sAPIVersion,
 			"k8sKind":       resourceId,
 			"version":       cfg.K8sVersion,
 		}
