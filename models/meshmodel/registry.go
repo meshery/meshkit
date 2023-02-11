@@ -72,6 +72,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
 		&v1alpha1.RelationshipDefinitionDB{},
+		&v1alpha1.PolicyDefinitionDB{},
 		&v1alpha1.Model{},
 	)
 	if err != nil {
@@ -127,6 +128,25 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		return rm.db.Create(&entry).Error
 	//Add logic for Policies and other entities below
+	case v1alpha1.PolicyDefinition:
+		policyID, err := v1alpha1.CreatePolicy(rm.db, entity)
+		if err != nil {
+			return err
+		}
+		registrantID, err := createHost(rm.db, h)
+		if err != nil {
+			return err
+		}
+		entry := Registry{
+			ID:           uuid.New(),
+			RegistrantID: registrantID,
+			Entity:       policyID,
+			Type:         en.Type(),
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+		return rm.db.Create(&entry).Error
+
 	default:
 		return nil
 	}
@@ -146,6 +166,13 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 		relationships := v1alpha1.GetMeshModelRelationship(rm.db, *filter)
 		for _, rel := range relationships {
 			en = append(en, rel)
+		}
+		return en
+	case *v1alpha1.PolicyFilter:
+		en := make([]Entity, 0)
+		policies := v1alpha1.GetMeshModelPolicy(rm.db, *filter)
+		for _, pol := range policies {
+			en = append(en, pol)
 		}
 		return en
 	default:
