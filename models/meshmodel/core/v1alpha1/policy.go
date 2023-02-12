@@ -12,9 +12,9 @@ import (
 )
 
 type PolicyDefinition struct {
-	ID    uuid.UUID `json:"-"`
-	Model Model     `json:"model"`
+	ID uuid.UUID `json:"-"`
 	TypeMeta
+	Model      Model                  `json:"model"`
 	SubType    string                 `json:"subType" yaml:"subType"`
 	Expression map[string]interface{} `json:"expression" yaml:"expression"`
 	CreatedAt  time.Time              `json:"-"`
@@ -56,7 +56,7 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 		Model
 	}
 	var componentDefinitionsWithModel []componentDefinitionWithModel
-	finder := db.Model(&PolicyDefinition{}).
+	finder := db.Model(&PolicyDefinitionDB{}).
 		Select("policy_definition_dbs.*, models.*").
 		Joins("JOIN models ON models.id = policy_definition_dbs.model_id")
 	if f.Kind != "" {
