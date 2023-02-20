@@ -92,6 +92,9 @@ func (rm *RegistryManager) Cleanup() {
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
+		if entity.Schema == "" { //For components with an empty schema, exit quietly
+			return nil
+		}
 		componentID, err := v1alpha1.CreateComponent(rm.db, entity)
 		if err != nil {
 			return err
