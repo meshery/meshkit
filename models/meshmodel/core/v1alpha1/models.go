@@ -23,9 +23,9 @@ type Model struct {
 	ID          uuid.UUID `json:"-"`
 	Name        string    `json:"name"`
 	Version     string    `json:"version"`
-	DisplayName string    `json:"model-display-name" gorm:"display-name"`
+	DisplayName string    `json:"modelDisplayName" gorm:"modelDisplayName"`
 	Category    string    `json:"category"`
-	SubCategory string    `json:"sub-category"`
+	SubCategory string    `json:"subCategory" gorm:"subCategory"`
 }
 
 // Create the filter from map[string]interface{}

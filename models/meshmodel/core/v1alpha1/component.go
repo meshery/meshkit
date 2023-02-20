@@ -29,7 +29,7 @@ const (
 type ComponentDefinition struct {
 	ID uuid.UUID `json:"-"`
 	TypeMeta
-	DisplayName string                 `json:"display-name" gorm:"display-name"`
+	DisplayName string                 `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat        `json:"format" yaml:"format"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
 	Model       Model                  `json:"model"`
@@ -41,7 +41,7 @@ type ComponentDefinitionDB struct {
 	ID      uuid.UUID `json:"-"`
 	ModelID uuid.UUID `json:"-" gorm:"modelID"`
 	TypeMeta
-	DisplayName string          `json:"display-name" gorm:"display-name"`
+	DisplayName string          `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat `json:"format" yaml:"format"`
 	Metadata    []byte          `json:"metadata" yaml:"metadata"`
 	Schema      string          `json:"schema" yaml:"schema"`
