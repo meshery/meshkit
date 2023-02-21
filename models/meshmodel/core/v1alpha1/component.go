@@ -96,7 +96,11 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		Select("component_definition_dbs.*, models.*").
 		Joins("JOIN models ON component_definition_dbs.model_id = models.id") //
 	if f.Name != "" {
-		finder = finder.Where("component_definition_dbs.kind = ?", f.Name)
+		if f.Greedy {
+			finder = finder.Where("component_definition_dbs.kind LIKE ?", f.Name+"%")
+		} else {
+			finder = finder.Where("component_definition_dbs.kind = ?", f.Name)
+		}
 	}
 	if f.APIVersion != "" {
 		finder = finder.Where("component_definition_dbs.api_version = ?", f.APIVersion)
