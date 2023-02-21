@@ -36,32 +36,34 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 	operatorClient, _ := opClient.New(&ms.kclient.RestConfig)
 	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
 	_, err := operatorClient.CoreV1Alpha1().MeshSyncs("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
+
 	if err == nil {
 		ms.status = Enabled
 		meshSyncPod, err := ms.kclient.KubeClient.CoreV1().Pods("meshery").List(context.TODO(), metav1.ListOptions{
 			LabelSelector: "component=meshsync",
 		})
+
 		if len(meshSyncPod.Items) == 0 || kubeerror.IsNotFound(err) {
 			return ms.status
 		}
-
-		switch meshSyncPod.Items[0].Status.Phase {
-		case v1.PodRunning:
-			ms.status = Running
-			broker := NewMesheryBrokerHandler(ms.kclient)
-			brokerEndpoint, err := broker.GetPublicEndpoint()
-			if err != nil {
+		for _, pod := range meshSyncPod.Items {
+			switch pod.Status.Phase {
+			case v1.PodRunning:
+				ms.status = Running
+				broker := NewMesheryBrokerHandler(ms.kclient)
+				brokerEndpoint, err := broker.GetPublicEndpoint()
+				if err != nil {
+					return ms.status
+				}
+				hostIP := strings.Split(brokerEndpoint, ":")[0]
+				isConnected := ConnectivityTest(MeshSync, hostIP)
+				if isConnected {
+					ms.status = Connected
+				}
 				return ms.status
+			default:
+				ms.status = Deployed
 			}
-			hostIP := strings.Split(brokerEndpoint, ":")[0]
-			isConnected := ConnectivityTest(MeshSync, hostIP)
-			if isConnected {
-				ms.status = Connected
-			}
-			return ms.status
-		default:
-			ms.status = Deployed
-			return ms.status
 		}
 	} else {
 		if kubeerror.IsNotFound(err) {
@@ -96,6 +98,7 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 		}
 		return ms.status
 	}
+	return ms.status
 }
 
 func (ms *meshsync) Deploy(force bool) error {
