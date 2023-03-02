@@ -34,6 +34,7 @@ type PolicyDefinitionDB struct {
 type PolicyFilter struct {
 	Kind    string
 	SubType string
+	ModelName string
 }
 
 func (pf *PolicyFilter) Create(m map[string]interface{}) {
@@ -64,6 +65,9 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 	}
 	if f.SubType != "" {
 		finder = finder.Where("policy_definition_dbs.sub_type = ?", f.SubType)
+	}
+	if f.ModelName != "" {
+		finder = finder.Where("models.name = ?", f.ModelName)
 	}
 	err := finder.Scan(&componentDefinitionsWithModel).Error
 	if err != nil {
