@@ -17,6 +17,11 @@ type ModelFilter struct {
 	Limit    int    //If 0 or  unspecified then all records are returned and limit is not used
 	Offset   int
 }
+type DocFormat string
+
+const (
+	HTMLFormat DocFormat = "HTMLFormat"
+)
 
 // swagger:response Model
 type Model struct {

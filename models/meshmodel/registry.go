@@ -50,6 +50,7 @@ func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 // ComponentDefinitions and PolicyDefinitions are examples of entities
 type Entity interface {
 	Type() types.CapabilityType
+	Doc(v1alpha1.DocFormat, *database.Handler) string
 	GetID() uuid.UUID
 }
 

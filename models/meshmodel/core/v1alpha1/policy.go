@@ -49,7 +49,10 @@ func (p PolicyDefinition) GetID() uuid.UUID {
 func (p PolicyDefinition) Type() types.CapabilityType {
 	return types.PolicyDefinition
 }
-
+func (p PolicyDefinition) Doc(f DocFormat, db *database.Handler) string {
+	//TODO: Add doc
+	return ""
+}
 func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefinition) {
 	type componentDefinitionWithModel struct {
 		PolicyDefinitionDB

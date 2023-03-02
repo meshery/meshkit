@@ -22,9 +22,32 @@ type RelationshipDefinition struct {
 	Model     Model                  `json:"model"`
 	Metadata  map[string]interface{} `json:"metadata" yaml:"metadata"`
 	SubType   string                 `json:"subType" yaml:"subType" gorm:"subType"`
-	Selectors map[string]interface{} `json:"selectors" yaml:"selectors"`
+	Selectors RelationshipSelector   `json:"selectors" yaml:"selectors"`
 	CreatedAt time.Time              `json:"-"`
 	UpdatedAt time.Time              `json:"-"`
+}
+type RelationshipSelector struct {
+	Allow struct {
+		From []struct {
+			Kind  string `json:"kind"`
+			Model string `json:"model"`
+		} `json:"from"`
+		To []struct {
+			Kind  string `json:"kind"`
+			Model string `json:"model"`
+		} `json:"to"`
+	} `json:"allow"`
+
+	Deny struct {
+		From []struct {
+			Kind  string `json:"kind"`
+			Model string `json:"model"`
+		} `json:"from"`
+		To []struct {
+			Kind  string `json:"kind"`
+			Model string `json:"model"`
+		} `json:"to"`
+	} `json:"deny"`
 }
 
 type RelationshipDefinitionDB struct {
@@ -113,9 +136,6 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r Relat
 		r.Metadata = make(map[string]interface{})
 	}
 	_ = json.Unmarshal(rdb.Metadata, &r.Metadata)
-	if r.Selectors == nil {
-		r.Selectors = make(map[string]interface{})
-	}
 	_ = json.Unmarshal(rdb.Selectors, &r.Selectors)
 	r.SubType = rdb.SubType
 	r.Kind = rdb.Kind
@@ -125,6 +145,10 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r Relat
 
 func (r RelationshipDefinition) Type() types.CapabilityType {
 	return types.RelationshipDefinition
+}
+func (r RelationshipDefinition) Doc(f DocFormat, db *database.Handler) string {
+	//TODO: add doc
+	return ""
 }
 func (r RelationshipDefinition) GetID() uuid.UUID {
 	return r.ID
