@@ -61,7 +61,7 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 		Select("policy_definition_dbs.*, models.*").
 		Joins("JOIN models ON models.id = policy_definition_dbs.model_id")
 	if f.Kind != "" {
-		finder = finder.Where("policy_definition_dbs.type = ?", f.Kind)
+		finder = finder.Where("policy_definition_dbs.kind = ?", f.Kind)
 	}
 	if f.SubType != "" {
 		finder = finder.Where("policy_definition_dbs.sub_type = ?", f.SubType)
