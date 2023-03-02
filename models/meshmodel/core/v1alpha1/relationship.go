@@ -28,28 +28,20 @@ type RelationshipDefinition struct {
 }
 type RelationshipSelector struct {
 	Allow struct {
-		From []struct {
-			Kind  string `json:"kind"`
-			Model string `json:"model"`
-		} `json:"from"`
-		To []struct {
-			Kind  string `json:"kind"`
-			Model string `json:"model"`
-		} `json:"to"`
+		From []RelationshipKindModelFilter `json:"from"`
+		To   []RelationshipKindModelFilter `json:"to"`
 	} `json:"allow"`
 
 	Deny struct {
-		From []struct {
-			Kind  string `json:"kind"`
-			Model string `json:"model"`
-		} `json:"from"`
-		To []struct {
-			Kind  string `json:"kind"`
-			Model string `json:"model"`
-		} `json:"to"`
+		From []RelationshipKindModelFilter `json:"from"`
+		To   []RelationshipKindModelFilter `json:"to"`
 	} `json:"deny"`
 }
 
+type RelationshipKindModelFilter struct {
+	Kind  string `json:"kind"`
+	Model string `json:"model"`
+}
 type RelationshipDefinitionDB struct {
 	ID      uuid.UUID `json:"-"`
 	ModelID uuid.UUID `json:"-" gorm:"modelID"`
@@ -65,15 +57,19 @@ type RelationshipDefinitionDB struct {
 // In the future, we will add support to query using `selectors` (using CUE)
 // TODO: Add support for Model
 type RelationshipFilter struct {
-	Kind      string
-	Greedy    bool //when set to true - instead of an exact match, kind will be prefix matched
-	SubType   string
-	Version   string
-	ModelName string
-	OrderOn   string
-	Sort      string //asc or desc. Default behavior is asc
-	Limit     int    //If 0 or  unspecified then all records are returned and limit is not used
-	Offset    int
+	Kind        string
+	Greedy      bool //when set to true - instead of an exact match, kind will be prefix matched
+	SubType     string
+	Version     string
+	AllowedFrom []RelationshipKindModelFilter
+	AllowedTo   []RelationshipKindModelFilter
+	DeniedFrom  []RelationshipKindModelFilter
+	DeniedTo    []RelationshipKindModelFilter
+	ModelName   string
+	OrderOn     string
+	Sort        string //asc or desc. Default behavior is asc
+	Limit       int    //If 0 or  unspecified then all records are returned and limit is not used
+	Offset      int
 }
 
 // Create the filter from map[string]interface{}

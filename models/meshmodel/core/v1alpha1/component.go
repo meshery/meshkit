@@ -55,8 +55,41 @@ func (c ComponentDefinition) Type() types.CapabilityType {
 func (c ComponentDefinition) Doc(f DocFormat, db *database.Handler) (doc string) {
 	switch f {
 	case HTMLFormat:
-		data := fmt.Sprintf("%s supports following relationships: ", c.Kind)
-		//Todo: Scan registry to get relationships for the given c.Kind and c.Model
+		data := fmt.Sprintf("%s supports following relationships: \n\t", c.Kind)
+		allowedFromRD := GetMeshModelRelationship(db, RelationshipFilter{
+			AllowedFrom: []RelationshipKindModelFilter{
+				{
+					Kind:  c.Kind,
+					Model: c.Model.Name,
+				},
+			},
+		})
+		for _, ard := range allowedFromRD {
+			for _, ar := range ard.Selectors.Allow.To {
+				if ar.Kind != "" {
+					data += fmt.Sprintf("%s from %s to %s\n", ard.Kind, c.Kind, ar.Kind)
+				} else {
+					data += fmt.Sprintf("%s from %s to all components in model %s\n", ard.Kind, c.Kind, ar.Model)
+				}
+			}
+		}
+		allowedToRD := GetMeshModelRelationship(db, RelationshipFilter{
+			AllowedFrom: []RelationshipKindModelFilter{
+				{
+					Kind:  c.Kind,
+					Model: c.Model.Name,
+				},
+			},
+		})
+		for _, ard := range allowedToRD {
+			for _, ar := range ard.Selectors.Allow.From {
+				if ar.Kind != "" {
+					data += fmt.Sprintf("%s from %s to %s\n", ard.Kind, ar.Kind, c.Kind)
+				} else {
+					data += fmt.Sprintf("%s from all components in model %s to %s\n", ar.Model, ar.Kind, c.Kind)
+				}
+			}
+		}
 		data += fmt.Sprintf("\n%s supports following policies: ", c.Kind)
 		//Todo: Scan registry to get policies for the given c.Kind and c.Model
 		doc = fmt.Sprintf(`

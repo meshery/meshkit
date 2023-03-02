@@ -183,6 +183,19 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 		return nil
 	}
 }
+
+func (rm *RegistryManager) GetEntityDoc(f types.Filter) string {
+	switch filter := f.(type) {
+	case *v1alpha1.ComponentFilter:
+		comps := v1alpha1.GetMeshModelComponents(rm.db, *filter)
+		if len(comps) == 0 {
+			return ""
+		}
+		return comps[0].Doc(v1alpha1.HTMLFormat, rm.db)
+	default:
+		return ""
+	}
+}
 func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
 	var mod []v1alpha1.Model
 	finder := rm.db.Model(&mod)
