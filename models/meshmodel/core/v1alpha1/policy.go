@@ -32,8 +32,8 @@ type PolicyDefinitionDB struct {
 }
 
 type PolicyFilter struct {
-	Kind    string
-	SubType string
+	Kind      string
+	SubType   string
 	ModelName string
 }
 
