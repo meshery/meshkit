@@ -70,11 +70,11 @@ func (c ComponentDefinition) Doc(f DocFormat, db *database.Handler) (doc string)
 		for _, ard := range allowedFromRD {
 			for _, ar := range ard.Selectors.Allow.To {
 				if ar.Kind != "" {
-					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to %s
-					</li>`, ard.Kind, c.Kind, ar.Kind)
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to %s of subtype %s
+					</li>`, ard.Kind, c.Kind, ar.Kind, ard.SubType)
 				} else {
-					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to all components in model %s
-					</li>`, ard.Kind, c.Kind, ar.Model)
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to all components in model %s of subtype %s
+					</li>`, ard.Kind, c.Kind, ar.Model, ard.SubType)
 				}
 			}
 		}
@@ -92,11 +92,11 @@ func (c ComponentDefinition) Doc(f DocFormat, db *database.Handler) (doc string)
 		for _, ard := range allowedToRD {
 			for _, ar := range ard.Selectors.Allow.From {
 				if ar.Kind != "" {
-					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to %s
-					</li>`, ard.Kind, ar.Kind, c.Kind)
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to %s of subtype %s
+					</li>`, ard.Kind, ar.Kind, c.Kind, ard.SubType)
 				} else {
-					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from all components in model %s to %s
-					</li>`, ard.Kind, ar.Model, c.Kind)
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from all components in model %s to %s of subtype %s
+					</li>`, ard.Kind, ar.Model, c.Kind, ard.SubType)
 				}
 			}
 		}
