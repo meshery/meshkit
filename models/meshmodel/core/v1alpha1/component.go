@@ -55,7 +55,7 @@ func (c ComponentDefinition) Type() types.CapabilityType {
 func (c ComponentDefinition) Doc(f DocFormat, db *database.Handler) (doc string) {
 	switch f {
 	case HTMLFormat:
-		data := fmt.Sprintf("%s supports following relationships: \n\t", c.Kind)
+		data := fmt.Sprintf("%s supports following relationships:", c.Kind)
 		allowedFromRD := GetMeshModelRelationship(db, RelationshipFilter{
 			AllowedFrom: []RelationshipKindModelFilter{
 				{
@@ -64,32 +64,46 @@ func (c ComponentDefinition) Doc(f DocFormat, db *database.Handler) (doc string)
 				},
 			},
 		})
+		data += "<ul>"
+		data += "All other relationships not described here are implicitly denied (not allowed)\n"
+		ardkindmap := make(map[string]string)
 		for _, ard := range allowedFromRD {
 			for _, ar := range ard.Selectors.Allow.To {
 				if ar.Kind != "" {
-					data += fmt.Sprintf("%s from %s to %s\n", ard.Kind, c.Kind, ar.Kind)
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to %s
+					</li>`, ard.Kind, c.Kind, ar.Kind)
 				} else {
-					data += fmt.Sprintf("%s from %s to all components in model %s\n", ard.Kind, c.Kind, ar.Model)
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to all components in model %s
+					</li>`, ard.Kind, c.Kind, ar.Model)
 				}
 			}
 		}
+		data += "</ul>"
+
 		allowedToRD := GetMeshModelRelationship(db, RelationshipFilter{
-			AllowedFrom: []RelationshipKindModelFilter{
+			AllowedTo: []RelationshipKindModelFilter{
 				{
 					Kind:  c.Kind,
 					Model: c.Model.Name,
 				},
 			},
 		})
+		data += "<ul>"
 		for _, ard := range allowedToRD {
 			for _, ar := range ard.Selectors.Allow.From {
 				if ar.Kind != "" {
-					data += fmt.Sprintf("%s from %s to %s\n", ard.Kind, ar.Kind, c.Kind)
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to %s
+					</li>`, ard.Kind, ar.Kind, c.Kind)
 				} else {
-					data += fmt.Sprintf("%s from all components in model %s to %s\n", ar.Model, ar.Kind, c.Kind)
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from all components in model %s to %s
+					</li>`, ard.Kind, ar.Model, c.Kind)
 				}
 			}
 		}
+		for kind, content := range ardkindmap {
+			data += fmt.Sprintf("%s: %s", kind, content)
+		}
+		data += "</ul>"
 		data += fmt.Sprintf("\n%s supports following policies: ", c.Kind)
 		//Todo: Scan registry to get policies for the given c.Kind and c.Model
 		doc = fmt.Sprintf(`

@@ -120,11 +120,36 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 		fmt.Println(err.Error()) //for debugging
 	}
 	for _, cm := range componentDefinitionsWithModel {
-		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.Model))
+		rd := cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.Model)
+		if f.AllowedFrom != nil && !matchRelationship(f.AllowedFrom, rd.Selectors.Allow.From) {
+			continue
+		}
+		if f.AllowedTo != nil && !matchRelationship(f.AllowedTo, rd.Selectors.Allow.To) {
+			continue
+		}
+		r = append(r, rd)
 	}
 	return r
 }
 
+// Checks if all the kind-model pair passed in "src" are present inside "tocheck" or not
+func matchRelationship(src []RelationshipKindModelFilter, tocheck []RelationshipKindModelFilter) bool {
+	counter := len(src)
+	for _, t := range tocheck {
+		for _, s := range src {
+			if t.Kind == s.Kind && t.Model == s.Model {
+				counter--
+			}
+			if counter == 0 {
+				return true
+			}
+		}
+	}
+	if counter == 0 {
+		return true
+	}
+	return false
+}
 func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r RelationshipDefinition) {
 	r.ID = rdb.ID
 	r.TypeMeta = rdb.TypeMeta
