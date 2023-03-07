@@ -67,6 +67,10 @@ func New(appname string, opts Options) (Handler, error) {
 }
 
 func (l *Logger) Error(err error) {
+	if err == nil {
+		return
+	}
+
 	l.handler.WithFields(logrus.Fields{
 		"code":                  errors.GetCode(err),
 		"severity":              errors.GetSeverity(err),
@@ -89,6 +93,10 @@ func (l *Logger) Debug(description ...interface{}) {
 }
 
 func (l *Logger) Warn(err error) {
+	if err == nil {
+		return
+	}
+
 	l.handler.WithFields(logrus.Fields{
 		"code":                  errors.GetCode(err),
 		"severity":              errors.GetSeverity(err),
