@@ -186,11 +186,20 @@ func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
 	var mod []v1alpha1.Model
 	finder := rm.db.Model(&mod)
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
-		if mf.Name != "" {
-			if mf.Greedy {
+		if mf.Greedy {
+			if mf.Name != "" && mf.DisplayName != "" {
+				finder = finder.Where("name LIKE ? OR display_name LIKE ?", mf.Name+"%", mf.DisplayName+"%")
+			} else if mf.Name != "" {
 				finder = finder.Where("name LIKE ?", mf.Name+"%")
-			} else {
+			} else if mf.DisplayName != "" {
+				finder = finder.Where("display_name LIKE ?", mf.DisplayName+"%")
+			}
+		} else {
+			if mf.Name != "" {
 				finder = finder.Where("name = ?", mf.Name)
+			}
+			if mf.DisplayName != "" {
+				finder = finder.Where("display_name = ?", mf.DisplayName)
 			}
 		}
 		if mf.Version != "" {
