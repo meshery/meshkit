@@ -95,19 +95,29 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	finder := db.Model(&ComponentDefinitionDB{}).
 		Select("component_definition_dbs.*, models.*").
 		Joins("JOIN models ON component_definition_dbs.model_id = models.id") //
-	if f.Name != "" {
-		if f.Greedy {
+	if f.Greedy {
+		if f.Name != "" && f.DisplayName != "" {
+			finder = finder.Where("component_definition_dbs.kind LIKE ? OR component_definition_dbs.display_name LIKE ?", f.Name+"%", f.DisplayName+"%")
+		} else if f.Name != "" {
 			finder = finder.Where("component_definition_dbs.kind LIKE ?", f.Name+"%")
-		} else {
+		} else if f.DisplayName != "" {
+			finder = finder.Where("component_definition_dbs.display_name LIKE ?", f.DisplayName+"%")
+		}
+	} else {
+		if f.Name != "" {
 			finder = finder.Where("component_definition_dbs.kind = ?", f.Name)
 		}
+		if f.DisplayName != "" {
+			finder = finder.Where("component_definition_dbs.display_name = ?", f.DisplayName)
+		}
+	}
+	if f.ModelName != "" && f.ModelName != "all" {
+		finder = finder.Where("models.name = ?", f.ModelName)
 	}
 	if f.APIVersion != "" {
 		finder = finder.Where("component_definition_dbs.api_version = ?", f.APIVersion)
 	}
-	if f.ModelName != "" {
-		finder = finder.Where("models.name = ?", f.ModelName)
-	}
+
 	if f.Version != "" {
 		finder = finder.Where("models.version = ?", f.Version)
 	}
@@ -134,15 +144,16 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 }
 
 type ComponentFilter struct {
-	Name       string
-	APIVersion string
-	Greedy     bool //when set to true - instead of an exact match, name will be prefix matched
-	ModelName  string
-	Version    string
-	Sort       string //asc or desc. Default behavior is asc
-	OrderOn    string
-	Limit      int //If 0 or  unspecified then all records are returned and limit is not used
-	Offset     int
+	Name        string
+	APIVersion  string
+	Greedy      bool //when set to true - instead of an exact match, name will be prefix matched
+	DisplayName string
+	ModelName   string
+	Version     string
+	Sort        string //asc or desc. Default behavior is asc
+	OrderOn     string
+	Limit       int //If 0 or  unspecified then all records are returned and limit is not used
+	Offset      int
 }
 
 // Create the filter from map[string]interface{}
