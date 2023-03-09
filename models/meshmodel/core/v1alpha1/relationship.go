@@ -147,7 +147,8 @@ func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UU
 	if model.ID == tempModelID || err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
 		model = r.Model
 		model.ID = modelID
-		err = db.Create(&model).Error
+		mdb := model.GetModelDB()
+		err = db.Create(&mdb).Error
 		if err != nil {
 			modelCreationLock.Unlock()
 			return uuid.UUID{}, err

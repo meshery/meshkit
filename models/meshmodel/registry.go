@@ -183,7 +183,8 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 	}
 }
 func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
-	var mod []v1alpha1.Model
+	var mod []v1alpha1.ModelDB
+	var m []v1alpha1.Model
 	finder := rm.db.Model(&mod)
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Greedy {
@@ -223,7 +224,10 @@ func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
 		}
 	}
 	_ = finder.Find(&mod).Error
-	return mod
+	for _, modelDB := range mod {
+		m = append(m, modelDB.GetModel())
+	}
+	return m
 }
 func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	eID := e.GetID()

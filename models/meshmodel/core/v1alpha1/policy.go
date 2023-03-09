@@ -109,7 +109,8 @@ func CreatePolicy(db *database.Handler, p PolicyDefinition) (uuid.UUID, error) {
 	if model.ID == tempModelID || err == gorm.ErrRecordNotFound {
 		model = p.Model
 		model.ID = modelID
-		err = db.Create(&model).Error
+		mdb := model.GetModelDB()
+		err = db.Create(&mdb).Error
 		if err != nil {
 			modelCreationLock.Unlock()
 			return uuid.UUID{}, err

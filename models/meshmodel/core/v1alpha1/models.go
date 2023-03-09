@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/google/uuid"
@@ -21,12 +22,22 @@ type ModelFilter struct {
 
 // swagger:response Model
 type Model struct {
+	ID          uuid.UUID              `json:"-"`
+	Name        string                 `json:"name"`
+	Version     string                 `json:"version"`
+	DisplayName string                 `json:"modelDisplayName" gorm:"modelDisplayName"`
+	Category    string                 `json:"category"`
+	SubCategory string                 `json:"subCategory" gorm:"subCategory"`
+	Metadata    map[string]interface{} `json:"modelMetadata" yaml:"modelMetadata"`
+}
+type ModelDB struct {
 	ID          uuid.UUID `json:"-"`
 	Name        string    `json:"name"`
 	Version     string    `json:"version"`
 	DisplayName string    `json:"modelDisplayName" gorm:"modelDisplayName"`
 	Category    string    `json:"category"`
 	SubCategory string    `json:"subCategory" gorm:"subCategory"`
+	Metadata    []byte    `json:"modelMetadata" gorm:"modelMetadata"`
 }
 
 // Create the filter from map[string]interface{}
@@ -35,4 +46,28 @@ func (cf *ModelFilter) Create(m map[string]interface{}) {
 		return
 	}
 	cf.Name = m["name"].(string)
+}
+func (cmd *ModelDB) GetModel() (c Model) {
+	cmd.ID = c.ID
+	cmd.Category = c.Category
+	cmd.DisplayName = c.DisplayName
+	cmd.Name = c.Name
+	cmd.SubCategory = c.SubCategory
+	cmd.Version = c.Version
+	cmd.Metadata, _ = json.Marshal(c.Metadata)
+	if c.Metadata == nil {
+		c.Metadata = make(map[string]interface{})
+	}
+	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
+	return
+}
+func (c *Model) GetModelDB() (cmd ModelDB) {
+	cmd.ID = c.ID
+	cmd.Category = c.Category
+	cmd.DisplayName = c.DisplayName
+	cmd.Name = c.Name
+	cmd.SubCategory = c.SubCategory
+	cmd.Version = c.Version
+	cmd.Metadata, _ = json.Marshal(c.Metadata)
+	return
 }
