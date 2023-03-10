@@ -55,7 +55,7 @@ func (c ComponentDefinition) Type() types.CapabilityType {
 func (c ComponentDefinition) GetID() uuid.UUID {
 	return c.ID
 }
-func schemaValidationCheck(schema string) (valid bool) {
+func emptySchemaCheck(schema string) (valid bool) {
 	if schema == "" {
 		return
 	}
@@ -75,7 +75,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	if !schemaValidationCheck(c.Schema) {
+	if !emptySchemaCheck(c.Schema) {
 		c.Metadata["hasInvalidSchema"] = true
 	}
 	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
