@@ -46,7 +46,7 @@ func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error
 			comp.Metadata = make(map[string]interface{})
 		}
 		comp.Model.Version = pkg.Version
-		comp.Model.Name = pkg.Repository
+		comp.Model.Name = pkg.Name
 		comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)
 		components = append(components, comp)
 	}
@@ -87,6 +87,13 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	if !ok || chartUrl == "" {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
+	if !strings.HasPrefix(chartUrl, "http") {
+		if !strings.HasSuffix(pkg.RepoUrl, "/") {
+			pkg.RepoUrl = pkg.RepoUrl + "/"
+		}
+		chartUrl = fmt.Sprintf("%s%s", pkg.RepoUrl, chartUrl)
+	}
+	fmt.Println(pkg.Name, "==>", chartUrl)
 	pkg.ChartUrl = chartUrl
 	return nil
 }
