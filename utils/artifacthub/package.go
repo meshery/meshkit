@@ -93,7 +93,6 @@ func (pkg *AhPackage) UpdatePackageData() error {
 		}
 		chartUrl = fmt.Sprintf("%s%s", pkg.RepoUrl, chartUrl)
 	}
-	fmt.Println(pkg.Name, "==>", chartUrl)
 	pkg.ChartUrl = chartUrl
 	return nil
 }
