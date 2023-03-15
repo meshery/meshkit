@@ -216,7 +216,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1a
 			finder = finder.Where("version = ?", mf.Version)
 		}
 		if mf.Category != "" {
-			finder = finder.Where("category = ?", mf.Category)
+			finder = finder.Where("categoryName = ?", mf.Category)
 		}
 		if mf.OrderOn != "" {
 			if mf.Sort == "desc" {

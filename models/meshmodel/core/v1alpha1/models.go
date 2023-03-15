@@ -29,7 +29,6 @@ type Model struct {
 	Version     string                 `json:"version"`
 	DisplayName string                 `json:"modelDisplayName" gorm:"modelDisplayName"`
 	Category    Category               `json:"category"`
-	SubCategory string                 `json:"subCategory" gorm:"subCategory"`
 	Metadata    map[string]interface{} `json:"modelMetadata" yaml:"modelMetadata"`
 }
 type ModelDB struct {
@@ -80,7 +79,6 @@ func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 	c.Category = cat
 	c.DisplayName = cmd.DisplayName
 	c.Name = cmd.Name
-	c.SubCategory = cmd.SubCategory
 	c.Version = cmd.Version
 	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
 	return
@@ -89,7 +87,6 @@ func (c *Model) GetModelDB() (cmd ModelDB) {
 	cmd.ID = c.ID
 	cmd.DisplayName = c.DisplayName
 	cmd.Name = c.Name
-	cmd.SubCategory = c.SubCategory
 	cmd.Version = c.Version
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
 	return
