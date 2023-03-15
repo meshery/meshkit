@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -58,44 +57,27 @@ func (c ComponentDefinition) GetID() uuid.UUID {
 
 func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
 	c.ID = uuid.New()
-	tempModelID := uuid.New()
-	byt, err := json.Marshal(c.Model)
+	mid, err := CreateModel(db, c.Model)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var model Model
-	modelCreationLock.Lock()
-	err = db.First(&model, "id = ?", modelID).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return uuid.UUID{}, err
-	}
-	if model.ID == tempModelID || err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
-		model = c.Model
-		model.ID = modelID
-		mdb := model.GetModelDB()
-		err = db.Create(&mdb).Error
-		if err != nil {
-			modelCreationLock.Unlock()
-			return uuid.UUID{}, err
-		}
-	}
-	modelCreationLock.Unlock()
 	cdb := c.GetComponentDefinitionDB()
-	cdb.ModelID = model.ID
+	cdb.ModelID = mid
 	err = db.Create(&cdb).Error
 	return c.ID, err
 }
 func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
 	type componentDefinitionWithModel struct {
 		ComponentDefinitionDB
-		Model
+		ModelDB
+		CategoryDB
 	}
 
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&ComponentDefinitionDB{}).
-		Select("component_definition_dbs.*, models.*").
-		Joins("JOIN models ON component_definition_dbs.model_id = models.id") //
+		Select("component_definition_dbs.*, model_dbs.*").
+		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
 	if f.Greedy {
 		if f.Name != "" && f.DisplayName != "" {
 			finder = finder.Where("component_definition_dbs.kind LIKE ? OR component_definition_dbs.display_name LIKE ?", f.Name+"%", f.DisplayName+"%")
@@ -113,14 +95,14 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		}
 	}
 	if f.ModelName != "" && f.ModelName != "all" {
-		finder = finder.Where("models.name = ?", f.ModelName)
+		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
 	if f.APIVersion != "" {
 		finder = finder.Where("component_definition_dbs.api_version = ?", f.APIVersion)
 	}
 
 	if f.Version != "" {
-		finder = finder.Where("models.version = ?", f.Version)
+		finder = finder.Where("model_dbs.version = ?", f.Version)
 	}
 	if f.OrderOn != "" {
 		if f.Sort == "desc" {
@@ -139,7 +121,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		fmt.Println(err.Error()) //for debugging
 	}
 	for _, cm := range componentDefinitionsWithModel {
-		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.Model))
+		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
 	return c
 }

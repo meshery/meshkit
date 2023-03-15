@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -132,31 +131,12 @@ func (r RelationshipDefinition) GetID() uuid.UUID {
 
 func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UUID, error) {
 	r.ID = uuid.New()
-	tempModelID := uuid.New()
-	byt, err := json.Marshal(r.Model)
+	mid, err := CreateModel(db, r.Model)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var model Model
-	modelCreationLock.Lock()
-	err = db.First(&model, "id = ?", modelID).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return uuid.UUID{}, err
-	}
-	if model.ID == tempModelID || err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
-		model = r.Model
-		model.ID = modelID
-		mdb := model.GetModelDB()
-		err = db.Create(&mdb).Error
-		if err != nil {
-			modelCreationLock.Unlock()
-			return uuid.UUID{}, err
-		}
-	}
-	modelCreationLock.Unlock()
 	rdb := r.GetRelationshipDefinitionDB()
-	rdb.ModelID = model.ID
+	rdb.ModelID = mid
 	err = db.Create(&rdb).Error
 	if err != nil {
 		return uuid.UUID{}, err

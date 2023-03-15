@@ -73,7 +73,8 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&v1alpha1.ComponentDefinitionDB{},
 		&v1alpha1.RelationshipDefinitionDB{},
 		&v1alpha1.PolicyDefinitionDB{},
-		&v1alpha1.Model{},
+		&v1alpha1.ModelDB{},
+		&v1alpha1.Category{},
 	)
 	if err != nil {
 		return nil, err
@@ -85,7 +86,8 @@ func (rm *RegistryManager) Cleanup() {
 		&Registry{},
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
-		&v1alpha1.Model{},
+		&v1alpha1.ModelDB{},
+		&v1alpha1.Category{},
 		&v1alpha1.RelationshipDefinitionDB{},
 	)
 }
@@ -182,10 +184,17 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 		return nil
 	}
 }
-func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
-	var mod []v1alpha1.ModelDB
+func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1alpha1.Model {
 	var m []v1alpha1.Model
-	finder := rm.db.Model(&mod)
+	type modelWithCategories struct {
+		v1alpha1.ModelDB
+		v1alpha1.CategoryDB
+	}
+
+	var modelWithCategoriess []modelWithCategories
+	finder := db.Model(&v1alpha1.ModelDB{}).
+		Select("models.*, category_dbs.*").
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Greedy {
 			if mf.Name != "" && mf.DisplayName != "" {
@@ -223,9 +232,13 @@ func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
 			finder = finder.Offset(mf.Offset)
 		}
 	}
-	_ = finder.Find(&mod).Error
-	for _, modelDB := range mod {
-		m = append(m, modelDB.GetModel())
+	err := finder.
+		Scan(&modelWithCategoriess).Error
+	if err != nil {
+		fmt.Println(err.Error()) //for debugging
+	}
+	for _, modelDB := range modelWithCategoriess {
+		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
 	return m
 }
