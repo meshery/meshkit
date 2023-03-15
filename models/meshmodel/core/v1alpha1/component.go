@@ -32,7 +32,7 @@ type ComponentDefinition struct {
 	Format      ComponentFormat        `json:"format" yaml:"format"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
 	Model       Model                  `json:"model"`
-	Schema      string                 `json:"schema" yaml:"schema"`
+	Schema      string                 `json:"schema,omitempty" yaml:"schema"`
 	CreatedAt   time.Time              `json:"-"`
 	UpdatedAt   time.Time              `json:"-"`
 }
@@ -43,7 +43,7 @@ type ComponentDefinitionDB struct {
 	DisplayName string          `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat `json:"format" yaml:"format"`
 	Metadata    []byte          `json:"metadata" yaml:"metadata"`
-	Schema      string          `json:"schema" yaml:"schema"`
+	Schema      string          `json:"schema,omitempty" yaml:"schema"`
 	CreatedAt   time.Time       `json:"-"`
 	UpdatedAt   time.Time       `json:"-"`
 }
@@ -54,12 +54,26 @@ func (c ComponentDefinition) Type() types.CapabilityType {
 func (c ComponentDefinition) GetID() uuid.UUID {
 	return c.ID
 }
-
+func emptySchemaCheck(schema string) (valid bool) {
+	if schema == "" {
+		return
+	}
+	m := make(map[string]interface{})
+	_ = json.Unmarshal([]byte(schema), &m)
+	if m["properties"] == nil {
+		return
+	}
+	valid = true
+	return
+}
 func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
 	c.ID = uuid.New()
 	mid, err := CreateModel(db, c.Model)
 	if err != nil {
 		return uuid.UUID{}, err
+	}
+	if !emptySchemaCheck(c.Schema) {
+		c.Metadata["hasInvalidSchema"] = true
 	}
 	cdb := c.GetComponentDefinitionDB()
 	cdb.ModelID = mid
@@ -121,8 +135,12 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		fmt.Println(err.Error()) //for debugging
 	}
 	for _, cm := range componentDefinitionsWithModel {
+		if f.Trim {
+			cm.Schema = ""
+		}
 		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
+
 	return c
 }
 
@@ -130,6 +148,7 @@ type ComponentFilter struct {
 	Name        string
 	APIVersion  string
 	Greedy      bool //when set to true - instead of an exact match, name will be prefix matched
+	Trim        bool //when set to true - the schema is not returned
 	DisplayName string
 	ModelName   string
 	Version     string
