@@ -74,7 +74,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&v1alpha1.RelationshipDefinitionDB{},
 		&v1alpha1.PolicyDefinitionDB{},
 		&v1alpha1.ModelDB{},
-		&v1alpha1.Category{},
+		&v1alpha1.CategoryDB{},
 	)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (rm *RegistryManager) Cleanup() {
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
 		&v1alpha1.ModelDB{},
-		&v1alpha1.Category{},
+		&v1alpha1.CategoryDB{},
 		&v1alpha1.RelationshipDefinitionDB{},
 	)
 }
