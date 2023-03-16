@@ -27,9 +27,9 @@ type Model struct {
 	ID          uuid.UUID              `json:"-"`
 	Name        string                 `json:"name"`
 	Version     string                 `json:"version"`
-	DisplayName string                 `json:"modelDisplayName" gorm:"modelDisplayName"`
+	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
 	Category    Category               `json:"category"`
-	Metadata    map[string]interface{} `json:"modelMetadata" yaml:"modelMetadata"`
+	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
 }
 type ModelDB struct {
 	ID          uuid.UUID `json:"-"`
@@ -55,16 +55,21 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 		return uuid.UUID{}, err
 	}
 	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var model Model
+	var model ModelDB
 	modelCreationLock.Lock()
 	err = db.First(&model, "id = ?", modelID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
 	}
 	if err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
-		model = cmodel
-		model.ID = modelID
-		mdb := model.GetModelDB()
+		id, err := CreateCategory(db, cmodel.Category)
+		if err != nil {
+			modelCreationLock.Unlock()
+			return uuid.UUID{}, err
+		}
+		cmodel.ID = modelID
+		mdb := cmodel.GetModelDB()
+		mdb.CategoryID = id
 		err = db.Create(&mdb).Error
 		if err != nil {
 			modelCreationLock.Unlock()

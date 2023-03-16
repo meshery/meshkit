@@ -193,7 +193,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1a
 
 	var modelWithCategoriess []modelWithCategories
 	finder := db.Model(&v1alpha1.ModelDB{}).
-		Select("models.*, category_dbs.*").
+		Select("model_dbs.*, category_dbs.*").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Greedy {
@@ -216,7 +216,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1a
 			finder = finder.Where("version = ?", mf.Version)
 		}
 		if mf.Category != "" {
-			finder = finder.Where("categoryName = ?", mf.Category)
+			finder = finder.Where("category_dbs.name = ?", mf.Category)
 		}
 		if mf.OrderOn != "" {
 			if mf.Sort == "desc" {

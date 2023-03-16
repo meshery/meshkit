@@ -13,12 +13,12 @@ var categoryCreationLock sync.Mutex //Each model will perform a check and if the
 type Category struct {
 	ID       uuid.UUID              `json:"-"`
 	Name     string                 `json:"name"`
-	Metadata map[string]interface{} `json:"modelMetadata" yaml:"modelMetadata"`
+	Metadata map[string]interface{} `json:"metadata" yaml:"metadata"`
 }
 type CategoryDB struct {
 	ID       uuid.UUID `json:"-"`
 	Name     string    `json:"categoryName"`
-	Metadata []byte    `json:"categoryMetadata" gorm:"modelMetadata"`
+	Metadata []byte    `json:"categoryMetadata" gorm:"categoryMetadata"`
 }
 
 func CreateCategory(db *database.Handler, cat Category) (uuid.UUID, error) {
@@ -27,16 +27,16 @@ func CreateCategory(db *database.Handler, cat Category) (uuid.UUID, error) {
 		return uuid.UUID{}, err
 	}
 	catID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var category Category
+	var category CategoryDB
 	categoryCreationLock.Lock()
 	err = db.First(&category, "id = ?", catID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
 	}
 	if err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
-		category.ID = catID
-		mdb := cat.GetCategoryDB(db)
-		err = db.Create(&mdb).Error
+		cat.ID = catID
+		catdb := cat.GetCategoryDB(db)
+		err = db.Create(&catdb).Error
 		if err != nil {
 			modelCreationLock.Unlock()
 			return uuid.UUID{}, err

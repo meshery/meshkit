@@ -61,12 +61,14 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []RelationshipDefinition) {
 	type componentDefinitionWithModel struct {
 		RelationshipDefinitionDB
-		Model
+		ModelDB
+		CategoryDB
 	}
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&RelationshipDefinitionDB{}).
-		Select("relationship_definition_dbs.*, models.*").
-		Joins("JOIN models ON relationship_definition_dbs.model_id = models.id") //
+		Select("relationship_definition_dbs.*, model_dbs.*").
+		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id"). //
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")           //
 	if f.Kind != "" {
 		if f.Greedy {
 			finder = finder.Where("relationship_definition_dbs.kind LIKE ?", f.Kind)
@@ -78,10 +80,10 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 		finder = finder.Where("relationship_definition_dbs.sub_type = ?", f.SubType)
 	}
 	if f.ModelName != "" {
-		finder = finder.Where("models.name = ?", f.ModelName)
+		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
 	if f.Version != "" {
-		finder = finder.Where("models.version = ?", f.Version)
+		finder = finder.Where("model_dbs.version = ?", f.Version)
 	}
 	if f.OrderOn != "" {
 		if f.Sort == "desc" {
@@ -100,7 +102,7 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 		fmt.Println(err.Error()) //for debugging
 	}
 	for _, cm := range componentDefinitionsWithModel {
-		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.Model))
+		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
 	return r
 }
