@@ -52,6 +52,69 @@ type ComponentDefinitionDB struct {
 func (c ComponentDefinition) Type() types.CapabilityType {
 	return types.ComponentDefinition
 }
+func (c ComponentDefinition) Doc(f DocFormat, db *database.Handler) (doc string) {
+	switch f {
+	case HTMLFormat:
+		data := fmt.Sprintf("%s supports following relationships:", c.Kind)
+		allowedFromRD := GetMeshModelRelationship(db, RelationshipFilter{
+			AllowedFrom: []RelationshipKindModelFilter{
+				{
+					Kind:  c.Kind,
+					Model: c.Model.Name,
+				},
+			},
+		})
+		data += "<ul>"
+		data += "All other relationships not described here are implicitly denied (not allowed)\n"
+		ardkindmap := make(map[string]string)
+		for _, ard := range allowedFromRD {
+			for _, ar := range ard.Selectors.Allow.To {
+				if ar.Kind != "" {
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to %s of subtype %s
+					</li>`, ard.Kind, c.Kind, ar.Kind, ard.SubType)
+				} else {
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to all components in model %s of subtype %s
+					</li>`, ard.Kind, c.Kind, ar.Model, ard.SubType)
+				}
+			}
+		}
+		data += "</ul>"
+
+		allowedToRD := GetMeshModelRelationship(db, RelationshipFilter{
+			AllowedTo: []RelationshipKindModelFilter{
+				{
+					Kind:  c.Kind,
+					Model: c.Model.Name,
+				},
+			},
+		})
+		data += "<ul>"
+		for _, ard := range allowedToRD {
+			for _, ar := range ard.Selectors.Allow.From {
+				if ar.Kind != "" {
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from %s to %s of subtype %s
+					</li>`, ard.Kind, ar.Kind, c.Kind, ard.SubType)
+				} else {
+					ardkindmap[ard.Kind] += fmt.Sprintf(`<li>%s from all components in model %s to %s of subtype %s
+					</li>`, ard.Kind, ar.Model, c.Kind, ard.SubType)
+				}
+			}
+		}
+		for kind, content := range ardkindmap {
+			data += fmt.Sprintf("%s: %s", kind, content)
+		}
+		data += "</ul>"
+		data += fmt.Sprintf("\n%s supports following policies: ", c.Kind)
+		//Todo: Scan registry to get policies for the given c.Kind and c.Model
+		doc = fmt.Sprintf(`
+		<html>
+		%s
+		</html>
+		`, data)
+	}
+	return doc
+}
+
 func (c ComponentDefinition) GetID() uuid.UUID {
 	return c.ID
 }

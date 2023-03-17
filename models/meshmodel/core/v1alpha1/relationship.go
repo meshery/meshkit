@@ -22,11 +22,26 @@ type RelationshipDefinition struct {
 	Model     Model                  `json:"model"`
 	Metadata  map[string]interface{} `json:"metadata" yaml:"metadata"`
 	SubType   string                 `json:"subType" yaml:"subType" gorm:"subType"`
-	Selectors map[string]interface{} `json:"selectors" yaml:"selectors"`
+	Selectors RelationshipSelector   `json:"selectors" yaml:"selectors"`
 	CreatedAt time.Time              `json:"-"`
 	UpdatedAt time.Time              `json:"-"`
 }
+type RelationshipSelector struct {
+	Allow struct {
+		From []RelationshipKindModelFilter `json:"from"`
+		To   []RelationshipKindModelFilter `json:"to"`
+	} `json:"allow"`
 
+	Deny struct {
+		From []RelationshipKindModelFilter `json:"from"`
+		To   []RelationshipKindModelFilter `json:"to"`
+	} `json:"deny"`
+}
+
+type RelationshipKindModelFilter struct {
+	Kind  string `json:"kind"`
+	Model string `json:"model"`
+}
 type RelationshipDefinitionDB struct {
 	ID      uuid.UUID `json:"-"`
 	ModelID uuid.UUID `json:"-" gorm:"modelID"`
@@ -42,15 +57,19 @@ type RelationshipDefinitionDB struct {
 // In the future, we will add support to query using `selectors` (using CUE)
 // TODO: Add support for Model
 type RelationshipFilter struct {
-	Kind      string
-	Greedy    bool //when set to true - instead of an exact match, kind will be prefix matched
-	SubType   string
-	Version   string
-	ModelName string
-	OrderOn   string
-	Sort      string //asc or desc. Default behavior is asc
-	Limit     int    //If 0 or  unspecified then all records are returned and limit is not used
-	Offset    int
+	Kind        string
+	Greedy      bool //when set to true - instead of an exact match, kind will be prefix matched
+	SubType     string
+	Version     string
+	AllowedFrom []RelationshipKindModelFilter
+	AllowedTo   []RelationshipKindModelFilter
+	DeniedFrom  []RelationshipKindModelFilter
+	DeniedTo    []RelationshipKindModelFilter
+	ModelName   string
+	OrderOn     string
+	Sort        string //asc or desc. Default behavior is asc
+	Limit       int    //If 0 or  unspecified then all records are returned and limit is not used
+	Offset      int
 }
 
 // Create the filter from map[string]interface{}
@@ -101,11 +120,36 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 		fmt.Println(err.Error()) //for debugging
 	}
 	for _, cm := range componentDefinitionsWithModel {
-		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.Model))
+		rd := cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.Model)
+		if f.AllowedFrom != nil && !matchRelationship(f.AllowedFrom, rd.Selectors.Allow.From) {
+			continue
+		}
+		if f.AllowedTo != nil && !matchRelationship(f.AllowedTo, rd.Selectors.Allow.To) {
+			continue
+		}
+		r = append(r, rd)
 	}
 	return r
 }
 
+// Checks if all the kind-model pair passed in "src" are present inside "tocheck" or not
+func matchRelationship(src []RelationshipKindModelFilter, tocheck []RelationshipKindModelFilter) bool {
+	counter := len(src)
+	for _, t := range tocheck {
+		for _, s := range src {
+			if t.Kind == s.Kind && t.Model == s.Model {
+				counter--
+			}
+			if counter == 0 {
+				return true
+			}
+		}
+	}
+	if counter == 0 {
+		return true
+	}
+	return false
+}
 func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r RelationshipDefinition) {
 	r.ID = rdb.ID
 	r.TypeMeta = rdb.TypeMeta
@@ -113,9 +157,6 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r Relat
 		r.Metadata = make(map[string]interface{})
 	}
 	_ = json.Unmarshal(rdb.Metadata, &r.Metadata)
-	if r.Selectors == nil {
-		r.Selectors = make(map[string]interface{})
-	}
 	_ = json.Unmarshal(rdb.Selectors, &r.Selectors)
 	r.SubType = rdb.SubType
 	r.Kind = rdb.Kind
@@ -125,6 +166,10 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r Relat
 
 func (r RelationshipDefinition) Type() types.CapabilityType {
 	return types.RelationshipDefinition
+}
+func (r RelationshipDefinition) Doc(f DocFormat, db *database.Handler) string {
+	//TODO: add doc
+	return ""
 }
 func (r RelationshipDefinition) GetID() uuid.UUID {
 	return r.ID

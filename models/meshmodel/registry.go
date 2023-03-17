@@ -50,6 +50,7 @@ func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 // ComponentDefinitions and PolicyDefinitions are examples of entities
 type Entity interface {
 	Type() types.CapabilityType
+	Doc(v1alpha1.DocFormat, *database.Handler) string
 	GetID() uuid.UUID
 }
 
@@ -180,6 +181,19 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 		return en
 	default:
 		return nil
+	}
+}
+
+func (rm *RegistryManager) GetEntityDoc(f types.Filter) string {
+	switch filter := f.(type) {
+	case *v1alpha1.ComponentFilter:
+		comps := v1alpha1.GetMeshModelComponents(rm.db, *filter)
+		if len(comps) == 0 {
+			return ""
+		}
+		return comps[0].Doc(v1alpha1.HTMLFormat, rm.db)
+	default:
+		return ""
 	}
 }
 func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
