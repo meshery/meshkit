@@ -198,22 +198,22 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1a
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Greedy {
 			if mf.Name != "" && mf.DisplayName != "" {
-				finder = finder.Where("name LIKE ? OR display_name LIKE ?", mf.Name+"%", mf.DisplayName+"%")
+				finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", mf.Name+"%", mf.DisplayName+"%")
 			} else if mf.Name != "" {
-				finder = finder.Where("name LIKE ?", mf.Name+"%")
+				finder = finder.Where("model_dbs.name LIKE ?", mf.Name+"%")
 			} else if mf.DisplayName != "" {
-				finder = finder.Where("display_name LIKE ?", mf.DisplayName+"%")
+				finder = finder.Where("model_dbs.display_name LIKE ?", mf.DisplayName+"%")
 			}
 		} else {
 			if mf.Name != "" {
-				finder = finder.Where("name = ?", mf.Name)
+				finder = finder.Where("model_dbs.name = ?", mf.Name)
 			}
 			if mf.DisplayName != "" {
-				finder = finder.Where("display_name = ?", mf.DisplayName)
+				finder = finder.Where("model_dbs.display_name = ?", mf.DisplayName)
 			}
 		}
 		if mf.Version != "" {
-			finder = finder.Where("version = ?", mf.Version)
+			finder = finder.Where("model_dbs.version = ?", mf.Version)
 		}
 		if mf.Category != "" {
 			finder = finder.Where("category_dbs.name = ?", mf.Category)
@@ -235,6 +235,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1a
 	err := finder.
 		Scan(&modelWithCategoriess).Error
 	if err != nil {
+		fmt.Println(modelWithCategoriess)
 		fmt.Println(err.Error()) //for debugging
 	}
 	for _, modelDB := range modelWithCategoriess {

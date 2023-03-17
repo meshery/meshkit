@@ -17,7 +17,7 @@ type Category struct {
 }
 type CategoryDB struct {
 	ID       uuid.UUID `json:"-"`
-	Name     string    `json:"categoryName"`
+	Name     string    `json:"categoryName" gorm:"categoryName"`
 	Metadata []byte    `json:"categoryMetadata" gorm:"categoryMetadata"`
 }
 

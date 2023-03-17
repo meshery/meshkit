@@ -89,12 +89,12 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&ComponentDefinitionDB{}).
-		Select("component_definition_dbs.*, model_dbs.*").
+		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*").
 		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
 	if f.Greedy {
 		if f.Name != "" && f.DisplayName != "" {
-			finder = finder.Where("component_definition_dbs.kind LIKE ? OR component_definition_dbs.display_name LIKE ?", f.Name+"%", f.DisplayName+"%")
+			finder = finder.Where("component_definition_dbs.kind LIKE ? OR display_name LIKE ?", f.Name+"%", f.DisplayName+"%")
 		} else if f.Name != "" {
 			finder = finder.Where("component_definition_dbs.kind LIKE ?", f.Name+"%")
 		} else if f.DisplayName != "" {

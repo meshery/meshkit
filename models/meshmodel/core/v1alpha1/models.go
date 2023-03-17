@@ -33,8 +33,8 @@ type Model struct {
 }
 type ModelDB struct {
 	ID          uuid.UUID `json:"-"`
-	CategoryID  uuid.UUID `json:"-" gorm:"modelID"`
-	Name        string    `json:"name"`
+	CategoryID  uuid.UUID `json:"-" gorm:"categoryID"`
+	Name        string    `json:"modelName" gorm:"modelName"`
 	Version     string    `json:"version"`
 	DisplayName string    `json:"modelDisplayName" gorm:"modelDisplayName"`
 	SubCategory string    `json:"subCategory" gorm:"subCategory"`
