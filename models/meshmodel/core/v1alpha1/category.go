@@ -30,6 +30,8 @@ type CategoryFilter struct {
 	Offset  int
 }
 
+const DefaultCategory = "Miscellaneous"
+
 // Create the filter from map[string]interface{}
 func (cf *CategoryFilter) Create(m map[string]interface{}) {
 	if m == nil {
@@ -44,7 +46,11 @@ func CreateCategory(db *database.Handler, cat Category) (uuid.UUID, error) {
 	}
 	catID := uuid.NewSHA1(uuid.UUID{}, byt)
 	var category CategoryDB
+	if cat.Name == "" {
+		cat.Name = DefaultCategory
+	}
 	categoryCreationLock.Lock()
+	defer categoryCreationLock.Unlock()
 	err = db.First(&category, "id = ?", catID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
@@ -54,11 +60,9 @@ func CreateCategory(db *database.Handler, cat Category) (uuid.UUID, error) {
 		catdb := cat.GetCategoryDB(db)
 		err = db.Create(&catdb).Error
 		if err != nil {
-			modelCreationLock.Unlock()
 			return uuid.UUID{}, err
 		}
 	}
-	categoryCreationLock.Unlock()
 	return category.ID, nil
 }
 

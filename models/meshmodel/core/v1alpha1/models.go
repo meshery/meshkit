@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
@@ -56,7 +57,11 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 	}
 	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
 	var model ModelDB
+	if cmodel.Name == "" {
+		return uuid.UUID{}, fmt.Errorf("empty or invalid model name passed")
+	}
 	modelCreationLock.Lock()
+	defer modelCreationLock.Unlock()
 	err = db.First(&model, "id = ?", modelID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
@@ -64,7 +69,6 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 	if err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
 		id, err := CreateCategory(db, cmodel.Category)
 		if err != nil {
-			modelCreationLock.Unlock()
 			return uuid.UUID{}, err
 		}
 		cmodel.ID = modelID
@@ -72,11 +76,9 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 		mdb.CategoryID = id
 		err = db.Create(&mdb).Error
 		if err != nil {
-			modelCreationLock.Unlock()
 			return uuid.UUID{}, err
 		}
 	}
-	modelCreationLock.Unlock()
 	return model.ID, nil
 }
 func (cmd *ModelDB) GetModel(cat Category) (c Model) {
