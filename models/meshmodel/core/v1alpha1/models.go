@@ -22,6 +22,14 @@ type ModelFilter struct {
 	Offset      int
 }
 
+// Create the filter from map[string]interface{}
+func (cf *ModelFilter) Create(m map[string]interface{}) {
+	if m == nil {
+		return
+	}
+	cf.Name = m["name"].(string)
+}
+
 // swagger:response Model
 type Model struct {
 	ID          uuid.UUID              `json:"-"`
@@ -39,14 +47,6 @@ type ModelDB struct {
 	DisplayName string    `json:"modelDisplayName" gorm:"modelDisplayName"`
 	SubCategory string    `json:"subCategory" gorm:"subCategory"`
 	Metadata    []byte    `json:"modelMetadata" gorm:"modelMetadata"`
-}
-
-// Create the filter from map[string]interface{}
-func (cf *ModelFilter) Create(m map[string]interface{}) {
-	if m == nil {
-		return
-	}
-	cf.Name = m["name"].(string)
 }
 
 func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {

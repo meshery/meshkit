@@ -10,6 +10,8 @@ import (
 )
 
 var categoryCreationLock sync.Mutex //Each model will perform a check and if the category already doesn't exist, it will create a category. This lock will make sure that there are no race conditions.
+
+// swagger:response Category
 type Category struct {
 	ID       uuid.UUID              `json:"-"`
 	Name     string                 `json:"name"`
@@ -20,7 +22,21 @@ type CategoryDB struct {
 	Name     string    `json:"categoryName" gorm:"categoryName"`
 	Metadata []byte    `json:"categoryMetadata" gorm:"categoryMetadata"`
 }
+type CategoryFilter struct {
+	Name    string
+	OrderOn string
+	Sort    string //asc or desc. Default behavior is asc
+	Limit   int    //If 0 or  unspecified then all records are returned and limit is not used
+	Offset  int
+}
 
+// Create the filter from map[string]interface{}
+func (cf *CategoryFilter) Create(m map[string]interface{}) {
+	if m == nil {
+		return
+	}
+	cf.Name = m["name"].(string)
+}
 func CreateCategory(db *database.Handler, cat Category) (uuid.UUID, error) {
 	byt, err := json.Marshal(cat)
 	if err != nil {

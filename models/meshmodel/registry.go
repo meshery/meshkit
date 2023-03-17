@@ -243,6 +243,34 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1a
 	}
 	return m
 }
+func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) []v1alpha1.Category {
+	var catdb []v1alpha1.CategoryDB
+	var cat []v1alpha1.Category
+	finder := rm.db.Model(&catdb)
+	if mf, ok := f.(*v1alpha1.CategoryFilter); ok {
+		if mf.Name != "" {
+			finder = finder.Where("name = ?", mf.Name)
+		}
+		if mf.OrderOn != "" {
+			if mf.Sort == "desc" {
+				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: mf.OrderOn}, Desc: true})
+			} else {
+				finder = finder.Order(mf.OrderOn)
+			}
+		}
+		if mf.Limit != 0 {
+			finder = finder.Limit(mf.Limit)
+		}
+		if mf.Offset != 0 {
+			finder = finder.Offset(mf.Offset)
+		}
+	}
+	_ = finder.Find(&catdb).Error
+	for _, c := range catdb {
+		cat = append(cat, c.GetCategory(db))
+	}
+	return cat
+}
 func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	eID := e.GetID()
 	var reg Registry
