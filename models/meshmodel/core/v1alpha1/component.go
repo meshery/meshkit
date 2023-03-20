@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -69,49 +68,33 @@ func emptySchemaCheck(schema string) (valid bool) {
 }
 func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
 	c.ID = uuid.New()
-	tempModelID := uuid.New()
-	byt, err := json.Marshal(c.Model)
+	mid, err := CreateModel(db, c.Model)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
 	if !emptySchemaCheck(c.Schema) {
 		c.Metadata["hasInvalidSchema"] = true
 	}
-	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var model Model
-	modelCreationLock.Lock()
-	err = db.First(&model, "id = ?", modelID).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return uuid.UUID{}, err
-	}
-	if model.ID == tempModelID || err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
-		model = c.Model
-		model.ID = modelID
-		err = db.Create(&model).Error
-		if err != nil {
-			modelCreationLock.Unlock()
-			return uuid.UUID{}, err
-		}
-	}
-	modelCreationLock.Unlock()
 	cdb := c.GetComponentDefinitionDB()
-	cdb.ModelID = model.ID
+	cdb.ModelID = mid
 	err = db.Create(&cdb).Error
 	return c.ID, err
 }
 func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
 	type componentDefinitionWithModel struct {
 		ComponentDefinitionDB
-		Model
+		ModelDB
+		CategoryDB
 	}
 
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&ComponentDefinitionDB{}).
-		Select("component_definition_dbs.*, models.*").
-		Joins("JOIN models ON component_definition_dbs.model_id = models.id") //
+		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*").
+		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
 	if f.Greedy {
 		if f.Name != "" && f.DisplayName != "" {
-			finder = finder.Where("component_definition_dbs.kind LIKE ? OR component_definition_dbs.display_name LIKE ?", f.Name+"%", f.DisplayName+"%")
+			finder = finder.Where("component_definition_dbs.kind LIKE ? OR display_name LIKE ?", f.Name+"%", f.DisplayName+"%")
 		} else if f.Name != "" {
 			finder = finder.Where("component_definition_dbs.kind LIKE ?", f.Name+"%")
 		} else if f.DisplayName != "" {
@@ -126,14 +109,16 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		}
 	}
 	if f.ModelName != "" && f.ModelName != "all" {
-		finder = finder.Where("models.name = ?", f.ModelName)
+		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
 	if f.APIVersion != "" {
 		finder = finder.Where("component_definition_dbs.api_version = ?", f.APIVersion)
 	}
-
+	if f.CategoryName != "" {
+		finder = finder.Where("category_dbs.name = ?", f.CategoryName)
+	}
 	if f.Version != "" {
-		finder = finder.Where("models.version = ?", f.Version)
+		finder = finder.Where("model_dbs.version = ?", f.Version)
 	}
 	if f.OrderOn != "" {
 		if f.Sort == "desc" {
@@ -155,23 +140,25 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		if f.Trim {
 			cm.Schema = ""
 		}
-		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.Model))
+		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
+
 	return c
 }
 
 type ComponentFilter struct {
-	Name        string
-	APIVersion  string
-	Greedy      bool //when set to true - instead of an exact match, name will be prefix matched
-	Trim        bool //when set to true - the schema is not returned
-	DisplayName string
-	ModelName   string
-	Version     string
-	Sort        string //asc or desc. Default behavior is asc
-	OrderOn     string
-	Limit       int //If 0 or  unspecified then all records are returned and limit is not used
-	Offset      int
+	Name         string
+	APIVersion   string
+	Greedy       bool //when set to true - instead of an exact match, name will be prefix matched
+	Trim         bool //when set to true - the schema is not returned
+	DisplayName  string
+	ModelName    string
+	CategoryName string
+	Version      string
+	Sort         string //asc or desc. Default behavior is asc
+	OrderOn      string
+	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
+	Offset       int
 }
 
 // Create the filter from map[string]interface{}

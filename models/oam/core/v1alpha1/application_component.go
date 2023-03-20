@@ -58,6 +58,6 @@ func GetAnnotationsForWorkload(w v1alpha1.ComponentDefinition) map[string]string
 	res[fmt.Sprintf("%s.k8s.APIVersion", MesheryAnnotationPrefix)] = w.APIVersion
 	res[fmt.Sprintf("%s.k8s.Kind", MesheryAnnotationPrefix)] = w.Kind
 	res[fmt.Sprintf("%s.model.version", MesheryAnnotationPrefix)] = w.Model.Version
-	res[fmt.Sprintf("%s.model.category", MesheryAnnotationPrefix)] = w.Model.Category
+	res[fmt.Sprintf("%s.model.category", MesheryAnnotationPrefix)] = w.Model.Category.Name
 	return res
 }

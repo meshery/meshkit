@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
-	"gorm.io/gorm"
 )
 
 type PolicyDefinition struct {
@@ -59,7 +58,7 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&PolicyDefinitionDB{}).
 		Select("policy_definition_dbs.*, models.*").
-		Joins("JOIN models ON models.id = policy_definition_dbs.model_id")
+		Joins("JOIN model_dbs ON model_dbs.id = policy_definition_dbs.model_id")
 	if f.Kind != "" {
 		finder = finder.Where("policy_definition_dbs.kind = ?", f.Kind)
 	}
@@ -67,7 +66,7 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 		finder = finder.Where("policy_definition_dbs.sub_type = ?", f.SubType)
 	}
 	if f.ModelName != "" {
-		finder = finder.Where("models.name = ?", f.ModelName)
+		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
 	err := finder.Scan(&componentDefinitionsWithModel).Error
 	if err != nil {
@@ -94,30 +93,12 @@ func (pdb *PolicyDefinitionDB) GetPolicyDefinition(m Model) (p PolicyDefinition)
 
 func CreatePolicy(db *database.Handler, p PolicyDefinition) (uuid.UUID, error) {
 	p.ID = uuid.New()
-	tempModelID := uuid.New()
-	byt, err := json.Marshal(p.Model)
+	mid, err := CreateModel(db, p.Model)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var model Model
-	modelCreationLock.Lock()
-	err = db.First(&model, "id = ?", modelID).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return uuid.UUID{}, err
-	}
-	if model.ID == tempModelID || err == gorm.ErrRecordNotFound {
-		model = p.Model
-		model.ID = modelID
-		err = db.Create(&model).Error
-		if err != nil {
-			modelCreationLock.Unlock()
-			return uuid.UUID{}, err
-		}
-	}
-	modelCreationLock.Unlock()
 	pdb := p.GetPolicyDefinitionDB()
-	pdb.ModelID = model.ID
+	pdb.ModelID = mid
 	err = db.Create(&pdb).Error
 	if err != nil {
 		return uuid.UUID{}, err

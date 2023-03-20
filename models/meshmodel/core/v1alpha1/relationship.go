@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -62,12 +61,14 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []RelationshipDefinition) {
 	type componentDefinitionWithModel struct {
 		RelationshipDefinitionDB
-		Model
+		ModelDB
+		CategoryDB
 	}
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&RelationshipDefinitionDB{}).
-		Select("relationship_definition_dbs.*, models.*").
-		Joins("JOIN models ON relationship_definition_dbs.model_id = models.id") //
+		Select("relationship_definition_dbs.*, model_dbs.*").
+		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id"). //
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")           //
 	if f.Kind != "" {
 		if f.Greedy {
 			finder = finder.Where("relationship_definition_dbs.kind LIKE ?", f.Kind)
@@ -79,10 +80,10 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 		finder = finder.Where("relationship_definition_dbs.sub_type = ?", f.SubType)
 	}
 	if f.ModelName != "" {
-		finder = finder.Where("models.name = ?", f.ModelName)
+		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
 	if f.Version != "" {
-		finder = finder.Where("models.version = ?", f.Version)
+		finder = finder.Where("model_dbs.version = ?", f.Version)
 	}
 	if f.OrderOn != "" {
 		if f.Sort == "desc" {
@@ -101,7 +102,7 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 		fmt.Println(err.Error()) //for debugging
 	}
 	for _, cm := range componentDefinitionsWithModel {
-		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.Model))
+		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
 	return r
 }
@@ -132,30 +133,12 @@ func (r RelationshipDefinition) GetID() uuid.UUID {
 
 func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UUID, error) {
 	r.ID = uuid.New()
-	tempModelID := uuid.New()
-	byt, err := json.Marshal(r.Model)
+	mid, err := CreateModel(db, r.Model)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var model Model
-	modelCreationLock.Lock()
-	err = db.First(&model, "id = ?", modelID).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return uuid.UUID{}, err
-	}
-	if model.ID == tempModelID || err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
-		model = r.Model
-		model.ID = modelID
-		err = db.Create(&model).Error
-		if err != nil {
-			modelCreationLock.Unlock()
-			return uuid.UUID{}, err
-		}
-	}
-	modelCreationLock.Unlock()
 	rdb := r.GetRelationshipDefinitionDB()
-	rdb.ModelID = model.ID
+	rdb.ModelID = mid
 	err = db.Create(&rdb).Error
 	if err != nil {
 		return uuid.UUID{}, err

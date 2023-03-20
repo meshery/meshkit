@@ -47,6 +47,9 @@ func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error
 		}
 		comp.Model.Version = pkg.Version
 		comp.Model.Name = pkg.Name
+		comp.Model.Category = v1alpha1.Category{
+			Name: "",
+		}
 		comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)
 		components = append(components, comp)
 	}
