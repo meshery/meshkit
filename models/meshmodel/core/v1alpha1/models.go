@@ -78,6 +78,7 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 		if err != nil {
 			return uuid.UUID{}, err
 		}
+		return mdb.ID, nil
 	}
 	return model.ID, nil
 }

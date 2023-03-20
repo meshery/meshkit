@@ -40,28 +40,29 @@ func (cf *CategoryFilter) Create(m map[string]interface{}) {
 	cf.Name = m["name"].(string)
 }
 func CreateCategory(db *database.Handler, cat Category) (uuid.UUID, error) {
+	if cat.Name == "" {
+		cat.Name = DefaultCategory
+	}
 	byt, err := json.Marshal(cat)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
 	catID := uuid.NewSHA1(uuid.UUID{}, byt)
 	var category CategoryDB
-	if cat.Name == "" {
-		cat.Name = DefaultCategory
-	}
 	categoryCreationLock.Lock()
 	defer categoryCreationLock.Unlock()
 	err = db.First(&category, "id = ?", catID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
 	}
-	if err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
+	if err == gorm.ErrRecordNotFound { //The category is already not present and needs to be inserted
 		cat.ID = catID
 		catdb := cat.GetCategoryDB(db)
 		err = db.Create(&catdb).Error
 		if err != nil {
 			return uuid.UUID{}, err
 		}
+		return catdb.ID, nil
 	}
 	return category.ID, nil
 }
