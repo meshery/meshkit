@@ -73,7 +73,8 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&v1alpha1.ComponentDefinitionDB{},
 		&v1alpha1.RelationshipDefinitionDB{},
 		&v1alpha1.PolicyDefinitionDB{},
-		&v1alpha1.Model{},
+		&v1alpha1.ModelDB{},
+		&v1alpha1.CategoryDB{},
 	)
 	if err != nil {
 		return nil, err
@@ -85,7 +86,8 @@ func (rm *RegistryManager) Cleanup() {
 		&Registry{},
 		&Host{},
 		&v1alpha1.ComponentDefinitionDB{},
-		&v1alpha1.Model{},
+		&v1alpha1.ModelDB{},
+		&v1alpha1.CategoryDB{},
 		&v1alpha1.RelationshipDefinitionDB{},
 	)
 }
@@ -182,31 +184,39 @@ func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 		return nil
 	}
 }
-func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
-	var mod []v1alpha1.Model
-	finder := rm.db.Model(&mod)
+func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1alpha1.Model {
+	var m []v1alpha1.Model
+	type modelWithCategories struct {
+		v1alpha1.ModelDB
+		v1alpha1.CategoryDB
+	}
+
+	var modelWithCategoriess []modelWithCategories
+	finder := db.Model(&v1alpha1.ModelDB{}).
+		Select("model_dbs.*, category_dbs.*").
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Greedy {
 			if mf.Name != "" && mf.DisplayName != "" {
-				finder = finder.Where("name LIKE ? OR display_name LIKE ?", mf.Name+"%", mf.DisplayName+"%")
+				finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", mf.Name+"%", mf.DisplayName+"%")
 			} else if mf.Name != "" {
-				finder = finder.Where("name LIKE ?", mf.Name+"%")
+				finder = finder.Where("model_dbs.name LIKE ?", mf.Name+"%")
 			} else if mf.DisplayName != "" {
-				finder = finder.Where("display_name LIKE ?", mf.DisplayName+"%")
+				finder = finder.Where("model_dbs.display_name LIKE ?", mf.DisplayName+"%")
 			}
 		} else {
 			if mf.Name != "" {
-				finder = finder.Where("name = ?", mf.Name)
+				finder = finder.Where("model_dbs.name = ?", mf.Name)
 			}
 			if mf.DisplayName != "" {
-				finder = finder.Where("display_name = ?", mf.DisplayName)
+				finder = finder.Where("model_dbs.display_name = ?", mf.DisplayName)
 			}
 		}
 		if mf.Version != "" {
-			finder = finder.Where("version = ?", mf.Version)
+			finder = finder.Where("model_dbs.version = ?", mf.Version)
 		}
 		if mf.Category != "" {
-			finder = finder.Where("category = ?", mf.Category)
+			finder = finder.Where("category_dbs.name = ?", mf.Category)
 		}
 		if mf.OrderOn != "" {
 			if mf.Sort == "desc" {
@@ -222,8 +232,44 @@ func (rm *RegistryManager) GetModels(f types.Filter) []v1alpha1.Model {
 			finder = finder.Offset(mf.Offset)
 		}
 	}
-	_ = finder.Find(&mod).Error
-	return mod
+	err := finder.
+		Scan(&modelWithCategoriess).Error
+	if err != nil {
+		fmt.Println(modelWithCategoriess)
+		fmt.Println(err.Error()) //for debugging
+	}
+	for _, modelDB := range modelWithCategoriess {
+		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
+	}
+	return m
+}
+func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) []v1alpha1.Category {
+	var catdb []v1alpha1.CategoryDB
+	var cat []v1alpha1.Category
+	finder := rm.db.Model(&catdb)
+	if mf, ok := f.(*v1alpha1.CategoryFilter); ok {
+		if mf.Name != "" {
+			finder = finder.Where("name = ?", mf.Name)
+		}
+		if mf.OrderOn != "" {
+			if mf.Sort == "desc" {
+				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: mf.OrderOn}, Desc: true})
+			} else {
+				finder = finder.Order(mf.OrderOn)
+			}
+		}
+		if mf.Limit != 0 {
+			finder = finder.Limit(mf.Limit)
+		}
+		if mf.Offset != 0 {
+			finder = finder.Offset(mf.Offset)
+		}
+	}
+	_ = finder.Find(&catdb).Error
+	for _, c := range catdb {
+		cat = append(cat, c.GetCategory(db))
+	}
+	return cat
 }
 func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	eID := e.GetID()
