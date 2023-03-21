@@ -25,6 +25,7 @@ type CategoryDB struct {
 type CategoryFilter struct {
 	Name    string
 	OrderOn string
+	Greedy  bool
 	Sort    string //asc or desc. Default behavior is asc
 	Limit   int    //If 0 or  unspecified then all records are returned and limit is not used
 	Offset  int
