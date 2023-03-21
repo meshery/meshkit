@@ -249,7 +249,11 @@ func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) [
 	finder := rm.db.Model(&catdb)
 	if mf, ok := f.(*v1alpha1.CategoryFilter); ok {
 		if mf.Name != "" {
-			finder = finder.Where("name = ?", mf.Name)
+			if mf.Greedy {
+				finder = finder.Where("name LIKE ?", mf.Name+"%")
+			} else {
+				finder = finder.Where("name = ?", mf.Name)
+			}
 		}
 		if mf.OrderOn != "" {
 			if mf.Sort == "desc" {
