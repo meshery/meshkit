@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils"
@@ -27,6 +28,7 @@ type AhPackage struct {
 	ChartUrl          string
 	Official          bool
 	VerifiedPublisher bool
+	CNCF              bool
 	Version           string
 }
 
@@ -100,6 +102,7 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	return nil
 }
 
+// GetAllAhHelmPackages returns a list of all AhPackages and is super slow to avoid rate limits.
 func GetAllAhHelmPackages() ([]AhPackage, error) {
 	pkgs := make([]AhPackage, 0)
 	resp, err := http.Get(AhHelmExporterEndpoint)
@@ -117,12 +120,48 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 		return nil, err
 	}
 	for _, p := range res {
+		name := p["name"].(string)
+		repo := p["repository"].(map[string]interface{})["name"].(string)
+		url := fmt.Sprintf("https://artifacthub.io/api/v1/packages/helm/%s/%s", repo, name)
+		resp, err := http.Get(url)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		if resp.StatusCode != 200 {
+			err = fmt.Errorf("status code %d for %s", resp.StatusCode, url)
+			fmt.Println(err)
+			continue
+		}
+		defer resp.Body.Close()
+		var res map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&res)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		verified := false
+		cncf := false
+		official := false
+		if res["repository"].(map[string]interface{})["verified_publisher"] != nil {
+			verified = res["repository"].(map[string]interface{})["verified_publisher"].(bool)
+		}
+		if res["repository"].(map[string]interface{})["official"] != nil {
+			official = res["repository"].(map[string]interface{})["official"].(bool)
+		}
+		if res["repository"].(map[string]interface{})["cncf"] != nil {
+			cncf = res["repository"].(map[string]interface{})["cncf"].(bool)
+		}
 		pkgs = append(pkgs, AhPackage{
-			Name:       p["name"].(string),
-			Version:    p["version"].(string),
-			Repository: p["repository"].(map[string]interface{})["name"].(string),
-			RepoUrl:    p["repository"].(map[string]interface{})["url"].(string),
+			Name:              name,
+			Version:           p["version"].(string),
+			Repository:        repo,
+			RepoUrl:           p["repository"].(map[string]interface{})["url"].(string),
+			VerifiedPublisher: verified,
+			CNCF:              cncf,
+			Official:          official,
 		})
+		time.Sleep(500 * time.Millisecond)
 	}
 	return pkgs, nil
 }
