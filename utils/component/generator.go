@@ -68,10 +68,8 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 	if err != nil {
 		return component, err
 	}
-	scope, err := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
-	if err != nil {
-		// return component, err Ignore error if scope isn't found
-	}
+	// return component, err Ignore error if scope isn't found
+	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
 	if scope == "Cluster" {
 		component.Metadata["isNamespaced"] = false
 	} else if scope == "Namespaced" {
