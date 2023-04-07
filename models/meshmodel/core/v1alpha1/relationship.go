@@ -71,7 +71,7 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")           //
 	if f.Kind != "" {
 		if f.Greedy {
-			finder = finder.Where("relationship_definition_dbs.kind ILIKE ?", "%"+f.Kind+"%")
+			finder = finder.Where("relationship_definition_dbs.kind LIKE ?", "%"+f.Kind+"%")
 		} else {
 			finder = finder.Where("relationship_definition_dbs.kind = ?", "%"+f.Kind+"%")
 		}

@@ -198,11 +198,11 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1a
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Greedy {
 			if mf.Name != "" && mf.DisplayName != "" {
-				finder = finder.Where("model_dbs.name ILIKE ? OR model_dbs.display_name ILIKE ?", "%"+mf.Name+"%", "%"+mf.DisplayName+"%")
+				finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", "%"+mf.Name+"%", "%"+mf.DisplayName+"%")
 			} else if mf.Name != "" {
-				finder = finder.Where("model_dbs.name ILIKE ?", "%"+mf.Name+"%")
+				finder = finder.Where("model_dbs.name LIKE ?", "%"+mf.Name+"%")
 			} else if mf.DisplayName != "" {
-				finder = finder.Where("model_dbs.display_name ILIKE ?", "%"+mf.DisplayName+"%")
+				finder = finder.Where("model_dbs.display_name LIKE ?", "%"+mf.DisplayName+"%")
 			}
 		} else {
 			if mf.Name != "" {
@@ -250,7 +250,7 @@ func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) [
 	if mf, ok := f.(*v1alpha1.CategoryFilter); ok {
 		if mf.Name != "" {
 			if mf.Greedy {
-				finder = finder.Where("name ILIKE ?", "%"+mf.Name+"%")
+				finder = finder.Where("name LIKE ?", "%"+mf.Name+"%")
 			} else {
 				finder = finder.Where("name = ?", mf.Name)
 			}
