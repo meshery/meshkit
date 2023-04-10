@@ -404,15 +404,19 @@ func checkIfInstallable(ch *chart.Chart) error {
 func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Configuration, error) {
 	// Set the environment variable needed by the Init methods
 	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
-	os.Setenv("HELM_KUBEAPISERVER", c.RestConfig.Host)
+
 	// KubeConfig setup
 	cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)
 	if err != nil {
 		return nil, err
 	}
 	cafilename := cafile.Name()
-	os.Setenv("HELM_KUBECAFILE", cafilename)
+
 	kubeConfig := genericclioptions.NewConfigFlags(false)
+	kubeConfig.APIServer = &c.RestConfig.Host
+	kubeConfig.CAFile = &cafilename
+	kubeConfig.BearerToken = &c.RestConfig.BearerToken
+
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
 		return nil, ErrApplyHelmChart(err)
