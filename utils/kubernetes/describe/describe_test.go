@@ -7,9 +7,9 @@ import (
 )
 
 /*
-The MockDescriber is used in the implementation of the Describe function to create a mock output that is returned when the
-function is called with specific options
-it takes in a Client object and a DescriberOptions object, and returns a string and an error
+  The MockDescriber is used in the implementation of the Describe function to create a mock output that is returned when the
+  function is called with specific options
+  it takes in a Client object and a DescriberOptions object, and returns a string and an error
 */
 type MockDescriber struct {
 	DescribeFunc func(*meshkitkube.Client, DescriberOptions) (string, error)
