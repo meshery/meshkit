@@ -1,5 +1,7 @@
 package describe
 
+// describe package provides a way to describe Kubernetes objects for the kubernetes Api
+
 import (
 	meshkitkube "github.com/layer5io/meshkit/utils/kubernetes"
 	appsv1 "k8s.io/api/apps/v1"
@@ -17,13 +19,18 @@ import (
 
 // DescriberOptions give control of which kubernetes object to describe.
 type DescriberOptions struct {
-	Name       string // Name of the kubernetes obj
-	Namespace  string // Namespace of the kubernetes obj
-	ShowEvents bool
-	ChunkSize  int64
-	Type       DescribeType
+	Name       string       // Name of the kubernetes obj
+	Namespace  string       // Namespace of the kubernetes obj
+	ShowEvents bool         // A boolean flag indicating whether to show events associated with the Kubernetes object or not.
+	ChunkSize  int64        //Size of the chunk in which the Kubernetes object's output is written.
+	Type       DescribeType //an integer value that represents the Kubernetes source that needs to be described
 }
 
+/*
+DescribeType represents the Kubernetes Source that needs to be Described
+The integer value of the DescribeType is used to get the corresponding GroupKind information of the resource
+from the ResourceMap variable, which is then used to get the describer function for that resource type.
+*/
 type DescribeType int
 
 const (
@@ -57,6 +64,12 @@ const (
 	EndpointSlice
 )
 
+/*
+  The "ResourceMap" map associates each "DescribeType" with a corresponding
+  Kubernetes GroupKind object.
+  which are used to identify the Kubernetes API resources that need to be described
+*/
+
 var ResourceMap = map[DescribeType]schema.GroupKind{
 	Pod:                       {Group: corev1.GroupName, Kind: "Pod"},
 	Deployment:                {Group: appsv1.GroupName, Kind: "Deployment"},
@@ -88,6 +101,11 @@ var ResourceMap = map[DescribeType]schema.GroupKind{
 	EndpointSlice:             {Group: discoveryv1.GroupName, Kind: "EndpointSlice"},
 }
 
+/*
+The Describe() takes in a Kubernetes client and options for describing a particular Kubernetes resource.
+It retrieves the GroupKind object associated with the specified "DescribeType" from the ResourceMap,
+and then calls a corresponding "describer" function to retrieve the description of the specified Kubernetes resource
+*/
 func Describe(client *meshkitkube.Client, options DescriberOptions) (string, error) {
 	// getting schema.GroupKind from Resource map
 	kind := ResourceMap[options.Type]
@@ -95,15 +113,18 @@ func Describe(client *meshkitkube.Client, options DescriberOptions) (string, err
 	if !ok {
 		return "", ErrGetDescriberFunc()
 	}
-
 	describerSetting := describe.DescriberSettings{
 		ShowEvents: options.ShowEvents,
 		ChunkSize:  options.ChunkSize,
 	}
+	//calls a corresponding "describer" function to retrieve the description of the specified Kubernetes resource
 	output, err := describer.Describe(options.Namespace, options.Name, describerSetting)
 	if err != nil {
 		return "", err
 	}
-
+	/*
+		The output returned includes information such as the resource's metadata (name, namespace.)
+		and other details such as the resource's specifications, configuration, and associated events if ShowEvents option is set to true.
+	*/
 	return output, nil
 }
