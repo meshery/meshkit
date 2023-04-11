@@ -20,6 +20,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+type ContainerView struct {
+	ID      string
+	Image   string
+	Status  string
+	Command string
+	Ports   []string
+}
+
 func NewComposeClient(ctx context.Context) (*client.Client, error) {
 	return client.New(ctx)
 }
@@ -77,7 +85,7 @@ func Ps(ctx context.Context, c *client.Client, all, quiet bool, formatOpt string
 		return nil
 	}
 
-	view := viewFromContainerList(containerList)
+	view := getViewFromContainerList(containerList)
 	return format.Print(view, formatOpt, os.Stdout, func(w io.Writer) {
 		for _, c := range view {
 			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", c.ID, c.Image, c.Command, c.Status,
@@ -86,15 +94,30 @@ func Ps(ctx context.Context, c *client.Client, all, quiet bool, formatOpt string
 	}, "CONTAINER ID", "IMAGE", "COMMAND", "STATUS", "PORTS")
 }
 
-type containerView struct {
-	ID      string
-	Image   string
-	Status  string
-	Command string
-	Ports   []string
+func ListContainers(ctx context.Context, c *client.Client, all bool) ([]ContainerView, error) {
+	containerList, err := c.ContainerService().List(ctx, all)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch containers: %w", err)
+	}
+
+	view := getViewFromContainerList(containerList)
+	return view, nil
 }
 
-func fqdn(container containers.Container) string {
+func getViewFromContainerList(containerList []containers.Container) []ContainerView {
+	retList := make([]ContainerView, len(containerList))
+	for i, c := range containerList {
+		retList[i] = ContainerView{
+			ID:      c.ID,
+			Image:   c.Image,
+			Status:  c.Status,
+			Command: c.Command,
+			Ports:   formatter.PortsToStrings(c.Ports, getFQDN(c)),
+		}
+	}
+	return retList
+}
+func getFQDN(container containers.Container) string {
 	fqdn := ""
 	if container.Config != nil {
 		fqdn = container.Config.FQDN
@@ -102,27 +125,23 @@ func fqdn(container containers.Container) string {
 	return fqdn
 }
 
-func viewFromContainerList(containerList []containers.Container) []containerView {
-	retList := make([]containerView, len(containerList))
-	for i, c := range containerList {
-		retList[i] = containerView{
-			ID:      c.ID,
-			Image:   c.Image,
-			Status:  c.Status,
-			Command: c.Command,
-			Ports:   formatter.PortsToStrings(c.Ports, fqdn(c)),
-		}
-	}
-	return retList
-}
-
 func Pull(ctx context.Context, c *client.Client, composeFilePath, projectName string) error {
 	if projectName == "" {
 		projectName = "meshery"
 	}
-	project := types.Project{Name: projectName, WorkingDir: filepath.Dir(composeFilePath), ComposeFiles: []string{composeFilePath}}
 
-	return c.ComposeService().Pull(ctx, &project, api.PullOptions{})
+	project := types.Project{
+		Name:         projectName,
+		WorkingDir:   filepath.Dir(composeFilePath),
+		ComposeFiles: []string{composeFilePath},
+	}
+
+	err := c.ComposeService().Pull(ctx, &project, api.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to pull images: %w", err)
+	}
+
+	return nil
 }
 
 func GetLogs(ctx context.Context, c *client.Client, composeFilePath, tail string, follow bool) error {
