@@ -26,11 +26,7 @@ type DescriberOptions struct {
 	Type       DescribeType //an integer value that represents the Kubernetes source that needs to be described
 }
 
-/*
-DescribeType represents the Kubernetes Source that needs to be Described
-The integer value of the DescribeType is used to get the corresponding GroupKind information of the resource
-from the ResourceMap variable, which is then used to get the describer function for that resource type.
-*/
+ // DescribeType is an integer value that represents the Kubernetes resource that needs to be described.
 type DescribeType int
 
 const (
@@ -64,12 +60,7 @@ const (
 	EndpointSlice
 )
 
-/*
-  The "ResourceMap" map associates each "DescribeType" with a corresponding
-  Kubernetes GroupKind object.
-  which are used to identify the Kubernetes API resources that need to be described
-*/
-
+ // The ResourceMap variable contains the GroupKind information of all the Kubernetes resources that can be described.
 var ResourceMap = map[DescribeType]schema.GroupKind{
 	Pod:                       {Group: corev1.GroupName, Kind: "Pod"},
 	Deployment:                {Group: appsv1.GroupName, Kind: "Deployment"},
@@ -101,11 +92,8 @@ var ResourceMap = map[DescribeType]schema.GroupKind{
 	EndpointSlice:             {Group: discoveryv1.GroupName, Kind: "EndpointSlice"},
 }
 
-/*
-The Describe() takes in a Kubernetes client and options for describing a particular Kubernetes resource.
-It retrieves the GroupKind object associated with the specified "DescribeType" from the ResourceMap,
-and then calls a corresponding "describer" function to retrieve the description of the specified Kubernetes resource
-*/
+// The Describe() function takes a meshkitkube.Client object and a DescriberOptions object as input.
+ // And it returns the description of the specified Kubernetes resource as a string.
 func Describe(client *meshkitkube.Client, options DescriberOptions) (string, error) {
 	// getting schema.GroupKind from Resource map
 	kind := ResourceMap[options.Type]
@@ -122,9 +110,5 @@ func Describe(client *meshkitkube.Client, options DescriberOptions) (string, err
 	if err != nil {
 		return "", err
 	}
-	/*
-		The output returned includes information such as the resource's metadata (name, namespace.)
-		and other details such as the resource's specifications, configuration, and associated events if ShowEvents option is set to true.
-	*/
 	return output, nil
 }
