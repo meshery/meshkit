@@ -379,6 +379,22 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 		}
 	}
 	for k, v := range val {
+		if k == "allOf" || k == "anyOf" || k == "oneOf" {
+			if v, ok := v.([]interface{}); ok {
+				newval := make([]map[string]interface{}, 0)
+				for _, val := range v {
+					byt, _ := json.Marshal(val)
+					byt, err = ro.ResolveReferences(byt, definitions)
+					if err != nil {
+						panic(err)
+					}
+					var lol map[string]interface{}
+					json.Unmarshal(byt, &lol)
+					newval = append(newval, lol)
+				}
+				val[k] = newval
+			}
+		}
 		if k == "$ref" {
 			if v, ok := v.(string); ok {
 				splitRef := strings.Split(v, ".")
