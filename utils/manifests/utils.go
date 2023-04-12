@@ -343,19 +343,13 @@ type ResolveOpenApiRefs struct {
 	isInsideJsonSchemaProps bool
 }
 
-// we are manually dereferencing this because there are no other alternatives
-// other alternatives to lookout for in the future are
-//   1. cue's jsonschema encoding package
-//    currently, it does not support resolving refs from external world
-//   2. cue's openapi encoding package (currently it only supports openapiv3)
-
-//	for resolving refs in kubernetes openapiv2 jsonschema
-//
-// definitions - parsed CUE value of the 'definitions' in openapiv2
-// manifest - jsonschema manifest to resolve refs for
-func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue.Value) ([]byte, error) {
+// TODO: Refactor to use interface{} as an argument while doing type conversion recursively instead of assuming the input to always be a marshalled map[string]interface{}
+func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue.Value, cache map[string][]byte) ([]byte, error) {
 	setIsJsonFalse := func() {
 		ro.isInsideJsonSchemaProps = false
+	}
+	if cache == nil {
+		cache = make(map[string][]byte)
 	}
 	var val map[string]interface{}
 	err := json.Unmarshal(manifest, &val)
@@ -379,21 +373,23 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 		}
 	}
 	for k, v := range val {
-		if k == "allOf" || k == "anyOf" || k == "oneOf" {
-			if v, ok := v.([]interface{}); ok {
-				newval := make([]map[string]interface{}, 0)
-				for _, val := range v {
-					byt, _ := json.Marshal(val)
-					byt, err = ro.ResolveReferences(byt, definitions)
-					if err != nil {
-						panic(err)
-					}
-					var lol map[string]interface{}
-					json.Unmarshal(byt, &lol)
-					newval = append(newval, lol)
+		if v, ok := v.([]interface{}); ok {
+			newval := make([]interface{}, 0)
+			for _, v0 := range v {
+				if _, ok := v0.(map[string]interface{}); !ok {
+					newval = append(newval, v0)
+					continue
 				}
-				val[k] = newval
+				byt, _ := json.Marshal(v0)
+				byt, err = ro.ResolveReferences(byt, definitions, cache)
+				if err != nil {
+					return nil, err
+				}
+				var lol map[string]interface{}
+				json.Unmarshal(byt, &lol)
+				newval = append(newval, lol)
 			}
+			val[k] = newval
 		}
 		if k == "$ref" {
 			if v, ok := v.(string); ok {
@@ -405,17 +401,23 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 				}
 				splt := strings.Split(v, "/")
 				path := splt[len(splt)-1]
-				refVal := definitions.LookupPath(cue.ParsePath(fmt.Sprintf(`"%v"`, path)))
-				if refVal.Err() != nil {
-					return nil, refVal.Err()
-				}
-				marshalledVal, err := refVal.MarshalJSON()
-				if err != nil {
-					return nil, err
-				}
-				def, err := ro.ResolveReferences(marshalledVal, definitions)
-				if err != nil {
-					return nil, err
+				var def []byte
+				if cache[path] == nil {
+					refVal := definitions.LookupPath(cue.ParsePath(fmt.Sprintf(`"%v"`, path)))
+					if refVal.Err() != nil {
+						return nil, refVal.Err()
+					}
+					marshalledVal, err := refVal.MarshalJSON()
+					if err != nil {
+						return nil, err
+					}
+					def, err = ro.ResolveReferences(marshalledVal, definitions, cache)
+					if err != nil {
+						return nil, err
+					}
+					cache[path] = def
+				} else {
+					def = cache[path]
 				}
 				if def != nil {
 					err := replaceRefWithVal(def, val, k)
@@ -431,7 +433,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 			if err != nil {
 				return nil, err
 			}
-			def, err := ro.ResolveReferences(marVal, definitions)
+			def, err := ro.ResolveReferences(marVal, definitions, cache)
 			if err != nil {
 				return nil, err
 			}
