@@ -16,6 +16,7 @@ type CuePathConfig struct {
 	GroupPath   string
 	VersionPath string
 	SpecPath    string
+	ScopePath   string
 	// identifiers are the values that uniquely identify a CRD (in most of the cases, it is the 'Name' field)
 	IdentifierPath string
 }
@@ -25,6 +26,7 @@ var DefaultPathConfig = CuePathConfig{
 	IdentifierPath: "spec.names.kind",
 	VersionPath:    "spec.versions[0].name",
 	GroupPath:      "spec.group",
+	ScopePath:      "spec.scope",
 	SpecPath:       "spec.versions[0].schema.openAPIV3Schema.properties.spec",
 }
 
@@ -33,6 +35,7 @@ var DefaultPathConfig2 = CuePathConfig{
 	IdentifierPath: "spec.names.kind",
 	VersionPath:    "spec.versions[0].name",
 	GroupPath:      "spec.group",
+	ScopePath:      "spec.scope",
 	SpecPath:       "spec.validation.openAPIV3Schema.properties.spec",
 }
 
@@ -65,7 +68,13 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 	if err != nil {
 		return component, err
 	}
-
+	// return component, err Ignore error if scope isn't found
+	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
+	if scope == "Cluster" {
+		component.Metadata["isNamespaced"] = false
+	} else if scope == "Namespaced" {
+		component.Metadata["isNamespaced"] = true
+	}
 	component.Kind = name
 	if group != "" {
 		component.APIVersion = fmt.Sprintf("%s/%s", group, version)
