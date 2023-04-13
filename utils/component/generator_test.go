@@ -138,7 +138,7 @@ func TestGenerate(t *testing.T) {
 		crd  string
 		want v1alpha1.ComponentDefinition
 	}{
-		{istioCrd, getNewComponent("", "WasmPlugin", "v1alpha1")},
+		{istioCrd, getNewComponent("", "WasmPlugin", "extensions.istio.io/v1alpha1")},
 	}
 	for _, tt := range tests {
 		t.Run("generateComponent", func(t *testing.T) {
