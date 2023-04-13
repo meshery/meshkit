@@ -25,7 +25,6 @@ type DescriberOptions struct {
 	ChunkSize  int64        //Size of the chunk in which the Kubernetes object's output is written.
 	Type       DescribeType //an integer value that represents the Kubernetes source that needs to be described
 }
-
  // DescribeType is an integer value that represents the Kubernetes resource that needs to be described.
 type DescribeType int
 
@@ -59,7 +58,6 @@ const (
 	CertificateSigningRequest
 	EndpointSlice
 )
-
  // The ResourceMap variable contains the GroupKind information of all the Kubernetes resources that can be described.
 var ResourceMap = map[DescribeType]schema.GroupKind{
 	Pod:                       {Group: corev1.GroupName, Kind: "Pod"},
@@ -91,9 +89,8 @@ var ResourceMap = map[DescribeType]schema.GroupKind{
 	CertificateSigningRequest: {Group: certificatesv1beta1.GroupName, Kind: "CertificateSigningRequest"},
 	EndpointSlice:             {Group: discoveryv1.GroupName, Kind: "EndpointSlice"},
 }
-
 // The Describe() function takes a meshkitkube.Client object and a DescriberOptions object as input.
- // And it returns the description of the specified Kubernetes resource as a string.
+// And it returns the description of the specified Kubernetes resource as a string.
 func Describe(client *meshkitkube.Client, options DescriberOptions) (string, error) {
 	// getting schema.GroupKind from Resource map
 	kind := ResourceMap[options.Type]
