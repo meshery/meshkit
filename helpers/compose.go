@@ -17,7 +17,6 @@ import (
 	format "github.com/docker/compose/v2/cmd/formatter"
 
 	"github.com/docker/compose/v2/pkg/api"
-	"github.com/pkg/errors"
 )
 
 type ContainerView struct {
@@ -75,7 +74,7 @@ func Stop(ctx context.Context, c client.Client, projectName, composeFilePath str
 func Ps(ctx context.Context, c *client.Client, all, quiet bool, formatOpt string) error {
 	containerList, err := c.ContainerService().List(ctx, all)
 	if err != nil {
-		return errors.Wrap(err, "fetch containers")
+		return fmt.Errorf("failed to fetch containers: %w", err)
 	}
 
 	if quiet {
