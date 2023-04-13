@@ -25,7 +25,7 @@ type DescriberOptions struct {
 	ChunkSize  int64        //Size of the chunk in which the Kubernetes object's output is written.
 	Type       DescribeType //an integer value that represents the Kubernetes source that needs to be described
 }
- // DescribeType is an integer value that represents the Kubernetes resource that needs to be described.
+// DescribeType is an integer value that represents the Kubernetes resource that needs to be described.
 type DescribeType int
 
 const (
