@@ -343,7 +343,7 @@ type ResolveOpenApiRefs struct {
 	isInsideJsonSchemaProps bool
 }
 
-// TODO: Refactor to use interface{} as an argument while doing type conversion recursively instead of assuming the input to always be a marshalled map[string]interface{}
+// TODO: Refactor to use interface{} as an argument while doing type conversion recursively instead of assuming the input to always be a marshaled map[string]interface{}
 func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue.Value, cache map[string][]byte) ([]byte, error) {
 	setIsJsonFalse := func() {
 		ro.isInsideJsonSchemaProps = false
@@ -385,9 +385,9 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 				if err != nil {
 					return nil, err
 				}
-				var lol map[string]interface{}
-				json.Unmarshal(byt, &lol)
-				newval = append(newval, lol)
+				var newvalmap map[string]interface{}
+				_ = json.Unmarshal(byt, &newvalmap)
+				newval = append(newval, newvalmap)
 			}
 			val[k] = newval
 		}
