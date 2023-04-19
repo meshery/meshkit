@@ -2,13 +2,14 @@ package coder
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
-	mesherr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
+	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
 	"github.com/spf13/cobra"
 )
 
@@ -36,49 +37,76 @@ func defaultIfEmpty(value, defaultValue string) string {
 
 func getGlobalFlags(cmd *cobra.Command) (globalFlags, error) {
 	flags := globalFlags{}
-	verbose, err := cmd.Flags().GetBool(verboseCmdFlag)
-	if err != nil {
-		return flags, err
+	flagMap := map[string]interface{}{
+		verboseCmdFlag:  &flags.verbose,
+		rootDirCmdFlag:  &flags.rootDir,
+		skipDirsCmdFlag: &flags.skipDirs,
+		outDirCmdFlag:   &flags.outDir,
+		infoDirCmdFlag:  &flags.infoDir,
 	}
-	flags.verbose = verbose
-	rootDir, err := cmd.Flags().GetString(rootDirCmdFlag)
-	if err != nil {
-		return flags, err
+
+	for flagName, flagPtr := range flagMap {
+		flag := cmd.Flags().Lookup(flagName)
+		if flag == nil {
+			return flags, fmt.Errorf("flag not found: %s", flagName)
+		}
+
+		switch ptr := flagPtr.(type) {
+		case *bool:
+			value, err := cmd.Flags().GetBool(flagName)
+			if err != nil {
+				return flags, err
+			}
+			*ptr = value
+		case *string:
+			value, err := cmd.Flags().GetString(flagName)
+			if err != nil {
+				return flags, err
+			}
+			if flagName == outDirCmdFlag || flagName == infoDirCmdFlag {
+				*ptr = defaultIfEmpty(value, flags.rootDir)
+			} else {
+				*ptr = value
+			}
+		case *[]string:
+			value, err := cmd.Flags().GetStringSlice(flagName)
+			if err != nil {
+				return flags, err
+			}
+			*ptr = value
+		default:
+			return flags, fmt.Errorf("unsupported flag type for flag: %s", flagName)
+		}
 	}
-	flags.rootDir = rootDir
-	skipDirs, err := cmd.Flags().GetStringSlice(skipDirsCmdFlag)
-	if err != nil {
-		return flags, err
-	}
-	flags.skipDirs = skipDirs
-	outDir, err := cmd.Flags().GetString(outDirCmdFlag)
-	if err != nil {
-		return flags, err
-	}
-	flags.outDir = defaultIfEmpty(outDir, rootDir) // if outDir is an empty string, rootDir is the default value
-	infoDir, err := cmd.Flags().GetString(infoDirCmdFlag)
-	if err != nil {
-		return flags, err
-	}
-	flags.infoDir = defaultIfEmpty(infoDir, rootDir) // if infoDir is an empty string, rootDir is the default value
+
 	return flags, nil
 }
 
-func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) error {
-	config.Logging(globalFlags.verbose)
-	errorsInfo := mesherr.NewInfoAll()
+func walkAndUpdateErrorsInfo(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *errutilerr.InfoAll) error {
+	config.Logger(globalFlags.verbose)
 	err := walk(globalFlags, update, updateAll, errorsInfo)
 	if err != nil {
 		return err
 	}
-	// if it was an update, carry out a second pass to get latest state
+	return nil
+}
+
+func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) error {
+	errorsInfo := errutilerr.NewInfoAll()
+
+	err := walkAndUpdateErrorsInfo(globalFlags, update, updateAll, errorsInfo)
+	if err != nil {
+		return err
+	}
+
 	if update {
-		errorsInfo = mesherr.NewInfoAll()
-		err = walk(globalFlags, false, false, errorsInfo)
+		errorsInfo = errutilerr.NewInfoAll()
+		err = walkAndUpdateErrorsInfo(globalFlags, false, false, errorsInfo)
 		if err != nil {
 			return err
 		}
 	}
+
 	jsn, err := json.MarshalIndent(errorsInfo, "", "  ")
 	if err != nil {
 		return err
@@ -88,15 +116,18 @@ func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) e
 	if err != nil {
 		return err
 	}
+
 	componentInfo, err := component.New(globalFlags.infoDir)
 	if err != nil {
 		return err
 	}
-	err = mesherr.SummarizeAnalysis(componentInfo, errorsInfo, globalFlags.outDir)
+
+	err = errutilerr.SummarizeAnalysis(componentInfo, errorsInfo, globalFlags.outDir)
 	if err != nil {
 		return err
 	}
-	return mesherr.Export(componentInfo, errorsInfo, globalFlags.outDir)
+
+	return errutilerr.Export(componentInfo, errorsInfo, globalFlags.outDir)
 }
 
 func commandAnalyze() *cobra.Command {
@@ -195,15 +226,30 @@ Meshery components and this tool:
 	}
 }
 
+type RootFlags struct {
+	Verbose  bool
+	RootDir  string
+	OutDir   string
+	InfoDir  string
+	SkipDirs []string
+}
+
+func setupRootFlags(cmd *cobra.Command, flags *RootFlags) {
+	cmd.PersistentFlags().BoolVarP(&flags.Verbose, verboseCmdFlag, "v", false, "verbose output")
+	cmd.PersistentFlags().StringVarP(&flags.RootDir, rootDirCmdFlag, "d", ".", "root directory")
+	cmd.PersistentFlags().StringVarP(&flags.OutDir, outDirCmdFlag, "o", "", "output directory")
+	cmd.PersistentFlags().StringVarP(&flags.InfoDir, infoDirCmdFlag, "i", "", "directory containing the component_info.json file")
+	cmd.PersistentFlags().StringSliceVar(&flags.SkipDirs, skipDirsCmdFlag, []string{}, "directories to skip (comma-separated list, repeatable argument)")
+}
+
 func RootCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: config.App}
-	cmd.PersistentFlags().BoolP(verboseCmdFlag, "v", false, "verbose output")
-	cmd.PersistentFlags().StringP(rootDirCmdFlag, "d", ".", "root directory")
-	cmd.PersistentFlags().StringP(outDirCmdFlag, "o", "", "output directory")
-	cmd.PersistentFlags().StringP(infoDirCmdFlag, "i", "", "directory containing the component_info.json file")
-	cmd.PersistentFlags().StringSlice(skipDirsCmdFlag, []string{}, "directories to skip (comma-separated list, repeatable argument)")
+	flags := &RootFlags{}
+	setupRootFlags(cmd, flags)
+
 	cmd.AddCommand(commandAnalyze())
 	cmd.AddCommand(commandUpdate())
 	cmd.AddCommand(commandDoc())
+
 	return cmd
 }

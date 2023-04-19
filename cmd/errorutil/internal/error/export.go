@@ -1,15 +1,21 @@
 package error
 
 import (
-	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 
+	meshlogger "github.com/layer5io/meshkit/cmd/errorutil/logger"
+
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
-	log "github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
+	"gopkg.in/yaml.v3"
 )
+
+var logger = slog.New(slog.HandlerOptions{}.NewJSONHandler(os.Stdout))
 
 // Error is used to export Error for e.g. documentation purposes.
 //
@@ -38,20 +44,22 @@ type externalAll struct {
 }
 
 func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) error {
-	fname := filepath.Join(outputDir, config.App+"_errors_export.json")
+	fname := filepath.Join(outputDir, config.App+"_errors_export.yaml")
 	export := externalAll{
-		ComponentType: componentInfo.Type,
 		ComponentName: componentInfo.Name,
-		Errors:        make(map[string]Error),
+		ComponentType: componentInfo.Type,
+		Errors:        map[string]Error{},
 	}
+	maxCodeNumber := 0
 	for k, v := range infoAll.LiteralCodes {
-		if len(v) > 1 {
-			log.Errorf("duplicate code '%s' - skipping export", k)
+		if len(v) < 1 {
+			meshlogger.Errorf(logger, "duplicate code '%s' - skipping export", k)
 			continue
 		}
+
 		e := v[0]
 		if _, err := strconv.Atoi(e.Code); err != nil {
-			log.Errorf("non-integer code '%s' - skipping export", k)
+			meshlogger.Errorf(logger, "non-integer code '%s' - skipping export", k)
 			continue
 		}
 		// default value used if validations below fail
@@ -66,8 +74,8 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 		}
 		// were details for this error generated using errors.New(...)?
 		if _, ok := infoAll.Errors[e.Name]; ok {
-			log.Infof("error details found for error name '%s' and code '%s'", e.Name, e.Code)
-			// no duplicates?
+			meshlogger.Infof(logger, "error details found for error name '%s' and code '%s'", e.Name, e.Code)
+
 			if len(infoAll.Errors[e.Name]) == 1 {
 				details := infoAll.Errors[e.Name][0]
 				export.Errors[k] = Error{
@@ -80,16 +88,35 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 					SuggestedRemediation: details.SuggestedRemediation,
 				}
 			} else {
-				log.Errorf("duplicate error details for error name '%s' and code '%s'", e.Name, e.Code)
+				meshlogger.Errorf(logger, "duplicate error details for error name '%s' and code '%s'", e.Name, e.Code)
 			}
 		} else {
-			log.Warnf("no error details found for error name '%s' and code '%s'", e.Name, e.Code)
+			meshlogger.Warnf(logger, "no error details found for error name '%s' and code '%s'", e.Name, e.Code)
+		}
+
+		codeNumber, err := strconv.Atoi(e.Code)
+		if err != nil {
+			meshlogger.Errorf(logger, "error converting code '%s' to integer - skipping", e.Code)
+			continue
+		}
+
+		if codeNumber > maxCodeNumber {
+			maxCodeNumber = codeNumber
 		}
 	}
-	jsn, err := json.MarshalIndent(export, "", "  ")
+
+	yml, err := yaml.Marshal(export)
 	if err != nil {
 		return err
 	}
-	log.Infof("exporting to %s", fname)
-	return os.WriteFile(fname, jsn, 0600)
+
+	meshlogger.Infof(logger, "exporting to %s", fname)
+	err = ioutil.WriteFile(fname, yml, 0600)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Next available error code number: %d\n", maxCodeNumber+1)
+
+	return nil
 }

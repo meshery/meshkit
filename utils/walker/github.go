@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 // GithubContentAPI represents Github API v3 response
@@ -172,7 +172,7 @@ func (g *Github) walker(path string, isFile bool) error {
 
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			logrus.Error("failed to close response body", err)
+			slog.Error("failed to close response body", err)
 		}
 	}()
 
@@ -180,7 +180,7 @@ func (g *Github) walker(path string, isFile bool) error {
 		respBody := GithubContentAPI{}
 
 		if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-			logrus.Error("[GithubWalker]: failed to decode API response", err)
+			slog.Error("[GithubWalker]: failed to decode API response", err)
 			return err
 		}
 
@@ -194,7 +194,7 @@ func (g *Github) walker(path string, isFile bool) error {
 	respBody := GithubDirectoryContentAPI{}
 
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		logrus.Error("[GithubWalker]: failed to decode API response", err)
+		slog.Error("[GithubWalker]: failed to decode API response", err)
 		return err
 	}
 
@@ -208,7 +208,7 @@ func (g *Github) walker(path string, isFile bool) error {
 		go func(r GithubContentAPI) {
 			if g.recurse || isFile {
 				if err := g.walker(nextPath, isFile); err != nil {
-					logrus.Error("[GithubWalker]: error occurred while processing github node ", err)
+					slog.Error("[GithubWalker]: error occurred while processing github node ", err)
 				}
 			}
 
@@ -220,7 +220,7 @@ func (g *Github) walker(path string, isFile bool) error {
 
 	if g.dirInterceptor != nil {
 		if err := g.dirInterceptor(respBody); err != nil {
-			logrus.Error("[GithubWalker]: error occurred while executing directory interceptor function ", err)
+			slog.Error("[GithubWalker]: error occurred while executing directory interceptor function ", err)
 			return err
 		}
 	}

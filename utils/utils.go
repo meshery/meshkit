@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 // transforms the keys of a Map recursively with the given transform function
@@ -233,6 +233,6 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 // SafeClose is a helper function help to close the io
 func safeClose(co io.Closer) {
 	if cerr := co.Close(); cerr != nil {
-		log.Error(cerr)
+		slog.Error("error", cerr)
 	}
 }

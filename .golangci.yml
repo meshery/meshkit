@@ -5,8 +5,10 @@ linters-settings:
       # logging is allowed only by logutils.Log, logrus
       # is allowed to use only in logutils package
       - github.com/sirupsen/logrus
+      - golang.org/x/exp/slog
     packages-with-error-message:
-      - github.com/sirupsen/logrus: "logging is allowed only by logutils.Log"
+      - github.com/sirupsen/logrus: "logrus is going to be deprecated for slog"
+      - golang.org/x/exp/slog: "will be migrating to slog"
   dupl:
     threshold: 100
   exhaustive:

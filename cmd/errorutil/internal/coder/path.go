@@ -1,45 +1,37 @@
 package coder
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	meshlogger "github.com/layer5io/meshkit/cmd/errorutil/logger"
 
-	mesherr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
-	"github.com/sirupsen/logrus"
+	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
+	"golang.org/x/exp/slog"
 )
 
-func contains(s []string, str string) bool {
-	for _, v := range s {
-		if v == str {
-			return true
-		}
-	}
-	return false
-}
+var logger = slog.New(slog.HandlerOptions{}.NewJSONHandler(os.Stdout))
 
-func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesherr.InfoAll) error {
+func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *errutilerr.InfoAll) error {
 	subDirsToSkip := append([]string{".git", ".github"}, globalFlags.skipDirs...)
-	logrus.Info(fmt.Sprintf("root directory: %s", globalFlags.rootDir))
-	logrus.Info(fmt.Sprintf("output directory: %s", globalFlags.outDir))
-	logrus.Info(fmt.Sprintf("info directory: %s", globalFlags.infoDir))
-	logrus.Info(fmt.Sprintf("subdirs to skip: %v", subDirsToSkip))
+	meshlogger.Infof(logger, "root directory: %s", globalFlags.rootDir)
+	meshlogger.Infof(logger, "output directory: %s", globalFlags.outDir)
+	meshlogger.Infof(logger, "info directory: %s", globalFlags.infoDir)
+	meshlogger.Infof(logger, "subdirs to skip: %v", subDirsToSkip)
 	comp, err := component.New(globalFlags.infoDir)
 	if err != nil {
 		return err
 	}
 
 	err = filepath.Walk(globalFlags.rootDir, func(path string, info os.FileInfo, err error) error {
-		logger := logrus.WithFields(logrus.Fields{"path": path})
 		if err != nil {
-			logger.WithFields(logrus.Fields{"error": fmt.Sprintf("%v", err)}).Warn("failure accessing path")
+			logger.Warn("failure accessing path: %v", err)
 			return err
 		}
-		if info.IsDir() && contains(subDirsToSkip, info.Name()) {
-			logger.Infof("skipping directory %s", info.Name())
+		if info.IsDir() && stringSliceContains(subDirsToSkip, info.Name()) {
+			meshlogger.Infof(logger, "skipping directory %s", info.Name())
 			return filepath.SkipDir
 		}
 		if info.IsDir() {
@@ -47,7 +39,7 @@ func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesh
 		} else {
 			if includeFile(path) {
 				isErrorsGoFile := isErrorGoFile(path)
-				logger.WithFields(logrus.Fields{"iserrorsfile": fmt.Sprintf("%v", isErrorsGoFile)}).Debug("handling Go file")
+				logger.Debug("handling Go file: iserrorsfile=%v", isErrorsGoFile)
 				err := handleFile(path, update && isErrorsGoFile, updateAll, errorsInfo, comp)
 				if err != nil {
 					return err
@@ -64,11 +56,6 @@ func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesh
 	return err
 }
 
-func isErrorGoFile(path string) bool {
-	_, file := filepath.Split(path)
-	return file == "error.go"
-}
-
 func includeFile(path string) bool {
 	if strings.HasSuffix(path, "_test.go") {
 		return false
@@ -77,4 +64,9 @@ func includeFile(path string) bool {
 		return true
 	}
 	return false
+}
+
+func isErrorGoFile(path string) bool {
+	_, file := filepath.Split(path)
+	return file == "error.go"
 }

@@ -61,7 +61,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 		case "Service":
 			svc, err := traverser.Client.CoreV1().Services(ns).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -74,7 +74,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 			svc.APIVersion = "v1"
 			genSvc, err := f(svc, err)
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -86,7 +86,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 		case "Pod":
 			pod, err := traverser.Client.CoreV1().Pods(ns).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -99,7 +99,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 			pod.APIVersion = "v1"
 			genSvc, err := f(pod, err)
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -111,7 +111,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 		case "ReplicationController":
 			rc, err := traverser.Client.CoreV1().ReplicationControllers(ns).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -124,7 +124,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 			rc.APIVersion = "v1"
 			genSvc, err := f(rc, err)
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -136,7 +136,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 		case "Deployment":
 			dep, err := traverser.Client.AppsV1().Deployments(ns).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -149,7 +149,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 			dep.APIVersion = "apps/v1"
 			genSvc, err := f(dep, err)
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -161,7 +161,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 		case "ReplicaSet":
 			reps, err := traverser.Client.AppsV1().ReplicaSets(ns).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -174,7 +174,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 			reps.APIVersion = "apps/v1"
 			genSvc, err := f(reps, err)
 			if err != nil {
-				traverser.Logger.Error(err)
+				traverser.Logger.Error("error", err)
 				errs = append(errs, err)
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
@@ -185,7 +185,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 			}
 		default:
 			// Don't do anything
-			traverser.Logger.Warn(fmt.Errorf("invalid resource type"))
+			traverser.Logger.Warn("warning", fmt.Errorf("invalid resource type"))
 		}
 	}
 

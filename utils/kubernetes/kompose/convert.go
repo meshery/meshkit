@@ -13,7 +13,7 @@ import (
 	"github.com/kubernetes/kompose/pkg/transformer/kubernetes"
 	"github.com/kubernetes/kompose/pkg/transformer/openshift"
 	"github.com/layer5io/meshkit/utils"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var (

@@ -6,8 +6,12 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
+	meshlogger "github.com/layer5io/meshkit/cmd/errorutil/logger"
+
+	"golang.org/x/exp/slog"
 )
+
+var logger = slog.New(slog.HandlerOptions{}.NewJSONHandler(os.Stdout))
 
 const (
 	filename = "component_info.json"
@@ -30,7 +34,7 @@ type Component interface {
 // New reads the file component_info.json from dir and returns an info struct
 func New(dir string) (*Info, error) {
 	info := Info{file: filepath.Join(dir, filename)}
-	logrus.Debugf("reading %s", info.file)
+	meshlogger.Debugf(logger, "reading %s", info.file)
 	file, err := os.ReadFile(info.file)
 	if err != nil {
 		return &info, err
@@ -53,6 +57,6 @@ func (i *Info) Write() error {
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("writing %s", i.file)
+	meshlogger.Debugf(logger, "writing %s", i.file)
 	return os.WriteFile(i.file, jsn, 0600)
 }

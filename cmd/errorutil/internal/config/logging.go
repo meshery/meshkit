@@ -1,12 +1,20 @@
 package config
 
-import "github.com/sirupsen/logrus"
+import (
+	"os"
 
-func Logging(verbose bool) {
-	logrus.SetFormatter(&logrus.TextFormatter{})
+	"golang.org/x/exp/slog"
+)
+
+var programLevel = new(slog.LevelVar)
+
+func Logger(verbose bool) {
+	h := slog.HandlerOptions{Level: programLevel}.NewJSONHandler(os.Stderr)
+	slog.SetDefault(slog.New(h))
+
 	if verbose {
-		logrus.SetLevel(logrus.DebugLevel)
+		programLevel.Set(slog.LevelDebug)
 	} else {
-		logrus.SetLevel(logrus.WarnLevel)
+		programLevel.Set(slog.LevelWarn)
 	}
 }

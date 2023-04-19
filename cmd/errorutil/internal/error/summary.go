@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	log "github.com/sirupsen/logrus"
+	meshlogger "github.com/layer5io/meshkit/cmd/errorutil/logger"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
 )
@@ -36,14 +36,15 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 		CallExprCodes:        []string{},
 		IntCodes:             []int{},
 		DeprecatedNewDefault: []string{}}
-	for k, v := range infoAll.LiteralCodes {
-		if len(v) > 1 {
-			_, ok := summary.DuplicateCodes[k]
+
+	for code, errors := range infoAll.LiteralCodes {
+		if len(errors) > 1 {
+			_, ok := summary.DuplicateCodes[code]
 			if !ok {
-				summary.DuplicateCodes[k] = []string{}
+				summary.DuplicateCodes[code] = []string{}
 			}
 		}
-		for _, e := range v {
+		for _, e := range errors {
 			if e.CodeIsInt {
 				i, _ := strconv.Atoi(e.Code)
 				if i < summary.MinCode {
@@ -52,24 +53,25 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 				if i > summary.MaxCode {
 					summary.MaxCode = i
 				}
-				if !contains(summary.IntCodes, i) {
+				if !intSliceContains(summary.IntCodes, i) {
 					summary.IntCodes = append(summary.IntCodes, i)
 				}
 			}
-			if _, ok := summary.DuplicateCodes[k]; ok {
-				summary.DuplicateCodes[k] = append(summary.DuplicateCodes[k], e.Name)
-				log.Errorf("duplicate error code '%s', name: '%s'", k, e.Name)
+			if _, ok := summary.DuplicateCodes[code]; ok {
+				summary.DuplicateCodes[code] = append(summary.DuplicateCodes[code], e.Name)
+				meshlogger.Errorf(logger, "duplicate error code '%s', name: '%s'", code, e.Name)
 			}
 		}
 	}
+
 	if summary.NextCode <= summary.MaxCode {
-		log.Errorf("component_info.next_error_code '%v' is lower than or equal to highest used code '%v'", summary.NextCode, summary.MaxCode)
+		meshlogger.Errorf(logger, "component_info.next_error_code '%v' is lower than or equal to highest used code '%v'", summary.NextCode, summary.MaxCode)
 	}
 	sort.Ints(summary.IntCodes)
 	for k, v := range infoAll.Errors {
 		if len(v) > 1 {
 			summary.DuplicateNames = append(summary.DuplicateNames, k)
-			log.Errorf("duplicate error code name '%s'", k)
+			meshlogger.Errorf(logger, "duplicate error code name '%s'", k)
 		}
 	}
 	sort.Strings(summary.DuplicateNames)
@@ -84,13 +86,13 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 		return err
 	}
 	fname := filepath.Join(outputDir, config.App+"_analyze_summary.json")
-	log.Infof("writing summary to %s", fname)
+	meshlogger.Infof(logger, "writing summary to %s", fname)
 	return os.WriteFile(fname, jsn, 0600)
 }
 
-func contains(s []int, str int) bool {
+func intSliceContains(s []int, i int) bool {
 	for _, v := range s {
-		if v == str {
+		if v == i {
 			return true
 		}
 	}

@@ -12,36 +12,38 @@ import (
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
 	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.InfoAll, comp *component.Info) error {
-	logger := logrus.WithFields(logrus.Fields{"path": path})
+	logger := slog.New(slog.HandlerOptions{}.NewJSONHandler(os.Stdout)).With("path", path)
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
 		return err
 	}
-	logger.WithFields(logrus.Fields{"update": update}).Info("inspecting file")
+
+	logger.Info("inspecting file", "update", update)
 	anyValueChanged := false
+
 	ast.Inspect(file, func(n ast.Node) bool {
-		if pgkid, ok := isNewDefaultCallExpr(n); ok {
-			logger.Warnf("Usage of deprecated function %s.NewDefault detected.", pgkid)
-			if !contains(infoAll.DeprecatedNewDefault, path) {
+		if packageID, ok := isNewDefaultCallExpr(n); ok {
+			logger.Warn("Usage of deprecated function NewDefault detected.", "packageID", packageID)
+			if !stringSliceContains(infoAll.DeprecatedNewDefault, path) {
 				infoAll.DeprecatedNewDefault = append(infoAll.DeprecatedNewDefault, path)
 			}
 			// If a NewDefault call expression is detected, child-nodes are not inspected.
 			// This would lead to duplicates detections in case of dot-import.
 			return false
 		}
-		if newErr, ok := isNewCallExpr(n); ok {
-			name := newErr.Name
-			logger.Infof("New.Error(...) call detected, error code name: '%s'", name)
+		if newError, ok := isNewCallExpr(n); ok {
+			name := newError.Name
+			logger.Info("New.Error(...) call detected", "error code name", name)
 			_, ok := infoAll.Errors[name]
 			if !ok {
 				infoAll.Errors[name] = []errutilerr.Error{}
 			}
-			infoAll.Errors[name] = append(infoAll.Errors[name], *newErr)
+			infoAll.Errors[name] = append(infoAll.Errors[name], *newError)
 			// If a New call expression is detected, child-nodes are not inspected:
 			return false
 		}
@@ -65,12 +67,21 @@ func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.In
 	return nil
 }
 
+func isInt(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
+}
+
 func isErrorCodeVarName(name string) bool {
 	matched, _ := regexp.MatchString("^Err[A-Z].+Code$", name)
 	return matched
 }
 
-func isInt(s string) bool {
-	_, err := strconv.Atoi(s)
-	return err == nil
+func stringSliceContains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }

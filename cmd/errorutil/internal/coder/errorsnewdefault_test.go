@@ -45,13 +45,13 @@ func TestDetectNewDefault(t *testing.T) {
 		}
 		return true
 	})
-	if !contains(pkgs, "errors") {
+	if !stringSliceContains(pkgs, "errors") {
 		t.Errorf("package id 'errors' expected but not found. pkgs = %v", pkgs)
 	}
-	if !contains(pkgs, "mesherr") {
+	if !stringSliceContains(pkgs, "mesherr") {
 		t.Errorf("package id 'mesherr' expected but not found. pkgs = %v", pkgs)
 	}
-	if !contains(pkgs, "") {
+	if !stringSliceContains(pkgs, "") {
 		t.Errorf("package id '' expected but not found. pkgs = %v", pkgs)
 	}
 	countExpected := 3

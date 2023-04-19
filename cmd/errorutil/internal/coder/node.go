@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 
 	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
 )
@@ -69,56 +69,62 @@ func isStringArray(node ast.Node) (string, bool) {
 
 // isNewCallExpr checks whether node is a errors.New(...) call and returns the error information if so.
 func isNewCallExpr(node ast.Node) (*errutilerr.Error, bool) {
-	empty := &errutilerr.Error{}
 	if ce, ok := node.(*ast.CallExpr); ok {
 		_, name, ok2 := isSelectorOrIdent(ce.Fun)
 		if ok2 && name == "New" {
-			// check the signature:
+			// Check the signature:
 			args := ce.Args
 			if len(args) != 6 {
-				return empty, false
+				return nil, false
 			}
+
 			_, codeName, ok := isSelectorOrIdent(args[0])
 			if !ok {
-				return empty, false
+				return nil, false
 			}
+
 			_, severityName, ok := isSelectorOrIdent(args[1])
 			if !ok {
-				return empty, false
+				return nil, false
 			}
-			sDesc, ok := isStringArray(args[2])
+
+			shortDesc, ok := isStringArray(args[2])
 			if !ok {
-				return empty, false
+				return nil, false
 			}
-			lDesc, ok := isStringArray(args[3])
+
+			longDesc, ok := isStringArray(args[3])
 			if !ok {
-				return empty, false
+				return nil, false
 			}
-			cause, ok := isStringArray(args[4])
+
+			probCause, ok := isStringArray(args[4])
 			if !ok {
-				return empty, false
+				return nil, false
 			}
-			remedy, ok := isStringArray(args[5])
+
+			sugRemedy, ok := isStringArray(args[5])
 			if !ok {
-				return empty, false
+				return nil, false
 			}
+
 			return &errutilerr.Error{
 				Name:                 codeName,
 				Code:                 "", // Code is added after the whole code base is parsed
 				Severity:             severityName,
-				ShortDescription:     sDesc,
-				LongDescription:      lDesc,
-				ProbableCause:        cause,
-				SuggestedRemediation: remedy,
+				ShortDescription:     shortDesc,
+				LongDescription:      longDesc,
+				ProbableCause:        probCause,
+				SuggestedRemediation: sugRemedy,
 			}, true
 		}
 	}
-	return empty, false
+	return nil, false
 }
 
 // handleValueSpec inspects node n if it is a ValueSpec, analyzes and updates it (depending on update and updateAll).
 // Returns true if any value was changed.
-func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.Info, logger *logrus.Entry, path string, infoAll *errutilerr.InfoAll) bool {
+func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.Info, logger *slog.Logger, path string, infoAll *errutilerr.InfoAll) bool {
 	anyValueChanged := false
 	spec, ok := n.(*ast.ValueSpec)
 	if ok {
@@ -138,13 +144,13 @@ func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.In
 						value.Value = fmt.Sprintf("\"%s\"", comp.GetNextErrorCode())
 						newValue = strings.Trim(value.Value, "\"")
 						anyValueChanged = true
-						logger.WithFields(logrus.Fields{"name": id.Name, "value": newValue, "oldValue": oldValue}).Info("Err* variable with literal value replaced.")
+						logger.Info("Err* variable with literal value replaced.", "name", id.Name, "value", newValue, "oldValue", oldValue)
 					} else {
 						newValue = oldValue
-						logger.WithFields(logrus.Fields{"name": id.Name, "value": oldValue}).Info("Err* variable detected with literal value.")
+						logger.Info("Err* variable detected with literal value.", "name", id.Name, "value", oldValue)
 					}
 				case *ast.CallExpr:
-					logger.WithFields(logrus.Fields{"name": id.Name}).Warn("Err* variable detected with call expression value.")
+					logger.Warn("Err* variable detected with call expression value.", "name", id.Name)
 				}
 				ec := &errutilerr.Info{
 					Name:          id.Name,

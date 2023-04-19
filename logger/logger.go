@@ -1,107 +1,151 @@
 package logger
 
 import (
+	"context"
+	"fmt"
+	"math/rand"
 	"os"
+	"runtime"
+	"runtime/debug"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/layer5io/meshkit/errors"
-	"github.com/sirupsen/logrus"
-	gormlogger "gorm.io/gorm/logger"
+	"golang.org/x/exp/slog"
 )
 
-type Handler interface {
-	Info(description ...interface{})
-	Debug(description ...interface{})
-	Warn(err error)
-	Error(err error)
-
-	// Kubernetes Controller compliant logger
-	ControllerLogger() logr.Logger
-	DatabaseLogger() gormlogger.Interface
+func (h *Logger) Enabled(ctx context.Context, lvl slog.Level) bool {
+	return h.Handler.Enabled(ctx, lvl)
 }
 
-type Logger struct {
-	handler *logrus.Entry
+func (H *Logger) Handle(ctx context.Context, rec slog.Record) error {
+	return H.Handler.Handle(ctx, rec)
 }
 
-// TerminalFormatter is exported
-type TerminalFormatter struct{}
-
-// Format defined the format of output for Logrus logs
-// Format is exported
-func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	return append([]byte(entry.Message), '\n'), nil
+func (H *Logger) LogAttrs(ctx context.Context, lvl slog.Level, msg string, attrs ...slog.Attr) {
+	H.Logger.LogAttrs(ctx, lvl, msg, attrs...)
 }
 
-func New(appname string, opts Options) (Handler, error) {
-	log := logrus.New()
+func (h *Logger) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return h.Handler.WithAttrs(attrs)
+}
 
-	switch opts.Format {
-	case JsonLogFormat:
-		log.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat: time.RFC3339,
-		})
-	case SyslogLogFormat:
-		log.SetFormatter(&logrus.TextFormatter{
-			TimestampFormat: time.RFC3339,
-			FullTimestamp:   true,
-		})
-	case TerminalLogFormat:
-		log.SetFormatter(new(TerminalFormatter))
+func (h *Logger) WithGroup(name string) slog.Handler {
+	return h.Handler.WithGroup(name)
+}
+
+func (h *Logger) Warn(msg string, err error, args ...any) {
+	// func (h *Logger) Warn(err error) {
+	if err == nil {
+		h.LogAttrs(
+			context.Background(),
+			slog.LevelWarn,
+			"logging warning...",
+			slog.String("code", errors.GetCode(err)),
+			slog.String("severity", fmt.Sprint(errors.GetSeverity(err))),
+			slog.String("short-description", errors.GetSDescription(err)),
+			slog.String("probable-cause", errors.GetCause(err)),
+			slog.String("suggested-remediation", errors.GetRemedy(err)),
+		)
 	}
-
-	// log.SetReportCaller(true)
-	log.SetOutput(os.Stdout)
-	if opts.Output != nil {
-		log.SetOutput(opts.Output)
-	}
-
-	log.SetLevel(logrus.InfoLevel)
-	if opts.DebugLevel {
-		log.SetLevel(logrus.DebugLevel)
-	}
-
-	entry := log.WithFields(logrus.Fields{"app": appname})
-	return &Logger{handler: entry}, nil
 }
 
-func (l *Logger) Error(err error) {
+func (h *Logger) Warnf(format string, args ...interface{}) {
+	// l := slog.Default()
+	if !h.Enabled(context.Background(), slog.LevelWarn) {
+		return
+	}
+	var pcs [1]uintptr
+	runtime.Callers(1, pcs[:])
+	r := slog.NewRecord(
+		time.Now(),
+		slog.LevelWarn,
+		fmt.Sprintf(format, args...),
+		pcs[0],
+	)
+	_ = h.Handler.Handle(context.Background(), r)
+}
+
+func (h *Logger) Error(msg string, err error, args ...any) {
+	// func (h *Logger) Error(err error) {
 	if err == nil {
 		return
 	}
 
-	l.handler.WithFields(logrus.Fields{
-		"code":                  errors.GetCode(err),
-		"severity":              errors.GetSeverity(err),
-		"short-description":     errors.GetSDescription(err),
-		"probable-cause":        errors.GetCause(err),
-		"suggested-remediation": errors.GetRemedy(err),
-	}).Log(logrus.ErrorLevel, err.Error())
-}
-
-func (l *Logger) Info(description ...interface{}) {
-	l.handler.Log(logrus.InfoLevel,
-		description...,
+	h.LogAttrs(
+		context.Background(),
+		slog.LevelError,
+		"logging error...",
+		slog.String("code", errors.GetCode(err)),
+		slog.String("severity", fmt.Sprint(errors.GetSeverity(err))),
+		slog.String("short-description", errors.GetSDescription(err)),
+		slog.String("probable-cause", errors.GetCause(err)),
+		slog.String("suggested-remediation", errors.GetRemedy(err)),
 	)
 }
 
-func (l *Logger) Debug(description ...interface{}) {
-	l.handler.Log(logrus.DebugLevel,
-		description...,
-	)
-}
-
-func (l *Logger) Warn(err error) {
-	if err == nil {
+func (h *Logger) Errorf(format string, args ...interface{}) {
+	// l := slog.Default()
+	if !h.Enabled(context.Background(), slog.LevelError) {
 		return
 	}
+	var pcs [1]uintptr
+	runtime.Callers(1, pcs[:])
+	r := slog.NewRecord(
+		time.Now(),
+		slog.LevelError,
+		fmt.Sprintf(format, args...),
+		pcs[0],
+	)
+	_ = h.Handler.Handle(context.Background(), r)
+}
 
-	l.handler.WithFields(logrus.Fields{
-		"code":                  errors.GetCode(err),
-		"severity":              errors.GetSeverity(err),
-		"short-description":     errors.GetSDescription(err),
-		"probable-cause":        errors.GetCause(err),
-		"suggested-remediation": errors.GetRemedy(err),
-	}).Log(logrus.WarnLevel, err.Error())
+func createHandler(formatOptions Options, lvl *slog.LevelVar) slog.Handler {
+	slogOpts := slog.HandlerOptions{
+		Level:     lvl,
+		AddSource: false,
+	}
+
+	switch formatOptions.Format {
+	case JSONLogFormat:
+		return slogOpts.NewJSONHandler(os.Stdout)
+	case TextLogFormat:
+		return slogOpts.NewTextHandler(os.Stdout)
+	default:
+		return slogOpts.NewTextHandler(os.Stdout)
+	}
+}
+
+func New(appName string, formatOptions Options) (Handler, error) {
+	levelVar := new(slog.LevelVar)
+	handler := createHandler(formatOptions, levelVar)
+	if levelVar != nil {
+		levelVar.Set(slog.LevelDebug)
+	} else {
+		levelVar.Set(slog.LevelInfo)
+	}
+
+	logger := slog.New(handler)
+
+	instanceID := generateID()
+
+	buildInfo, _ := debug.ReadBuildInfo()
+
+	logger.LogAttrs(
+		context.Background(),
+		slog.LevelInfo,
+		"program_info",
+		slog.String("app_name", appName),
+		slog.Int("id", instanceID),
+		slog.Group("properties", slog.Int("pid", os.Getpid()), slog.String("go_version", buildInfo.GoVersion)),
+	)
+
+	return &Logger{
+		Handler: handler,
+		Logger:  logger,
+	}, nil
+}
+
+func generateID() int {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Int()
 }
