@@ -17,8 +17,11 @@ newPRWelcomeComment: >
 firstPRMergeComment: >
   Thanks for your contribution to the Layer5 community! :tada:
    
-  ![Congrats!](https://raw.githubusercontent.com/layer5io/meshkit/master/.github/welcome/Layer5-celebration.png)
-
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./welcome/Meshery-light-logo.png">
+    <source media="(prefers-color-scheme: light)" srcset="./welcome/Meshery-dark-logo.png">
+    <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png">
+  </picture>
 
 #-------------------------------------------------------------------------------
 # Configuration for request-info - https://github.com/behaviorbot/request-info
