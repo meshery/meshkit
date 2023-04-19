@@ -21,7 +21,7 @@
 // There are no predefined error code ranges for components. Every component is free to use its own range.
 // Codes carry no meaning, as e.g. HTTP status codes do.
 //
-// See also the doc command of errorutil, and https://docs.meshery.io/project/contributing-error.
+// See also the doc command of errorutil, and https://docs.meshery.io/project/contributing/contributing-error.
 //
 // Example:
 //
