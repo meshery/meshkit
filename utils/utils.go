@@ -236,3 +236,113 @@ func safeClose(co io.Closer) {
 		slog.Error("error", cerr)
 	}
 }
+
+// RecursiveCastMapStringInterfaceToMapStringInterface checks to see if the type assertion is successful or not.
+// map[string]interface{} recursively => map[string]interface{}
+func RecursiveCastMapStringInterfaceToMapStringInterface(in map[string]interface{}) (map[string]interface{}, error) {
+	res, _ := ConvertMapInterfaceMapString(in)
+	out, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("failed to cast map to map[string]interface{}")
+	}
+
+	return out, nil
+}
+
+// ConvertMapInterfaceMapString function is a generic helper function that used
+// to recursively cast a `map[string]interface{}` type to a `map[string]interface{}` type.
+// converts map[interface{}]interface{} => map[string]interface{}
+//
+// also converts []interface{} => []string
+func ConvertMapInterfaceMapString(v interface{}) (interface{}, error) {
+	switch x := v.(type) {
+	case map[interface{}]interface{}:
+		m := map[string]interface{}{}
+		for k, v2 := range x {
+			switch k2 := k.(type) {
+			case string:
+				casted, err := ConvertMapInterfaceMapString(v2)
+				if err != nil {
+					return nil, fmt.Errorf("failed to convert map: %w", err)
+				}
+				m[k2] = casted
+			default:
+				casted, err := ConvertMapInterfaceMapString(v2)
+				if err != nil {
+					return nil, fmt.Errorf("failed to convert map: %w", err)
+				}
+				m[fmt.Sprint(k)] = casted
+			}
+		}
+		v = m
+
+	case []interface{}:
+		for i, v2 := range x {
+			casted, err := ConvertMapInterfaceMapString(v2)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert list: %w", err)
+			}
+			x[i] = casted
+		}
+
+	case map[string]interface{}:
+		for k, v2 := range x {
+			casted, err := ConvertMapInterfaceMapString(v2)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert map: %w", err)
+			}
+			x[k] = casted
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported type: %T", v)
+	}
+
+	return v, nil
+}
+
+// FlattenMap flattens the given map and writes the flattened map in the dest
+func FlattenMap(prefix string, src map[string]interface{}, dest map[string]interface{}) {
+	if len(prefix) > 0 {
+		prefix += "."
+	}
+
+	for k, v := range src {
+		switch cnode := v.(type) {
+		case map[string]interface{}:
+			if strings.ContainsAny(k, ".") {
+				FlattenMap(prefix+"["+k+"]", cnode, dest)
+			} else {
+				FlattenMap(prefix+k, cnode, dest)
+			}
+		case []interface{}:
+			for i, v := range cnode {
+				switch ccNode := v.(type) {
+				case map[string]interface{}:
+					FlattenMap(prefix+k+"."+strconv.Itoa(i), ccNode, dest)
+				default:
+					dest[prefix+k+"."+strconv.Itoa(i)] = v
+				}
+			}
+		default:
+			dest[prefix+k] = v
+		}
+	}
+}
+
+// ToMapStringInterface takes in data of type interface and returns
+// a map[string]interface{} from that data
+//
+// If the conversion fails then returns an empty map
+func ToMapStringInterface(mp interface{}) map[string]interface{} {
+	byt, err := json.Marshal(mp)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+
+	res := map[string]interface{}{}
+	if err := json.Unmarshal(byt, &res); err != nil {
+		return map[string]interface{}{}
+	}
+	return res
+}
