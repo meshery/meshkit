@@ -33,6 +33,45 @@ func (h *Logger) WithGroup(name string) slog.Handler {
 	return h.Handler.WithGroup(name)
 }
 
+// -----------------------------------------------------------------
+// Info, Infof
+// -----------------------------------------------------------------
+func (h *Logger) Infof(format string, args ...any) {
+	l := slog.Default()
+	if !l.Enabled(context.Background(), slog.LevelInfo) {
+		return
+	}
+
+	var pcs [callerStackDepth]uintptr
+	runtime.Callers(callerSkip, pcs[:])
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, fmt.Sprintf(format, args...), pcs[0])
+	_ = l.Handler().Handle(context.Background(), r)
+}
+
+// -----------------------------------------------------------------
+// Debug, Debugf
+// -----------------------------------------------------------------
+
+func (h *Logger) Debugf(format string, args ...interface{}) {
+	l := slog.Default()
+	if !l.Enabled(context.Background(), slog.LevelDebug) {
+		return
+	}
+
+	var pcs [callerStackDepth]uintptr
+	runtime.Callers(callerSkip, pcs[:])
+	r := slog.NewRecord(
+		time.Now(),
+		slog.LevelDebug,
+		fmt.Sprintf(format, args...),
+		pcs[0],
+	)
+	_ = l.Handler().Handle(context.Background(), r)
+}
+
+// -----------------------------------------------------------------
+// Warn, Warnf
+// -----------------------------------------------------------------
 func (h *Logger) Warn(msg string, err error, args ...any) {
 	// func (h *Logger) Warn(err error) {
 	if err == nil {
@@ -65,6 +104,9 @@ func (h *Logger) Warnf(format string, args ...interface{}) {
 	_ = h.Handler.Handle(context.Background(), r)
 }
 
+// -----------------------------------------------------------------
+// Error, Errorf
+// -----------------------------------------------------------------
 func (h *Logger) Error(msg string, err error, args ...any) {
 	// func (h *Logger) Error(err error) {
 	if err == nil {
@@ -74,7 +116,7 @@ func (h *Logger) Error(msg string, err error, args ...any) {
 	h.LogAttrs(
 		context.Background(),
 		slog.LevelError,
-		"logging error...",
+		"error trace",
 		slog.String("code", errors.GetCode(err)),
 		slog.String("severity", fmt.Sprint(errors.GetSeverity(err))),
 		slog.String("short-description", errors.GetSDescription(err)),
@@ -99,6 +141,9 @@ func (h *Logger) Errorf(format string, args ...interface{}) {
 	_ = h.Handler.Handle(context.Background(), r)
 }
 
+// -----------------------------------------------------------------
+// Define Logger
+// -----------------------------------------------------------------
 func createHandler(formatOptions Options, lvl *slog.LevelVar) slog.Handler {
 	slogOpts := slog.HandlerOptions{
 		Level:     lvl,
