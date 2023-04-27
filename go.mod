@@ -10,8 +10,25 @@ replace (
 	github.com/kubernetes/kompose => github.com/meshery/kompose v1.0.1
 )
 
+// containerd: vendoring from the docker/20.10 branch in https://github.com/moby/containerd
+//
+// Forked from 0edc412565dcc6e3d6125ff9e4b009ad4b89c638 (20201117) with:
+// - `images: validate document type before unmarshal`   (eb9ba7ed8d46d48fb22362f9d91fff6fb837e37e)
+// - `schema1: reject ambiguous documents`               (70c88f507579277ab7af23b06666e3b57d4b4f2d)
+// - `Fix the Inheritable capability defaults`           (6906b57c721f9114377ceb069662b196876915c0)
+// - `Adjust overlay tests to expect "index=off"`        (#4719, for ease of cherry-picking #5076)
+// - `overlay: support "userxattr" option (kernel 5.11)` (#5076)
+// - `docker: avoid concurrent map access panic`         (#4855)
+// github.com/containerd/containerd => github.com/moby/containerd v0.0.0-20220901192706-96c5ae04b678
+// protobuf: corresponds to containerd
+// github.com/golang/protobuf => github.com/golang/protobuf v1.3.5
+// github.com/hashicorp/go-immutable-radix => github.com/tonistiigi/go-immutable-radix v0.0.0-20170803185627-826af9ccf0fe
+replace github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
+
 require (
 	cuelang.org/go v0.4.3
+	github.com/compose-spec/compose-go v1.13.2
+	github.com/docker/compose/v2 v2.2.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
 	github.com/google/uuid v1.3.0
@@ -22,6 +39,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.15.0
+	github.com/stretchr/testify v1.8.2
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.3.10
@@ -36,19 +54,38 @@ require (
 )
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.3.6 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
-	github.com/compose-spec/compose-go v1.13.2 // indirect
+	github.com/buger/goterm v1.0.4 // indirect
+	github.com/containerd/continuity v0.3.0 // indirect
+	github.com/containerd/typeurl v1.0.2 // indirect
 	github.com/distribution/distribution/v3 v3.0.0-20230214150026-36d8c594d7aa // indirect
-	github.com/docker/compose/v2 v2.2.0 // indirect
+	github.com/docker/buildx v0.5.2-0.20210422185057-908a856079fc // indirect
 	github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
+	github.com/gofrs/flock v0.8.1 // indirect
+	github.com/gogo/googleapis v1.4.0 // indirect
+	github.com/golang/mock v1.6.0 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
+	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
-	github.com/mattn/go-shellwords v1.0.12 // indirect
+	github.com/jaguilar/vt100 v0.0.0-20150826170717-2703a27b14ea // indirect
+	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
+	github.com/klauspost/compress v1.14.4 // indirect
+	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
+	github.com/moby/buildkit v0.8.2-0.20210401015549-df49b648c8bf // indirect
+	github.com/moby/locker v1.0.1 // indirect
+	github.com/moby/sys/symlink v0.2.0 // indirect
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sanathkr/go-yaml v0.0.0-20170819195128-ed9d249f429b // indirect
 	github.com/theupdateframework/notary v0.6.1 // indirect
+	github.com/tonistiigi/fsutil v0.0.0-20201103201449-0834f99b7b85 // indirect
+	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	golang.org/x/mod v0.6.0 // indirect
 )
 
@@ -75,10 +112,10 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
-	github.com/docker/cli v20.10.21+incompatible // indirect
+	github.com/docker/cli v20.10.21+incompatible
 	github.com/docker/compose-cli v1.0.31
 	github.com/docker/distribution v2.8.1+incompatible // indirect
-	github.com/docker/docker v20.10.21+incompatible // indirect
+	github.com/docker/docker v20.10.21+incompatible
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
@@ -133,7 +170,6 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
-	github.com/klauspost/compress v1.14.4 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/lib/pq v1.10.7 // indirect
@@ -150,7 +186,6 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/moby/sys/mount v0.2.0 // indirect
 	github.com/moby/sys/mountinfo v0.5.0 // indirect

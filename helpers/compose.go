@@ -11,10 +11,13 @@ import (
 	"github.com/compose-spec/compose-go/types"
 	"github.com/containerd/console"
 	"github.com/docker/compose-cli/api/client"
+	"github.com/docker/compose-cli/local"
+
 	"github.com/docker/compose-cli/api/containers"
 	"github.com/docker/compose-cli/cli/mobycli"
 	"github.com/docker/compose-cli/utils/formatter"
 	format "github.com/docker/compose/v2/cmd/formatter"
+	dockerClient "github.com/docker/docker/client"
 
 	"github.com/docker/compose/v2/pkg/api"
 )
@@ -27,8 +30,9 @@ type ContainerView struct {
 	Ports   []string
 }
 
-func NewComposeClient(ctx context.Context) (*client.Client, error) {
-	return client.New(ctx)
+func NewComposeClientFromDocker(c *dockerClient.APIClient) *client.Client {
+	composeClient := client.NewClient("moby", local.NewService(*c))
+	return &composeClient
 }
 
 func GetVersion(ctx context.Context, c *client.Client) (string, error) {
