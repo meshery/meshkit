@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -68,8 +67,6 @@ func TestUp(t *testing.T) {
 
 	err = Up(ctx, *c, composeFilePath, false)
 	assert.NoError(t, err)
-
-	TestListContainers(t)
 }
 
 func TestRm(t *testing.T) {
@@ -81,7 +78,7 @@ func TestRm(t *testing.T) {
 	c := NewComposeClientFromDocker(dc)
 	assert.NotNil(t, c)
 
-	err = Rm(ctx, *c, "test_project", "docker-compose.test.yml", false)
+	err = Rm(ctx, *c, "docker-compose.test.yml", false)
 	assert.NoError(t, err)
 }
 
@@ -94,7 +91,7 @@ func TestStop(t *testing.T) {
 	c := NewComposeClientFromDocker(dc)
 	assert.NotNil(t, c)
 
-	err = Stop(ctx, *c, "test_project", "docker-compose.yml", false)
+	err = Stop(ctx, *c, "docker-compose.test.yml", false)
 	assert.NoError(t, err)
 }
 
@@ -121,7 +118,6 @@ func TestListContainers(t *testing.T) {
 	assert.NotNil(t, c)
 
 	containers, err := ListContainers(ctx, c, false)
-	fmt.Println(containers)
 	assert.NotNil(t, containers)
 	assert.NoError(t, err)
 }

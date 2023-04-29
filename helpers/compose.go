@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,15 +45,15 @@ func NewComposeClientFromDocker(c *dockerClient.APIClient) *client.Client {
 // 	return string(versionResult), err
 // }
 
-func Up(ctx context.Context, c client.Client, composeFilePath string, detach bool) error {
+func projectFromComposeFilePath(composeFilePath string) (*types.Project, error) {
 	// Load the Compose YAML file into memory
-	yamlData, err := ioutil.ReadFile(composeFilePath)
+	yamlData, err := os.ReadFile(composeFilePath)
 	if err != nil {
 		panic(err)
 	}
 
 	// Create Project object from YAML
-	project, err := loader.Load(types.ConfigDetails{
+	return loader.Load(types.ConfigDetails{
 		WorkingDir: filepath.Dir(composeFilePath),
 		ConfigFiles: []types.ConfigFile{{
 			Filename: filepath.Base(composeFilePath),
@@ -62,6 +61,10 @@ func Up(ctx context.Context, c client.Client, composeFilePath string, detach boo
 		}},
 		Environment: nil,
 	}, func(options *loader.Options) {})
+}
+
+func Up(ctx context.Context, c client.Client, composeFilePath string, detach bool) error {
+	project, err := projectFromComposeFilePath(composeFilePath)
 	if err != nil {
 		return err
 	}
@@ -75,22 +78,22 @@ func Up(ctx context.Context, c client.Client, composeFilePath string, detach boo
 	return c.ComposeService().Up(ctx, project, api.UpOptions{Start: api.StartOptions{Attach: logConsumer}})
 }
 
-func Rm(ctx context.Context, c client.Client, projectName, composeFilePath string, force bool) error {
-	if projectName == "" {
-		projectName = "meshery"
+func Rm(ctx context.Context, c client.Client, composeFilePath string, force bool) error {
+	project, err := projectFromComposeFilePath(composeFilePath)
+	if err != nil {
+		return err
 	}
-	project := types.Project{Name: projectName, WorkingDir: filepath.Dir(composeFilePath), ComposeFiles: []string{composeFilePath}}
 
-	return c.ComposeService().Remove(ctx, &project, api.RemoveOptions{Force: force})
+	return c.ComposeService().Remove(ctx, project, api.RemoveOptions{Force: force})
 }
 
-func Stop(ctx context.Context, c client.Client, projectName, composeFilePath string, force bool) error {
-	if projectName == "" {
-		projectName = "meshery"
+func Stop(ctx context.Context, c client.Client, composeFilePath string, force bool) error {
+	project, err := projectFromComposeFilePath(composeFilePath)
+	if err != nil {
+		return err
 	}
-	project := types.Project{Name: projectName, WorkingDir: filepath.Dir(composeFilePath), ComposeFiles: []string{composeFilePath}}
 
-	return c.ComposeService().Stop(ctx, &project, api.StopOptions{})
+	return c.ComposeService().Stop(ctx, project, api.StopOptions{})
 }
 
 func Ps(ctx context.Context, c *client.Client, all, quiet bool, formatOpt string) error {
