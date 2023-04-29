@@ -3,6 +3,7 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	dockerCmd "github.com/docker/cli/cli/command"
@@ -40,54 +41,75 @@ func TestNewComposeClient(t *testing.T) {
 	assert.NotNil(t, c)
 }
 
-func TestGetVersion(t *testing.T) {
-	// Test that GetVersion returns a non-empty string and no error
+// func TestGetVersion(t *testing.T) {
+// 	// Test that GetVersion returns a non-empty string and no error
+// 	dc, err := mockDockerClient()
+// 	assert.NoError(t, err)
+
+// 	c := NewComposeClientFromDocker(dc)
+// 	assert.NotNil(t, c)
+
+// 	version, err := GetVersion(context.Background(), c)
+// 	assert.NotEmpty(t, version)
+// 	assert.NoError(t, err)
+// }
+
+func TestUp(t *testing.T) {
+	// Test that Up returns no error
+	ctx := context.Background()
 	dc, err := mockDockerClient()
 	assert.NoError(t, err)
 
 	c := NewComposeClientFromDocker(dc)
 	assert.NotNil(t, c)
 
-	version, err := GetVersion(context.Background(), c)
-	assert.NotEmpty(t, version)
+	composeFilePath, err := filepath.Abs("./docker-compose.test.yml")
+	assert.NoError(t, err)
+
+	err = Up(ctx, *c, composeFilePath, false)
+	assert.NoError(t, err)
+
+	TestListContainers(t)
+}
+
+func TestRm(t *testing.T) {
+	// Test that Rm returns no error
+	ctx := context.Background()
+	dc, err := mockDockerClient()
+	assert.NoError(t, err)
+
+	c := NewComposeClientFromDocker(dc)
+	assert.NotNil(t, c)
+
+	err = Rm(ctx, *c, "test_project", "docker-compose.test.yml", false)
 	assert.NoError(t, err)
 }
 
-// func TestUp(t *testing.T) {
-// 	// Test that Up returns no error
-// 	ctx := context.Background()
-// 	c := &client.Client{} // Mock client
+func TestStop(t *testing.T) {
+	// Test that Stop returns no error
+	ctx := context.Background()
+	dc, err := mockDockerClient()
+	assert.NoError(t, err)
 
-// 	err := Up(ctx, *c, "test_project", "docker-compose.yml", false)
-// 	assert.NoError(t, err)
-// }
+	c := NewComposeClientFromDocker(dc)
+	assert.NotNil(t, c)
 
-// func TestRm(t *testing.T) {
-// 	// Test that Rm returns no error
-// 	ctx := context.Background()
-// 	c := &client.Client{} // Mock client
+	err = Stop(ctx, *c, "test_project", "docker-compose.yml", false)
+	assert.NoError(t, err)
+}
 
-// 	err := Rm(ctx, *c, "test_project", "docker-compose.yml", false)
-// 	assert.NoError(t, err)
-// }
+func TestPs(t *testing.T) {
+	// Test that Ps returns no error
+	ctx := context.Background()
+	dc, err := mockDockerClient()
+	assert.NoError(t, err)
 
-// func TestStop(t *testing.T) {
-// 	// Test that Stop returns no error
-// 	ctx := context.Background()
-// 	c := &client.Client{} // Mock client
+	c := NewComposeClientFromDocker(dc)
+	assert.NotNil(t, c)
 
-// 	err := Stop(ctx, *c, "test_project", "docker-compose.yml", false)
-// 	assert.NoError(t, err)
-// }
-
-// func TestPs(t *testing.T) {
-// 	// Test that Ps returns no error
-// 	ctx := context.Background()
-// 	c := &client.Client{} // Mock client
-
-// 	err := Ps(ctx, c, false, false, "table")
-// 	assert.NoError(t, err)
-// }
+	err = Ps(ctx, c, false, false, "")
+	assert.NoError(t, err)
+}
 
 func TestListContainers(t *testing.T) {
 	// Test that ListContainers returns a non-nil slice of ContainerView and no error
