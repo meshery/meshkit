@@ -14,7 +14,6 @@ replace (
 require (
 	cuelang.org/go v0.4.3
 	github.com/compose-spec/compose-go v1.0.8
-	github.com/containerd/console v1.0.3
 	github.com/docker/compose/v2 v2.2.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
@@ -46,6 +45,7 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cloudflare/cfssl v1.6.4 // indirect
 	github.com/compose-spec/godotenv v1.1.1 // indirect
+	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/containerd/typeurl v1.0.2 // indirect
 	github.com/distribution/distribution/v3 v3.0.0-20230214150026-36d8c594d7aa // indirect

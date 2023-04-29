@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var testDockerComposeConfig string = "./docker-compose.test.yml"
+
 func mockDockerClient() (*dockerClient.APIClient, error) {
 	// Get the Docker configuration
 	dockerCfg, err := cliconfig.Load(dockerconfig.Dir())
@@ -64,7 +66,7 @@ func TestUp(t *testing.T) {
 	c := NewComposeClientFromDocker(dc)
 	assert.NotNil(t, c)
 
-	composeFilePath, err := filepath.Abs("./docker-compose.test.yml")
+	composeFilePath, err := filepath.Abs(testDockerComposeConfig)
 	assert.NoError(t, err)
 
 	err = Up(ctx, *c, composeFilePath, false)
@@ -80,7 +82,7 @@ func TestRm(t *testing.T) {
 	c := NewComposeClientFromDocker(dc)
 	assert.NotNil(t, c)
 
-	err = Rm(ctx, *c, "docker-compose.test.yml", false)
+	err = Rm(ctx, *c, testDockerComposeConfig, false)
 	assert.NoError(t, err)
 }
 
@@ -133,7 +135,7 @@ func TestPull(t *testing.T) {
 	c := NewComposeClientFromDocker(dc)
 	assert.NotNil(t, c)
 
-	err = Pull(ctx, c, "docker-compose.test.yml")
+	err = Pull(ctx, c, testDockerComposeConfig)
 	assert.NoError(t, err)
 }
 
@@ -147,6 +149,6 @@ func TestGetLogs(t *testing.T) {
 	assert.NotNil(t, c)
 
 	logConsumer := format.NewLogConsumer(ctx, os.Stdout, false, false)
-	err = GetLogs(ctx, c, "docker-compose.test.yml", "10", false, logConsumer)
+	err = GetLogs(ctx, c, testDockerComposeConfig, "10", false, logConsumer)
 	assert.NoError(t, err)
 }
