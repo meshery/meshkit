@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/compose-spec/compose-go/types"
 	"github.com/containerd/console"
 	"github.com/docker/compose-cli/api/client"
 	"github.com/docker/compose-cli/local"
@@ -16,11 +13,14 @@ import (
 	"github.com/docker/compose-cli/api/containers"
 	"github.com/docker/compose-cli/cli/mobycli"
 	"github.com/docker/compose-cli/utils/formatter"
-	format "github.com/docker/compose/v2/cmd/formatter"
-	dockerClient "github.com/docker/docker/client"
 
-	"github.com/docker/compose/v2/pkg/api"
+	dockerClient "github.com/docker/docker/client"
 )
+
+// 	format "github.com/docker/compose/v2/cmd/formatter"
+
+// 	"github.com/docker/compose/v2/pkg/api"
+// )
 
 type ContainerView struct {
 	ID      string
@@ -43,59 +43,59 @@ func GetVersion(ctx context.Context, c *client.Client) (string, error) {
 	return string(versionResult), err
 }
 
-func Up(ctx context.Context, c client.Client, projectName, composeFilePath string, detach bool) error {
-	if projectName == "" {
-		projectName = "meshery"
-	}
-	project := types.Project{Name: projectName, WorkingDir: filepath.Dir(composeFilePath), ComposeFiles: []string{composeFilePath}}
+// func Up(ctx context.Context, c client.Client, projectName, composeFilePath string, detach bool) error {
+// 	if projectName == "" {
+// 		projectName = "meshery"
+// 	}
+// 	project := types.Project{Name: projectName, WorkingDir: filepath.Dir(composeFilePath), ComposeFiles: []string{composeFilePath}}
 
-	var logConsumer api.LogConsumer
-	if detach {
-		_, pipeWriter := io.Pipe()
-		logConsumer = format.NewLogConsumer(ctx, pipeWriter, false, false)
-	}
-	return c.ComposeService().Up(ctx, &project, api.UpOptions{Start: api.StartOptions{Attach: logConsumer}})
-}
+// 	var logConsumer api.LogConsumer
+// 	if detach {
+// 		_, pipeWriter := io.Pipe()
+// 		logConsumer = format.NewLogConsumer(ctx, pipeWriter, pipeWriter, false, false, false)
+// 	}
+// 	return c.ComposeService().Up(ctx, &project, api.UpOptions{Start: api.StartOptions{Attach: logConsumer}})
+// }
 
-func Rm(ctx context.Context, c client.Client, projectName, composeFilePath string, force bool) error {
-	if projectName == "" {
-		projectName = "meshery"
-	}
-	project := types.Project{Name: projectName, WorkingDir: filepath.Dir(composeFilePath), ComposeFiles: []string{composeFilePath}}
+// func Rm(ctx context.Context, c client.Client, projectName, composeFilePath string, force bool) error {
+// 	if projectName == "" {
+// 		projectName = "meshery"
+// 	}
+// 	_ = types.Project{Name: projectName, WorkingDir: filepath.Dir(composeFilePath), ComposeFiles: []string{composeFilePath}}
 
-	return c.ComposeService().Remove(ctx, &project, api.RemoveOptions{Force: force})
-}
+// 	return c.ComposeService().Remove(ctx, projectName, api.RemoveOptions{Force: force})
+// }
 
-func Stop(ctx context.Context, c client.Client, projectName, composeFilePath string, force bool) error {
-	if projectName == "" {
-		projectName = "meshery"
-	}
-	project := types.Project{Name: projectName, WorkingDir: filepath.Dir(composeFilePath), ComposeFiles: []string{composeFilePath}}
+// func Stop(ctx context.Context, c client.Client, projectName, composeFilePath string, force bool) error {
+// 	if projectName == "" {
+// 		projectName = "meshery"
+// 	}
+// 	_ = types.Project{Name: projectName, WorkingDir: filepath.Dir(composeFilePath), ComposeFiles: []string{composeFilePath}}
 
-	return c.ComposeService().Stop(ctx, &project, api.StopOptions{})
-}
+// 	return c.ComposeService().Stop(ctx, projectName, api.StopOptions{})
+// }
 
-func Ps(ctx context.Context, c *client.Client, all, quiet bool, formatOpt string) error {
-	containerList, err := c.ContainerService().List(ctx, all)
-	if err != nil {
-		return fmt.Errorf("failed to fetch containers: %w", err)
-	}
+// func Ps(ctx context.Context, c *client.Client, all, quiet bool, formatOpt string) error {
+// 	containerList, err := c.ContainerService().List(ctx, all)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to fetch containers: %w", err)
+// 	}
 
-	if quiet {
-		for _, c := range containerList {
-			fmt.Println(c.ID)
-		}
-		return nil
-	}
+// 	if quiet {
+// 		for _, c := range containerList {
+// 			fmt.Println(c.ID)
+// 		}
+// 		return nil
+// 	}
 
-	view := getViewFromContainerList(containerList)
-	return format.Print(view, formatOpt, os.Stdout, func(w io.Writer) {
-		for _, c := range view {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", c.ID, c.Image, c.Command, c.Status,
-				strings.Join(c.Ports, ", "))
-		}
-	}, "CONTAINER ID", "IMAGE", "COMMAND", "STATUS", "PORTS")
-}
+// 	view := getViewFromContainerList(containerList)
+// 	return format.Print(view, formatOpt, os.Stdout, func(w io.Writer) {
+// 		for _, c := range view {
+// 			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", c.ID, c.Image, c.Command, c.Status,
+// 				strings.Join(c.Ports, ", "))
+// 		}
+// 	}, "CONTAINER ID", "IMAGE", "COMMAND", "STATUS", "PORTS")
+// }
 
 func ListContainers(ctx context.Context, c *client.Client, all bool) ([]ContainerView, error) {
 	containerList, err := c.ContainerService().List(ctx, all)
@@ -128,24 +128,24 @@ func getFQDN(container containers.Container) string {
 	return fqdn
 }
 
-func Pull(ctx context.Context, c *client.Client, composeFilePath, projectName string) error {
-	if projectName == "" {
-		projectName = "meshery"
-	}
+// func Pull(ctx context.Context, c *client.Client, composeFilePath, projectName string) error {
+// 	if projectName == "" {
+// 		projectName = "meshery"
+// 	}
 
-	project := types.Project{
-		Name:         projectName,
-		WorkingDir:   filepath.Dir(composeFilePath),
-		ComposeFiles: []string{composeFilePath},
-	}
+// 	project := types.Project{
+// 		Name:         projectName,
+// 		WorkingDir:   filepath.Dir(composeFilePath),
+// 		ComposeFiles: []string{composeFilePath},
+// 	}
 
-	err := c.ComposeService().Pull(ctx, &project, api.PullOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to pull images: %w", err)
-	}
+// 	err := c.ComposeService().Pull(ctx, &project, api.PullOptions{})
+// 	if err != nil {
+// 		return fmt.Errorf("failed to pull images: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func GetLogs(ctx context.Context, c *client.Client, composeFilePath, tail string, follow bool) error {
 	req := containers.LogsRequest{
