@@ -2,12 +2,14 @@ package helpers
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
 	dockerCmd "github.com/docker/cli/cli/command"
 	cliconfig "github.com/docker/cli/cli/config"
 	cliflags "github.com/docker/cli/cli/flags"
+	format "github.com/docker/compose/v2/cmd/formatter"
 	dockerconfig "github.com/docker/docker/cli/config"
 	dockerClient "github.com/docker/docker/client"
 	"github.com/stretchr/testify/assert"
@@ -131,11 +133,16 @@ func TestListContainers(t *testing.T) {
 // 	assert.NoError(t, err)
 // }
 
-// func TestGetLogs(t *testing.T) {
-// 	// Test that GetLogs returns no error
-// 	ctx := context.Background()
-// 	c := &client.Client{} // Mock client
+func TestGetLogs(t *testing.T) {
+	// Test that GetLogs returns no error
+	ctx := context.Background()
+	dc, err := mockDockerClient()
+	assert.NoError(t, err)
 
-// 	err := GetLogs(ctx, c, "docker-compose.yml", "100", false)
-// 	assert.NoError(t, err)
-// }
+	c := NewComposeClientFromDocker(dc)
+	assert.NotNil(t, c)
+
+	logConsumer := format.NewLogConsumer(ctx, os.Stdout, false, false)
+	err = GetLogs(ctx, c, "docker-compose.test.yml", "10", false, logConsumer)
+	assert.NoError(t, err)
+}

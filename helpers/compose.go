@@ -10,7 +10,6 @@ import (
 
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
-	"github.com/containerd/console"
 	"github.com/docker/compose-cli/api/client"
 
 	"github.com/docker/compose-cli/local"
@@ -169,23 +168,11 @@ func getFQDN(container containers.Container) string {
 // 	return nil
 // }
 
-func GetLogs(ctx context.Context, c *client.Client, composeFilePath, tail string, follow bool) error {
-	req := containers.LogsRequest{
-		Follow: follow,
-		Tail:   tail,
+func GetLogs(ctx context.Context, c *client.Client, composeFilePath, tail string, follow bool, logConsumer api.LogConsumer) error {
+	project, err := projectFromComposeFilePath(composeFilePath)
+	if err != nil {
+		return err
 	}
 
-	var con io.Writer = os.Stdout
-	if cff, err := console.ConsoleFromFile(os.Stdout); err == nil {
-		size, err := cff.Size()
-		if err != nil {
-			return err
-		}
-		req.Width = int(size.Width)
-		con = cff
-	}
-
-	req.Writer = con
-
-	return c.ContainerService().Logs(ctx, composeFilePath, req)
+	return c.ComposeService().Logs(ctx, project.Name, logConsumer, api.LogOptions{Tail: tail, Follow: follow})
 }
