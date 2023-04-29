@@ -124,14 +124,18 @@ func TestListContainers(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// func TestPull(t *testing.T) {
-// 	// Test that Pull returns no error
-// 	ctx := context.Background()
-// 	c := &client.Client{} // Mock client
+func TestPull(t *testing.T) {
+	// Test that Pull returns no error
+	ctx := context.Background()
+	dc, err := mockDockerClient()
+	assert.NoError(t, err)
 
-// 	err := Pull(ctx, c, "docker-compose.yml", "test_project")
-// 	assert.NoError(t, err)
-// }
+	c := NewComposeClientFromDocker(dc)
+	assert.NotNil(t, c)
+
+	err = Pull(ctx, c, "docker-compose.test.yml")
+	assert.NoError(t, err)
+}
 
 func TestGetLogs(t *testing.T) {
 	// Test that GetLogs returns no error

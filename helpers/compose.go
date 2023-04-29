@@ -149,24 +149,14 @@ func getFQDN(container containers.Container) string {
 	return fqdn
 }
 
-// func Pull(ctx context.Context, c *client.Client, composeFilePath, projectName string) error {
-// 	if projectName == "" {
-// 		projectName = "meshery"
-// 	}
+func Pull(ctx context.Context, c *client.Client, composeFilePath string) error {
+	project, err := projectFromComposeFilePath(composeFilePath)
+	if err != nil {
+		return err
+	}
 
-// 	project := types.Project{
-// 		Name:         projectName,
-// 		WorkingDir:   filepath.Dir(composeFilePath),
-// 		ComposeFiles: []string{composeFilePath},
-// 	}
-
-// 	err := c.ComposeService().Pull(ctx, &project, api.PullOptions{})
-// 	if err != nil {
-// 		return fmt.Errorf("failed to pull images: %w", err)
-// 	}
-
-// 	return nil
-// }
+	return c.ComposeService().Pull(ctx, project, api.PullOptions{})
+}
 
 func GetLogs(ctx context.Context, c *client.Client, composeFilePath, tail string, follow bool, logConsumer api.LogConsumer) error {
 	project, err := projectFromComposeFilePath(composeFilePath)
