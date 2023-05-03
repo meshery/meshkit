@@ -19,6 +19,11 @@ import (
 
 	dockerClient "github.com/docker/docker/client"
 
+	dockerCmd "github.com/docker/cli/cli/command"
+	cliconfig "github.com/docker/cli/cli/config"
+	cliflags "github.com/docker/cli/cli/flags"
+	dockerconfig "github.com/docker/docker/cli/config"
+
 	format "github.com/docker/compose/v2/cmd/formatter"
 	"github.com/docker/compose/v2/pkg/api"
 )
@@ -29,6 +34,25 @@ type ContainerView struct {
 	Status  string
 	Command string
 	Ports   []string
+}
+
+func NewDockerAPIClientFromConfig(configDir string) (*dockerClient.APIClient, error) {
+	if configDir == "" {
+		configDir = dockerconfig.Dir()
+	}
+
+	// Get the Docker configuration
+	dockerCfg, err := cliconfig.Load(configDir)
+	if err != nil {
+		return nil, err
+	}
+
+	//connection to docker-client
+	cli, err := dockerCmd.NewAPIClientFromFlags(cliflags.NewCommonOptions(), dockerCfg)
+	if err != nil {
+		return nil, err
+	}
+	return &cli, nil
 }
 
 func NewComposeClientFromDocker(c *dockerClient.APIClient) *client.Client {
