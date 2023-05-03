@@ -6,37 +6,23 @@ import (
 	"path/filepath"
 	"testing"
 
-	dockerCmd "github.com/docker/cli/cli/command"
-	cliconfig "github.com/docker/cli/cli/config"
-	cliflags "github.com/docker/cli/cli/flags"
 	format "github.com/docker/compose/v2/cmd/formatter"
-	dockerconfig "github.com/docker/docker/cli/config"
-	dockerClient "github.com/docker/docker/client"
 	"github.com/stretchr/testify/assert"
 )
 
 var testDockerComposeConfig string = "./docker-compose.test.yml"
 
-func mockDockerClient() (*dockerClient.APIClient, error) {
-	// Get the Docker configuration
-	dockerCfg, err := cliconfig.Load(dockerconfig.Dir())
-	if err != nil {
-		return nil, err
-	}
+func TestNewDockerAPIClientFromConfig(t *testing.T) {
+	dc, err := NewDockerAPIClientFromConfig("")
 
-	//connection to docker-client
-	cli, err := dockerCmd.NewAPIClientFromFlags(cliflags.NewCommonOptions(), dockerCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return &cli, nil
+	assert.NotNil(t, dc)
+	assert.NoError(t, err)
 }
 
 func TestNewComposeClient(t *testing.T) {
 	// Test that NewComposeClient returns a non-nil client and no error
 
-	dc, err := mockDockerClient()
+	dc, err := NewDockerAPIClientFromConfig("")
 	assert.NotNil(t, dc)
 	assert.NoError(t, err)
 
@@ -57,10 +43,18 @@ func TestNewComposeClient(t *testing.T) {
 // 	assert.NoError(t, err)
 // }
 
+func TestOrchestration(t *testing.T) {
+	t.Run("Test Up command", TestUp)
+
+	t.Run("Test Stop command", TestStop)
+
+	t.Run("Test Compose command", TestStop)
+}
+
 func TestUp(t *testing.T) {
 	// Test that Up returns no error
 	ctx := context.Background()
-	dc, err := mockDockerClient()
+	dc, err := NewDockerAPIClientFromConfig("")
 	assert.NoError(t, err)
 
 	c := NewComposeClientFromDocker(dc)
@@ -76,7 +70,7 @@ func TestUp(t *testing.T) {
 func TestRm(t *testing.T) {
 	// Test that Rm returns no error
 	ctx := context.Background()
-	dc, err := mockDockerClient()
+	dc, err := NewDockerAPIClientFromConfig("")
 	assert.NoError(t, err)
 
 	c := NewComposeClientFromDocker(dc)
@@ -89,7 +83,7 @@ func TestRm(t *testing.T) {
 func TestStop(t *testing.T) {
 	// Test that Stop returns no error
 	ctx := context.Background()
-	dc, err := mockDockerClient()
+	dc, err := NewDockerAPIClientFromConfig("")
 	assert.NoError(t, err)
 
 	c := NewComposeClientFromDocker(dc)
@@ -102,7 +96,7 @@ func TestStop(t *testing.T) {
 func TestPs(t *testing.T) {
 	// Test that Ps returns no error
 	ctx := context.Background()
-	dc, err := mockDockerClient()
+	dc, err := NewDockerAPIClientFromConfig("")
 	assert.NoError(t, err)
 
 	c := NewComposeClientFromDocker(dc)
@@ -115,7 +109,7 @@ func TestPs(t *testing.T) {
 func TestListContainers(t *testing.T) {
 	// Test that ListContainers returns a non-nil slice of ContainerView and no error
 	ctx := context.Background()
-	dc, err := mockDockerClient()
+	dc, err := NewDockerAPIClientFromConfig("")
 	assert.NoError(t, err)
 
 	c := NewComposeClientFromDocker(dc)
@@ -129,7 +123,7 @@ func TestListContainers(t *testing.T) {
 func TestPull(t *testing.T) {
 	// Test that Pull returns no error
 	ctx := context.Background()
-	dc, err := mockDockerClient()
+	dc, err := NewDockerAPIClientFromConfig("")
 	assert.NoError(t, err)
 
 	c := NewComposeClientFromDocker(dc)
@@ -142,7 +136,7 @@ func TestPull(t *testing.T) {
 func TestGetLogs(t *testing.T) {
 	// Test that GetLogs returns no error
 	ctx := context.Background()
-	dc, err := mockDockerClient()
+	dc, err := NewDockerAPIClientFromConfig("")
 	assert.NoError(t, err)
 
 	c := NewComposeClientFromDocker(dc)
