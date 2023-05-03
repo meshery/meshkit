@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/compose-spec/compose-go/loader"
@@ -20,6 +22,7 @@ import (
 	dockerClient "github.com/docker/docker/client"
 
 	dockerCmd "github.com/docker/cli/cli/command"
+	formatter2 "github.com/docker/cli/cli/command/formatter"
 	cliconfig "github.com/docker/cli/cli/config"
 	cliflags "github.com/docker/cli/cli/flags"
 	dockerconfig "github.com/docker/docker/cli/config"
@@ -119,8 +122,13 @@ func Stop(ctx context.Context, c client.Client, composeFilePath string, force bo
 	return c.ComposeService().Stop(ctx, project, api.StopOptions{})
 }
 
-func Ps(ctx context.Context, c *client.Client, all, quiet bool, formatOpt string) error {
-	containerList, err := c.ContainerService().List(ctx, all)
+func Ps(ctx context.Context, c *client.Client, all, quiet bool, formatOpt, composeFilePath string) error {
+	project, err := projectFromComposeFilePath(composeFilePath)
+	if err != nil {
+		return err
+	}
+
+	containerList, err := c.ComposeService().Ps(ctx, project.Name, api.PsOptions{All: all})
 	if err != nil {
 		return fmt.Errorf("failed to fetch containers: %w", err)
 	}
@@ -131,14 +139,95 @@ func Ps(ctx context.Context, c *client.Client, all, quiet bool, formatOpt string
 		}
 		return nil
 	}
+	return format.Print(containerList, formatOpt, os.Stdout,
+		writer(containerList),
+		"NAME", "IMAGE", "COMMAND", "SERVICE", "CREATED", "STATUS", "PORTS")
+}
 
-	view := getViewFromContainerList(containerList)
-	return format.Print(view, formatOpt, os.Stdout, func(w io.Writer) {
-		for _, c := range view {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", c.ID, c.Image, c.Command, c.Status,
-				strings.Join(c.Ports, ", "))
+func writer(containers []api.ContainerSummary) func(w io.Writer) {
+	return func(w io.Writer) {
+		for _, container := range containers {
+			ports := displayablePorts(container)
+			status := container.State
+			if status == "running" && container.Health != "" {
+				status = fmt.Sprintf("%s (%s)", container.State, container.Health)
+			} else if status == "exited" || status == "dead" {
+				status = fmt.Sprintf("%s (%d)", container.State, container.ExitCode)
+			}
+			command := formatter2.Ellipsis(container.Command, 20)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", container.Name, strconv.Quote(command), container.Service, status, ports)
 		}
-	}, "CONTAINER ID", "IMAGE", "COMMAND", "STATUS", "PORTS")
+	}
+}
+
+type portRange struct {
+	pStart   int
+	pEnd     int
+	tStart   int
+	tEnd     int
+	IP       string
+	protocol string
+}
+
+func (pr portRange) String() string {
+	var (
+		pub string
+		tgt string
+	)
+
+	if pr.pEnd > pr.pStart {
+		pub = fmt.Sprintf("%s:%d-%d->", pr.IP, pr.pStart, pr.pEnd)
+	} else if pr.pStart > 0 {
+		pub = fmt.Sprintf("%s:%d->", pr.IP, pr.pStart)
+	}
+	if pr.tEnd > pr.tStart {
+		tgt = fmt.Sprintf("%d-%d", pr.tStart, pr.tEnd)
+	} else {
+		tgt = fmt.Sprintf("%d", pr.tStart)
+	}
+	return fmt.Sprintf("%s%s/%s", pub, tgt, pr.protocol)
+}
+
+// displayablePorts is copy pasted from https://github.com/docker/compose/blob/7c0e865960fa595174bfc39c9c7af7f56d5a2b2f/cmd/compose/ps.go#L211
+func displayablePorts(c api.ContainerSummary) string {
+	if c.Publishers == nil {
+		return ""
+	}
+
+	sort.Sort(c.Publishers)
+
+	pr := portRange{}
+	ports := []string{}
+	for _, p := range c.Publishers {
+		prIsRange := pr.tEnd != pr.tStart
+		tOverlaps := p.TargetPort <= pr.tEnd
+
+		// Start a new port-range if:
+		// - the protocol is different from the current port-range
+		// - published or target port are not consecutive to the current port-range
+		// - the current port-range is a _range_, and the target port overlaps with the current range's target-ports
+		if p.Protocol != pr.protocol || p.URL != pr.IP || p.PublishedPort-pr.pEnd > 1 || p.TargetPort-pr.tEnd > 1 || prIsRange && tOverlaps {
+			// start a new port-range, and print the previous port-range (if any)
+			if pr.pStart > 0 {
+				ports = append(ports, pr.String())
+			}
+			pr = portRange{
+				pStart:   p.PublishedPort,
+				pEnd:     p.PublishedPort,
+				tStart:   p.TargetPort,
+				tEnd:     p.TargetPort,
+				protocol: p.Protocol,
+				IP:       p.URL,
+			}
+			continue
+		}
+		pr.pEnd = p.PublishedPort
+		pr.tEnd = p.TargetPort
+	}
+	if pr.tStart > 0 {
+		ports = append(ports, pr.String())
+	}
+	return strings.Join(ports, ", ")
 }
 
 func ListContainers(ctx context.Context, c *client.Client, all bool) ([]ContainerView, error) {

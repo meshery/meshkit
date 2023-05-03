@@ -102,7 +102,7 @@ func TestPs(t *testing.T) {
 	c := NewComposeClientFromDocker(dc)
 	assert.NotNil(t, c)
 
-	err = Ps(ctx, c, false, false, "")
+	err = Ps(ctx, c, false, false, "", testDockerComposeConfig)
 	assert.NoError(t, err)
 }
 
