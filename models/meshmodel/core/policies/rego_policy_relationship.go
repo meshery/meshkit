@@ -36,5 +36,5 @@ func RegoPolicyHandler(ctx context.Context, policyDir []string, regoQueryString 
 		return eval_result[0].Expressions[0].Value.(map[string]interface{}), nil
 	}
 
-	return nil, fmt.Errorf("error evaluation rego reponse, the result is not returning the expressions, The policy query is invalid, see: github.com/open-policy-agent/opa@v0.52.0/rego/resultset.go (Allowed func)")
+	return nil, fmt.Errorf("error evaluation rego response, the result is not returning the expressions, The policy query is invalid, see: github.com/open-policy-agent/opa@v0.52.0/rego/resultset.go (Allowed func)")
 }
