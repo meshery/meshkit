@@ -1,0 +1,5 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/101946115/231824547-c6364b75-0108-4fcf-afaf-bebc06a57049.png ">
+  <source media="(prefers-color-scheme: light)" srcset="https://user-images.githubusercontent.com/101946115/231824562-f680a2c2-a6c2-49bd-bb57-516a358b4563.png">
+  <img alt="Meshery Logo" src="">
+</picture>
