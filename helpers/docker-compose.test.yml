@@ -1,0 +1,6 @@
+version: '3'
+services:
+  web:
+    container_name: test_web
+    image: alpine:3.13
+    command: sh -c "while true; do echo 'Hello, world!'; sleep 1; done"
