@@ -80,7 +80,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 	err = db.Create(&cdb).Error
 	return c.ID, err
 }
-func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition, count int64) {
+func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition) {
 	type componentDefinitionWithModel struct {
 		ComponentDefinitionDB
 		ModelDB
@@ -127,9 +127,6 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 			finder = finder.Order(f.OrderOn)
 		}
 	}
-
-	finder.Count(&count)
-
 	finder = finder.Offset(f.Offset)
 	if f.Limit != 0 {
 		finder = finder.Limit(f.Limit)
@@ -146,7 +143,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
 
-	return c, count
+	return c
 }
 
 type ComponentFilter struct {
