@@ -157,34 +157,34 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	}
 }
 
-func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64) {
+func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
 	switch filter := f.(type) {
 	case *v1alpha1.ComponentFilter:
 		en := make([]Entity, 0)
-		comps, count := v1alpha1.GetMeshModelComponents(rm.db, *filter)
+		comps := v1alpha1.GetMeshModelComponents(rm.db, *filter)
 		for _, comp := range comps {
 			en = append(en, comp)
 		}
-		return en, &count
+		return en
 	case *v1alpha1.RelationshipFilter:
 		en := make([]Entity, 0)
-		relationships, count := v1alpha1.GetMeshModelRelationship(rm.db, *filter)
+		relationships := v1alpha1.GetMeshModelRelationship(rm.db, *filter)
 		for _, rel := range relationships {
 			en = append(en, rel)
 		}
-		return en, &count
+		return en
 	case *v1alpha1.PolicyFilter:
 		en := make([]Entity, 0)
 		policies := v1alpha1.GetMeshModelPolicy(rm.db, *filter)
 		for _, pol := range policies {
 			en = append(en, pol)
 		}
-		return en, nil
+		return en
 	default:
-		return nil, nil
+		return nil
 	}
 }
-func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1alpha1.Model, int64) {
+func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1alpha1.Model {
 	var m []v1alpha1.Model
 	type modelWithCategories struct {
 		v1alpha1.ModelDB
@@ -195,10 +195,6 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	finder := db.Model(&v1alpha1.ModelDB{}).
 		Select("model_dbs.*, category_dbs.*").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
-
-	// total count before pagination
-	var count int64
-
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Greedy {
 			if mf.Name != "" && mf.DisplayName != "" {
@@ -229,9 +225,6 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 				finder = finder.Order(mf.OrderOn)
 			}
 		}
-
-		finder.Count(&count)
-
 		if mf.Limit != 0 {
 			finder = finder.Limit(mf.Limit)
 		}
@@ -248,8 +241,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	for _, modelDB := range modelWithCategoriess {
 		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
-
-	return m, count
+	return m
 }
 func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) []v1alpha1.Category {
 	var catdb []v1alpha1.CategoryDB
