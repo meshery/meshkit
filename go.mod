@@ -64,6 +64,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/jaguilar/vt100 v0.0.0-20150826170717-2703a27b14ea // indirect
+	github.com/jarcoal/httpmock v1.3.0 // indirect
 	github.com/jinzhu/gorm v1.9.16 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/mattn/go-shellwords v1.0.12 // indirect
