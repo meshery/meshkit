@@ -50,5 +50,5 @@ Find out more on the <a href="https://layer5.io/community">Layer5 community</a>.
 ✔️ <em><strong>Discuss</strong></em> in the <a href="https://discuss.layer5.io">Community Forum</a>.<br />
 </p>
 <p align="center">
-<i>Not sure where to start?</i> Grab an open issue with the <a href="https://github.com/meshery/meshkit/labels/help%20wanted">help-wanted label</a> or look at our  <a href="https://github.com/meshery/meshkit/labels/good%20first%20issue">good-first issues.
+<i>Not sure where to start?</i> Grab an open issue with the <a href="https://github.com/layer5io/layer5/labels/help%20wanted">help-wanted label</a>.
 </p>
