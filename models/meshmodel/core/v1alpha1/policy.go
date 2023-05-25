@@ -15,7 +15,8 @@ type PolicyDefinition struct {
 	TypeMeta
 	Model      Model                  `json:"model"`
 	SubType    string                 `json:"subType" yaml:"subType"`
-	Expression map[string]interface{} `json:"expression" yaml:"expression"`
+	Expression string `json:"expression" yaml:"expression"`
+	Metadata  map[string]interface{} `json:"metadata" yaml:"metadata"`
 	CreatedAt  time.Time              `json:"-"`
 	UpdatedAt  time.Time              `json:"-"`
 }
@@ -25,7 +26,8 @@ type PolicyDefinitionDB struct {
 	ModelID uuid.UUID `json:"-" gorm:"modelID"`
 	TypeMeta
 	SubType    string    `json:"subType" yaml:"subType"`
-	Expression []byte    `json:"expression" yaml:"expression"`
+	Expression string    `json:"expression" yaml:"expression"`
+	Metadata  []byte    `json:"metadata" yaml:"metadata"`
 	CreatedAt  time.Time `json:"-"`
 	UpdatedAt  time.Time `json:"-"`
 }
@@ -83,10 +85,11 @@ func (pdb *PolicyDefinitionDB) GetPolicyDefinition(m Model) (p PolicyDefinition)
 	p.TypeMeta = pdb.TypeMeta
 	p.Model = m
 	p.SubType = pdb.SubType
-	if p.Expression == nil {
-		p.Expression = make(map[string]interface{})
+	p.Expression = pdb.Expression
+	if p.Metadata == nil {
+		p.Metadata = make(map[string]interface{})
 	}
-	_ = json.Unmarshal(pdb.Expression, &p.Expression)
+	_ = json.Unmarshal(pdb.Metadata, &p.Metadata)
 
 	return
 }
@@ -111,6 +114,7 @@ func (p *PolicyDefinition) GetPolicyDefinitionDB() (pdb PolicyDefinitionDB) {
 	pdb.TypeMeta = p.TypeMeta
 	pdb.SubType = p.SubType
 	pdb.ModelID = p.Model.ID
-	pdb.Expression, _ = json.Marshal(p.Expression)
+	pdb.Expression = p.Expression
+	pdb.Metadata, _ = json.Marshal(p.Metadata)
 	return
 }
