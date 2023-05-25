@@ -10,12 +10,12 @@ import (
 )
 
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
-func RegoPolicyHandler(ctx context.Context, policyDir []string, regoQueryString string, designFile []byte) (map[string]interface{}, error) {
-	regoPolicyLoader := rego.Load(policyDir, nil)
+func RegoPolicyHandler(ctx context.Context, expression string, regoQueryString string, designFile []byte) (map[string]interface{}, error) {
+	// regoPolicyLoader := rego.Load(policyDir, nil)
 
 	regoEngine, err := rego.New(
 		rego.Query(regoQueryString),
-		regoPolicyLoader,
+		rego.Module("expression.rego", expression),
 	).PrepareForEval(ctx)
 	if err != nil {
 		logrus.Error("error preparing for evaluation", err)
