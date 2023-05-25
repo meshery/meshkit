@@ -133,7 +133,6 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			UpdatedAt:    time.Now(),
 		}
 		return rm.db.Create(&entry).Error
-	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
 		policyID, err := v1alpha1.CreatePolicy(rm.db, entity)
 		if err != nil {
