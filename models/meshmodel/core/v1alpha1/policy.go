@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm/clause"
 )
 
 type PolicyDefinition struct {
@@ -35,7 +37,14 @@ type PolicyDefinitionDB struct {
 type PolicyFilter struct {
 	Kind      string
 	SubType   string
-	ModelName string
+	Name         string
+	APIVersion   string
+	ModelName    string
+	Version      string // future use for versioning
+	Sort         string //asc or desc. Default behavior is asc
+	OrderOn      string //Name of the field on which sorting is to be done
+	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
+	Offset       int
 }
 
 func (pf *PolicyFilter) Create(m map[string]interface{}) {
@@ -52,15 +61,18 @@ func (p PolicyDefinition) Type() types.CapabilityType {
 	return types.PolicyDefinition
 }
 
-func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefinition) {
+func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefinition, count int64) {
 	type componentDefinitionWithModel struct {
 		PolicyDefinitionDB
-		Model
+		ModelDB
+		CategoryDB
 	}
+	logrus.Debug("filter: ", f)
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&PolicyDefinitionDB{}).
-		Select("policy_definition_dbs.*, models.*").
-		Joins("JOIN model_dbs ON model_dbs.id = policy_definition_dbs.model_id")
+		Select("policy_definition_dbs.*, model_dbs.*").
+		Joins("JOIN model_dbs ON model_dbs.id = policy_definition_dbs.model_id").
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")          
 	if f.Kind != "" {
 		finder = finder.Where("policy_definition_dbs.kind = ?", f.Kind)
 	}
@@ -70,14 +82,35 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 	if f.ModelName != "" {
 		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
+	if f.APIVersion != "" {
+		finder = finder.Where("policy_definition_dbs.api_version = ?", f.APIVersion)
+	}
+	if f.Name != "" {
+		finder = finder.Where("policy_definition_dbs.metadata ->> 'name'", f.Name)
+	}
+	if f.OrderOn != "" {
+		if f.Sort == "desc" {
+			finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: f.OrderOn}, Desc: true})
+		} else {
+			finder = finder.Order(f.OrderOn + " asc")
+		}
+	}
+
+	finder.Count(&count)
+
+	finder = finder.Offset(f.Offset)
+	if f.Limit != 0 {
+		finder = finder.Limit(f.Limit)
+	}
+
 	err := finder.Scan(&componentDefinitionsWithModel).Error
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 	for _, cm := range componentDefinitionsWithModel {
-		pl = append(pl, cm.PolicyDefinitionDB.GetPolicyDefinition(cm.Model))
+		pl = append(pl, cm.PolicyDefinitionDB.GetPolicyDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
-	return pl
+	return pl, count
 }
 
 func (pdb *PolicyDefinitionDB) GetPolicyDefinition(m Model) (p PolicyDefinition) {
