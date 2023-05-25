@@ -175,11 +175,11 @@ func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64) {
 		return en, &count
 	case *v1alpha1.PolicyFilter:
 		en := make([]Entity, 0)
-		policies := v1alpha1.GetMeshModelPolicy(rm.db, *filter)
+		policies, count := v1alpha1.GetMeshModelPolicy(rm.db, *filter)
 		for _, pol := range policies {
 			en = append(en, pol)
 		}
-		return en, nil
+		return en, &count
 	default:
 		return nil, nil
 	}
