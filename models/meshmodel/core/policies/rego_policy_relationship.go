@@ -11,7 +11,6 @@ import (
 
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
 func RegoPolicyHandler(ctx context.Context, expression string, regoQueryString string, designFile []byte) (map[string]interface{}, error) {
-	// regoPolicyLoader := rego.Load(policyDir, nil)
 
 	regoEngine, err := rego.New(
 		rego.Query(regoQueryString),

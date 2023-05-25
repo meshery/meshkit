@@ -67,7 +67,7 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 		ModelDB
 		CategoryDB
 	}
-	logrus.Debug("filter: ", f)
+
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&PolicyDefinitionDB{}).
 		Select("policy_definition_dbs.*, model_dbs.*").
