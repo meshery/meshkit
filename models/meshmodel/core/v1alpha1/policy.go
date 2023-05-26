@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm/clause"
 )
 
