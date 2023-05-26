@@ -16,8 +16,8 @@ type PolicyDefinition struct {
 	TypeMeta
 	Model      Model                  `json:"model"`
 	SubType    string                 `json:"subType" yaml:"subType"`
-	Expression string `json:"expression" yaml:"expression"`
-	Metadata  map[string]interface{} `json:"metadata" yaml:"metadata"`
+	Expression string                 `json:"expression" yaml:"expression"`
+	Metadata   map[string]interface{} `json:"metadata" yaml:"metadata"`
 	CreatedAt  time.Time              `json:"-"`
 	UpdatedAt  time.Time              `json:"-"`
 }
@@ -28,22 +28,22 @@ type PolicyDefinitionDB struct {
 	TypeMeta
 	SubType    string    `json:"subType" yaml:"subType"`
 	Expression string    `json:"expression" yaml:"expression"`
-	Metadata  []byte    `json:"metadata" yaml:"metadata"`
+	Metadata   []byte    `json:"metadata" yaml:"metadata"`
 	CreatedAt  time.Time `json:"-"`
 	UpdatedAt  time.Time `json:"-"`
 }
 
 type PolicyFilter struct {
-	Kind      string
-	SubType   string
-	Name         string
-	APIVersion   string
-	ModelName    string
-	Version      string // future use for versioning
-	Sort         string //asc or desc. Default behavior is asc
-	OrderOn      string //Name of the field on which sorting is to be done
-	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
-	Offset       int
+	Kind       string
+	SubType    string
+	Name       string
+	APIVersion string
+	ModelName  string
+	Version    string // future use for versioning
+	Sort       string //asc or desc. Default behavior is asc
+	OrderOn    string //Name of the field on which sorting is to be done
+	Limit      int    //If 0 or  unspecified then all records are returned and limit is not used
+	Offset     int
 }
 
 func (pf *PolicyFilter) Create(m map[string]interface{}) {
@@ -71,7 +71,7 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 	finder := db.Model(&PolicyDefinitionDB{}).
 		Select("policy_definition_dbs.*, model_dbs.*").
 		Joins("JOIN model_dbs ON model_dbs.id = policy_definition_dbs.model_id").
-		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")          
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
 	if f.Kind != "" {
 		finder = finder.Where("policy_definition_dbs.kind = ?", f.Kind)
 	}
