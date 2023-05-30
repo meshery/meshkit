@@ -24,7 +24,7 @@ type MockClient struct {
 func TestDescribe(t *testing.T) {
 	ctx := context.Background()
 	//http time out to handle request and response
-	timeout := 60 * time.Second
+	timeout := 300 * time.Second
 	clienttime := &http.Client{
 		Timeout:   timeout,
 		Transport: http.DefaultTransport,
@@ -65,6 +65,7 @@ func TestDescribe(t *testing.T) {
 	if err != nil {
 		log.Fatalf("Failed to read kubeconfig file: %v", err)
 	}
+	log.Println("Kubeconfig loaded")
 	meshclient, err := meshkitkube.New(kubeconfigBytes)
 	if err != nil {
 		log.Println("error in loading Kube configs for tests", err)
