@@ -1,10 +1,10 @@
- ## The Utils Package 
+# The Utils Package 
  The Utils Package is the Central component of  Meshkit. This package encompases different packages that offers a simplified and tailored experience for developers working with Kubernetes and Helm. Developers can easily interact with Kubernetes and Helm without relying on the command line versions by utilizing higher-level functions from the utils package. 
  Here is a brief description of some of the packages embedded in Utils:
-### [Kuberentes](https://github.com/meshery/meshkit/tree/master/utils/kubernetes)
+## [Kuberentes](https://github.com/meshery/meshkit/tree/master/utils/kubernetes)
   The kubernetes package provides functionality for working with Kubernetes clusters .The package defines a <code>Client</code> that encapsulates the necessary components for interacting with the Kubernetes API server.
   This package contains certain packages such as describe, expose, Kompose, manifests  and walker for interacting with the kubernetes Api Server.
-  Below are descriptions of each package 
+  Below are descriptions of each package: 
  ##### [Describe](https://github.com/meshery/meshkit/tree/master/utils/kubernetes/describe) 
   Describe Package  is a comprehensive and user-friendly solution for describing Kubernetes objects through the Kubernetes API. With its rich set of functionalities, it contains components for creating and initiaizing a meshclient, allowing users to retrieve information about various Kubernetes resources such as pods, deployments, jobs, services, and more to interact with the kubernetes Api.
   Overall, the describe package provides a convenient way to retrieve detailed information about Kubernetes resources in a standardized format.  
