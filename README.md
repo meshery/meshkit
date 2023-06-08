@@ -1,5 +1,5 @@
-# MeshKit for Layer5 projects
-A toolkit for Layer5's microservices. Learn more: [Introducing MeshKit and the Meshery Adapter Library](https://layer5.io/blog/meshery/introducing-meshkit-and-the-meshery-adapter-library)
+# MeshKit for Meshery and it's ecosystem
+A toolkit for Meshery's microservices and various individual architectural components to reuse and share common functionality. Learn more: [Introducing MeshKit and the Meshery Adapter Library](https://layer5.io/blog/meshery/introducing-meshkit-and-the-meshery-adapter-library)
 
 ### Instructions for making custom dictionary entries
 
