@@ -31,6 +31,7 @@ type ComponentDefinition struct {
 	DisplayName string                 `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat        `json:"format" yaml:"format"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
+	IsNotDeployable bool                  `json:"isNotDeployable" yaml:"isNotDeployable" gorm:"isNotDeployable"`  
 	Model       Model                  `json:"model"`
 	Schema      string                 `json:"schema,omitempty" yaml:"schema"`
 	CreatedAt   time.Time              `json:"-"`
@@ -42,6 +43,7 @@ type ComponentDefinitionDB struct {
 	TypeMeta
 	DisplayName string          `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat `json:"format" yaml:"format"`
+	IsNotDeployable bool                  `json:"isNotDeployable" yaml:"isNotDeployable" gorm:"isNotDeployable"`
 	Metadata    []byte          `json:"metadata" yaml:"metadata"`
 	Schema      string          `json:"schema,omitempty" yaml:"schema"`
 	CreatedAt   time.Time       `json:"-"`
@@ -176,6 +178,7 @@ func (cmd *ComponentDefinitionDB) GetComponentDefinition(model Model) (c Compone
 	c.ID = cmd.ID
 	c.TypeMeta = cmd.TypeMeta
 	c.Format = cmd.Format
+	c.IsNotDeployable = cmd.IsNotDeployable
 	c.DisplayName = cmd.DisplayName
 	if c.Metadata == nil {
 		c.Metadata = make(map[string]interface{})
@@ -189,6 +192,7 @@ func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitio
 	cmd.ID = c.ID
 	cmd.TypeMeta = c.TypeMeta
 	cmd.Format = c.Format
+	cmd.IsNotDeployable = c.IsNotDeployable
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
 	cmd.DisplayName = c.DisplayName
 	cmd.Schema = c.Schema
