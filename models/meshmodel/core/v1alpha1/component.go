@@ -28,26 +28,26 @@ const (
 type ComponentDefinition struct {
 	ID uuid.UUID `json:"-"`
 	TypeMeta
-	DisplayName string                 `json:"displayName" gorm:"displayName"`
-	Format      ComponentFormat        `json:"format" yaml:"format"`
-	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
-	IsNotDeployable bool                  `json:"isNotDeployable" yaml:"isNotDeployable" gorm:"isNotDeployable"`  
-	Model       Model                  `json:"model"`
-	Schema      string                 `json:"schema,omitempty" yaml:"schema"`
-	CreatedAt   time.Time              `json:"-"`
-	UpdatedAt   time.Time              `json:"-"`
+	DisplayName     string                 `json:"displayName" gorm:"displayName"`
+	Format          ComponentFormat        `json:"format" yaml:"format"`
+	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
+	IsNotDeployable bool                   `json:"isNotDeployable" yaml:"isNotDeployable" gorm:"isNotDeployable"`
+	Model           Model                  `json:"model"`
+	Schema          string                 `json:"schema,omitempty" yaml:"schema"`
+	CreatedAt       time.Time              `json:"-"`
+	UpdatedAt       time.Time              `json:"-"`
 }
 type ComponentDefinitionDB struct {
 	ID      uuid.UUID `json:"-"`
 	ModelID uuid.UUID `json:"-" gorm:"modelID"`
 	TypeMeta
-	DisplayName string          `json:"displayName" gorm:"displayName"`
-	Format      ComponentFormat `json:"format" yaml:"format"`
-	IsNotDeployable bool                  `json:"isNotDeployable" yaml:"isNotDeployable" gorm:"isNotDeployable"`
-	Metadata    []byte          `json:"metadata" yaml:"metadata"`
-	Schema      string          `json:"schema,omitempty" yaml:"schema"`
-	CreatedAt   time.Time       `json:"-"`
-	UpdatedAt   time.Time       `json:"-"`
+	DisplayName     string          `json:"displayName" gorm:"displayName"`
+	Format          ComponentFormat `json:"format" yaml:"format"`
+	IsNotDeployable bool            `json:"isNotDeployable" yaml:"isNotDeployable" gorm:"isNotDeployable"`
+	Metadata        []byte          `json:"metadata" yaml:"metadata"`
+	Schema          string          `json:"schema,omitempty" yaml:"schema"`
+	CreatedAt       time.Time       `json:"-"`
+	UpdatedAt       time.Time       `json:"-"`
 }
 
 func (c ComponentDefinition) Type() types.CapabilityType {
