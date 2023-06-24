@@ -250,10 +250,14 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	}
 	return m, count
 }
-func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) []v1alpha1.Category {
+func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) ([]v1alpha1.Category, int64) {
 	var catdb []v1alpha1.CategoryDB
 	var cat []v1alpha1.Category
 	finder := rm.db.Model(&catdb)
+
+	// total count before pagination
+	var count int64
+
 	if mf, ok := f.(*v1alpha1.CategoryFilter); ok {
 		if mf.Name != "" {
 			if mf.Greedy {
@@ -269,6 +273,9 @@ func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) [
 				finder = finder.Order(mf.OrderOn)
 			}
 		}
+
+		finder.Count(&count)
+
 		if mf.Limit != 0 {
 			finder = finder.Limit(mf.Limit)
 		}
@@ -276,11 +283,17 @@ func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) [
 			finder = finder.Offset(mf.Offset)
 		}
 	}
+
+	if count == 0 {
+		finder.Count(&count)
+	}
+
 	_ = finder.Find(&catdb).Error
 	for _, c := range catdb {
 		cat = append(cat, c.GetCategory(db))
 	}
-	return cat
+
+	return cat, count
 }
 func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	eID := e.GetID()
