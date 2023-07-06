@@ -1,8 +1,10 @@
 package component
 
 import (
+	"encoding/json"
 	"fmt"
 
+	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
@@ -17,6 +19,7 @@ type CuePathConfig struct {
 	VersionPath string
 	SpecPath    string
 	ScopePath   string
+	PropertiesPath string
 	// identifiers are the values that uniquely identify a CRD (in most of the cases, it is the 'Name' field)
 	IdentifierPath string
 }
@@ -28,6 +31,7 @@ var DefaultPathConfig = CuePathConfig{
 	GroupPath:      "spec.group",
 	ScopePath:      "spec.scope",
 	SpecPath:       "spec.versions[0].schema.openAPIV3Schema.properties.spec",
+	PropertiesPath: "spec.versions[0].schema.openAPIV3Schema.properties",
 }
 
 var DefaultPathConfig2 = CuePathConfig{
@@ -85,4 +89,61 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 	component.Format = v1alpha1.JSON
 	component.DisplayName = manifests.FormatToReadableString(name)
 	return component, nil
+}
+
+func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[string]interface{} {
+// if any error occurs while updating schema properties, we return nil and skip update
+	fmt.Println("uzair---------", group)
+	rootPath := fieldVal.Path().Selectors()
+	
+	// if !strings.Contains(group, "istio") {
+	// 	return nil
+	// }
+	compProperties := fieldVal.LookupPath(cuePath)
+	crd, err := fieldVal.MarshalJSON()
+	if err != nil {
+		return nil
+	}
+	
+	modified := make(map[string]interface{})
+	pathSelectors := [][]cue.Selector{}
+
+	err = json.Unmarshal(crd, &modified)
+	if err != nil {
+		return nil
+	}
+
+	compProperties.Walk(func (c cue.Value) bool {
+		return true
+	}, func (c cue.Value) {
+		val := c.LookupPath(cue.ParsePath(`"x-kubernetes-preserve-unknown-fields"`))
+		if val.Exists() {
+			fmt.Println("test_______", c.Value())
+			child := val.Path().Selectors()
+			childM := child[len(rootPath):(len(child) - 1)]	
+			pathSelectors = append(pathSelectors, childM)
+		}
+	})
+
+	for _, selectors := range pathSelectors {
+		m := modified
+	
+		fmt.Println("length: ", len(selectors), selectors)
+		for _, selector := range selectors {
+			s := selector.String()
+			if selector.Type() == cue.StringLabel {
+				s = selector.Unquoted()
+			}
+			m, _ = m[s].(map[string]interface{})
+		}
+		fmt.Println(m, "before: ")
+		delete(m, "x-kubernetes-preserve-unknown-fields")
+		if m == nil {
+			m = make(map[string]interface{})
+		}
+		m["type"] = "string"
+		fmt.Println(m, "after: ")
+	}
+
+	return modified
 }
