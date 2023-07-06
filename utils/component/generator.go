@@ -14,11 +14,11 @@ const ComponentMetaNameKey = "name"
 
 // all paths should be a valid CUE expression
 type CuePathConfig struct {
-	NamePath    string
-	GroupPath   string
-	VersionPath string
-	SpecPath    string
-	ScopePath   string
+	NamePath       string
+	GroupPath      string
+	VersionPath    string
+	SpecPath       string
+	ScopePath      string
 	PropertiesPath string
 	// identifiers are the values that uniquely identify a CRD (in most of the cases, it is the 'Name' field)
 	IdentifierPath string
@@ -31,7 +31,7 @@ var DefaultPathConfig = CuePathConfig{
 	GroupPath:      "spec.group",
 	ScopePath:      "spec.scope",
 	SpecPath:       "spec.versions[0].schema.openAPIV3Schema.properties.spec",
-	PropertiesPath: "spec.versions[0].schema.openAPIV3Schema.properties",
+	PropertiesPath: "properties",
 }
 
 var DefaultPathConfig2 = CuePathConfig{
@@ -92,19 +92,15 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 }
 
 func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[string]interface{} {
-// if any error occurs while updating schema properties, we return nil and skip update
-	fmt.Println("uzair---------", group)
+	// if any error occurs while updating schema properties, we return nil and skip update
 	rootPath := fieldVal.Path().Selectors()
-	
-	// if !strings.Contains(group, "istio") {
-	// 	return nil
-	// }
+
 	compProperties := fieldVal.LookupPath(cuePath)
 	crd, err := fieldVal.MarshalJSON()
 	if err != nil {
 		return nil
 	}
-	
+
 	modified := make(map[string]interface{})
 	pathSelectors := [][]cue.Selector{}
 
@@ -113,37 +109,48 @@ func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[st
 		return nil
 	}
 
-	compProperties.Walk(func (c cue.Value) bool {
+	compProperties.Walk(func(c cue.Value) bool {
 		return true
-	}, func (c cue.Value) {
+	}, func(c cue.Value) {
 		val := c.LookupPath(cue.ParsePath(`"x-kubernetes-preserve-unknown-fields"`))
 		if val.Exists() {
-			fmt.Println("test_______", c.Value())
 			child := val.Path().Selectors()
-			childM := child[len(rootPath):(len(child) - 1)]	
+			childM := child[len(rootPath):(len(child) - 1)]
 			pathSelectors = append(pathSelectors, childM)
 		}
 	})
 
 	for _, selectors := range pathSelectors {
-		m := modified
-	
-		fmt.Println("length: ", len(selectors), selectors)
-		for _, selector := range selectors {
+		var m interface{}
+		m = modified
+		index := 0
+
+		for index < len(selectors) {
+			selector := selectors[index]
+			selectorType := selector.Type()
 			s := selector.String()
-			if selector.Type() == cue.StringLabel {
-				s = selector.Unquoted()
+
+			if selectorType == cue.IndexLabel {
+				t := m.([]interface{})
+				token := selector.Index()
+				m = t[token].(map[string]interface{})
+			} else {
+				if selectorType == cue.StringLabel {
+					s = selector.Unquoted()
+				}
+				t := m.(map[string]interface{})
+				m = t[s]
 			}
-			m, _ = m[s].(map[string]interface{})
+			index++
 		}
-		fmt.Println(m, "before: ")
-		delete(m, "x-kubernetes-preserve-unknown-fields")
+
+		t := m.(map[string]interface{})
+		delete(t, "x-kubernetes-preserve-unknown-fields")
 		if m == nil {
 			m = make(map[string]interface{})
 		}
-		m["type"] = "string"
-		fmt.Println(m, "after: ")
+		t["type"] = "string"
+		t["format"] = "textarea"
 	}
-
 	return modified
 }

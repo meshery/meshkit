@@ -29,7 +29,7 @@ func getSchema(parsedCrd cue.Value, pathConf CuePathConfig) (string, error) {
 	}
 
 	if pathConf.PropertiesPath != "" {
-		updatedProps := UpdateProperties(parsedCrd, cue.ParsePath(pathConf.PropertiesPath), resourceId) //cahnge to use group
+		updatedProps := UpdateProperties(specCueVal, cue.ParsePath(pathConf.PropertiesPath), resourceId)
 		if updatedProps != nil {
 			schema = updatedProps
 		}
