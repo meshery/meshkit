@@ -127,9 +127,7 @@ func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) (map[s
 		}
 	})
 
-	/*
-	  "pathSelectors" contains all the paths from root to the property which needs to be modified.
-	*/
+	// "pathSelectors" contains all the paths from root to the property which needs to be modified.
 	for _, selectors := range pathSelectors {
 		var m interface{}
 		m = modified
