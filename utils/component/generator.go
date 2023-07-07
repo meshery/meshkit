@@ -91,8 +91,12 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 	return component, nil
 }
 
+/*
+  We walk the entire schema, looking for specfic peroperties that requires modification and store their path.
+  After the walk is complete, we iterate all paths and do the modification.
+  If any error occurs while updating schema properties, we return nil and skip the update.
+*/
 func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[string]interface{} {
-	// if any error occurs while updating schema properties, we return nil and skip update
 	rootPath := fieldVal.Path().Selectors()
 
 	compProperties := fieldVal.LookupPath(cuePath)
@@ -120,6 +124,9 @@ func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[st
 		}
 	})
 
+	/* 
+	  "pathSelectors" contains all the paths from root to the property which needs to be modified.
+	*/
 	for _, selectors := range pathSelectors {
 		var m interface{}
 		m = modified
