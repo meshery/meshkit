@@ -93,8 +93,8 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 }
 
 /*
-Find and modify specific schema properties. 
-1. Identify interesting properties by walking entire schema. 
+Find and modify specific schema properties.
+1. Identify interesting properties by walking entire schema.
 2. Store path to interesting properties. Finish walk.
 3. Iterate all paths and modify properties.
 5. If error occurs, return nil and skip modifications.
