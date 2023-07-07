@@ -22,5 +22,5 @@ func ErrGetSchema(err error) error {
 }
 
 func ErrUpdateSchema(err error, obj string) error {
-	return errors.New(ErrUpdateSchemaCode, errors.Alert, []string{"Could not update schema for the given CRD ", obj}, []string{err.Error()}, []string{}, []string{"Make sure that the given CRD is valid"})
+	return errors.New(ErrUpdateSchemaCode, errors.Alert, []string{"Failed to update schema properties ", obj}, []string{err.Error()}, []string{}, []string{"Verify CRD has valid schema"})
 }
