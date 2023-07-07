@@ -28,12 +28,13 @@ func getSchema(parsedCrd cue.Value, pathConf CuePathConfig) (string, error) {
 		return "", ErrGetSchema(err)
 	}
 
-	updatedProps := UpdateProperties(specCueVal, cue.ParsePath(pathConf.PropertiesPath), resourceId)
-	// In case of any error while updating properties, nil is returned. Hence use the original schema.
-	
-	if updatedProps != nil {
-		schema = updatedProps
+	updatedProps, err := UpdateProperties(specCueVal, cue.ParsePath(pathConf.PropertiesPath), resourceId)
+
+	if err != nil {
+		return "", err
 	}
+
+	schema = updatedProps
 
 	(schema)["title"] = manifests.FormatToReadableString(resourceId)
 	var output []byte

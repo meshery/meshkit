@@ -2,6 +2,7 @@ package component
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"cuelang.org/go/cue"
@@ -92,17 +93,17 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 }
 
 /*
-  We walk the entire schema, looking for specfic peroperties that requires modification and store their path.
-  After the walk is complete, we iterate all paths and do the modification.
-  If any error occurs while updating schema properties, we return nil and skip the update.
+We walk the entire schema, looking for specific peroperties that requires modification and store their path.
+After the walk is complete, we iterate all paths and do the modification.
+If any error occurs while updating schema properties, we return nil and skip the update.
 */
-func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[string]interface{} {
+func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) (map[string]interface{}, error) {
 	rootPath := fieldVal.Path().Selectors()
 
 	compProperties := fieldVal.LookupPath(cuePath)
 	crd, err := fieldVal.MarshalJSON()
 	if err != nil {
-		return nil
+		return nil, ErrUpdateSchema(err, group)
 	}
 
 	modified := make(map[string]interface{})
@@ -110,7 +111,7 @@ func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[st
 
 	err = json.Unmarshal(crd, &modified)
 	if err != nil {
-		return nil
+		return nil, ErrUpdateSchema(err, group)
 	}
 
 	compProperties.Walk(func(c cue.Value) bool {
@@ -124,7 +125,7 @@ func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[st
 		}
 	})
 
-	/* 
+	/*
 	  "pathSelectors" contains all the paths from root to the property which needs to be modified.
 	*/
 	for _, selectors := range pathSelectors {
@@ -136,22 +137,33 @@ func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[st
 			selector := selectors[index]
 			selectorType := selector.Type()
 			s := selector.String()
-
 			if selectorType == cue.IndexLabel {
-				t := m.([]interface{})
+				t, ok := m.([]interface{})
+				if !ok {
+					return nil, ErrUpdateSchema(errors.New("error converting to []interface{}"), group)
+				}
 				token := selector.Index()
-				m = t[token].(map[string]interface{})
+				m, ok = t[token].(map[string]interface{})
+				if !ok {
+					return nil, ErrUpdateSchema(errors.New("error converting to map[string]interface{}"), group)
+				}
 			} else {
 				if selectorType == cue.StringLabel {
 					s = selector.Unquoted()
 				}
-				t := m.(map[string]interface{})
+				t, ok := m.(map[string]interface{})
+				if !ok {
+					return nil, ErrUpdateSchema(errors.New("error converting to map[string]interface{}"), group)
+				}
 				m = t[s]
 			}
 			index++
 		}
 
-		t := m.(map[string]interface{})
+		t, ok := m.(map[string]interface{})
+		if !ok {
+			return nil, ErrUpdateSchema(errors.New("error converting to map[string]interface{}"), group)
+		}
 		delete(t, "x-kubernetes-preserve-unknown-fields")
 		if m == nil {
 			m = make(map[string]interface{})
@@ -159,5 +171,5 @@ func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) map[st
 		t["type"] = "string"
 		t["format"] = "textarea"
 	}
-	return modified
+	return modified, nil
 }
