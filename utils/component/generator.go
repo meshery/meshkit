@@ -93,9 +93,11 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 }
 
 /*
-We walk the entire schema, looking for specific peroperties that requires modification and store their path.
-After the walk is complete, we iterate all paths and do the modification.
-If any error occurs while updating schema properties, we return nil and skip the update.
+Find and modify specific schema properties. 
+1. Identify interesting properties by walking entire schema. 
+2. Store path to interesting properties. Finish walk.
+3. Iterate all paths and modify properties.
+5. If error occurs, return nil and skip modifications.
 */
 func UpdateProperties(fieldVal cue.Value, cuePath cue.Path, group string) (map[string]interface{}, error) {
 	rootPath := fieldVal.Path().Selectors()
