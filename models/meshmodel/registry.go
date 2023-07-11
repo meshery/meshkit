@@ -192,7 +192,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	}
 
 	countUniqueModels := func(models []modelWithCategories) int {
-		var set map[string]struct{}
+		set := make(map[string]struct{})
 		for _, model := range models {
 			if _, ok := set[model.ModelDB.Name]; !ok {
 				set[model.ModelDB.Name] = struct{}{}
