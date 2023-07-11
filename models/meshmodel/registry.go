@@ -157,44 +157,59 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	}
 }
 
-func (rm *RegistryManager) GetEntities(f types.Filter) []Entity {
+func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64, *int) {
 	switch filter := f.(type) {
 	case *v1alpha1.ComponentFilter:
 		en := make([]Entity, 0)
-		comps := v1alpha1.GetMeshModelComponents(rm.db, *filter)
+		comps, count, unique := v1alpha1.GetMeshModelComponents(rm.db, *filter)
 		for _, comp := range comps {
 			en = append(en, comp)
 		}
-		return en
+		return en, &count, &unique
 	case *v1alpha1.RelationshipFilter:
 		en := make([]Entity, 0)
-		relationships := v1alpha1.GetMeshModelRelationship(rm.db, *filter)
+		relationships, count := v1alpha1.GetMeshModelRelationship(rm.db, *filter)
 		for _, rel := range relationships {
 			en = append(en, rel)
 		}
-		return en
+		return en, &count, nil
 	case *v1alpha1.PolicyFilter:
 		en := make([]Entity, 0)
 		policies := v1alpha1.GetMeshModelPolicy(rm.db, *filter)
 		for _, pol := range policies {
 			en = append(en, pol)
 		}
-		return en
+		return en, nil, nil
 	default:
-		return nil
+		return nil, nil, nil
 	}
 }
-func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1alpha1.Model {
+func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1alpha1.Model, int64, int) {
 	var m []v1alpha1.Model
 	type modelWithCategories struct {
 		v1alpha1.ModelDB
 		v1alpha1.CategoryDB
 	}
 
+	countUniqueModels := func(models []modelWithCategories) int {
+		set := make(map[string]struct{})
+		for _, model := range models {
+			key := model.ModelDB.Name + "@" + model.ModelDB.Version
+			if _, ok := set[key]; !ok {
+				set[key] = struct{}{}
+			}
+		}
+		return len(set)
+	}
+
 	var modelWithCategoriess []modelWithCategories
 	finder := db.Model(&v1alpha1.ModelDB{}).
 		Select("model_dbs.*, category_dbs.*").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
+
+	// total count before pagination
+	var count int64
+
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Greedy {
 			if mf.Name != "" && mf.DisplayName != "" {
@@ -225,6 +240,9 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1a
 				finder = finder.Order(mf.OrderOn)
 			}
 		}
+
+		finder.Count(&count)
+
 		if mf.Limit != 0 {
 			finder = finder.Limit(mf.Limit)
 		}
@@ -241,12 +259,16 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) []v1a
 	for _, modelDB := range modelWithCategoriess {
 		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
-	return m
+	return m, count, countUniqueModels(modelWithCategoriess)
 }
-func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) []v1alpha1.Category {
+func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) ([]v1alpha1.Category, int64) {
 	var catdb []v1alpha1.CategoryDB
 	var cat []v1alpha1.Category
 	finder := rm.db.Model(&catdb)
+
+	// total count before pagination
+	var count int64
+
 	if mf, ok := f.(*v1alpha1.CategoryFilter); ok {
 		if mf.Name != "" {
 			if mf.Greedy {
@@ -262,6 +284,9 @@ func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) [
 				finder = finder.Order(mf.OrderOn)
 			}
 		}
+
+		finder.Count(&count)
+
 		if mf.Limit != 0 {
 			finder = finder.Limit(mf.Limit)
 		}
@@ -269,11 +294,17 @@ func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) [
 			finder = finder.Offset(mf.Offset)
 		}
 	}
+
+	if count == 0 {
+		finder.Count(&count)
+	}
+
 	_ = finder.Find(&catdb).Error
 	for _, c := range catdb {
 		cat = append(cat, c.GetCategory(db))
 	}
-	return cat
+
+	return cat, count
 }
 func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	eID := e.GetID()

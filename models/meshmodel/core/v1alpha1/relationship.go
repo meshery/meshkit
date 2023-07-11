@@ -58,7 +58,7 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 		return
 	}
 }
-func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []RelationshipDefinition) {
+func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []RelationshipDefinition, count int64) {
 	type componentDefinitionWithModel struct {
 		RelationshipDefinitionDB
 		ModelDB
@@ -73,7 +73,7 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 		if f.Greedy {
 			finder = finder.Where("relationship_definition_dbs.kind LIKE ?", "%"+f.Kind+"%")
 		} else {
-			finder = finder.Where("relationship_definition_dbs.kind = ?", "%"+f.Kind+"%")
+			finder = finder.Where("relationship_definition_dbs.kind = ?", f.Kind)
 		}
 	}
 	if f.SubType != "" {
@@ -92,6 +92,9 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 			finder = finder.Order(f.OrderOn)
 		}
 	}
+
+	finder.Count(&count)
+
 	finder = finder.Offset(f.Offset)
 	if f.Limit != 0 {
 		finder = finder.Limit(f.Limit)
@@ -104,7 +107,7 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 	for _, cm := range componentDefinitionsWithModel {
 		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
-	return r
+	return r, count
 }
 
 func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r RelationshipDefinition) {
