@@ -90,7 +90,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	countUniqueComponents := func(components []componentDefinitionWithModel) int {
 		set := make(map[string]struct{})
 		for _, model := range components {
-			key := model.ComponentDefinitionDB.Kind + "@" + model.ModelDB.Name
+			key := model.ComponentDefinitionDB.Kind + "@" + model.APIVersion + "@" + model.ModelDB.Name + "@" + model.ModelDB.Version
 			if _, ok := set[key]; !ok {
 				set[key] = struct{}{}
 			}
