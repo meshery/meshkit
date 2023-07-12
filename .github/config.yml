@@ -15,14 +15,13 @@ newPRWelcomeComment: >
 # Configuration for first-pr-merge - https://github.com/behaviorbot/first-pr-merge
 # Comment to be posted to on pull requests merged by a first time user
 firstPRMergeComment: >
-  Thanks for your contribution to the Layer5 community! :tada:
+  Thanks for your contribution to Meshery! :tada:
    
   <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/101946115/231824547-c6364b75-0108-4fcf-afaf-bebc06a57049.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://user-images.githubusercontent.com/101946115/231824562-f680a2c2-a6c2-49bd-bb57-516a358b4563.png">
-  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src=".github/Mesherylight.png.png">
-</picture>
-
+    <source media="(prefers-color-scheme: dark)" srcset="./welcome/Meshery-light-logo.png">
+    <source media="(prefers-color-scheme: light)" srcset="./welcome/Meshery-dark-logo.png">
+    <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png">
+  </picture>
 
 #-------------------------------------------------------------------------------
 # Configuration for request-info - https://github.com/behaviorbot/request-info

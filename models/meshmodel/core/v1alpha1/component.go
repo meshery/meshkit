@@ -80,11 +80,22 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, er
 	err = db.Create(&cdb).Error
 	return c.ID, err
 }
-func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition, count int64) {
+func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition, count int64, unique int) {
 	type componentDefinitionWithModel struct {
 		ComponentDefinitionDB
 		ModelDB
 		CategoryDB
+	}
+
+	countUniqueComponents := func(components []componentDefinitionWithModel) int {
+		set := make(map[string]struct{})
+		for _, model := range components {
+			key := model.ComponentDefinitionDB.Kind + "@" + model.APIVersion + "@" + model.ModelDB.Name + "@" + model.ModelDB.Version
+			if _, ok := set[key]; !ok {
+				set[key] = struct{}{}
+			}
+		}
+		return len(set)
 	}
 
 	var componentDefinitionsWithModel []componentDefinitionWithModel
@@ -146,7 +157,9 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
 
-	return c, count
+	unique = countUniqueComponents(componentDefinitionsWithModel)
+
+	return c, count, unique
 }
 
 type ComponentFilter struct {

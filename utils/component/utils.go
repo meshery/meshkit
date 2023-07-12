@@ -27,6 +27,15 @@ func getSchema(parsedCrd cue.Value, pathConf CuePathConfig) (string, error) {
 	if err != nil {
 		return "", ErrGetSchema(err)
 	}
+
+	updatedProps, err := UpdateProperties(specCueVal, cue.ParsePath(pathConf.PropertiesPath), resourceId)
+
+	if err != nil {
+		return "", err
+	}
+
+	schema = updatedProps
+
 	(schema)["title"] = manifests.FormatToReadableString(resourceId)
 	var output []byte
 	output, err = json.MarshalIndent(schema, "", " ")

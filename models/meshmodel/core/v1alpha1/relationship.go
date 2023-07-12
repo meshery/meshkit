@@ -73,7 +73,7 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 		if f.Greedy {
 			finder = finder.Where("relationship_definition_dbs.kind LIKE ?", "%"+f.Kind+"%")
 		} else {
-			finder = finder.Where("relationship_definition_dbs.kind = ?", "%"+f.Kind+"%")
+			finder = finder.Where("relationship_definition_dbs.kind = ?", f.Kind)
 		}
 	}
 	if f.SubType != "" {
