@@ -1,21 +1,22 @@
-package schemas
+package schemaProvider
 
 import (
 	"fmt"
+	"os"
 )
 
 func getSchemaMap() map[string]string {
 	return map[string]string{
-		"application": "configuration/applicationImport.json",
-		"filter":      "configuration/filterImport.json",
-		"design":      "configuration/designImport.json",
+		"application": "./configuration/applicationImport.json",
+		"filter":      "./configuration/filterImport.json",
+		"design":      "./configuration/designImport.json",
 	}
 }
 
 func getUiSchemaMap() map[string]string {
 	return map[string]string{
-		"application": "configuration/uiSchemaApplication.json",
-		"design":      "configuration/uiSchemaDesignImport.json",
+		"application": "./configuration/uiSchemaApplication.json",
+		"design":      "./configuration/uiSchemaDesignImport.json",
 	}
 }
 
@@ -26,8 +27,7 @@ func ServeJSonFile(resourceName string) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("requested resource's (%s) schema is not found", resourceName)
 	}
 
-	jsonContent, err := Schemas.ReadFile(schemaLocation)
-
+	jsonContent, err := os.ReadFile(schemaLocation)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error reading json file: %s", err)
 	}
@@ -37,7 +37,7 @@ func ServeJSonFile(resourceName string) ([]byte, []byte, error) {
 		return jsonContent, nil, nil
 	}
 
-	uiSchemaJsonContent, err := Schemas.ReadFile(uiSchemaLocation)
+	uiSchemaJsonContent, err := os.ReadFile(uiSchemaLocation)
 	if err != nil {
 		return jsonContent, nil, nil
 	}
