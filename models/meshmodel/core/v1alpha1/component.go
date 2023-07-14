@@ -119,6 +119,9 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 			finder = finder.Where("component_definition_dbs.display_name = ?", f.DisplayName)
 		}
 	}
+	if !f.ReturnIncompatibleComponent {
+		finder = finder.Where("json_extract(component_definition_dbs.metadata, '$.uiCompatible') = ? ", true)
+	}
 	if f.ModelName != "" && f.ModelName != "all" {
 		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
@@ -163,18 +166,19 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 }
 
 type ComponentFilter struct {
-	Name         string
-	APIVersion   string
-	Greedy       bool //when set to true - instead of an exact match, name will be prefix matched
-	Trim         bool //when set to true - the schema is not returned
-	DisplayName  string
-	ModelName    string
-	CategoryName string
-	Version      string
-	Sort         string //asc or desc. Default behavior is asc
-	OrderOn      string
-	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
-	Offset       int
+	Name                        string
+	APIVersion                  string
+	Greedy                      bool //when set to true - instead of an exact match, name will be prefix matched
+	Trim                        bool //when set to true - the schema is not returned
+	DisplayName                 string
+	ModelName                   string
+	CategoryName                string
+	ReturnIncompatibleComponent bool
+	Version                     string
+	Sort                        string //asc or desc. Default behavior is asc
+	OrderOn                     string
+	Limit                       int //If 0 or  unspecified then all records are returned and limit is not used
+	Offset                      int
 }
 
 // Create the filter from map[string]interface{}
