@@ -30,13 +30,13 @@ func getSchema(parsedCrd cue.Value, pathConf CuePathConfig) (string, error) {
 	if err != nil {
 		return "", ErrGetSchema(err)
 	}
-	
+
 	updatedProps, err := UpdateProperties(specCueVal, cue.ParsePath(pathConf.PropertiesPath), resourceId)
 
 	if err != nil {
 		return "", err
 	}
-	
+
 	schema = updatedProps
 	DeleteFields(schema)
 
@@ -74,4 +74,3 @@ func DeleteFields(m map[string]interface{}) {
 		m[key] = prop
 	}
 }
-
