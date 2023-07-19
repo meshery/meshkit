@@ -31,7 +31,7 @@ var DefaultPathConfig = CuePathConfig{
 	VersionPath:    "spec.versions[0].name",
 	GroupPath:      "spec.group",
 	ScopePath:      "spec.scope",
-	SpecPath:       "spec.versions[0].schema.openAPIV3Schema.properties.spec",
+	SpecPath:       "spec.versions[0].schema.openAPIV3Schema",
 	PropertiesPath: "properties",
 }
 
@@ -41,7 +41,7 @@ var DefaultPathConfig2 = CuePathConfig{
 	VersionPath:    "spec.versions[0].name",
 	GroupPath:      "spec.group",
 	ScopePath:      "spec.scope",
-	SpecPath:       "spec.validation.openAPIV3Schema.properties.spec",
+	SpecPath:       "spec.validation.openAPIV3Schema",
 }
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
