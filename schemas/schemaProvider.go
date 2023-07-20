@@ -1,4 +1,4 @@
-package schemaProvider
+package schemas
 
 import (
 	"fmt"
@@ -7,11 +7,13 @@ import (
 
 func getSchemaMap() map[string]string {
 	return map[string]string{
-		"application": "./configuration/applicationImport.json",
-		"filter":      "./configuration/filterImport.json",
-		"design":      "./configuration/designImport.json",
+		"application": "/configuration/applicationImport.json",
+		"filter":      "/configuration/filterImport.json",
+		"design":      "/configuration/designImport.json",
 	}
 }
+
+var basePath = "../../../meshkit/schemas"
 
 func getUiSchemaMap() map[string]string {
 	return map[string]string{
@@ -22,7 +24,7 @@ func getUiSchemaMap() map[string]string {
 
 // ServeJSonFile serves the content of the JSON schema along with the uiSchema if any is present
 func ServeJSonFile(resourceName string) ([]byte, []byte, error) {
-	schemaLocation := getSchemaMap()[resourceName]
+	schemaLocation := basePath + getSchemaMap()[resourceName]
 	if schemaLocation == "" {
 		return nil, nil, fmt.Errorf("requested resource's (%s) schema is not found", resourceName)
 	}
