@@ -89,6 +89,7 @@ func (rm *RegistryManager) Cleanup() {
 		&v1alpha1.ModelDB{},
 		&v1alpha1.CategoryDB{},
 		&v1alpha1.RelationshipDefinitionDB{},
+		&v1alpha1.PolicyDefinitionDB{},
 	)
 }
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
@@ -132,7 +133,6 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			UpdatedAt:    time.Now(),
 		}
 		return rm.db.Create(&entry).Error
-	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
 		policyID, err := v1alpha1.CreatePolicy(rm.db, entity)
 		if err != nil {
@@ -175,11 +175,11 @@ func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64, *int) 
 		return en, &count, nil
 	case *v1alpha1.PolicyFilter:
 		en := make([]Entity, 0)
-		policies := v1alpha1.GetMeshModelPolicy(rm.db, *filter)
+		policies, count := v1alpha1.GetMeshModelPolicy(rm.db, *filter)
 		for _, pol := range policies {
 			en = append(en, pol)
 		}
-		return en, nil, nil
+		return en, &count
 	default:
 		return nil, nil, nil
 	}
