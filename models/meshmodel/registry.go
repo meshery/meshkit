@@ -180,6 +180,13 @@ func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64, *int) 
 			en = append(en, pol)
 		}
 		return en, nil, nil
+	case *v1alpha1.ModelFilter:
+		en := make([]Entity, 0)
+		models, count, _ := rm.GetModels(rm.db, filter)
+		for _, model := range models {
+			en = append(en, model)
+		}
+		return en, &count, nil
 	default:
 		return nil, nil, nil
 	}

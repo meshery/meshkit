@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
+	"github.com/layer5io/meshkit/models/meshmodel/core/types"
 	"gorm.io/gorm"
 )
 
@@ -38,6 +39,9 @@ type Model struct {
 	Version     string                 `json:"version"`
 	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
 	Category    Category               `json:"category"`
+	HostID	    uuid.UUID			   `json:"hostID"`
+	HostName    string				   `json:"hostName"`
+	DisplayHostName string			   `json:"displayHostName"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
 }
 type ModelDB struct {
@@ -98,4 +102,11 @@ func (c *Model) GetModelDB() (cmd ModelDB) {
 	cmd.Version = c.Version
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
 	return
+}
+
+func (r Model) Type() types.CapabilityType {
+	return types.Model
+}
+func (r Model) GetID() uuid.UUID {
+	return r.ID
 }
