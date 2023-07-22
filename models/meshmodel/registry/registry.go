@@ -1,4 +1,4 @@
-package meshmodel
+package registry
 
 import (
 	"fmt"
@@ -30,20 +30,6 @@ type Registry struct {
 	Type         types.CapabilityType
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
-}
-type Host struct {
-	ID        uuid.UUID `json:"-"`
-	Hostname  string
-	Port      int
-	ContextID string
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
-}
-
-func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
-	h.ID = uuid.New()
-	err := db.Create(&h).Error
-	return h.ID, err
 }
 
 // Entity is referred as any type of schema managed by the registry
