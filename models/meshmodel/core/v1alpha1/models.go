@@ -33,7 +33,7 @@ func (cf *ModelFilter) Create(m map[string]interface{}) {
 
 // swagger:response Model
 type Model struct {
-	ID          uuid.UUID              `json:"-"`
+	ID          uuid.UUID              `json:"-" yaml:"-"`
 	Name        string                 `json:"name"`
 	Version     string                 `json:"version"`
 	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
