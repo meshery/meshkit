@@ -4,7 +4,8 @@
     "name": {
       "type": "string",
       "title": "Give your design file a name",
-      "default": "Untitled Design"
+      "default": "Untitled Design",
+      "x-rjsf-grid-area" : "12"
     },
     "uploadType": {
       "title": "Select the Upload Method",
@@ -12,7 +13,8 @@
         "File Upload",
         "URL Upload"
       ],
-      "default": "File Upload"
+      "default": "File Upload",
+      "x-rjsf-grid-area" : "12"
     }
   },
   "allOf": [
@@ -30,7 +32,8 @@
           "file": {
             "type": "string",
             "format": "file",
-            "description": "Browse the design file from your file system"
+            "description": "Browse the design file from your file system",
+            "x-rjsf-grid-area" : "12"
           }
         },
         "required": [
@@ -52,8 +55,8 @@
           "url": {
             "type": "string",
             "title": "URL",
-            "format": "uri",
-            "description": "raw url of the design file, example: https://raw.github.com/..."
+            "description": "raw url of the design file, example: https://raw.github.com/...",
+            "x-rjsf-grid-area" : "12"
           }
         },
         "required": [
