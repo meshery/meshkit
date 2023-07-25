@@ -47,6 +47,10 @@ func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error
 		if comp.Metadata == nil {
 			comp.Metadata = make(map[string]interface{})
 		}
+		if comp.Model.Metadata == nil {
+			comp.Model.Metadata = make(map[string]interface{})
+		}
+		comp.Model.Metadata["source_uri"] = pkg.ChartUrl
 		comp.Model.Version = pkg.Version
 		comp.Model.Name = pkg.Name
 		comp.Model.Category = v1alpha1.Category{

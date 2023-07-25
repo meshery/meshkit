@@ -3,7 +3,7 @@ package describe
 import "github.com/layer5io/meshkit/errors"
 
 var (
-	ErrGetDescriberFuncCode = "not set"
+	ErrGetDescriberFuncCode = "11096"
 )
 
 func ErrGetDescriberFunc() error {
