@@ -1,11 +1,11 @@
 package describe
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -21,8 +21,40 @@ type MockClient struct {
 	Response     string
 }
 
+func StartKindCluster() error {
+	cmd := exec.Command("kind", "create", "cluster", "--config", "kind-cluster-config.yml")
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to start kind cluster: %v", err)
+	}
+	return nil
+}
+
+func DeleteKindCluster() error {
+	cmd := exec.Command("kind", "delete", "cluster")
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to delete Kind cluster: %v", err)
+	}
+	return nil
+}
 func TestDescribe(t *testing.T) {
-	ctx := context.Background()
+	// Start Kind cluster to create a cluster
+	err := StartKindCluster()
+	if err != nil {
+		t.Fatalf("Failed to start Kind cluster: %v", err)
+	}
+	log.Println("Kind cluster created")
+
+	// Defer deleting the Kind cluster until the test is finished
+	defer func() {
+		err := DeleteKindCluster()
+		if err != nil {
+			log.Printf("Failed to delete Kind cluster: %v", err)
+		}
+		log.Println("Kind cluster deleted")
+	}()
+
 	//http time out to handle request and response
 	timeout := 300 * time.Second
 	clienttime := &http.Client{
@@ -34,32 +66,32 @@ func TestDescribe(t *testing.T) {
 	mckpod := MockClient{
 		Object:       "Pod",
 		Method:       "GET",
-		RequestUrl:   fmt.Sprintf("%sapi/v1/namespaces", ctx),
+		RequestUrl:   "api/v1/namespaces",
 		ResponseCode: 200,
 		Response:     "Mock response for pods",
 	}
 	mckDeployment := MockClient{
 		Object:       "Deployment",
 		Method:       "POST",
-		RequestUrl:   fmt.Sprintf("%sapi/v1/namespaces", ctx),
+		RequestUrl:   "api/v1/namespaces",
 		ResponseCode: 200,
 		Response:     "Mock response for deployments",
 	}
 	mckJob := MockClient{
 		Object:       "Job",
 		Method:       "GET",
-		RequestUrl:   fmt.Sprintf("%sapi/v1/namespaces", ctx),
+		RequestUrl:   "api/v1/namespaces",
 		ResponseCode: 200,
 		Response:     "Mock response for job",
 	}
 	mckcronjob := MockClient{
 		Object:       "Cronjob",
 		Method:       "PUT",
-		RequestUrl:   fmt.Sprintf("%sapi/v1/namespaces", ctx),
+		RequestUrl:   "api/v1/namespaces",
 		ResponseCode: 200,
 		Response:     "Mock response for cronjobs",
 	}
-	//create a dummy kubeconfig
+	//create a dummy kubeconfig to create a k8 client 
 	kubeconfig := "test.yml"
 	kubeconfigBytes, err := os.ReadFile(kubeconfig)
 	if err != nil {
