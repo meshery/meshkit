@@ -1,0 +1,68 @@
+{
+  "title": "Upload Design File",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Give your design file a name",
+      "default": "Untitled Design",
+      "x-rjsf-grid-area" : "12"
+    },
+    "uploadType": {
+      "title": "Select the Upload Method",
+      "enum": [
+        "File Upload",
+        "URL Upload"
+      ],
+      "default": "File Upload",
+      "x-rjsf-grid-area" : "12"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "uploadType": {
+            "const": "File Upload"
+          }
+        }
+      },
+      "then": {
+        "title": "via URL",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "file",
+            "description": "Browse the design file from your file system",
+            "x-rjsf-grid-area" : "12"
+          }
+        },
+        "required": [
+          "file"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "uploadType": {
+            "const": "URL Upload"
+          }
+        }
+      },
+      "then": {
+        "title": "via URL",
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "URL",
+            "description": "raw url of the design file, example: https://raw.github.com/...",
+            "x-rjsf-grid-area" : "12"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    }
+  ]
+}
