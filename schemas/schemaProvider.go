@@ -9,6 +9,7 @@ func getSchemaMap() map[string]string {
 		"application": "configuration/applicationImport.json",
 		"filter":      "configuration/filterImport.json",
 		"design":      "configuration/designImport.json",
+		"publish":      "publish/publishModal.json",
 	}
 }
 
@@ -16,6 +17,8 @@ func getUiSchemaMap() map[string]string {
 	return map[string]string{
 		"application": "configuration/uiSchemaApplication.json",
 		"design":      "configuration/uiSchemaDesignImport.json",
+		"filter":      "configuration/uiSchemaFilter.json",
+		"publish":      "publish/uiSchemaPublishSchema.json",
 	}
 }
 

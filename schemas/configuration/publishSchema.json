@@ -30,7 +30,7 @@
         "type": {
             "type": "string",
             "title": "Type",
-            "examples": [
+            "enum": [
                 "deployment",
                 "observability",
                 "resiliency",
@@ -40,6 +40,7 @@
                 "troubleshooting",
                 "workloads"
             ],
+            "default": "deployment",
             "description": "The category of the pattern.",
             "x-rjsf-grid-area": 6
         }
