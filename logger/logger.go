@@ -21,6 +21,8 @@ const (
 )
 
 type Handler interface {
+	SetLogLevel(level LogLevel)
+	GetLogLevel() LogLevel
 	SetLogFormatter(formatter TerminalFormatter)
 
 	Info(description ...interface{})
@@ -92,6 +94,10 @@ func (l *Logger) Error(err error) {
 
 func (l *Logger) SetLogFormatter(formatter TerminalFormatter) {
 	l.logFormatter = formatter
+}
+
+func (l *Logger) GetLogLevel() LogLevel {
+	return l.logLevel
 }
 
 func (l *Logger) SetLogLevel(level LogLevel) {
