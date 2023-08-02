@@ -12,6 +12,8 @@ import (
 )
 
 type Handler interface {
+	SetLogFormatter(formatter TerminalFormatter)
+
 	Info(description ...interface{})
 	Debug(description ...interface{})
 	Warn(err error)
@@ -28,7 +30,8 @@ type Handler interface {
 }
 
 type Logger struct {
-	handler *logrus.Entry
+	handler      *logrus.Entry
+	logFormatter TerminalFormatter
 }
 
 func New(appname string, opts Options) (Handler, error) {
@@ -45,7 +48,7 @@ func New(appname string, opts Options) (Handler, error) {
 			FullTimestamp:   true,
 		})
 	case TerminalLogFormat:
-		log.SetFormatter(new(TerminalFormatter))
+		log.SetFormatter(&TerminalFormatter{})
 	}
 
 	// log.SetReportCaller(true)
@@ -75,6 +78,10 @@ func (l *Logger) Error(err error) {
 		"probable-cause":        errors.GetCause(err),
 		"suggested-remediation": errors.GetRemedy(err),
 	}).Log(logrus.ErrorLevel, err.Error())
+}
+
+func (l *Logger) SetLogFormatter(formatter TerminalFormatter) {
+	l.logFormatter = formatter
 }
 
 func (l *Logger) Errorf(format string, args ...interface{}) {
