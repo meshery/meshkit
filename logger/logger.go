@@ -11,6 +11,15 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
+type LogLevel int
+
+const (
+	DebugLevel LogLevel = iota
+	InfoLevel
+	WarnLevel
+	ErrorLevel
+)
+
 type Handler interface {
 	SetLogFormatter(formatter TerminalFormatter)
 
@@ -31,6 +40,7 @@ type Handler interface {
 
 type Logger struct {
 	handler      *logrus.Entry
+	logLevel     LogLevel
 	logFormatter TerminalFormatter
 }
 
@@ -82,6 +92,10 @@ func (l *Logger) Error(err error) {
 
 func (l *Logger) SetLogFormatter(formatter TerminalFormatter) {
 	l.logFormatter = formatter
+}
+
+func (l *Logger) SetLogLevel(level LogLevel) {
+	l.logLevel = level
 }
 
 func (l *Logger) Errorf(format string, args ...interface{}) {
