@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -16,6 +17,11 @@ type Handler interface {
 	Warn(err error)
 	Error(err error)
 
+	Infof(format string, args ...interface{})
+	Debugf(format string, args ...interface{})
+	Errorf(format string, args ...interface{})
+	Warnf(format string, args ...interface{})
+
 	// Kubernetes Controller compliant logger
 	ControllerLogger() logr.Logger
 	DatabaseLogger() gormlogger.Interface
@@ -23,15 +29,6 @@ type Handler interface {
 
 type Logger struct {
 	handler *logrus.Entry
-}
-
-// TerminalFormatter is exported
-type TerminalFormatter struct{}
-
-// Format defined the format of output for Logrus logs
-// Format is exported
-func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	return append([]byte(entry.Message), '\n'), nil
 }
 
 func New(appname string, opts Options) (Handler, error) {
@@ -80,16 +77,31 @@ func (l *Logger) Error(err error) {
 	}).Log(logrus.ErrorLevel, err.Error())
 }
 
+func (l *Logger) Errorf(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
+	l.handler.Logger.Error(message)
+}
+
 func (l *Logger) Info(description ...interface{}) {
 	l.handler.Log(logrus.InfoLevel,
 		description...,
 	)
 }
 
+func (l *Logger) Infof(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
+	l.handler.Log(logrus.InfoLevel, message)
+}
+
 func (l *Logger) Debug(description ...interface{}) {
 	l.handler.Log(logrus.DebugLevel,
 		description...,
 	)
+}
+
+func (l *Logger) Debugf(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
+	l.handler.Log(logrus.DebugLevel, message)
 }
 
 func (l *Logger) Warn(err error) {
@@ -104,4 +116,9 @@ func (l *Logger) Warn(err error) {
 		"probable-cause":        errors.GetCause(err),
 		"suggested-remediation": errors.GetRemedy(err),
 	}).Log(logrus.WarnLevel, err.Error())
+}
+
+func (l *Logger) Warnf(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
+	l.handler.Log(logrus.WarnLevel, message)
 }
