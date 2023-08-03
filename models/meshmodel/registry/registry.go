@@ -242,10 +242,26 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		fmt.Println(modelWithCategoriess)
 		fmt.Println(err.Error()) //for debugging
 	}
-	for _, modelDB := range modelWithCategoriess {
+	
+	for num, modelDB := range modelWithCategoriess {
+		filter := &v1alpha1.ComponentFilter{}
+		entities, _ ,_ := rm.GetEntities(filter)
+		host := rm.GetRegistrant(entities[num])
+		modelDB.HostID = host.ID
+		modelDB.HostName = host.Hostname
+		
 		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)
+}
+func (rm *RegistryManager) GetModelHost(name string)(Host) {
+
+	filter := &v1alpha1.ComponentFilter{
+		ModelName: name,
+	}
+	entities, _ ,_ := rm.GetEntities(filter)
+	host := rm.GetRegistrant(entities[0])
+	return host
 }
 func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) ([]v1alpha1.Category, int64) {
 	var catdb []v1alpha1.CategoryDB
