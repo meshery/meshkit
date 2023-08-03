@@ -251,7 +251,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	}
 	for _, modelDB := range modelWithCategoriess {
 		filter := &v1alpha1.ComponentFilter{}
-		entities, _ ,_ := rm.GetEntities(filter)
+		entities, _, _ := rm.GetEntities(filter)
 		host := rm.GetRegistrant(entities[0])
 		modelDB.HostID = host.ID
 		modelDB.HostName = host.Hostname
