@@ -18,15 +18,15 @@ import (
 type RelationshipDefinition struct {
 	ID uuid.UUID `json:"-"`
 	TypeMeta
-	Model     Model                  `json:"model"`
-	HostName	string					`json:"hostname"`
-	HostID		uuid.UUID				`json:"hostID"`
-	DisplayHostName	string				`json:"displayhostname"`
-	Metadata  map[string]interface{} `json:"metadata" yaml:"metadata"`
-	SubType   string                 `json:"subType" yaml:"subType" gorm:"subType"`
-	Selectors map[string]interface{} `json:"selectors" yaml:"selectors"`
-	CreatedAt time.Time              `json:"-"`
-	UpdatedAt time.Time              `json:"-"`
+	Model           Model                  `json:"model"`
+	HostName        string                 `json:"hostname"`
+	HostID          uuid.UUID              `json:"hostID"`
+	DisplayHostName string                 `json:"displayhostname"`
+	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
+	SubType         string                 `json:"subType" yaml:"subType" gorm:"subType"`
+	Selectors       map[string]interface{} `json:"selectors" yaml:"selectors"`
+	CreatedAt       time.Time              `json:"-"`
+	UpdatedAt       time.Time              `json:"-"`
 }
 
 type RelationshipDefinitionDB struct {
