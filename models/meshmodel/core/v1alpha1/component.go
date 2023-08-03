@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
@@ -47,6 +48,7 @@ type ComponentDefinitionDB struct {
 	CreatedAt   time.Time       `json:"-"`
 	UpdatedAt   time.Time       `json:"-"`
 }
+var  test *registry.RegistryManager
 
 func (c ComponentDefinition) Type() types.CapabilityType {
 	return types.ComponentDefinition
@@ -150,11 +152,15 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	if err != nil {
 		fmt.Println(err.Error()) //for debugging
 	}
+	var rm *registry.RegistryManager
 	for _, cm := range componentDefinitionsWithModel {
 		if f.Trim {
 			cm.Schema = ""
 		}
-		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
+		filter := &ComponentFilter{}
+		entities, _ ,_ := rm.GetEntities(filter)
+		host := rm.GetRegistrant(entities[0])
+		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db), host)))
 	}
 
 	unique = countUniqueComponents(componentDefinitionsWithModel)

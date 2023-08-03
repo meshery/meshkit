@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
+
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
@@ -39,6 +41,7 @@ type Model struct {
 	Version     string                 `json:"version"`
 	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
 	Category    Category               `json:"category"`
+	Host        registry.Host          `json:"hosts"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
 }
 type ModelDB struct {
@@ -50,6 +53,7 @@ type ModelDB struct {
 	SubCategory string    `json:"subCategory" gorm:"subCategory"`
 	Metadata    []byte    `json:"modelMetadata" gorm:"modelMetadata"`
 }
+
 
 func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 	byt, err := json.Marshal(cmodel)
@@ -83,9 +87,10 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 	}
 	return model.ID, nil
 }
-func (cmd *ModelDB) GetModel(cat Category) (c Model) {
+func (cmd *ModelDB) GetModel(cat Category, host registry.Host) (c Model) {
 	c.ID = cmd.ID
 	c.Category = cat
+	c.Host = host
 	c.DisplayName = cmd.DisplayName
 	c.Name = cmd.Name
 	c.Version = cmd.Version

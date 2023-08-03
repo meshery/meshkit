@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
@@ -104,8 +105,12 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 	if err != nil {
 		fmt.Println(err.Error()) //for debugging
 	}
+	var rm *registry.RegistryManager
 	for _, cm := range componentDefinitionsWithModel {
-		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
+		filter := &ComponentFilter{}
+		entities, _ ,_ := rm.GetEntities(filter)
+		host := rm.GetRegistrant(entities[0])
+		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db), host)))
 	}
 	return r, count
 }
