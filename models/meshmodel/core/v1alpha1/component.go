@@ -30,6 +30,9 @@ type ComponentDefinition struct {
 	TypeMeta
 	DisplayName string                 `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat        `json:"format" yaml:"format"`
+	HostName	string					`json:"hostname"`
+	HostID		uuid.UUID				`json:"hostID"`
+	DisplayHostName	string				`json:"displayhostname"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
 	Model       Model                  `json:"model"`
 	Schema      string                 `json:"schema,omitempty" yaml:"schema"`

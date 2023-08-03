@@ -37,6 +37,9 @@ type Model struct {
 	Name        string                 `json:"name"`
 	Version     string                 `json:"version"`
 	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
+	HostName	string					`json:"hostname"`
+	HostID		uuid.UUID				`json:"hostID"`
+	DisplayHostName	string				`json:"displayhostname"`
 	Category    Category               `json:"category"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
 }
@@ -46,6 +49,9 @@ type ModelDB struct {
 	Name        string    `json:"modelName" gorm:"modelName"`
 	Version     string    `json:"version"`
 	DisplayName string    `json:"modelDisplayName" gorm:"modelDisplayName"`
+	HostName	string					`json:"hostname"`
+	HostID		uuid.UUID				`json:"hostID"`
+	DisplayHostName	string				`json:"displayhostname"`
 	SubCategory string    `json:"subCategory" gorm:"subCategory"`
 	Metadata    []byte    `json:"modelMetadata" gorm:"modelMetadata"`
 }
@@ -85,6 +91,8 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 	c.ID = cmd.ID
 	c.Category = cat
+	c.HostName = cmd.HostName
+    c.HostID = cmd.HostID
 	c.DisplayName = cmd.DisplayName
 	c.Name = cmd.Name
 	c.Version = cmd.Version
