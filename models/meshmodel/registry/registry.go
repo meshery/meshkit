@@ -250,10 +250,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		fmt.Println(err.Error()) //for debugging
 	}
 	for _, modelDB := range modelWithCategoriess {
-		filter := &v1alpha1.ComponentFilter{}
-		entities, _ ,_ := rm.GetEntities(filter)
-		host := rm.GetRegistrant(entities[0])
-		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db), host))
+		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)
 }

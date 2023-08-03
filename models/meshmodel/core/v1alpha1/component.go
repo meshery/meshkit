@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
-	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
@@ -31,6 +30,9 @@ type ComponentDefinition struct {
 	TypeMeta
 	DisplayName string                 `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat        `json:"format" yaml:"format"`
+	HostName	string					`json:"hostname"`
+	HostID		uuid.UUID				`json:"hostID"`
+	DisplayHostName	string				`json:"displayhostname"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
 	Model       Model                  `json:"model"`
 	Schema      string                 `json:"schema,omitempty" yaml:"schema"`
@@ -48,7 +50,6 @@ type ComponentDefinitionDB struct {
 	CreatedAt   time.Time       `json:"-"`
 	UpdatedAt   time.Time       `json:"-"`
 }
-var  test *registry.RegistryManager
 
 func (c ComponentDefinition) Type() types.CapabilityType {
 	return types.ComponentDefinition
@@ -152,15 +153,11 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	if err != nil {
 		fmt.Println(err.Error()) //for debugging
 	}
-	var rm *registry.RegistryManager
 	for _, cm := range componentDefinitionsWithModel {
 		if f.Trim {
 			cm.Schema = ""
 		}
-		filter := &ComponentFilter{}
-		entities, _ ,_ := rm.GetEntities(filter)
-		host := rm.GetRegistrant(entities[0])
-		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db), host)))
+		c = append(c, cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
 
 	unique = countUniqueComponents(componentDefinitionsWithModel)

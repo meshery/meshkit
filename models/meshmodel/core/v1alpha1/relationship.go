@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
-	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
@@ -20,6 +19,9 @@ type RelationshipDefinition struct {
 	ID uuid.UUID `json:"-"`
 	TypeMeta
 	Model     Model                  `json:"model"`
+	HostName	string					`json:"hostname"`
+	HostID		uuid.UUID				`json:"hostID"`
+	DisplayHostName	string				`json:"displayhostname"`
 	Metadata  map[string]interface{} `json:"metadata" yaml:"metadata"`
 	SubType   string                 `json:"subType" yaml:"subType" gorm:"subType"`
 	Selectors map[string]interface{} `json:"selectors" yaml:"selectors"`
@@ -105,12 +107,8 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 	if err != nil {
 		fmt.Println(err.Error()) //for debugging
 	}
-	var rm *registry.RegistryManager
 	for _, cm := range componentDefinitionsWithModel {
-		filter := &ComponentFilter{}
-		entities, _ ,_ := rm.GetEntities(filter)
-		host := rm.GetRegistrant(entities[0])
-		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db), host)))
+		r = append(r, cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db))))
 	}
 	return r, count
 }
