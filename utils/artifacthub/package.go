@@ -21,15 +21,15 @@ const AhHelmExporterEndpoint = ArtifactHubAPIEndpint + "/helm-exporter"
 // internal representation of artifacthub package
 // it contains information we need to identify a package using ArtifactHub API
 type AhPackage struct {
-	Name              string
-	Repository        string
-	Organization      string
-	RepoUrl           string
-	ChartUrl          string
-	Official          bool
-	VerifiedPublisher bool
-	CNCF              bool
-	Version           string
+	Name              string `yaml:"name"`
+	Repository        string `yaml:"repository"`
+	Organization      string `yaml:"organization"`
+	RepoUrl           string `yaml:"repo_url"`
+	ChartUrl          string `yaml:"chart_url"`
+	Official          bool   `yaml:"official"`
+	VerifiedPublisher bool   `yaml:"verified_publisher"`
+	CNCF              bool   `yaml:"cncf"`
+	Version           string `yaml:"version"`
 }
 
 func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error) {
