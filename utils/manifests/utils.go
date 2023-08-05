@@ -14,6 +14,8 @@ import (
 
 	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -509,4 +511,17 @@ func NewCueCrdFilter(ep ExtractorPaths, isJson bool) CueCrdFilter {
 			return res.Value(), nil
 		},
 	}
+}
+
+func HostnameToPascalCase(input string) string {
+    parts := strings.Split(input, ".")
+	caser := cases.Title(language.English)
+    for i, part := range parts {
+		
+        parts[i] = caser.String(part)
+    }
+
+    pascalCaseHostname := strings.Join(parts, " ")
+
+    return pascalCaseHostname
 }

@@ -250,7 +250,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		host := rm.GetRegistrant(entities[num])
 		modelDB.HostID = host.ID
 		modelDB.HostName = host.Hostname
-		modelDB.DisplayHostName = manifests.FormatToReadableString(host.Hostname)
+		modelDB.DisplayHostName = manifests.HostnameToPascalCase(host.Hostname)
 		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)
