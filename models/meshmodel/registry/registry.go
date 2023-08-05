@@ -8,6 +8,7 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/utils/manifests"
 	"gorm.io/gorm/clause"
 )
 
@@ -249,7 +250,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		host := rm.GetRegistrant(entities[num])
 		modelDB.HostID = host.ID
 		modelDB.HostName = host.Hostname
-
+		modelDB.DisplayHostName = manifests.FormatToReadableString(host.Hostname)
 		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)
