@@ -247,7 +247,6 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	}
 
 	for _, modelDB := range modelWithCategoriess {
-
 		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)
@@ -310,7 +309,6 @@ func HostnameToPascalCase(input string) string {
 	parts := strings.Split(input, ".")
 	caser := cases.Title(language.English)
 	for i, part := range parts {
-
 		parts[i] = caser.String(part)
 	}
 
