@@ -246,13 +246,8 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		fmt.Println(err.Error()) //for debugging
 	}
 
-	for num, modelDB := range modelWithCategoriess {
-		filter := &v1alpha1.ComponentFilter{}
-		entities, _, _ := rm.GetEntities(filter)
-		host := rm.GetRegistrant(entities[num])
-		modelDB.HostID = host.ID
-		modelDB.HostName = host.Hostname
-		modelDB.DisplayHostName = HostnameToPascalCase(host.Hostname)
+	for _, modelDB := range modelWithCategoriess {
+
 		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)
@@ -312,14 +307,14 @@ func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 }
 
 func HostnameToPascalCase(input string) string {
-    parts := strings.Split(input, ".")
+	parts := strings.Split(input, ".")
 	caser := cases.Title(language.English)
-    for i, part := range parts {
-		
-        parts[i] = caser.String(part)
-    }
+	for i, part := range parts {
 
-    pascalCaseHostname := strings.Join(parts, " ")
+		parts[i] = caser.String(part)
+	}
 
-    return pascalCaseHostname
+	pascalCaseHostname := strings.Join(parts, " ")
+
+	return pascalCaseHostname
 }
