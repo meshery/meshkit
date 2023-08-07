@@ -3,7 +3,7 @@ module github.com/layer5io/meshkit
 go 1.19
 
 replace (
-	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.8.1
+	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.9.3
 	github.com/docker/docker => github.com/moby/moby v20.10.7+incompatible
 	github.com/docker/libcompose => github.com/docker/libcompose v0.4.1-0.20190808084053-143e0f3f1ab9
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
@@ -22,7 +22,7 @@ require (
 	github.com/layer5io/meshery-operator v0.6.10
 	github.com/nats-io/nats.go v1.14.0
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.15.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -53,7 +53,6 @@ require (
 	github.com/distribution/distribution/v3 v3.0.0-20230214150026-36d8c594d7aa // indirect
 	github.com/docker/buildx v0.5.2-0.20210422185057-908a856079fc // indirect
 	github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c // indirect
-	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
@@ -83,7 +82,6 @@ require (
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
-	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 )
 
 require (
@@ -150,14 +148,8 @@ require (
 	github.com/huandu/xstrings v1.3.3 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
-	github.com/jackc/pgconn v1.13.0 // indirect
-	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgproto3/v2 v2.3.1 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/pgtype v1.12.0 // indirect
-	github.com/jackc/pgx/v4 v4.17.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
