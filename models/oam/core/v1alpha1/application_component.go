@@ -54,6 +54,10 @@ func GetAnnotationsForWorkload(w v1alpha1.ComponentDefinition) map[string]string
 			res[strings.ReplaceAll(fmt.Sprintf("%s.%s", MesheryAnnotationPrefix, key), " ", "")] = v
 		}
 	}
+	sourceURI, ok := w.Model.Metadata["source_uri"].(string)
+	if ok {
+		res[fmt.Sprintf("%s.model.source_uri", MesheryAnnotationPrefix)] = sourceURI
+	}
 	res[fmt.Sprintf("%s.model.name", MesheryAnnotationPrefix)] = w.Model.Name
 	res[fmt.Sprintf("%s.k8s.APIVersion", MesheryAnnotationPrefix)] = w.APIVersion
 	res[fmt.Sprintf("%s.k8s.Kind", MesheryAnnotationPrefix)] = w.Kind

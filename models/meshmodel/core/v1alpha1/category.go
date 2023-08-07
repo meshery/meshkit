@@ -13,7 +13,7 @@ var categoryCreationLock sync.Mutex //Each model will perform a check and if the
 
 // swagger:response Category
 type Category struct {
-	ID       uuid.UUID              `json:"-"`
+	ID       uuid.UUID              `json:"-" yaml:"-"`
 	Name     string                 `json:"name"`
 	Metadata map[string]interface{} `json:"metadata" yaml:"metadata"`
 }

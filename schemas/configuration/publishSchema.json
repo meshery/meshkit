@@ -1,0 +1,49 @@
+{
+    "type": "object",
+    "properties": {
+        "compatibility": {
+            "type": "array",
+            "title": "Technology",
+            "items": {
+                "enum": ["istio", "linkerd"],
+                "type": "string"
+            },
+            "uniqueItems": true,
+            "minItems": 1,
+            "description": "The list of compatible technologies.",
+            "x-rjsf-grid-area": 6
+        },
+        "pattern_caveats": {
+            "type": "string",
+            "title": "Caveats and Considerations",
+            "description": "Caveats related to the design.",
+            "format": "textarea",
+            "x-rjsf-grid-area": 12
+        },
+        "pattern_info": {
+            "type": "string",
+            "title": "Description",
+            "description": "Additional information about the design.",
+            "format": "textarea",
+            "x-rjsf-grid-area": 12
+        },
+        "type": {
+            "type": "string",
+            "title": "Type",
+            "enum": [
+                "deployment",
+                "observability",
+                "resiliency",
+                "scaling",
+                "security",
+                "traffic-management",
+                "troubleshooting",
+                "workloads"
+            ],
+            "default": "deployment",
+            "description": "The category of the pattern.",
+            "x-rjsf-grid-area": 6
+        }
+    },
+    "required": ["compatibility", "pattern_caveats", "pattern_info", "type"]
+}
