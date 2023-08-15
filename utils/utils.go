@@ -237,7 +237,7 @@ func safeClose(co io.Closer) {
 	}
 }
 
-func Contains [G []K, K comparable](slice G, ele K) bool {
+func Contains[G []K, K comparable](slice G, ele K) bool {
 	for _, item := range slice {
 		if item == ele {
 			return true
