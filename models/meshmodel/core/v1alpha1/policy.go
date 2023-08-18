@@ -57,7 +57,7 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 	}
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&PolicyDefinitionDB{}).
-		Select("policy_definition_dbs.*, models.*").
+		Select("policy_definition_dbs.*, models_dbs.*").
 		Joins("JOIN model_dbs ON model_dbs.id = policy_definition_dbs.model_id")
 	if f.Kind != "" {
 		finder = finder.Where("policy_definition_dbs.kind = ?", f.Kind)
