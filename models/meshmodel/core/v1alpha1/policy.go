@@ -32,8 +32,13 @@ type PolicyDefinitionDB struct {
 
 type PolicyFilter struct {
 	Kind      string
+	Greedy    bool
 	SubType   string
 	ModelName string
+	OrderOn   string
+	Sort      string
+	Limit     int
+	Offset    int
 }
 
 func (pf *PolicyFilter) Create(m map[string]interface{}) {
