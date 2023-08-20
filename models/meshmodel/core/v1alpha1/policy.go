@@ -32,8 +32,13 @@ type PolicyDefinitionDB struct {
 
 type PolicyFilter struct {
 	Kind      string
+	Greedy    bool
 	SubType   string
 	ModelName string
+	OrderOn   string
+	Sort      string
+	Limit     int
+	Offset    int
 }
 
 func (pf *PolicyFilter) Create(m map[string]interface{}) {
@@ -57,7 +62,7 @@ func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefini
 	}
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&PolicyDefinitionDB{}).
-		Select("policy_definition_dbs.*, models.*").
+		Select("policy_definition_dbs.*, models_dbs.*").
 		Joins("JOIN model_dbs ON model_dbs.id = policy_definition_dbs.model_id")
 	if f.Kind != "" {
 		finder = finder.Where("policy_definition_dbs.kind = ?", f.Kind)

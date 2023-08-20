@@ -236,3 +236,12 @@ func safeClose(co io.Closer) {
 		log.Error(cerr)
 	}
 }
+
+func Contains[G []K, K comparable](slice G, ele K) bool {
+	for _, item := range slice {
+		if item == ele {
+			return true
+		}
+	}
+	return false
+}

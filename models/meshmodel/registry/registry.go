@@ -2,12 +2,15 @@ package registry
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"gorm.io/gorm/clause"
 )
 
@@ -242,6 +245,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		fmt.Println(modelWithCategoriess)
 		fmt.Println(err.Error()) //for debugging
 	}
+
 	for _, modelDB := range modelWithCategoriess {
 		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
 	}
@@ -299,4 +303,16 @@ func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	var h Host
 	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
 	return h
+}
+
+func HostnameToPascalCase(input string) string {
+	parts := strings.Split(input, ".")
+	caser := cases.Title(language.English)
+	for i, part := range parts {
+		parts[i] = caser.String(part)
+	}
+
+	pascalCaseHostname := strings.Join(parts, " ")
+
+	return pascalCaseHostname
 }
