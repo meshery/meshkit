@@ -6,7 +6,7 @@ package events
 import (
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 )
 
 // Defines values for EventSeverity.
@@ -20,39 +20,69 @@ const (
 	Warning       EventSeverity = "warning"
 )
 
+// CreatedAt Timestamp when the resource was created.
+type CreatedAt = time.Time
+
+// DeletedAt Timestamp when the resource was deleted.
+type DeletedAt = time.Time
+
 // Event Defines model for event_trackers
 type Event struct {
 	// ActedUpon UUID of the entity on which the event was performed.
-	ActedUpon uuid.UUID `json:"acted_upon"`
-	CreatedAt time.Time `json:"created_at"`
-	DeletedAt time.Time `json:"deleted_at"`
+	ActedUpon uuid.UUID `db:"acted_upon" json:"acted_upon"`
+
+	// CreatedAt Timestamp when the resource was created.
+	CreatedAt CreatedAt `db:"created_at" json:"created_at"`
+
+	// DeletedAt Timestamp when the resource was deleted.
+	DeletedAt *DeletedAt `db:"deleted_at" json:"deleted_at,omitempty"`
 
 	// Description A summary/receipt of event that occured.
-	Description string `json:"description"`
-
-	// EventType Is a composite key of resource name on which the operation is invoked and the action taken on the resource separated by ‘_’
-	EventType string `json:"event_type"`
-
-	// Id UUID of the event.
-	Id uuid.UUID `json:"id"`
+	Description string    `db:"description" json:"description"`
+	EventType   EventType `db:"event_type" json:"event_type"`
+	ID          ID        `db:"id" json:"id"`
 
 	// Metadata Contains meaningful information, specific to the type of event.
 	// Structure of metadata can be different for different events.
-	Metadata interface{} `json:"metadata"`
-
-	// OperationId Each Event will have a OperationID. This field is never NULL, which is to say an operation can result in series of events, for eg: Different stages of Pattern Engine / activities of Workflow engine. Each operation (and sub-operation) will have a different operation ID.
-	OperationId uuid.UUID `json:"operation_id"`
+	Metadata    interface{} `db:"metadata" json:"metadata"`
+	OperationID OperationID `db:"operation_id" json:"operation_id"`
 
 	// Severity A set of seven standard event levels.
-	Severity EventSeverity `json:"severity"`
+	Severity EventSeverity `db:"severity" json:"severity"`
+	SystemID SystemID      `db:"system_id" json:"system_id"`
 
-	// SystemId The system from which the request is sourced. In the case of Meshery Server,
-	// the ID is meshery_instance_id of Meshery Server (which can be found in the metadata of`Connections` table).
-	SystemId uuid.UUID `json:"system_id"`
-
-	// UserId UUID of the user that initiated the event. In most cases this would be present, but not always.
-	UserId uuid.UUID `json:"user_id,omitempty"`
+	// UpdatedAt Timestamp when the resource was updated.
+	UpdatedAt UpdatedAt `db:"updated_at" json:"updated_at"`
+	UserID    *UserID   `db:"user_id" json:"user_id,omitempty"`
 }
 
 // EventSeverity A set of seven standard event levels.
 type EventSeverity string
+
+// EventType defines model for eventType.
+type EventType = string
+
+// ID defines model for id.
+type ID = uuid.UUID
+
+// OperationID defines model for operation_id.
+type OperationID = uuid.UUID
+
+// SystemID defines model for system_id.
+type SystemID = uuid.UUID
+
+// Time defines model for time.
+type Time = time.Time
+
+// UpdatedAt Timestamp when the resource was updated.
+type UpdatedAt = time.Time
+
+// UserID defines model for user_uuid.
+type UserID = uuid.UUID
+
+
+// EventsFilter defines model for eventsFilter.
+type EventsFilter struct {
+	EventType []string `json:"event_type"`
+	Provider  []string `json:"provider"`
+}
