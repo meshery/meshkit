@@ -14,7 +14,7 @@
             },
             "uniqueItems": true,
             "minItems": 1,
-            "description": "The list of compatible technologies.",
+            "description": "A list of technologies included in or implicated by this design; a list of relevant technology tags.",
             "x-rjsf-grid-area": 6
         },
         "pattern_caveats": {
