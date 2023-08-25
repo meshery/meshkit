@@ -20,7 +20,7 @@
         "pattern_caveats": {
             "type": "string",
             "title": "Caveats and Considerations",
-            "description": "Caveats related to the design.",
+            "description": "Specific stipulations to consider and known behaviors to be aware of when using this design.",
             "format": "textarea",
             "x-rjsf-grid-area": 12
         },
