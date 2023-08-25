@@ -27,7 +27,7 @@
         "pattern_info": {
             "type": "string",
             "title": "Description",
-            "description": "Additional information about the design.",
+            "description": "Purpose of the design along with its intended and unintended uses.",
             "format": "textarea",
             "x-rjsf-grid-area": 12
         },
