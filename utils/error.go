@@ -95,7 +95,7 @@ func ErrReadingRemoteFile(err error) error {
 }
 
 func ErrReadingLocalFile(err error) error {
-	return errors.New(ErrReadingLocalFileCode, errors.Alert, []string{"error reading local file"}, []string{err.Error()}, []string{"File doesnt exist in the location", "File name is incorrect"}, []string{"Make sure to input the right file name and location"})
+	return errors.New(ErrReadingLocalFileCode, errors.Alert, []string{"error reading local file"}, []string{err.Error()}, []string{"File doesnt exist in the location", "File name is incorrect", "Insufficient permissions to read file"}, []string{"Make sure to input the right file name and location. Check file permissions"})
 }
 
 func ErrGettingLatestReleaseTag(err error) error {

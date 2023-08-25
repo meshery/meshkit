@@ -15,7 +15,7 @@ func ErrGetControllerStatus(err error) error {
 }
 
 func ErrDeployController(err error) error {
-	return errors.New(ErrDeployControllerCode, errors.Alert, []string{"Error deploying meshery controller"}, []string{err.Error()}, []string{"Controller configuration may not be valid"}, []string{"Make sure the controller configuration is valid"})
+	return errors.New(ErrDeployControllerCode, errors.Alert, []string{"Error deploying meshery controller"}, []string{err.Error()}, []string{"Controller configuration may not be valid", "Insufficient permissions to read kubernetes config"}, []string{"Make sure the controller configuration is valid and the kubernetes config has sufficient read permissions"})
 }
 
 func ErrGetControllerPublicEndpoint(err error) error {
