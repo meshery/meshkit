@@ -95,7 +95,7 @@ func ErrReadingRemoteFile(err error) error {
 }
 
 func ErrReadingLocalFile(err error) error {
-	return errors.New(ErrReadingLocalFileCode, errors.Alert, []string{"error reading local file"}, []string{err.Error()}, []string{"File doesnt exist in the location", "File name is incorrect"}, []string{"Make sure to input the right file name and location"})
+	return errors.New(ErrReadingLocalFileCode, errors.Alert, []string{"error reading local file"}, []string{err.Error()}, []string{"File does not exist in the location (~/.kube/config)", "File is absent. Filename is not 'config'.", "Insufficient permissions to read file"}, []string{"Verify that the available kubeconfig is accessible by Meshery Server - verify sufficient file permissions (only needs read permission)."})
 }
 
 func ErrGettingLatestReleaseTag(err error) error {
