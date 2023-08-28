@@ -20,12 +20,12 @@ func NewEvent() *EventBuilder {
 	}
 }
 
-func (e *EventBuilder) ActedOn(resource uuid.UUID) *EventBuilder {
+func (e *EventBuilder) ActedUpon(resource uuid.UUID) *EventBuilder {
 	e.event.ActedUpon = resource
 	return e
 }
 
-func (e *EventBuilder) Description(description string) *EventBuilder {
+func (e *EventBuilder) WithDescription(description string) *EventBuilder {
 	e.event.Description = description
 	return e
 }
@@ -35,7 +35,7 @@ func (e *EventBuilder) WithEventType(eventType string) *EventBuilder {
 	return e
 }
 
-func (e *EventBuilder) AddMetadata(metadata interface{}) *EventBuilder {
+func (e *EventBuilder) WithMetadata(metadata interface{}) *EventBuilder {
 	e.event.Metadata = metadata
 	return e
 }
@@ -45,7 +45,7 @@ func (e *EventBuilder) WithSeverity(severity EventSeverity) *EventBuilder {
 	return e
 }
 
-func (e *EventBuilder) InitiatedBy(id uuid.UUID) *EventBuilder {
+func (e *EventBuilder) FromUser(id uuid.UUID) *EventBuilder {
 	e.event.UserID = &id
 	return e
 }
