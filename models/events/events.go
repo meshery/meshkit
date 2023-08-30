@@ -31,6 +31,12 @@ type Event struct {
 	// ActedUpon UUID of the entity on which the event was performed.
 	ActedUpon uuid.UUID `db:"acted_upon" json:"acted_upon"`
 
+	// Action Action taken on the resource.
+	Action string `db:"action" json:"action"`
+
+	// Category Resource name on which the operation is invoked.
+	Category string `db:"category" json:"category"`
+
 	// CreatedAt Timestamp when the resource was created.
 	CreatedAt CreatedAt `db:"created_at" json:"created_at"`
 
@@ -38,9 +44,8 @@ type Event struct {
 	DeletedAt *DeletedAt `db:"deleted_at" json:"deleted_at,omitempty"`
 
 	// Description A summary/receipt of event that occured.
-	Description string    `db:"description" json:"description"`
-	EventType   EventType `db:"event_type" json:"event_type"`
-	ID          ID        `db:"id" json:"id"`
+	Description string `db:"description" json:"description"`
+	ID          ID     `db:"id" json:"id"`
 
 	// Metadata Contains meaningful information, specific to the type of event.
 	// Structure of metadata can be different for different events.
@@ -58,9 +63,6 @@ type Event struct {
 
 // EventSeverity A set of seven standard event levels.
 type EventSeverity string
-
-// EventType defines model for eventType.
-type EventType = string
 
 // ID defines model for id.
 type ID = uuid.UUID
@@ -80,9 +82,9 @@ type UpdatedAt = time.Time
 // UserID defines model for user_uuid.
 type UserID = uuid.UUID
 
-
 // EventsFilter defines model for eventsFilter.
 type EventsFilter struct {
-	EventType []string `json:"event_type"`
-	Provider  []string `json:"provider"`
+	Action   []string `json:"action"`
+	Category []string `json:"category"`
+	Provider []string `json:"provider"`
 }

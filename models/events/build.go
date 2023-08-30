@@ -30,8 +30,13 @@ func (e *EventBuilder) WithDescription(description string) *EventBuilder {
 	return e
 }
 
-func (e *EventBuilder) WithEventType(eventType string) *EventBuilder {
-	e.event.EventType = eventType
+func (e *EventBuilder) WithCategory(eventCategory string) *EventBuilder {
+	e.event.Category = eventCategory
+	return e
+}
+
+func (e *EventBuilder) WithAction(eventAction string) *EventBuilder {
+	e.event.Action = eventAction
 	return e
 }
 
