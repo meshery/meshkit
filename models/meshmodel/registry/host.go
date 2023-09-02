@@ -3,7 +3,6 @@ package registry
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -67,15 +66,15 @@ func (ah ArtifactHub) HandleDependents(comp v1alpha1.Component, kc *kubernetes.C
 		})
 		if err != nil {
 			if !isDeploy {
-				summary = fmt.Sprintf("error undeploying dependent resources for %s, please proceed with manual uninstall or try again: %s", strings.TrimSuffix(comp.Spec.Type, ".K8s"), comp.Name)
+				summary = fmt.Sprintf("error undeploying dependent helm chart for %s, please proceed with manual uninstall or try again", comp.Name)
 			} else {
-				summary = fmt.Sprintf("error deploying dependent resources for %s, please procced with manual install or try again: %s", strings.TrimSuffix(comp.Spec.Type, ".K8s"), comp.Name)
+				summary = fmt.Sprintf("error deploying dependent helm chart for %s, please procced with manual install or try again", comp.Name)
 			}
 		} else {
 			if !isDeploy {
-				summary = fmt.Sprintf("Undeployed helm chart%s: %s", strings.TrimSuffix(comp.Spec.Type, ".K8s"), comp.Name)
+				summary = fmt.Sprintf("Undeployed dependent helm chart for %s", comp.Name)
 			} else {
-				summary = fmt.Sprintf("Deployed helm chart%s: %s", strings.TrimSuffix(comp.Spec.Type, ".K8s"), comp.Name)
+				summary = fmt.Sprintf("Deployed dependent helm chart for %s", comp.Name)
 			}
 		}
 	}
