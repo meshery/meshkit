@@ -7,7 +7,7 @@
             "title": "Technology",
             "items": {
                 "enum": [
-                    "kubernetes",
+                    "kubernetes"
                 ],
                 "type": "string"
             },
