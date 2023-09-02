@@ -49,12 +49,15 @@ type Event struct {
 
 	// Metadata Contains meaningful information, specific to the type of event.
 	// Structure of metadata can be different for different events.
-	Metadata    interface{} `db:"metadata" json:"metadata"`
+	Metadata    []byte      `db:"metadata" json:"metadata"`
 	OperationID OperationID `db:"operation_id" json:"operation_id"`
 
 	// Severity A set of seven standard event levels.
 	Severity EventSeverity `db:"severity" json:"severity"`
-	SystemID SystemID      `db:"system_id" json:"system_id"`
+
+	// Status Status for the event.
+	Status   string   `db:"status" json:"status"`
+	SystemID SystemID `db:"system_id" json:"system_id"`
 
 	// UpdatedAt Timestamp when the resource was updated.
 	UpdatedAt UpdatedAt `db:"updated_at" json:"updated_at"`
@@ -63,6 +66,22 @@ type Event struct {
 
 // EventSeverity A set of seven standard event levels.
 type EventSeverity string
+
+// EventsFilter defines model for events_filter.
+type EventsFilter struct {
+	Action   []string `json:"action"`
+	Category []string `json:"category"`
+	Limit    int      `json:"limit"`
+	Offset   int      `json:"offset"`
+
+	// Order order of sort asc/desc, default is asc
+	Order    string   `json:"order"`
+	Provider []string `json:"provider"`
+	Severity []string `json:"severity"`
+
+	// SortOn Field on which records are sorted
+	SortOn string `json:"sort_on"`
+}
 
 // ID defines model for id.
 type ID = uuid.UUID
@@ -81,10 +100,3 @@ type UpdatedAt = time.Time
 
 // UserID defines model for user_uuid.
 type UserID = uuid.UUID
-
-// EventsFilter defines model for eventsFilter.
-type EventsFilter struct {
-	Action   []string `json:"action"`
-	Category []string `json:"category"`
-	Provider []string `json:"provider"`
-}
