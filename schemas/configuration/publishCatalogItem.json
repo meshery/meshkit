@@ -34,16 +34,16 @@
             "type": "string",
             "title": "Type",
             "enum": [
-                "deployment",
-                "observability",
-                "resiliency",
-                "scaling",
-                "security",
-                "traffic-management",
-                "troubleshooting",
-                "workloads"
+                "Deployment",
+                "Observability",
+                "Resiliency",
+                "Scaling",
+                "Security",
+                "Traffic-management",
+                "Troubleshooting",
+                "Workloads"
             ],
-            "default": "deployment",
+            "default": "Deployment",
             "description": "Categorization of the type of design or operational flow depicted in this design.",
             "x-rjsf-grid-area": 6
         }
