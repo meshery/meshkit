@@ -18,6 +18,7 @@ const (
 	Error         EventSeverity = "error"
 	Informational EventSeverity = "informational"
 	Warning       EventSeverity = "warning"
+	Success       EventSeverity = "success"
 )
 
 // Defines values for EventStatus.
