@@ -5,13 +5,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"gorm.io/gorm"
 )
 
-func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
-	e.ID, _ = uuid.NewV4()
-	return
-}
 
 type EventBuilder struct {
 	event Event
