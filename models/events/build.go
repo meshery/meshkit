@@ -9,8 +9,8 @@ import (
 )
 
 func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
-    e.ID, _ = uuid.NewV4()
-    return
+	e.ID, _ = uuid.NewV4()
+	return
 }
 
 type EventBuilder struct {
@@ -23,6 +23,7 @@ func NewEvent() *EventBuilder {
 		event: Event{
 			CreatedAt:   time.Now(),
 			OperationID: operationId,
+			Status:      Unread,
 		},
 	}
 }
@@ -58,7 +59,7 @@ func (e *EventBuilder) WithSeverity(severity EventSeverity) *EventBuilder {
 	return e
 }
 
-func (e *EventBuilder) WithStatus(status string) *EventBuilder {
+func (e *EventBuilder) WithStatus(status EventStatus) *EventBuilder {
 	e.event.Status = status
 	return e
 }
