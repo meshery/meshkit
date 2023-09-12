@@ -56,8 +56,8 @@ type Event struct {
 
 	// Metadata Contains meaningful information, specific to the type of event.
 	// Structure of metadata can be different for different events.
-	Metadata    []byte      `db:"metadata" json:"metadata"`
-	OperationID OperationID `db:"operation_id" json:"operation_id"`
+	Metadata    map[string]interface{} `db:"metadata" json:"metadata" gorm:"type:bytes;serializer:json"`
+	OperationID OperationID            `db:"operation_id" json:"operation_id"`
 
 	// Severity A set of seven standard event levels.
 	Severity EventSeverity `db:"severity" json:"severity"`
