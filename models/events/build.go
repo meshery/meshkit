@@ -7,7 +7,6 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-
 type EventBuilder struct {
 	event Event
 }

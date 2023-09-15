@@ -46,7 +46,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 				continue
 			}
 
-			return ErrApplyManifest(err)
+			return err
 		}
 
 		helper, err := constructObject(client.KubeClient, client.RestConfig, object)
@@ -55,7 +55,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 				continue
 			}
 
-			return ErrApplyManifest(err)
+			return err
 		}
 
 		// Default to namespace from the UI. If no namespace is passed, use the namespace used in the manifest.
@@ -68,7 +68,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 						continue
 					}
 
-					return ErrApplyManifest(er)
+					return er
 				}
 			} else {
 				options.Namespace = val
@@ -81,7 +81,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 				continue
 			}
 
-			return ErrApplyManifest(err)
+			return err
 		}
 
 		if options.Delete {
@@ -91,7 +91,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 					continue
 				}
 
-				return ErrApplyManifest(err)
+				return err
 			}
 		} else {
 			_, err = createObject(helper, options.Namespace, object, options.Update)
@@ -99,8 +99,7 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 				if recvOptions.IgnoreErrors {
 					continue
 				}
-
-				return ErrApplyManifest(err)
+				return err
 			}
 		}
 	}
@@ -175,6 +174,7 @@ func createObject(restHelper *resource.Helper, namespace string, obj runtime.Obj
 			}
 			return object, nil
 		}
+
 		return nil, err
 	}
 
