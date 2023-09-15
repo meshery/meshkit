@@ -1,12 +1,10 @@
 package events
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/gofrs/uuid"
 )
-
 
 type EventBuilder struct {
 	event Event
@@ -44,8 +42,7 @@ func (e *EventBuilder) WithAction(eventAction string) *EventBuilder {
 }
 
 func (e *EventBuilder) WithMetadata(metadata map[string]interface{}) *EventBuilder {
-	b, _ := json.Marshal(metadata)
-	e.event.Metadata = b
+	e.event.Metadata = metadata
 	return e
 }
 
