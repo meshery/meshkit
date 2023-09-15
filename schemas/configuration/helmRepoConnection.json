@@ -6,19 +6,22 @@
         "type": "string",
         "title": "Name",
         "minLength": 1,
-        "description": "Name of the new Helm repo connection"
+        "description": "Name of the new Helm repo connection",
+        "x-rjsf-grid-area" : "12"
       },
       "description": {
         "type": "string",
         "title": "Description",
         "format": "textarea",
-        "description": "Description of this Helm repo connection."
+        "description": "Description of this Helm repo connection.",
+        "x-rjsf-grid-area" : "12"
       },
       "url": {
         "type": "string",
         "title": "URL",
         "format": "uri",
-        "description": "The URL of the Helm repository where the charts are hosted."
+        "description": "The URL of the Helm repository where the charts are hosted.",
+        "x-rjsf-grid-area" : "12"
       }
     },
     "required": [
