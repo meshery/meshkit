@@ -10,7 +10,7 @@ func getSchemaMap() map[string]string {
 		"filter":      "configuration/filterImport.json",
 		"design":      "configuration/designImport.json",
 		"publish":     "configuration/publishCatalogItem.json",
-		"helmRepo":    "configuration/helmRepoConnection.json",
+		"helmRepo":    "connections/helmConnection/helmRepoConnection.json",
 	}
 }
 
@@ -20,6 +20,7 @@ func getUiSchemaMap() map[string]string {
 		"design":      "configuration/uiSchemaDesignImport.json",
 		"filter":      "configuration/uiSchemaFilter.json",
 		"publish":     "configuration/uiSchemaPublishCatalogItem.json",
+		"helmRepo":    "connections/helmConnection/uiHelmRepoConnection.json",
 	}
 }
 
