@@ -1,17 +1,10 @@
 package events
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/gofrs/uuid"
-	"gorm.io/gorm"
 )
-
-func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
-    e.ID, _ = uuid.NewV4()
-    return
-}
 
 type EventBuilder struct {
 	event Event
@@ -23,6 +16,7 @@ func NewEvent() *EventBuilder {
 		event: Event{
 			CreatedAt:   time.Now(),
 			OperationID: operationId,
+			Status:      Unread,
 		},
 	}
 }
@@ -48,8 +42,7 @@ func (e *EventBuilder) WithAction(eventAction string) *EventBuilder {
 }
 
 func (e *EventBuilder) WithMetadata(metadata map[string]interface{}) *EventBuilder {
-	b, _ := json.Marshal(metadata)
-	e.event.Metadata = b
+	e.event.Metadata = metadata
 	return e
 }
 
@@ -58,7 +51,7 @@ func (e *EventBuilder) WithSeverity(severity EventSeverity) *EventBuilder {
 	return e
 }
 
-func (e *EventBuilder) WithStatus(status string) *EventBuilder {
+func (e *EventBuilder) WithStatus(status EventStatus) *EventBuilder {
 	e.event.Status = status
 	return e
 }

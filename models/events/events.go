@@ -18,6 +18,13 @@ const (
 	Error         EventSeverity = "error"
 	Informational EventSeverity = "informational"
 	Warning       EventSeverity = "warning"
+	Success       EventSeverity = "success"
+)
+
+// Defines values for EventStatus.
+const (
+	Read   EventStatus = "read"
+	Unread EventStatus = "unread"
 )
 
 // CreatedAt Timestamp when the resource was created.
@@ -49,15 +56,15 @@ type Event struct {
 
 	// Metadata Contains meaningful information, specific to the type of event.
 	// Structure of metadata can be different for different events.
-	Metadata    []byte      `db:"metadata" json:"metadata"`
-	OperationID OperationID `db:"operation_id" json:"operation_id"`
+	Metadata    map[string]interface{} `db:"metadata" json:"metadata" gorm:"type:bytes;serializer:json"`
+	OperationID OperationID            `db:"operation_id" json:"operation_id"`
 
 	// Severity A set of seven standard event levels.
 	Severity EventSeverity `db:"severity" json:"severity"`
 
 	// Status Status for the event.
-	Status   string   `db:"status" json:"status"`
-	SystemID SystemID `db:"system_id" json:"system_id"`
+	Status   EventStatus `db:"status" json:"status"`
+	SystemID SystemID    `db:"system_id" json:"system_id"`
 
 	// UpdatedAt Timestamp when the resource was updated.
 	UpdatedAt UpdatedAt `db:"updated_at" json:"updated_at"`
@@ -67,6 +74,9 @@ type Event struct {
 // EventSeverity A set of seven standard event levels.
 type EventSeverity string
 
+// EventStatus Status for the event.
+type EventStatus string
+
 // EventsFilter defines model for events_filter.
 type EventsFilter struct {
 	Action   []string `json:"action"`
@@ -75,10 +85,11 @@ type EventsFilter struct {
 	Offset   int      `json:"offset"`
 
 	// Order order of sort asc/desc, default is asc
-	Order    string   `json:"order"`
-	Provider []string `json:"provider"`
-	Severity []string `json:"severity"`
-
+	Order    string      `json:"order"`
+	Provider []string    `json:"provider"`
+	Search   string      `json:"search"`
+	Status   EventStatus `json:"status"`
+	Severity []string    `json:"severity"`
 	// SortOn Field on which records are sorted
 	SortOn string `json:"sort_on"`
 }
