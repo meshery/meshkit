@@ -37,25 +37,20 @@ func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 	defer hostCreationLock.Unlock()
 	err = db.First(&host, "id = ?", hID).Error // check if the host already exists
 	if err != nil && err != gorm.ErrRecordNotFound {
-		fmt.Println("1. err: ", err)
 		return uuid.UUID{}, err
 	}
 	
 	// if not exists then create a new host and return the id
 	if err == gorm.ErrRecordNotFound { 
-		fmt.Println("not found")
     		h.ID = hID
 				err = db.Create(&h).Error
 				if err != nil {
-					fmt.Println("2. err", err)
 					return uuid.UUID{}, err
 				}
-				fmt.Println("created id: ", h.ID)
 				return h.ID, nil
 	}
 
 	// else return the id of the existing host
-	fmt.Println("found id: ", host.ID)
 	return host.ID, nil
 }
 

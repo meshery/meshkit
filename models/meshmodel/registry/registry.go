@@ -96,7 +96,6 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			fmt.Println("err in creating host: ", err)
 			return err
 		}
-		fmt.Println("registrant id: ", registrantID)
 		entry := Registry{
 			ID:           uuid.New(),
 			RegistrantID: registrantID,
