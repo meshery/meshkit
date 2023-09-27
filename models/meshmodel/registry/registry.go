@@ -88,12 +88,15 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		componentID, err := v1alpha1.CreateComponent(rm.db, entity)
 		if err != nil {
+			fmt.Println("err in creating component: ", err)
 			return err
 		}
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
+			fmt.Println("err in creating host: ", err)
 			return err
 		}
+		fmt.Println("registrant id: ", registrantID)
 		entry := Registry{
 			ID:           uuid.New(),
 			RegistrantID: registrantID,

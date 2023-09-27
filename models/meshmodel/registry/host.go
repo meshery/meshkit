@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"encoding/json"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
@@ -11,6 +13,8 @@ import (
 	"github.com/layer5io/meshkit/utils/kubernetes"
 	"gorm.io/gorm"
 )
+
+var hostCreationLock sync.Mutex //Each entity will perform a check and if the host already doesn't exist, it will create a host. This lock will make sure that there are no race conditions.
 
 type Host struct {
 	ID        uuid.UUID `json:"-"`
@@ -23,9 +27,36 @@ type Host struct {
 }
 
 func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
-	h.ID = uuid.New()
-	err := db.Create(&h).Error
-	return h.ID, err
+	byt, err := json.Marshal(h)
+	if err != nil {
+    return uuid.UUID{}, err
+	}
+	hID := uuid.NewSHA1(uuid.UUID{}, byt)
+	var host Host
+	hostCreationLock.Lock()
+	defer hostCreationLock.Unlock()
+	err = db.First(&host, "id = ?", hID).Error // check if the host already exists
+	if err != nil && err != gorm.ErrRecordNotFound {
+		fmt.Println("1. err: ", err)
+		return uuid.UUID{}, err
+	}
+	
+	// if not exists then create a new host and return the id
+	if err == gorm.ErrRecordNotFound { 
+		fmt.Println("not found")
+    		h.ID = hID
+				err = db.Create(&h).Error
+				if err != nil {
+					fmt.Println("2. err", err)
+					return uuid.UUID{}, err
+				}
+				fmt.Println("created id: ", h.ID)
+				return h.ID, nil
+	}
+
+	// else return the id of the existing host
+	fmt.Println("found id: ", host.ID)
+	return h.ID, nil
 }
 
 func (h *Host) AfterFind(tx *gorm.DB) error {
