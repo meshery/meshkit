@@ -56,7 +56,7 @@ func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 
 	// else return the id of the existing host
 	fmt.Println("found id: ", host.ID)
-	return h.ID, nil
+	return host.ID, nil
 }
 
 func (h *Host) AfterFind(tx *gorm.DB) error {
