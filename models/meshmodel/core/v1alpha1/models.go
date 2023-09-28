@@ -61,7 +61,6 @@ func (m Model) GetID() uuid.UUID {
 	return m.ID
 }
 
-
 func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 	byt, err := json.Marshal(cmodel)
 	if err != nil {

@@ -1,10 +1,10 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
-	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
@@ -12,8 +12,8 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	"gorm.io/gorm/clause"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
@@ -49,7 +49,7 @@ type RegistryManager struct {
 	db *database.Handler //This database handler will be used to perform queries inside the database
 }
 
-func registerModel(db *database.Handler, regID,  modelID uuid.UUID) error {
+func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 	entity := Registry{
 		RegistrantID: regID,
 		Entity:       modelID,
@@ -145,11 +145,10 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		return rm.db.Create(&entry).Error
 	case v1alpha1.RelationshipDefinition:
 
-			registrantID, err := createHost(rm.db, h)
-			if err != nil {
-				return err
-			}
-
+		registrantID, err := createHost(rm.db, h)
+		if err != nil {
+			return err
+		}
 
 		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
 		if err != nil {

@@ -1,10 +1,10 @@
 package registry
 
 import (
-	"fmt"
-	"time"
 	"encoding/json"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
@@ -28,7 +28,7 @@ type Host struct {
 func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 	byt, err := json.Marshal(h)
 	if err != nil {
-    return uuid.UUID{}, err
+		return uuid.UUID{}, err
 	}
 	hID := uuid.NewSHA1(uuid.UUID{}, byt)
 	var host Host
@@ -38,15 +38,15 @@ func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
 	}
-	
+
 	// if not exists then create a new host and return the id
-	if err == gorm.ErrRecordNotFound { 
-    		h.ID = hID
-				err = db.Create(&h).Error
-				if err != nil {
-					return uuid.UUID{}, err
-				}
-				return h.ID, nil
+	if err == gorm.ErrRecordNotFound {
+		h.ID = hID
+		err = db.Create(&h).Error
+		if err != nil {
+			return uuid.UUID{}, err
+		}
+		return h.ID, nil
 	}
 
 	// else return the id of the existing host
