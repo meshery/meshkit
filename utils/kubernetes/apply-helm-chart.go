@@ -78,6 +78,8 @@ type HelmEntryMetadata struct {
 	AppVersion string `yaml:"appVersion"`
 	Name       string `yaml:"name"`
 	Version    string `yaml:"version"`
+	Description string `yaml:"description"`
+	Icon        string `yaml:"icon"`
 }
 
 // HelmChartLocation describes the structure for defining
@@ -511,7 +513,7 @@ func HelmConvertAppVersionToChartVersion(repo, chart, appVersion string) (string
 // HelmChartVersionToAppVersion takes in the repo, chart and chart version and
 // returns the corresponding app version for the same without normalizing the app version
 func HelmChartVersionToAppVersion(repo, chart, chartVersion string) (string, error) {
-	helmIndex, err := createHelmIndex(repo)
+	helmIndex, err := CreateHelmIndex(repo)
 	if err != nil {
 		return "", ErrCreatingHelmIndex(err)
 	}
@@ -527,7 +529,7 @@ func HelmChartVersionToAppVersion(repo, chart, chartVersion string) (string, err
 // HelmAppVersionToChartVersion takes in the repo, chart and app version and
 // returns the corresponding chart version for the same without normalizing the app version
 func HelmAppVersionToChartVersion(repo, chart, appVersion string) (string, error) {
-	helmIndex, err := createHelmIndex(repo)
+	helmIndex, err := CreateHelmIndex(repo)
 	if err != nil {
 		return "", ErrCreatingHelmIndex(err)
 	}
@@ -543,7 +545,7 @@ func HelmAppVersionToChartVersion(repo, chart, appVersion string) (string, error
 // createHelmIndex takes in the repo name and creates a
 // helm index for it. Helm index is basically marshaled version of
 // index.yaml file present in the remote helm repository
-func createHelmIndex(repo string) (*HelmIndex, error) {
+func CreateHelmIndex(repo string) (*HelmIndex, error) {
 	url := fmt.Sprintf("%s/index.yaml", repo)
 
 	// helm repository path will alaways be variable hence,

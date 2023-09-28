@@ -245,3 +245,19 @@ func Contains[G []K, K comparable](slice G, ele K) bool {
 	}
 	return false
 }
+
+func ManifestIsEmpty(manifests []string) bool {
+	for _, m := range manifests {
+		x := strings.TrimSpace(strings.Trim(m, "\n"))
+		if x != "---" && x != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func MergeMaps(mergeInto, toMerge map[string]interface{}) {
+	for k, v := range toMerge {
+		mergeInto[k] = v
+	}
+}
