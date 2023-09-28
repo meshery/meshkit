@@ -349,7 +349,7 @@ func NewPatternFileFromCytoscapeJSJSON(name string, byt []byte) (Pattern, error)
 	// Unmarshal data into cytoscape struct
 	var cy cytoscapejs.GraphElem
 	if err := json.Unmarshal(byt, &cy); err != nil {
-		return Pattern{}, ErrPatternFromCytoscape(err)
+		return Pattern{}, ErrPatternFromJSON(err)
 	}
 	if name == "" {
 		name = "MesheryGeneratedPattern"
@@ -369,7 +369,7 @@ func NewPatternFileFromCytoscapeJSJSON(name string, byt []byte) (Pattern, error)
 		return nil
 	})
 	if err != nil {
-		return pf, ErrPatternFromCytoscape(err)
+		return pf, ErrPatternFromJSON(err)
 	}
 
 	//Populate the dependsOn field with appropriate unique service names
@@ -399,7 +399,7 @@ func NewPatternFileFromCytoscapeJSJSON(name string, byt []byte) (Pattern, error)
 		return nil
 	})
 	if err != nil {
-		return pf, ErrPatternFromCytoscape(err)
+		return pf, ErrPatternFromJSON(err)
 	}
 	//add depends-on field
 	for child, parents := range dependsOnMap {
