@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
@@ -12,6 +13,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm"
 )
 
 // MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
@@ -45,6 +47,36 @@ type Entity interface {
 // RegistryManager instance will expose methods for registry operations & sits between the database level operations and user facing API handlers.
 type RegistryManager struct {
 	db *database.Handler //This database handler will be used to perform queries inside the database
+}
+
+func RegisterModel(db *database.Handler, regID,  modelID uuid.UUID) error {
+	entity := Registry{
+		RegistrantID: regID,
+		Entity:       modelID,
+		Type:         types.ModelDefinition,
+	}
+
+	byt, err := json.Marshal(entity)
+	if err != nil {
+		return err
+	}
+
+	entityID := uuid.NewSHA1(uuid.UUID{}, byt)
+	var reg Registry
+	err = db.First(&reg, "id = ?", entityID).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	if err == gorm.ErrRecordNotFound {
+		entity.ID = entityID
+		err = db.Create(&entity).Error
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // NewRegistryManager initializes the registry manager by creating appropriate tables.
@@ -86,14 +118,23 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		if entity.Schema == "" { //For components with an empty schema, exit quietly
 			return nil
 		}
-		componentID, err := v1alpha1.CreateComponent(rm.db, entity)
-		if err != nil {
-			return err
-		}
+
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
 			return err
 		}
+
+		componentID, modelID, err := v1alpha1.CreateComponent(rm.db, entity)
+		if err != nil {
+			return err
+		}
+
+		err = RegisterModel(rm.db, registrantID, modelID)
+		if err != nil {
+			return err
+		}
+
+
 		entry := Registry{
 			ID:           uuid.New(),
 			RegistrantID: registrantID,
