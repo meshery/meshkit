@@ -49,6 +49,7 @@ type RegistryManager struct {
 	db *database.Handler //This database handler will be used to perform queries inside the database
 }
 
+// Registers models into registries table.
 func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 	entity := Registry{
 		RegistrantID: regID,
