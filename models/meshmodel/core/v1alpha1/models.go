@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
+	"github.com/layer5io/meshkit/models/meshmodel/core/types"
 	"gorm.io/gorm"
 )
 
@@ -51,6 +52,13 @@ type ModelDB struct {
 	DisplayName string    `json:"modelDisplayName" gorm:"modelDisplayName"`
 	SubCategory string    `json:"subCategory" gorm:"subCategory"`
 	Metadata    []byte    `json:"modelMetadata" gorm:"modelMetadata"`
+}
+
+func (m Model) Type() types.CapabilityType {
+	return types.Model
+}
+func (m Model) GetID() uuid.UUID {
+	return m.ID
 }
 
 func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {

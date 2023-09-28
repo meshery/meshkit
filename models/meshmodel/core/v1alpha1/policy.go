@@ -96,19 +96,19 @@ func (pdb *PolicyDefinitionDB) GetPolicyDefinition(m Model) (p PolicyDefinition)
 	return
 }
 
-func CreatePolicy(db *database.Handler, p PolicyDefinition) (uuid.UUID, error) {
+func CreatePolicy(db *database.Handler, p PolicyDefinition) (uuid.UUID, uuid.UUID, error) {
 	p.ID = uuid.New()
 	mid, err := CreateModel(db, p.Model)
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.UUID{}, uuid.UUID{}, err
 	}
 	pdb := p.GetPolicyDefinitionDB()
 	pdb.ModelID = mid
 	err = db.Create(&pdb).Error
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.UUID{}, uuid.UUID{}, err
 	}
-	return pdb.ID, nil
+	return pdb.ID, mid, nil
 }
 
 func (p *PolicyDefinition) GetPolicyDefinitionDB() (pdb PolicyDefinitionDB) {

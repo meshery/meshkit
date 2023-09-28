@@ -69,19 +69,20 @@ func emptySchemaCheck(schema string) (valid bool) {
 	valid = true
 	return
 }
-func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
+func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, uuid.UUID, error) {
 	c.ID = uuid.New()
 	mid, err := CreateModel(db, c.Model)
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.UUID{}, uuid.UUID{}, err
 	}
+
 	if !emptySchemaCheck(c.Schema) {
 		c.Metadata["hasInvalidSchema"] = true
 	}
 	cdb := c.GetComponentDefinitionDB()
 	cdb.ModelID = mid
 	err = db.Create(&cdb).Error
-	return c.ID, err
+	return c.ID, mid, err
 }
 func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition, count int64, unique int) {
 	type componentDefinitionWithModel struct {
