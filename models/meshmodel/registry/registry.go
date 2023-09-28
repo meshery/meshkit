@@ -53,7 +53,7 @@ func registerModel(db *database.Handler, regID,  modelID uuid.UUID) error {
 	entity := Registry{
 		RegistrantID: regID,
 		Entity:       modelID,
-		Type:         types.ModelDefinition,
+		Type:         types.Model,
 	}
 
 	byt, err := json.Marshal(entity)
@@ -186,7 +186,6 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		if err != nil {
 			return err
 		}
-		
 
 		entry := Registry{
 			ID:           uuid.New(),
@@ -251,7 +250,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	var modelWithCategoriess []modelWithCategories
 	finder := db.Model(&v1alpha1.ModelDB{}).
 		Select("model_dbs.*, category_dbs.*").
-		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
 
 	// total count before pagination
 	var count int64
@@ -304,7 +303,13 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	}
 
 	for _, modelDB := range modelWithCategoriess {
-		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
+		model := modelDB.ModelDB.GetModel(modelDB.GetCategory(db))
+		// mod := Entity(model)
+		host := rm.GetRegistrant(model)
+		model.HostID = host.ID
+		model.HostName = host.Hostname
+		model.DisplayHostName = host.Hostname
+		m = append(m, model)
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)
 }
