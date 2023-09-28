@@ -137,19 +137,19 @@ func (r RelationshipDefinition) GetID() uuid.UUID {
 	return r.ID
 }
 
-func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UUID, error) {
+func CreateRelationship(db *database.Handler, r RelationshipDefinition) (uuid.UUID, uuid.UUID, error) {
 	r.ID = uuid.New()
 	mid, err := CreateModel(db, r.Model)
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.UUID{}, uuid.UUID{}, err
 	}
 	rdb := r.GetRelationshipDefinitionDB()
 	rdb.ModelID = mid
 	err = db.Create(&rdb).Error
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.UUID{}, uuid.UUID{}, err
 	}
-	return r.ID, err
+	return r.ID, mid, err
 }
 
 func (r *RelationshipDefinition) GetRelationshipDefinitionDB() (rdb RelationshipDefinitionDB) {
