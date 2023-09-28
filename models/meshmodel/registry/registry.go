@@ -49,7 +49,7 @@ type RegistryManager struct {
 	db *database.Handler //This database handler will be used to perform queries inside the database
 }
 
-func RegisterModel(db *database.Handler, regID,  modelID uuid.UUID) error {
+func registerModel(db *database.Handler, regID,  modelID uuid.UUID) error {
 	entity := Registry{
 		RegistrantID: regID,
 		Entity:       modelID,
@@ -129,11 +129,10 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			return err
 		}
 
-		err = RegisterModel(rm.db, registrantID, modelID)
+		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
 			return err
 		}
-
 
 		entry := Registry{
 			ID:           uuid.New(),
@@ -145,14 +144,23 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		return rm.db.Create(&entry).Error
 	case v1alpha1.RelationshipDefinition:
-		relationshipID, err := v1alpha1.CreateRelationship(rm.db, entity)
+
+			registrantID, err := createHost(rm.db, h)
+			if err != nil {
+				return err
+			}
+
+
+		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
 		if err != nil {
 			return err
 		}
-		registrantID, err := createHost(rm.db, h)
+
+		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
 			return err
 		}
+
 		entry := Registry{
 			ID:           uuid.New(),
 			RegistrantID: registrantID,
@@ -164,14 +172,22 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		return rm.db.Create(&entry).Error
 	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
-		policyID, err := v1alpha1.CreatePolicy(rm.db, entity)
-		if err != nil {
-			return err
-		}
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
 			return err
 		}
+
+		policyID, modelID, err := v1alpha1.CreatePolicy(rm.db, entity)
+		if err != nil {
+			return err
+		}
+
+		err = registerModel(rm.db, registrantID, modelID)
+		if err != nil {
+			return err
+		}
+		
+
 		entry := Registry{
 			ID:           uuid.New(),
 			RegistrantID: registrantID,
