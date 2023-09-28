@@ -192,10 +192,7 @@ func convert(opt kobject.ConvertOptions) error {
 		return err
 	}
 
-	komposeObject := kobject.KomposeObject{
-		ServiceConfigs: make(map[string]kobject.ServiceConfig),
-	}
-	komposeObject, err = l.LoadFile(opt.InputFiles)
+	komposeObject, err := l.LoadFile(opt.InputFiles)
 	if err != nil {
 		return err
 	}
