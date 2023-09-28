@@ -304,7 +304,6 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 
 	for _, modelDB := range modelWithCategoriess {
 		model := modelDB.ModelDB.GetModel(modelDB.GetCategory(db))
-		// mod := Entity(model)
 		host := rm.GetRegistrant(model)
 		model.HostID = host.ID
 		model.HostName = host.Hostname
