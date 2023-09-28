@@ -74,10 +74,10 @@ type HelmEntries map[string][]HelmEntryMetadata
 // HelmEntryMetadata is the struct for holding the metadata
 // associated with a helm repositories' entry
 type HelmEntryMetadata struct {
-	APIVersion string `yaml:"apiVersion"`
-	AppVersion string `yaml:"appVersion"`
-	Name       string `yaml:"name"`
-	Version    string `yaml:"version"`
+	APIVersion  string `yaml:"apiVersion"`
+	AppVersion  string `yaml:"appVersion"`
+	Name        string `yaml:"name"`
+	Version     string `yaml:"version"`
 	Description string `yaml:"description"`
 	Icon        string `yaml:"icon"`
 }

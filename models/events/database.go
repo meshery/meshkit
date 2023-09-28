@@ -19,7 +19,6 @@ func (e *Event) BeforeUpdate(tc *gorm.DB) (err error) {
 }
 
 func isEventStatusSupported(event *Event) error {
-
 	if event.Status != Read && event.Status != Unread {
 		return fmt.Errorf("event status %s is not supported", event.Status)
 	}
