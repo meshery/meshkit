@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"errors"
 	"fmt"
 	"time"
 	"encoding/json"
@@ -60,8 +59,8 @@ func (h *Host) AfterFind(tx *gorm.DB) error {
 		h.IHost = ArtifactHub{}
 	case "kubernetes":
 		h.IHost = Kubernetes{}
-	default:
-		return ErrUnknownHost(errors.New("unable to find compatible host for the component"))
+	default: // do nothing if the host is not pre-unknown. Currently adapters fall into this case.
+		return nil
 	}
 	return nil
 }
