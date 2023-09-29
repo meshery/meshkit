@@ -102,6 +102,7 @@ func ToMapStringInterface(mp interface{}) map[string]interface{} {
 	return res
 }
 
+// Generates a random string of specified length from character set [a-z].
 func GetRandomAlphabetsOfDigit(length int) (s string) {
 	charSet := "abcdedfghijklmnopqrstuvwxyz"
 	for i := 0; i < length; i++ {

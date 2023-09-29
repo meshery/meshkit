@@ -246,6 +246,9 @@ func Contains[G []K, K comparable](slice G, ele K) bool {
 	return false
 }
 
+// Checks if the yaml manifests are empty.
+// For `---` separated manifests, even if only one manifest is present, followed/preceded by multiple `\n---\n` the manifest will still be valid.
+// If there is no data present (except \n---\n), then the yaml will be marked as empty.
 func ManifestIsEmpty(manifests []string) bool {
 	for _, m := range manifests {
 		x := strings.TrimSpace(strings.Trim(m, "\n"))
@@ -256,8 +259,9 @@ func ManifestIsEmpty(manifests []string) bool {
 	return true
 }
 
-func MergeMaps(mergeInto, toMerge map[string]interface{}) {
-	for k, v := range toMerge {
-		mergeInto[k] = v
+// Merges "src" map entries into "dest" map.
+func MergeMaps(dest, src map[string]interface{}) {
+	for k, v := range src {
+		dest[k] = v
 	}
 }

@@ -12,6 +12,7 @@ import (
 	meshmodelv1alpha1 "github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	meshmodel "github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
+	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/sirupsen/logrus"
 	cytoscapejs "gonum.org/v1/gonum/graph/formats/cytoscapejs"
@@ -464,15 +465,6 @@ func processCytoElementsWithPattern(eles []cytoscapejs.Element, callback func(sv
 	return nil
 }
 
-func manifestIsEmpty(manifests []string) bool {
-	for _, m := range manifests {
-		x := strings.TrimSpace(strings.Trim(m, "\n"))
-		if x != "---" && x != "" {
-			return false
-		}
-	}
-	return true
-}
 
 // Note: If modified, make sure this function always returns a meshkit error
 func NewPatternFileFromK8sManifest(data string, ignoreErrors bool, reg *meshmodel.RegistryManager) (Pattern, error) {
@@ -484,7 +476,7 @@ func NewPatternFileFromK8sManifest(data string, ignoreErrors bool, reg *meshmode
 	manifests := strings.Split(data, "\n---\n")
 	//For `---` separated manifests, even if only one manifest is there followed/preceded by multiple `\n---\n`- the manifest be will be valid
 	//If there is no data present (except \n---\n) , then the yaml will be marked as empty and error will be thrown
-	if manifestIsEmpty(manifests) {
+	if utils.ManifestIsEmpty(manifests) {
 		return pattern, ErrParseK8sManifest(fmt.Errorf("kubernetes manifest is empty"))
 	}
 	for _, manifestYAML := range manifests {
