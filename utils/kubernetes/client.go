@@ -24,14 +24,13 @@ type CustomEvent struct {
 // DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	if len(configfile) > 0 {
-		cfgFile, err := processConfig(configfile)
 		if err != nil {
 			return nil, err
 		}
 
 		models := &models.Kubeconfig{}
 
-		cfgFile, err = processConfig(configfile)
+		cfgFile, err := processConfig(configfile)
 		if err != nil {
 			return nil, err
 		}
@@ -129,8 +128,6 @@ func handleCustomEvent(event CustomEvent) {
 	clientChannel := make(chan interface{})
 	eventStreamer.Subscribe(clientChannel)
 	eventStreamer.Publish(event)
-
-	// log.Printf("%s: %s", event.EventType, event.Message)
 
 }
 func processConfig(configFile []byte) ([]byte, error) {
