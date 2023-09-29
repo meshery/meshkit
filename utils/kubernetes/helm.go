@@ -34,7 +34,7 @@ func ConvertHelmChartToK8sManifest(cfg ApplyHelmChartConfig) (manifest []byte, e
 	act.DryRun = true
 	act.IncludeCRDs = true
 	act.ClientOnly = true
-	rel, err := act.Run(helmChart, nil)
+	rel, err := act.Run(helmChart, cfg.OverrideValues)
 	if err != nil {
 		return nil, ErrApplyHelmChart(err)
 	}

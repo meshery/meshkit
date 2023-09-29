@@ -80,6 +80,7 @@ type HelmEntryMetadata struct {
 	Version     string `yaml:"version"`
 	Description string `yaml:"description"`
 	Icon        string `yaml:"icon"`
+	Dependencies []*chart.Dependency `yaml:"dependencies"`
 }
 
 // HelmChartLocation describes the structure for defining
