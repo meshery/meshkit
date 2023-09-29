@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -45,6 +47,37 @@ type Entity interface {
 // RegistryManager instance will expose methods for registry operations & sits between the database level operations and user facing API handlers.
 type RegistryManager struct {
 	db *database.Handler //This database handler will be used to perform queries inside the database
+}
+
+// Registers models into registries table.
+func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
+	entity := Registry{
+		RegistrantID: regID,
+		Entity:       modelID,
+		Type:         types.Model,
+	}
+
+	byt, err := json.Marshal(entity)
+	if err != nil {
+		return err
+	}
+
+	entityID := uuid.NewSHA1(uuid.UUID{}, byt)
+	var reg Registry
+	err = db.First(&reg, "id = ?", entityID).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	if err == gorm.ErrRecordNotFound {
+		entity.ID = entityID
+		err = db.Create(&entity).Error
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // NewRegistryManager initializes the registry manager by creating appropriate tables.
@@ -86,14 +119,22 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		if entity.Schema == "" { //For components with an empty schema, exit quietly
 			return nil
 		}
-		componentID, err := v1alpha1.CreateComponent(rm.db, entity)
-		if err != nil {
-			return err
-		}
+
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
 			return err
 		}
+
+		componentID, modelID, err := v1alpha1.CreateComponent(rm.db, entity)
+		if err != nil {
+			return err
+		}
+
+		err = registerModel(rm.db, registrantID, modelID)
+		if err != nil {
+			return err
+		}
+
 		entry := Registry{
 			ID:           uuid.New(),
 			RegistrantID: registrantID,
@@ -104,14 +145,22 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		return rm.db.Create(&entry).Error
 	case v1alpha1.RelationshipDefinition:
-		relationshipID, err := v1alpha1.CreateRelationship(rm.db, entity)
-		if err != nil {
-			return err
-		}
+
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
 			return err
 		}
+
+		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
+		if err != nil {
+			return err
+		}
+
+		err = registerModel(rm.db, registrantID, modelID)
+		if err != nil {
+			return err
+		}
+
 		entry := Registry{
 			ID:           uuid.New(),
 			RegistrantID: registrantID,
@@ -123,14 +172,21 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		return rm.db.Create(&entry).Error
 	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
-		policyID, err := v1alpha1.CreatePolicy(rm.db, entity)
-		if err != nil {
-			return err
-		}
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
 			return err
 		}
+
+		policyID, modelID, err := v1alpha1.CreatePolicy(rm.db, entity)
+		if err != nil {
+			return err
+		}
+
+		err = registerModel(rm.db, registrantID, modelID)
+		if err != nil {
+			return err
+		}
+
 		entry := Registry{
 			ID:           uuid.New(),
 			RegistrantID: registrantID,
@@ -194,7 +250,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	var modelWithCategoriess []modelWithCategories
 	finder := db.Model(&v1alpha1.ModelDB{}).
 		Select("model_dbs.*, category_dbs.*").
-		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
 
 	// total count before pagination
 	var count int64
@@ -247,7 +303,12 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	}
 
 	for _, modelDB := range modelWithCategoriess {
-		m = append(m, modelDB.ModelDB.GetModel(modelDB.GetCategory(db)))
+		model := modelDB.ModelDB.GetModel(modelDB.GetCategory(db))
+		host := rm.GetRegistrant(model)
+		model.HostID = host.ID
+		model.HostName = host.Hostname
+		model.DisplayHostName = host.Hostname
+		m = append(m, model)
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)
 }
