@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 
@@ -11,7 +12,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"log"
 )
 
 // CustomEvent is a custom event type for recording events.
@@ -57,7 +57,6 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 
 					// Send the event to the client
 					handleCustomEvent(event)
-
 				}
 
 				return config, err
@@ -122,14 +121,12 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 }
 
 func handleCustomEvent(event CustomEvent) {
-
 	eventStreamer := events.NewEventStreamer()
-
 	clientChannel := make(chan interface{})
 	eventStreamer.Subscribe(clientChannel)
 	eventStreamer.Publish(event)
-
 }
+
 func processConfig(configFile []byte) ([]byte, error) {
 	cfg, err := clientcmd.Load(configFile)
 	if err != nil {
