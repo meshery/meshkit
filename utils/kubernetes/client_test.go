@@ -33,7 +33,7 @@ users:
 	if config1 == nil {
 		t.Errorf("Test case 1: Config should not be nil")
 	}
-	if !config1.TLSClientConfig.Insecure {
+	if config1 != nil && !config1.TLSClientConfig.Insecure {
 		t.Errorf("Test case 1: TLS verification should be skipped, but it's not")
 	}
 
@@ -64,7 +64,7 @@ users:
 	if config2 == nil {
 		t.Errorf("Test case 2: Config should not be nil")
 	}
-	if config2.TLSClientConfig.Insecure {
+	if config2 != nil && config2.TLSClientConfig.Insecure {
 		t.Errorf("Test case 2: TLS verification should not be skipped, but it is")
 	}
 
@@ -105,7 +105,7 @@ users:
 	if config3 == nil {
 		t.Errorf("Test case 3: Config should not be nil")
 	}
-	if !config3.TLSClientConfig.Insecure {
+	if config3 != nil && !config3.TLSClientConfig.Insecure {
 		t.Errorf("Test case 3: TLS verification should be skipped, but it's not")
 	}
 
@@ -118,8 +118,19 @@ users:
 	handleCustomEvent(event)
 
 	// Print whether TLS verification is skipped or not for each test case
-	fmt.Printf("Test case 1: TLS verification is skipped (Insecure: %v)\n", config1.TLSClientConfig.Insecure)
-	fmt.Printf("Test case 2: TLS verification is not skipped (Insecure: %v)\n", config2.TLSClientConfig.Insecure)
-	fmt.Printf("Test case 3: TLS verification is skipped (Insecure: %v)\n", config3.TLSClientConfig.Insecure)
-
+	if config1 != nil {
+		fmt.Printf("Test case 1: TLS verification is skipped (Insecure: %v)\n", config1.TLSClientConfig.Insecure)
+	} else {
+		t.Errorf("Test case 1: Config should not be nil")
+	}
+	if config2 != nil {
+		fmt.Printf("Test case 2: TLS verification is not skipped (Insecure: %v)\n", config2.TLSClientConfig.Insecure)
+	} else {
+		t.Errorf("Test case 2: Config should not be nil")
+	}
+	if config3 != nil {
+		fmt.Printf("Test case 3: TLS verification is skipped (Insecure: %v)\n", config3.TLSClientConfig.Insecure)
+	} else {
+		t.Errorf("Test case 3: Config should not be nil")
+	}
 }
