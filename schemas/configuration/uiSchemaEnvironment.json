@@ -1,0 +1,10 @@
+{
+  "organization": {
+    "ui:disabled": false
+  },
+  "ui:order": [
+    "organization",
+    "name",
+    "description"
+  ]
+}
