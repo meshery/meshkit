@@ -1,6 +1,7 @@
 {
   "organization": {
-    "ui:disabled": false
+    "ui:disabled": false,
+    "ui:widget": "select"
   },
   "ui:order": [
     "organization",
