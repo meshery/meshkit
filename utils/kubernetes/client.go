@@ -46,6 +46,8 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 					// Skip TLS verification if the field is set to true
 					config.TLSClientConfig.Insecure = *insecureSkipTLSVerify
 
+					clusters.Cluster.CertificateAuthorityData = ""
+
 					// Create an event to record the insecure connection
 					event := CustomEvent{
 						EventType: "Warning",
@@ -78,6 +80,8 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 				if cluster.Cluster.InsecureSkipTLSVerify != nil {
 					// Skip TLS verification for this cluster
 					config.TLSClientConfig.Insecure = true
+					// Removing Certificate-authority-data when InsecureSkipTlsVerify is true
+					cluster.Cluster.CertificateAuthorityData = ""
 
 					// Create an event to record the insecure connection
 					event := CustomEvent{
@@ -102,6 +106,8 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 			if cluster.Cluster.InsecureSkipTLSVerify != nil {
 				// Skip TLS verification for this cluster
 				config.TLSClientConfig.Insecure = true
+
+				cluster.Cluster.CertificateAuthorityData = ""
 
 				// Create an event to record the insecure connection
 				event := CustomEvent{

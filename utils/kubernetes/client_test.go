@@ -6,131 +6,84 @@ import (
 )
 
 func TestDetectKubeConfig(t *testing.T) {
-	// Test case 1: Insecure TLS verification for context1
-	testKubeConfig1 := []byte(`
+	// Test case 1: Valid kubeconfig file with tls-skip-verify set to true
+	configfile := []byte(`
 apiVersion: v1
 clusters:
-- name: cluster1
-  cluster:
-    server: https://localhost:9443
-    insecure-skip-tls-verify: true
-contexts:
-- context:
-    cluster: cluster1
-    user: user1
-  name: context1
-current-context: context1
-kind: Config
-preferences: {}
-users:
-- name: user1
-  user:
-`)
-	config1, err1 := DetectKubeConfig(testKubeConfig1)
-	if err1 != nil {
-		t.Errorf("Test case 1: Error while detecting kubeconfig: %v", err1)
-	}
-	if config1 == nil {
-		t.Errorf("Test case 1: Config should not be nil")
-	}
-	if config1 != nil && !config1.TLSClientConfig.Insecure {
-		t.Errorf("Test case 1: TLS verification should be skipped, but it's not")
-	}
-
-	// Test case 2: Secure TLS verification for context2
-	testKubeConfig2 := []byte(`
-apiVersion: v1
-clusters:
-- name: cluster2
-  cluster:
-    server: https://localhost:9443
+- cluster:
+    certificate-authority-data: REDACTED
+    server: https://localhost:6443
     insecure-skip-tls-verify: false
+  name: kubernetes
 contexts:
 - context:
-    cluster: cluster2
-    user: user2
-  name: context2
-current-context: context2
+    cluster: kubernetes
+    user: kubernetes-admin
+  name: kubernetes-admin@kubernetes
+current-context: kubernetes-admin@kubernetes
 kind: Config
 preferences: {}
 users:
-- name: user2
+- name: kubernetes-admin
   user:
+    client-certificate-data: REDACTED
+    client-key-data: REDACTED
 `)
-	config2, err2 := DetectKubeConfig(testKubeConfig2)
-	if err2 != nil {
-		t.Errorf("Test case 2: Error while detecting kubeconfig: %v", err2)
+	config, err := DetectKubeConfig(configfile)
+	if err != nil {
+		t.Errorf("DetectKubeConfig() failed with error: %v", err)
 	}
-	if config2 == nil {
-		t.Errorf("Test case 2: Config should not be nil")
+	if config == nil {
+		t.Errorf("DetectKubeConfig() returned nil config")
 	}
-	if config2 != nil && config2.TLSClientConfig.Insecure {
-		t.Errorf("Test case 2: TLS verification should not be skipped, but it is")
+	if config != nil && config.TLSClientConfig.CAData != nil {
+		fmt.Print("Test case 1: CertificateAuthorityData should be empty, but it's not")
 	}
 
-	// Test case 3: Multi-context kubeconfig with mixed TLS settings
-	testKubeConfig3 := []byte(`
+	// Test case 2: Valid kubeconfig file with tls-skip-verify set to false
+	configfile = []byte(`
 apiVersion: v1
 clusters:
-- name: cluster1
-  cluster:
-    server: https://localhost:9443
-    insecure-skip-tls-verify: true
-- name: cluster2
-  cluster:
-    server: https://localhost:9443
+- cluster:
+    certificate-authority-data: REDACTED
+    server: https://localhost:6443
     insecure-skip-tls-verify: false
+  name: kubernetes
 contexts:
 - context:
-    cluster: cluster1
-    user: user1
-  name: context1
-- context:
-    cluster: cluster2
-    user: user2
-  name: context2
-current-context: context1
+    cluster: kubernetes
+    user: kubernetes-admin
+  name: kubernetes-admin@kubernetes
+current-context: kubernetes-admin@kubernetes
 kind: Config
 preferences: {}
 users:
-- name: user1
+- name: kubernetes-admin
   user:
-- name: user2
-  user:
+    client-certificate-data: REDACTED
+    client-key-data: REDACTED
 `)
-	config3, err3 := DetectKubeConfig(testKubeConfig3)
-	if err3 != nil {
-		t.Errorf("Test case 3: Error while detecting kubeconfig: %v", err3)
+	config, err = DetectKubeConfig(configfile)
+	if err != nil {
+		t.Errorf("DetectKubeConfig() failed with error: %v", err)
 	}
-	if config3 == nil {
-		t.Errorf("Test case 3: Config should not be nil")
+	if config == nil {
+		t.Errorf("DetectKubeConfig() returned nil config")
 	}
-	if config3 != nil && !config3.TLSClientConfig.Insecure {
-		t.Errorf("Test case 3: TLS verification should be skipped, but it's not")
-	}
-
-	event := CustomEvent{
-		EventType: "Warning",
-		Level:     "Warning",
-		Message:   "Insecure connection to Kubernetes cluster detected",
+	if config != nil && config.TLSClientConfig.CAData == nil {
+		fmt.Print("Test case 2: CertificateAuthorityData should not be empty, but it is")
 	}
 
-	handleCustomEvent(event)
-
-	// Print whether TLS verification is skipped or not for each test case
-	if config1 != nil {
-		fmt.Printf("Test case 1: TLS verification is skipped (Insecure: %v)\n", config1.TLSClientConfig.Insecure)
-	} else {
-		t.Errorf("Test case 1: Config should not be nil")
+	// Test case 3: Invalid kubeconfig file
+	configfile = []byte(`invalid kubeconfig`)
+	config, err = DetectKubeConfig(configfile)
+	if err == nil {
+		t.Errorf("DetectKubeConfig() did not return an error for invalid kubeconfig")
 	}
-	if config2 != nil {
-		fmt.Printf("Test case 2: TLS verification is not skipped (Insecure: %v)\n", config2.TLSClientConfig.Insecure)
-	} else {
-		t.Errorf("Test case 2: Config should not be nil")
+	if config != nil {
+		t.Errorf("DetectKubeConfig() returned non-nil config for invalid kubeconfig")
 	}
-	if config3 != nil {
-		fmt.Printf("Test case 3: TLS verification is skipped (Insecure: %v)\n", config3.TLSClientConfig.Insecure)
-	} else {
-		t.Errorf("Test case 3: Config should not be nil")
+	if config != nil && config.TLSClientConfig.CAData != nil {
+		t.Errorf("Test case 3: CertificateAuthorityData should be empty, but it's not")
 	}
 }

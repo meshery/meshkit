@@ -199,6 +199,7 @@ func convert(opt kobject.ConvertOptions) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println(komposeObject)
 
 	// Get a transformer that maps komposeObject to provider's primitives
 	t := getTransformer(opt)
