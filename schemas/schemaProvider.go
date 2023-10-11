@@ -12,6 +12,7 @@ func getSchemaMap() map[string]string {
 		"publish":     "configuration/publishCatalogItem.json",
 		"helmRepo":    "connections/helmConnection/helmRepoConnection.json",
 		"environment": "configuration/environment.json",
+		"workspace":   "configuration/workspace.json",
 	}
 }
 
@@ -23,6 +24,7 @@ func getUiSchemaMap() map[string]string {
 		"publish":     "configuration/uiSchemaPublishCatalogItem.json",
 		"helmRepo":    "connections/helmConnection/uiHelmRepoConnection.json",
 		"environment": "configuration/uiSchemaEnvironment.json",
+		"workspace":   "configuration/uiSchemaWorkspace.json",
 	}
 }
 
