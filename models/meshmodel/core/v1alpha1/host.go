@@ -14,3 +14,12 @@ type HostIndividualCount struct {
 	Relationships int64 `json:"relationships"`
 	Policies      int64 `json:"policies"`
 }
+type MesheryHostData struct {
+	HostID        uuid.UUID
+	Hostname      string
+	Port          int
+	Models        int64
+	Components    int64
+	Relationships int64
+	Policies      int64
+}

@@ -201,36 +201,35 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		return nil
 	}
 }
-func (rm *RegistryManager) GetCountForHostAndType(hostID uuid.UUID, typeName string) (int64, error) {
-	var count int64
-	db := rm.db.DB
-	err := db.Table("hosts").
-		Select("hosts.id").
-		Joins("LEFT JOIN registries ON hosts.id = registries.registrant_id").
-		Where("hosts.id = ? AND registries.type = ?", hostID, typeName).
-		Count(&count).
-		Error
 
-	return count, err
-}
-
-func (rm *RegistryManager) GetHostsForModels(f *v1alpha1.ComponentFilter) ([]*Host, int64, error) {
-	var hostCounts int64
-	var hosts []*Host
+func (rm *RegistryManager) GetHostsForModels(f *v1alpha1.ComponentFilter) ([]v1alpha1.MesheryHostData, int64, error) {
+	var result []v1alpha1.MesheryHostData
+	var totalcount int64
 	db := rm.db.DB
-	query := db.Table("hosts").
-		Select("hosts.id, hosts.hostname, hosts.port").
+
+	query := db.Table("hosts h").
+		Count(&totalcount).
+		Select("h.id AS host_id, h.hostname, h.port, " +
+			"SUM(CASE WHEN r.type = 'component' THEN 1 ELSE 0 END) AS components, " +
+			"SUM(CASE WHEN r.type = 'model' THEN 1 ELSE 0 END) AS models," +
+			"SUM(CASE WHEN r.type = 'relationship' THEN 1 ELSE 0 END) AS relationships, " +
+			"SUM(CASE WHEN r.type = 'policies' THEN 1 ELSE 0 END) AS policies").
+		Joins("LEFT JOIN registries r ON h.id = r.registrant_id").
+		Group("h.id, h.hostname, h.port").
+		Order("h.hostname").
 		Offset(f.Offset).
 		Limit(f.Limit)
+
 	if f.DisplayName != "" {
 		query = query.Where("hostname LIKE ?", "%"+f.DisplayName+"%")
 	}
+	err := query.Scan(&result).Error
 
-	if err := query.Scan(&hosts).Count(&hostCounts).Error; err != nil {
+	if err != nil {
 		return nil, 0, err
 	}
 
-	return hosts, hostCounts, nil
+	return result, totalcount, nil
 }
 func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64, *int) {
 	switch filter := f.(type) {
