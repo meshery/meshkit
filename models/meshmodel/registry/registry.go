@@ -201,37 +201,35 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		return nil
 	}
 }
-func (rm *RegistryManager) GetCountForHostAndType(db *gorm.DB, hostID uuid.UUID, typeName string) (int64, error) {
+func (rm *RegistryManager) GetCountForHostAndType(hostID uuid.UUID, typeName string) (int64, error) {
 	var count int64
+	db := rm.db.DB
 	err := db.Table("hosts").
 		Select("hosts.id").
 		Joins("LEFT JOIN registries ON hosts.id = registries.registrant_id").
-		Where("hosts.id = ? AND registries.type LIKE ?", hostID, "%"+typeName+"%").
+		Where("hosts.id = ? AND registries.type = ?", hostID, typeName).
 		Count(&count).
 		Error
 
 	return count, err
 }
 
-func (rm *RegistryManager) GetHostsForModels(db *gorm.DB, limit int, offset int, search string) ([]*Host, int64, error) {
+func (rm *RegistryManager) GetHostsForModels(f *v1alpha1.ComponentFilter) ([]*Host, int64, error) {
 	var hostCounts int64
 	var hosts []*Host
-	if limit == -1 {
-		if err := db.Table("hosts").Select("*").Count(&hostCounts).Error; err != nil {
-			return nil, 0, err
-		}
-		limit = int(hostCounts)
+	db := rm.db.DB
+	query := db.Table("hosts").
+		Select("hosts.id, hosts.hostname, hosts.port").
+		Offset(f.Offset).
+		Limit(f.Limit)
+	if f.DisplayName != "" {
+		query = query.Where("hostname LIKE ?", "%"+f.DisplayName+"%")
 	}
-	if err := db.Table("hosts").
-		Select("hosts.id ,hosts.hostname,hosts.port").
-		Where("hostname LIKE ?", "%"+search+"%").
-		Offset(offset).
-		Limit(limit).
-		Scan(&hosts).
-		Count(&hostCounts).
-		Error; err != nil {
+
+	if err := query.Scan(&hosts).Count(&hostCounts).Error; err != nil {
 		return nil, 0, err
 	}
+
 	return hosts, hostCounts, nil
 }
 func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64, *int) {
