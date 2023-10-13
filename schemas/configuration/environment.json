@@ -14,18 +14,10 @@
       "title": "Name",
       "type": "string",
       "x-rjsf-grid-area": "12"
-    },
-    "organization": {
-      "type": "string",
-      "title": "Organization",
-      "enum": [],
-      "enumNames": [],
-      "x-rjsf-grid-area": "12"
     }
   },
   "type": "object",
    "required": [
-    "name",
-    "organization"
+    "name"
   ]
 }
