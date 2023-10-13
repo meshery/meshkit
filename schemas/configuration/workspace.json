@@ -1,0 +1,31 @@
+{
+  "//playground": "https://rjsf-team.github.io/react-jsonschema-form/#eyJmb3JtRGF0YSI6e30sInNjaGVtYSI6eyJ0aXRsZSI6IkVudmlyb25tZW50IiwicHJvcGVydGllcyI6eyJkZXNjcmlwdGlvbiI6eyJkZXNjcmlwdGlvbiI6IkRlc2NyaXB0aW9uIG9mIHRoZSBFbnZpcm9ubWVudCIsImZvcm1hdCI6InRleHRhcmVhIiwidGl0bGUiOiJEZXNjcmlwdGlvbiIsInR5cGUiOiJzdHJpbmciLCJ4LXJqc2YtZ3JpZC1hcmVhIjoiMTIifSwibmFtZSI6eyJkZXNjcmlwdGlvbiI6IlRoZSBuYW1lIG9mIEVudmlyb25tZW50IiwidGl0bGUiOiJOYW1lIiwidHlwZSI6InN0cmluZyIsIngtcmpzZi1ncmlkLWFyZWEiOiIxMiJ9LCJvcmdhbml6YXRpb24iOnsidHlwZSI6InN0cmluZyIsInRpdGxlIjoiT3JnYW5pemF0aW9uIiwiZW51bSI6WyIxMTExMjIiXSwiZW51bU5hbWVzIjpbXSwieC1yanNmLWdyaWQtYXJlYSI6IjEyIn19LCJ0eXBlIjoib2JqZWN0IiwicmVxdWlyZWQiOlsibmFtZSIsIm9yZ2FuaXphdGlvbiJdfSwidWlTY2hlbWEiOnsib3JnYW5pemF0aW9uIjp7InVpOmRpc2FibGVkIjpmYWxzZSwidWk6d2lkZ2V0Ijoic2VsZWN0In0sInVpOm9yZGVyIjpbIm9yZ2FuaXphdGlvbiIsIm5hbWUiLCJkZXNjcmlwdGlvbiJdfSwidGhlbWUiOiJkZWZhdWx0IiwibGl2ZVNldHRpbmdzIjp7InNob3dFcnJvckxpc3QiOiJ0b3AiLCJ2YWxpZGF0ZSI6ZmFsc2UsImRpc2FibGVkIjpmYWxzZSwibm9IdG1sNVZhbGlkYXRlIjpmYWxzZSwicmVhZG9ubHkiOmZhbHNlLCJvbWl0RXh0cmFEYXRhIjpmYWxzZSwibGl2ZU9taXQiOmZhbHNlLCJleHBlcmltZW50YWxfZGVmYXVsdEZvcm1TdGF0ZUJlaGF2aW9yIjp7ImFycmF5TWluSXRlbXMiOiJwb3B1bGF0ZSIsImVtcHR5T2JqZWN0RmllbGRzIjoicG9wdWxhdGVBbGxEZWZhdWx0cyJ9fX0=",
+  "title": "Workspace",
+  "properties": {
+    "description": {
+      "description": "Description of the Workspace",
+      "format": "textarea",
+      "title": "Description",
+      "type": "string",
+      "x-rjsf-grid-area": "12"
+    },
+    "name": {
+      "description": "The name of Workspace",
+      "title": "Name",
+      "type": "string",
+      "x-rjsf-grid-area": "12"
+    },
+    "organization": {
+      "type": "string",
+      "title": "Organization",
+      "enum": [],
+      "enumNames": [],
+      "x-rjsf-grid-area": "12"
+    }
+  },
+  "type": "object",
+   "required": [
+    "name",
+    "organization"
+  ]
+}
