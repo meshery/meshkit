@@ -4,7 +4,6 @@
     "ui:widget": "select"
   },
   "ui:order": [
-    "organization",
     "name",
     "description"
   ]
