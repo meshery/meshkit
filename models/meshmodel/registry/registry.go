@@ -230,7 +230,7 @@ func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.Me
 	} else {
 		query = query.Order("hostname")
 	}
-	
+
 	query = query.Offset(f.Offset)
 	if f.Limit != 0 {
 		query = query.Limit(f.Limit)
@@ -249,7 +249,7 @@ func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.Me
 			ID:       r.HostID,
 			Hostname: HostnameToPascalCase(r.Hostname),
 			Port:     r.Port,
-			Summary: v1alpha1.HostIndividualCount{
+			Summary: v1alpha1.EntitySummary{
 				Models:        r.Models,
 				Components:    r.Components,
 				Relationships: r.Relationships,
