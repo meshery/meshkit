@@ -202,7 +202,7 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	}
 }
 
-func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.MesheryHostsDisplay, int64, error) {
+func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.MeshModelHostsWithEntitySummary, int64, error) {
 	var result []v1alpha1.MesheryHostSummaryDB
 	var totalcount int64
 	db := rm.db
@@ -242,10 +242,10 @@ func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.Me
 		return nil, 0, err
 	}
 
-	var response []v1alpha1.MesheryHostsDisplay
+	var response []v1alpha1.MeshModelHostsWithEntitySummary
 
 	for _, r := range result {
-		res := v1alpha1.MesheryHostsDisplay{
+		res := v1alpha1.MeshModelHostsWithEntitySummary{
 			ID:       r.HostID,
 			Hostname: HostnameToPascalCase(r.Hostname),
 			Port:     r.Port,
