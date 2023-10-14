@@ -14,12 +14,24 @@ type HostIndividualCount struct {
 	Relationships int64 `json:"relationships"`
 	Policies      int64 `json:"policies"`
 }
-type MesheryHostData struct {
-	HostID        uuid.UUID
-	Hostname      string
-	Port          int
-	Models        int64
-	Components    int64
-	Relationships int64
-	Policies      int64
+type MesheryHostSummaryDB struct {
+	HostID        uuid.UUID `json:"-" gorm:"id"`
+	Hostname      string 	`json:"-" gorm:"hostname"`
+	Port          int 		`json:"-" gorm:"port"`
+	Models        int64 	`json:"-" gorm:"models"`
+	Components    int64 	`json:"-" gorm:"components"`
+	Relationships int64 	`json:"-" gorm:"relationships"`
+	Policies      int64 	`json:"-" gorm:"policies"`
+}
+
+type HostFilter struct {
+	Name         string
+	Greedy       bool //when set to true - instead of an exact match, name will be prefix matched
+	Trim         bool //when set to true - the schema is not returned
+	DisplayName  string
+	Version      string
+	Sort         string //asc or desc. Default behavior is asc
+	OrderOn      string
+	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
+	Offset       int
 }

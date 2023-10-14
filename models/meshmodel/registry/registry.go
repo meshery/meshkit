@@ -202,34 +202,63 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	}
 }
 
-func (rm *RegistryManager) GetHostsForModels(f *v1alpha1.ComponentFilter) ([]v1alpha1.MesheryHostData, int64, error) {
-	var result []v1alpha1.MesheryHostData
+func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.MesheryHostsDisplay, int64, error) {
+	var result []v1alpha1.MesheryHostSummaryDB
 	var totalcount int64
-	db := rm.db.DB
+	db := rm.db
 
 	query := db.Table("hosts h").
 		Count(&totalcount).
 		Select("h.id AS host_id, h.hostname, h.port, " +
-			"SUM(CASE WHEN r.type = 'component' THEN 1 ELSE 0 END) AS components, " +
-			"SUM(CASE WHEN r.type = 'model' THEN 1 ELSE 0 END) AS models," +
-			"SUM(CASE WHEN r.type = 'relationship' THEN 1 ELSE 0 END) AS relationships, " +
-			"SUM(CASE WHEN r.type = 'policies' THEN 1 ELSE 0 END) AS policies").
+			"COUNT(CASE WHEN r.type = 'component' THEN 1 END)  AS components, " +
+			"COUNT(CASE WHEN r.type = 'model' THEN 1 END) AS models," +
+			"COUNT(CASE WHEN r.type = 'relationship' THEN 1 END) AS relationships, " +
+			"COUNT(CASE WHEN r.type = 'policy' THEN 1 END) AS policies").
 		Joins("LEFT JOIN registries r ON h.id = r.registrant_id").
-		Group("h.id, h.hostname, h.port").
-		Order("h.hostname").
-		Offset(f.Offset).
-		Limit(f.Limit)
+		Group("h.id, h.hostname, h.port")
 
 	if f.DisplayName != "" {
 		query = query.Where("hostname LIKE ?", "%"+f.DisplayName+"%")
 	}
+
+	if f.OrderOn != "" {
+		if f.Sort == "desc" {
+			query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: f.OrderOn}, Desc: true})
+		} else {
+			query = query.Order(f.OrderOn)
+		}
+	} else {
+		query = query.Order("hostname")
+	}
+	
+	query = query.Offset(f.Offset)
+	if f.Limit != 0 {
+		query = query.Limit(f.Limit)
+	}
+
 	err := query.Scan(&result).Error
 
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return result, totalcount, nil
+	var response []v1alpha1.MesheryHostsDisplay
+
+	for _, r := range result {
+		res := v1alpha1.MesheryHostsDisplay{
+			ID:       r.HostID,
+			Hostname: HostnameToPascalCase(r.Hostname),
+			Port:     r.Port,
+			Summary: v1alpha1.HostIndividualCount{
+				Models:        r.Models,
+				Components:    r.Components,
+				Relationships: r.Relationships,
+			},
+		}
+		response = append(response, res)
+	}
+
+	return response, totalcount, nil
 }
 func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64, *int) {
 	switch filter := f.(type) {
