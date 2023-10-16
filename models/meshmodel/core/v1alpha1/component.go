@@ -28,27 +28,29 @@ const (
 type ComponentDefinition struct {
 	ID uuid.UUID `json:"-"`
 	TypeMeta
-	DisplayName     string                 `json:"displayName" gorm:"displayName"`
-	Format          ComponentFormat        `json:"format" yaml:"format"`
-	HostName        string                 `json:"hostname"`
-	HostID          uuid.UUID              `json:"hostID"`
-	DisplayHostName string                 `json:"displayhostname"`
-	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
-	Model           Model                  `json:"model"`
-	Schema          string                 `json:"schema,omitempty" yaml:"schema"`
-	CreatedAt       time.Time              `json:"-"`
-	UpdatedAt       time.Time              `json:"-"`
+	DisplayName      string                 `json:"displayName" gorm:"displayName"`
+	Format           ComponentFormat        `json:"format" yaml:"format"`
+	HostName         string                 `json:"hostname"`
+	HostID           uuid.UUID              `json:"hostID"`
+	DisplayHostName  string                 `json:"displayhostname"`
+	Metadata         map[string]interface{}   `json:"metadata" yaml:"metadata"`
+	Model            Model                  `json:"model"`
+	Schema           string                 `json:"schema,omitempty" yaml:"schema"`
+	CredentialSchema string                 `json:"credentialSchema,omitempty" yaml:"credentialSchema"`
+	CreatedAt        time.Time              `json:"-"`
+	UpdatedAt        time.Time              `json:"-"`
 }
 type ComponentDefinitionDB struct {
-	ID      uuid.UUID `json:"-"`
-	ModelID uuid.UUID `json:"-" gorm:"modelID"`
+	ID               uuid.UUID       `json:"-"`
+	ModelID          uuid.UUID       `json:"-" gorm:"modelID"`
 	TypeMeta
-	DisplayName string          `json:"displayName" gorm:"displayName"`
-	Format      ComponentFormat `json:"format" yaml:"format"`
-	Metadata    []byte          `json:"metadata" yaml:"metadata"`
-	Schema      string          `json:"schema,omitempty" yaml:"schema"`
-	CreatedAt   time.Time       `json:"-"`
-	UpdatedAt   time.Time       `json:"-"`
+	DisplayName      string          `json:"displayName" gorm:"displayName"`
+	Format           ComponentFormat `json:"format" yaml:"format"`
+	Metadata         []byte          `json:"metadata" yaml:"metadata"`
+	Schema           string          `json:"schema,omitempty" yaml:"schema"`
+	CredentialSchema string          `json:"credentialSchema,omitempty" yaml:"credentialSchema"`
+	CreatedAt        time.Time       `json:"-"`
+	UpdatedAt        time.Time       `json:"-"`
 }
 
 func (c ComponentDefinition) Type() types.CapabilityType {
@@ -198,6 +200,7 @@ func (cmd *ComponentDefinitionDB) GetComponentDefinition(model Model) (c Compone
 	}
 	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
 	c.Schema = cmd.Schema
+	c.CredentialSchema = cmd.CredentialSchema
 	c.Model = model
 	return
 }
@@ -207,6 +210,7 @@ func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitio
 	cmd.Format = c.Format
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
 	cmd.DisplayName = c.DisplayName
+	cmd.CredentialSchema = c.CredentialSchema
 	cmd.Schema = c.Schema
 	return
 }
