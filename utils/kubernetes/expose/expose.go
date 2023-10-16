@@ -125,7 +125,7 @@ func Expose(
 
 		// Check if the resource can be exposed or not
 		gk := info.GetObjectKind().GroupVersionKind().GroupKind()
-		if err := canBeExposed(gk); err != nil {
+		if err = canBeExposed(gk); err != nil {
 			return nil, ErrResourceCannotBeExposed(err, gk.Kind)
 		}
 

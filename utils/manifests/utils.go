@@ -1,13 +1,9 @@
 package manifests
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -111,36 +107,6 @@ func getSchema(parsedCrd cue.Value, cfg Config, ctx context.Context) (string, er
 	return string(output), nil
 }
 
-func populateTempyaml(yaml string, path string) error {
-	var _, err = os.Stat(path)
-	if os.IsNotExist(err) {
-		var file, err = os.Create(path)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-	}
-	//delete any previous contents from the file
-	if err := os.Truncate(path, 0); err != nil {
-		return err
-	}
-	file, err := os.OpenFile(path, os.O_RDWR, 0644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	_, err = file.WriteString(yaml)
-	if err != nil {
-		return err
-	}
-	err = file.Sync()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // removeMetadataFromCRD is used because in few cases (like linkerd), helm templating might be used there which makes the yaml invalid.
 // As those templates are useless for component creatin, we can replace them with "meshery" to make the YAML valid
 func RemoveHelmTemplatingFromCRD(crdyaml *string) {
@@ -155,70 +121,6 @@ func RemoveHelmTemplatingFromCRD(crdyaml *string) {
 	}
 	*crdyaml = strings.Join(yamlArr, "\n---\n")
 }
-
-func getCrdnames(s string) []string {
-	s = strings.ReplaceAll(s, "\"", "")
-	s = strings.ReplaceAll(s, " ", "")
-	s = strings.ReplaceAll(s, ",", "")
-	crds := strings.Split(s, "\n")
-	if len(crds) <= 2 {
-		return []string{}
-	}
-	return crds[1 : len(crds)-2] // first and last characters are "[" and "]" respectively
-}
-
-func filterYaml(ctx context.Context, yamlPath string, filter []string, binPath string, inputFormat string) error {
-	var (
-		out bytes.Buffer
-		er  bytes.Buffer
-	)
-	filter = append(filter, "-o", "yaml")
-	getCrdsCmdArgs := append([]string{"--location", yamlPath, "-t", inputFormat, "--filter"}, filter...)
-	cmd := exec.CommandContext(ctx, binPath, getCrdsCmdArgs...)
-	//emptying buffers
-	out.Reset()
-	er.Reset()
-	cmd.Stdout = &out
-	cmd.Stderr = &er
-	err := cmd.Run()
-	if err != nil {
-		return err
-	}
-	path := filepath.Join(os.TempDir(), "/test.yaml")
-	err = populateTempyaml(out.String(), path)
-	if err != nil {
-		return ErrPopulatingYaml(err)
-	}
-	return nil
-}
-
-// cleanup
-func deleteFile(path string) error {
-	err := os.Remove(path)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//TODO: After finalizing on where to keep dictionary.json, use that file to initialize dict map in init()
-// var dict = map[string]string{}
-
-// func init() {
-// 	dictf, err := os.Open("./dictionary.json")
-// 	if err != nil {
-// 		return
-// 	}
-// 	byt, err := io.ReadAll(dictf)
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	err = json.Unmarshal(byt, &dict)
-// 	if err != nil {
-// 		return
-// 	}
-// }
 
 // This helps in formating the leftover fields using a pre-defined dictionary
 // If dictionary returns true then any other formatting should be skipped
@@ -364,8 +266,8 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 			if ro.isInsideJsonSchemaProps && (ref == JsonSchemaPropsRef) {
 				// hack so that the UI doesn't crash
 				val["$ref"] = "string"
-				marVal, err := json.Marshal(val)
-				if err != nil {
+				marVal, errJson := json.Marshal(val)
+				if errJson != nil {
 					return manifest, nil
 				}
 				return marVal, nil
@@ -407,8 +309,8 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 					if refVal.Err() != nil {
 						return nil, refVal.Err()
 					}
-					marshalledVal, err := refVal.MarshalJSON()
-					if err != nil {
+					marshalledVal, errJson := refVal.MarshalJSON()
+					if errJson != nil {
 						return nil, err
 					}
 					def, err = ro.ResolveReferences(marshalledVal, definitions, cache)
@@ -420,7 +322,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 					def = cache[path]
 				}
 				if def != nil {
-					err := replaceRefWithVal(def, val, k)
+					err = replaceRefWithVal(def, val, k)
 					if err != nil {
 						return def, nil
 					}
@@ -429,16 +331,18 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 			}
 		}
 		if reflect.ValueOf(v).Kind() == reflect.Map {
-			marVal, err := json.Marshal(v)
+			var marVal []byte
+			var def []byte
+			marVal, err = json.Marshal(v)
 			if err != nil {
 				return nil, err
 			}
-			def, err := ro.ResolveReferences(marVal, definitions, cache)
+			def, err = ro.ResolveReferences(marVal, definitions, cache)
 			if err != nil {
 				return nil, err
 			}
 			if def != nil {
-				err := replaceRefWithVal(def, val, k)
+				err = replaceRefWithVal(def, val, k)
 				if err != nil {
 					return def, nil
 				}

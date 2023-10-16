@@ -39,11 +39,11 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 
 	if err == nil {
 		ms.status = Enabled
-		meshSyncPod, err := ms.kclient.KubeClient.CoreV1().Pods("meshery").List(context.TODO(), metav1.ListOptions{
+		meshSyncPod, errMeshery := ms.kclient.KubeClient.CoreV1().Pods("meshery").List(context.TODO(), metav1.ListOptions{
 			LabelSelector: "component=meshsync",
 		})
 
-		if len(meshSyncPod.Items) == 0 || kubeerror.IsNotFound(err) {
+		if len(meshSyncPod.Items) == 0 || kubeerror.IsNotFound(errMeshery) {
 			return ms.status
 		}
 		for _, pod := range meshSyncPod.Items {
@@ -51,8 +51,8 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 			case v1.PodRunning:
 				ms.status = Running
 				broker := NewMesheryBrokerHandler(ms.kclient)
-				brokerEndpoint, err := broker.GetPublicEndpoint()
-				if err != nil {
+				brokerEndpoint, errOfEndpoint := broker.GetPublicEndpoint()
+				if errOfEndpoint != nil {
 					return ms.status
 				}
 				hostIP := strings.Split(brokerEndpoint, ":")[0]

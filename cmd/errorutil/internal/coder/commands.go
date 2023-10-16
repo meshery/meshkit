@@ -106,11 +106,11 @@ func commandAnalyze() *cobra.Command {
 		Long:  `analyze analyzes a directory tree for error codes`,
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			globalFlags, err := getGlobalFlags(cmd)
+			gFlags, err := getGlobalFlags(cmd)
 			if err != nil {
 				return err
 			}
-			return walkSummarizeExport(globalFlags, false, false)
+			return walkSummarizeExport(gFlags, false, false)
 		},
 	}
 }
@@ -123,15 +123,15 @@ func commandUpdate() *cobra.Command {
 		Long:  "update replaces error codes where specified, and updates error details",
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			globalFlags, err := getGlobalFlags(cmd)
+			gFlags, err := getGlobalFlags(cmd)
 			if err != nil {
 				return err
 			}
-			updateAll, err := cmd.Flags().GetBool(forceUpdateAllCodesCmdFlag)
+			updateAll, err = cmd.Flags().GetBool(forceUpdateAllCodesCmdFlag)
 			if err != nil {
 				return err
 			}
-			return walkSummarizeExport(globalFlags, true, updateAll)
+			return walkSummarizeExport(gFlags, true, updateAll)
 		},
 	}
 	cmd.PersistentFlags().BoolVar(&updateAll, forceUpdateAllCodesCmdFlag, false, "Update and re-sequence all error codes.")
