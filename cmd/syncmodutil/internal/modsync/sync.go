@@ -51,8 +51,7 @@ func (g *GoMod) PrintReplacedVersions() {
 	}
 }
 func (g *GoMod) SyncRequire(f io.Reader, throwerr bool) (gomod string, err error) {
-	var b = make([]byte, 1000)
-	b, err = io.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		return string(b), err
 	}
@@ -90,7 +89,6 @@ func (g *GoMod) SyncRequire(f io.Reader, throwerr bool) (gomod string, err error
 
 // NewGoMod takes an io.Reader to a go.mod and returns GoMod struct
 func New(f io.Reader) (*GoMod, error) {
-	var b = make([]byte, 1000)
 	b, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err

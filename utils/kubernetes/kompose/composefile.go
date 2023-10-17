@@ -17,7 +17,7 @@ func (dc *DockerComposeFile) Validate(schema []byte) error {
 	}
 	cueCtx := cuecontext.New()
 	cueJsonSchemaExpr := cueCtx.BuildExpr(jsonSchema)
-	if err := cueJsonSchemaExpr.Err(); err != nil {
+	if err = cueJsonSchemaExpr.Err(); err != nil {
 		return ErrValidateDockerComposeFile(err)
 	}
 	extractedSchema, err := jsonschema.Extract(cueJsonSchemaExpr, &jsonschema.Config{

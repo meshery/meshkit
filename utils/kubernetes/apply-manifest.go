@@ -162,10 +162,13 @@ func createObject(restHelper *resource.Helper, namespace string, obj runtime.Obj
 		return nil, err
 	}
 
-	object, err := restHelper.Create(namespace, update, obj)
+	var object runtime.Object
+	var er error
+
+	object, err = restHelper.Create(namespace, update, obj)
 	if err != nil {
 		if kubeerror.IsAlreadyExists(err) && update {
-			object, er := restHelper.Replace(namespace, name, update, obj)
+			object, er = restHelper.Replace(namespace, name, update, obj)
 			if er != nil {
 				if (kubeerror.IsInvalid(er) && strings.Contains(er.Error(), "field is immutable")) || (kubeerror.IsInvalid(er) && strings.Contains(er.Error(), "primary clusterIP can not be unset")) {
 					return object, nil
