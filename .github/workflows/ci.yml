@@ -2,9 +2,7 @@ name: Lint and unit tests
 on:
   push:
     branches:
-      - '**'
-    tags:
-      - 'v*'
+      - master
   pull_request:
     branches:
       - master
@@ -21,9 +19,22 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
-          args: --timeout=5m
+      - name: Run golangci-lint
+        run: make check
+  tidy:
+    name: tidy
+    needs: [golangci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-go@master
+        with:
+          go-version: '1.21'
+      - name: go mod tidy
+        run: make tidy
   tests:
      name: Tests
+     needs: [golangci, tidy]
      runs-on: ubuntu-latest
      env:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
@@ -36,5 +47,4 @@ jobs:
        uses: actions/setup-go@master
        with:
         go-version: 1.21
-     - run: |
-         GOPROXY=direct,https://proxy.golang.org GOSUMDB=off GO111MODULE=on go test -v ./...
+     - run: make test

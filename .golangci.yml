@@ -1,4 +1,6 @@
 linters-settings:
+  go-mod-tidy:
+    enabled: true
   gci:
     enabled: true
     max-len: 120
@@ -58,7 +60,5 @@ run:
   skip-dirs:
     - vendor
     - bundle
-    - config
     - hack
-    - helpers
     - img

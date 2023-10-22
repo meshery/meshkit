@@ -2,13 +2,14 @@ include build/Makefile.core.mk
 include build/Makefile.show-help.mk
 
 check:
-	golangci-lint run
+	golangci-lint run -c .golangci.yml -v ./...
 
-check-clean-cache:
-	golangci-lint cache clean
+tidy:
+	go mod tidy
+	git diff --exit-code go.mod go.sum
 
 test:
-	go test ./...
+	go test -v ./...
 
 errorutil:
 	go run github.com/layer5io/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
