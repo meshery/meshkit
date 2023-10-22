@@ -7,6 +7,10 @@ check:
 test:
 	go test --short ./... -race -coverprofile=coverage.txt -covermode=atomic
 
+tidy:
+	go mod tidy
+	git diff --exit-code go.mod go.sum
+
 errorutil:
 	go run github.com/layer5io/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
 
