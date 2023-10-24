@@ -87,3 +87,28 @@ users:
 		t.Errorf("Test case 3: CertificateAuthorityData should be empty, but it's not")
 	}
 }
+
+func TestPublishEventWithChannelLeak(t *testing.T) {
+	// Simulate multiple subscribers
+	numSubscribers := 10
+	channels := make([]chan interface{}, numSubscribers)
+	for i := 0; i < numSubscribers; i++ {
+		channels[i] = make(chan interface{})
+	}
+
+	// Publish an event without closing the channels
+	event := "test event with channel leak"
+	err := publishEvent(event)
+
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+}
+
+func TestPublishEvent(t *testing.T) {
+	event := "test event"
+	err := publishEvent(event)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+}

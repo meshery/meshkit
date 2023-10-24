@@ -6,20 +6,14 @@ import (
 	"path/filepath"
 
 	"github.com/layer5io/meshkit/models"
+	event "github.com/layer5io/meshkit/models/events"
 	"github.com/layer5io/meshkit/utils"
-	events "github.com/layer5io/meshkit/utils/events"
+	"github.com/layer5io/meshkit/utils/events"
 	"gopkg.in/yaml.v2"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
-
-// CustomEvent is a custom event type for recording events.
-type CustomEvent struct {
-	EventType string
-	Level     string
-	Message   string
-}
 
 // DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
@@ -49,16 +43,15 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 					clusters.Cluster.CertificateAuthorityData = ""
 
 					// Create an event to record the insecure connection
-					event := CustomEvent{
-						EventType: "Warning",
-						Level:     "Warning",
-						Message:   "Insecure connection to Kubernetes cluster detected",
-					}
+					eventBuilder := event.NewEvent().WithCategory("connection").WithAction("insecure")
+					eventBuilder.WithSeverity(event.Warning).WithDescription("Insecure TLS connection to Kubernetes cluster detected")
+
+					// Publish the event directly using the events package
+					event := eventBuilder.Build()
+					_ = publishEvent(event)
 
 					log.Println("SKIP TLS verification part was called")
 
-					// Send the event to the client
-					handleCustomEvent(event)
 				}
 
 				return config, err
@@ -84,14 +77,12 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 					cluster.Cluster.CertificateAuthorityData = ""
 
 					// Create an event to record the insecure connection
-					event := CustomEvent{
-						EventType: "Warning",
-						Level:     "Warning",
-						Message:   "Insecure connection to Kubernetes cluster detected",
-					}
-					log.Println("SKIP TLS verification part was called")
+					eventBuilder := event.NewEvent().WithCategory("connection").WithAction("insecure")
+					eventBuilder.WithSeverity(event.Warning).WithDescription("Insecure TLS connection to Kubernetes cluster detected")
 
-					handleCustomEvent(event)
+					// Publish the event directly using the events package
+					event := eventBuilder.Build()
+					_ = publishEvent(event)
 				}
 			}
 
@@ -110,14 +101,12 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 				cluster.Cluster.CertificateAuthorityData = ""
 
 				// Create an event to record the insecure connection
-				event := CustomEvent{
-					EventType: "Warning",
-					Level:     "Warning",
-					Message:   "Insecure connection to Kubernetes cluster detected",
-				}
-				log.Println("SKIP TLS verification part was called")
+				eventBuilder := event.NewEvent().WithCategory("connection").WithAction("insecure")
+				eventBuilder.WithSeverity(event.Warning).WithDescription("Insecure TLS connection to Kubernetes cluster detected")
 
-				handleCustomEvent(event)
+				// Publish the event directly using the events package
+				event := eventBuilder.Build()
+				_ = publishEvent(event)
 			}
 		}
 		return config, err
@@ -126,11 +115,12 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	return
 }
 
-func handleCustomEvent(event CustomEvent) {
+func publishEvent(event interface{}) error {
 	eventStreamer := events.NewEventStreamer()
 	clientChannel := make(chan interface{})
 	eventStreamer.Subscribe(clientChannel)
 	eventStreamer.Publish(event)
+	return nil
 }
 
 func processConfig(configFile []byte) ([]byte, error) {
