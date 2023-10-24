@@ -13,7 +13,7 @@ import (
 // We will only make use of URL/ChartLocation/LocalPath to get and load the helm chart
 func ConvertHelmChartToK8sManifest(cfg ApplyHelmChartConfig) (manifest []byte, err error) {
 	setupDefaults(&cfg)
-	if err := setupChartVersion(&cfg); err != nil {
+	if err = setupChartVersion(&cfg); err != nil {
 		return nil, ErrApplyHelmChart(err)
 	}
 

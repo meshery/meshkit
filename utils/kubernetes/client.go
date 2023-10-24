@@ -24,7 +24,7 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 
 		models := &models.Kubeconfig{}
 
-		cfgFile, err := processConfig(configfile)
+    cfgFile, err := processConfig(configfile)
 		if err != nil {
 			return nil, err
 		}

@@ -1,15 +1,9 @@
 # MeshKit for Meshery and it's ecosystem
 A toolkit for Meshery's microservices and various individual architectural components to reuse and share common functionality. Learn more: [Introducing MeshKit and the Meshery Adapter Library](https://layer5.io/blog/meshery/introducing-meshkit-and-the-meshery-adapter-library)
 
-### Instructions for making custom dictionary entries
-
-Enter new key:value pairs into the `useDictionary()` map in https://github.com/meshery/meshkit/blob/master/utils/utils.go
-
-- Key: string to match
-- Value: string to display
-
-The custom dictionary entries are case insensitive.
-  
+[![](https://github.com/meshery/meshkit/actions/workflows/ci.yml/badge.svg)](https://github.com/meshery/meshkit/actions/workflows/ci.yml)
+[![](https://github.com/meshery/meshkit/actions/workflows/release-drafter.yml/badge.svg)](https://github.com/meshery/meshkit/actions/workflows/release-drafter.yml)
+[![](https://github.com/meshery/meshkit/actions/workflows/error-codes-updater.yaml/badge.svg)](https://github.com/meshery/meshkit/actions/workflows/error-codes-updater.yaml)
 
 <div>&nbsp;</div>
 

@@ -82,7 +82,7 @@ func JsonSchemaToCue(value string) (cue.Value, error) {
 	}
 	cueCtx := cuecontext.New()
 	cueJsonSchemaExpr := cueCtx.BuildExpr(jsonSchema)
-	if err := cueJsonSchemaExpr.Err(); err != nil {
+	if err = cueJsonSchemaExpr.Err(); err != nil {
 		return out, ErrJsonSchemaToCue(err)
 	}
 	extractedSchema, err := jsonschema.Extract(cueJsonSchemaExpr, &jsonschema.Config{

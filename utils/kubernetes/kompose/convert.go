@@ -33,8 +33,7 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
 	if err != nil {
 		return err
 	}
-	var dockerComposeFile DockerComposeFile
-	dockerComposeFile = manifest
+	var dockerComposeFile DockerComposeFile = manifest
 	err = dockerComposeFile.Validate([]byte(schema))
 	return err
 }
@@ -169,13 +168,11 @@ func formatComposeFile(yamlManifest *DockerComposeFile) {
 		return
 	}
 	// so that "3.3" and 3.3 are treated differently by `Kompose`
-	data.Version = fmt.Sprintf("%s", data.Version)
 	out, err := yaml.Marshal(data)
 	if err != nil {
 		return
 	}
 	*yamlManifest = out
-	return
 }
 
 var inputFormat = "compose"
@@ -192,10 +189,7 @@ func convert(opt kobject.ConvertOptions) error {
 		return err
 	}
 
-	komposeObject := kobject.KomposeObject{
-		ServiceConfigs: make(map[string]kobject.ServiceConfig),
-	}
-	komposeObject, err = l.LoadFile(opt.InputFiles)
+	komposeObject, err := l.LoadFile(opt.InputFiles, opt.Profiles)
 	if err != nil {
 		return err
 	}

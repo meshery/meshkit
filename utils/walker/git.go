@@ -152,7 +152,7 @@ func clonewalk(g *Git) error {
 
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
-		err := filepath.WalkDir(filepath.Join(path, g.root), func(path string, d fs.DirEntry, er error) error {
+		err = filepath.WalkDir(filepath.Join(path, g.root), func(path string, d fs.DirEntry, er error) error {
 			if d.IsDir() && g.dirInterceptor != nil {
 				return g.dirInterceptor(Directory{
 					Name: d.Name(),
@@ -162,9 +162,9 @@ func clonewalk(g *Git) error {
 			if d.IsDir() {
 				return nil
 			}
-			f, err := d.Info()
+			f, errInfo := d.Info()
 			if err != nil {
-				return err
+				return errInfo
 			}
 			return g.readFile(f, path)
 		})
@@ -186,24 +186,24 @@ func clonewalk(g *Git) error {
 	}
 
 	for _, f := range files {
-		path := filepath.Join(path, g.root, f.Name())
+		fPath := filepath.Join(path, g.root, f.Name())
 		if f.IsDir() && g.dirInterceptor != nil {
 			name := f.Name()
 			go func(name string, path string, filename string) {
 				err := g.dirInterceptor(Directory{
 					Name: filename,
-					Path: path,
+					Path: fPath,
 				})
 				if err != nil {
 					fmt.Println(err.Error())
 				}
-			}(name, path, f.Name())
+			}(name, fPath, f.Name())
 			continue
 		}
 		if f.IsDir() {
 			continue
 		}
-		err := g.readFile(f, path)
+		err := g.readFile(f, fPath)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
