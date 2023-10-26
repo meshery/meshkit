@@ -29,7 +29,7 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 			return nil, err
 		}
 
-		if err := yaml.Unmarshal(cfgFile, models); err != nil {
+		if err = yaml.Unmarshal(cfgFile, models); err != nil {
 			return nil, err
 		}
 
