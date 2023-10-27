@@ -15,7 +15,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-var cfgFile []byte
+
 // DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	if len(configfile) > 0 {
@@ -24,7 +24,8 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 		}
 
 		models := &models.Kubeconfig{}
-
+		var cfgFile []byte
+		
 		cfgFile, err = processConfig(configfile)
 		if err != nil {
 			return nil, err
