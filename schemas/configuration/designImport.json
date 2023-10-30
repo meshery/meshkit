@@ -7,6 +7,17 @@
       "default": "Untitled Design",
       "x-rjsf-grid-area" : "12"
     },
+    "designType": {
+      "title": "Select the Design Type",
+      "enum": [
+        "Helm Chart",
+        "Kubernetes Manifest",
+        "Docker Compose",
+        "Design"
+      ],
+      "default": "Design",
+      "x-rjsf-grid-area" : "12"
+    },
     "uploadType": {
       "title": "Select the Upload Method",
       "enum": [
