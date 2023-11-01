@@ -189,7 +189,7 @@ func convert(opt kobject.ConvertOptions) error {
 		return err
 	}
 
-	komposeObject, err := l.LoadFile(opt.InputFiles, opt.Profiles)
+	komposeObject, err := l.LoadFile(opt.InputFiles)
 	if err != nil {
 		return err
 	}
