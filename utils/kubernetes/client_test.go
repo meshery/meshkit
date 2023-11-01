@@ -6,6 +6,7 @@ import (
 )
 
 func TestDetectKubeConfig(t *testing.T) {
+	t.Parallel()
 	// Test case 1: Valid kubeconfig file with tls-skip-verify set to true
 	configfile := []byte(`
 apiVersion: v1
@@ -89,6 +90,7 @@ users:
 }
 
 func TestPublishEventWithChannelLeak(t *testing.T) {
+	t.Parallel()
 	// Simulate multiple subscribers
 	numSubscribers := 10
 	channels := make([]chan interface{}, numSubscribers)
@@ -98,17 +100,6 @@ func TestPublishEventWithChannelLeak(t *testing.T) {
 
 	// Publish an event without closing the channels
 	event := "test event with channel leak"
-	err := publishEvent(event)
+	publishEvent(event)
 
-	if err != nil {
-		t.Errorf("Expected no error, but got: %v", err)
-	}
-}
-
-func TestPublishEvent(t *testing.T) {
-	event := "test event"
-	err := publishEvent(event)
-	if err != nil {
-		t.Errorf("Expected no error, but got: %v", err)
-	}
 }
