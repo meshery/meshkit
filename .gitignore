@@ -22,3 +22,4 @@ cmd/errorutil/errorutil
 **errorutil_analyze_summary.json
 **errorutil_errors_export.json
 *.DS_Store
+coverage.txt
