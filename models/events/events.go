@@ -94,7 +94,7 @@ type EventsFilter struct {
 	SortOn string `json:"sort_on"`
 
 	// ActedUpon UUID of the entity on which the event was performed.
-	ActedUpon []uuid.UUID `json:"acted_upon"`
+	ActedUpon []string `json:"acted_upon"`
 }
 
 // ID defines model for id.
