@@ -292,6 +292,8 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	type modelWithCategories struct {
 		v1alpha1.ModelDB
 		v1alpha1.CategoryDB
+		Registry
+		Host
 	}
 
 	countUniqueModels := func(models []modelWithCategories) int {
@@ -307,8 +309,10 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 
 	var modelWithCategoriess []modelWithCategories
 	finder := db.Model(&v1alpha1.ModelDB{}).
-		Select("model_dbs.*, category_dbs.*").
-		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
+		Select("model_dbs.*, category_dbs.*", "registries.*", "hosts.*").
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
+		Joins("JOIN registries ON registries.entity = model_dbs.id").
+		Joins("JOIN hosts ON hosts.id = registries.registrant_id")
 
 	// total count before pagination
 	var count int64
@@ -335,6 +339,9 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		}
 		if mf.Category != "" {
 			finder = finder.Where("category_dbs.name = ?", mf.Category)
+		}
+		if mf.Registrant != "" {
+			finder = finder.Where("hosts.hostname = ?", mf.Registrant)
 		}
 		if mf.OrderOn != "" {
 			if mf.Sort == "desc" {
