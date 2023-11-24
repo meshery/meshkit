@@ -107,6 +107,8 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*").
 		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
+
+	
 	if f.Greedy {
 		if f.Name != "" && f.DisplayName != "" {
 			finder = finder.Where("component_definition_dbs.kind LIKE ? OR display_name LIKE ?", "%"+f.Name+"%", f.DisplayName+"%")
@@ -126,6 +128,11 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	if f.ModelName != "" && f.ModelName != "all" {
 		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
+	
+	if f.ReturnAnnotations {
+		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = true")
+	}
+
 	if f.APIVersion != "" {
 		finder = finder.Where("component_definition_dbs.api_version = ?", f.APIVersion)
 	}
@@ -179,6 +186,7 @@ type ComponentFilter struct {
 	OrderOn      string
 	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
 	Offset       int
+	ReturnAnnotations bool
 }
 
 // Create the filter from map[string]interface{}
