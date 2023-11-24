@@ -47,12 +47,13 @@ var NameToIndex = map[string]int{ //Update this on addition of new columns
 
 
 
-func Spreadsheet(srv *sheets.Service, sheetName string, 
-spreadsheetChan chan struct {
-	comps   []v1alpha1.ComponentDefinition
-	model   string
-	helmURL string
-}, am map[string][]interface{}, acpm map[string]map[string]bool) {
+func Spreadsheet(
+	srv *sheets.Service, 
+	sheetName, 
+	spreadsheetID string, 
+	modelChan chan v1alpha1.ModelChannel, 
+	am map[string][]interface{}, 
+	acpm map[string]map[string]bool) {
 	start := time.Now()
 	rangeString := sheetName + "!A4:AB4"
 	// Get the value of the specified cell.
@@ -63,24 +64,24 @@ spreadsheetChan chan struct {
 	}
 	batchSize := 100
 	values := make([][]interface{}, 0)
-	for entry := range spreadsheet {
-		if len(entry.comps) == 0 {
+	for entry := range modelChan {
+		if len(entry.Comps) == 0 {
 			continue
 		}
-		for _, comp := range entry.comps {
-			if acpm[entry.model][comp.Kind] {
-				fmt.Println("[Debug][Spreadsheet] Skipping spreadsheet updation for ", entry.model, comp.Kind)
+		for _, comp := range entry.Comps {
+			if acpm[entry.Model][comp.Kind] {
+				fmt.Println("[Debug][Spreadsheet] Skipping spreadsheet updation for ", entry.Model, comp.Kind)
 				continue
 			}
 			var newValues []interface{}
-			if am[entry.model] != nil {
-				newValues = make([]interface{}, len(am[entry.model]))
-				copy(newValues, am[entry.model])
+			if am[entry.Model] != nil {
+				newValues = make([]interface{}, len(am[entry.Model]))
+				copy(newValues, am[entry.Model])
 			} else {
 				newValues = make([]interface{}, len(resp.Values[0]))
 				copy(newValues, resp.Values[0])
-				newValues[NameToIndex["modelDisplayName"]] = entry.model
-				newValues[NameToIndex["model"]] = entry.model
+				newValues[NameToIndex["modelDisplayName"]] = entry.Model
+				newValues[NameToIndex["model"]] = entry.Model
 			}
 			newValues[NameToIndex["component"]] = comp.Kind
 			if comp.Schema != "" {
@@ -88,12 +89,12 @@ spreadsheetChan chan struct {
 			} else {
 				newValues[NameToIndex["hasSchema?"]] = false
 			}
-			newValues[NameToIndex["link"]] = entry.helmURL
+			newValues[NameToIndex["link"]] = entry.HelmURL
 			values = append(values, newValues)
-			if acpm[entry.model] == nil {
-				acpm[entry.model] = make(map[string]bool)
+			if acpm[entry.Model] == nil {
+				acpm[entry.Model] = make(map[string]bool)
 			}
-			acpm[entry.model][comp.Kind] = true
+			acpm[entry.Model][comp.Kind] = true
 			batchSize--
 			fmt.Println("Batch size: ", batchSize)
 			if batchSize <= 0 {
@@ -109,18 +110,18 @@ spreadsheetChan chan struct {
 				}
 			}
 		}
-		if am[entry.model] != nil {
-			fmt.Println("[Debug][Spreadsheet] Skipping spreadsheet updation for ", entry.model)
+		if am[entry.Model] != nil {
+			fmt.Println("[Debug][Spreadsheet] Skipping spreadsheet updation for ", entry.Model)
 			continue
 		}
 		newValues := make([]interface{}, len(resp.Values[0]))
 		copy(newValues, resp.Values[0])
-		newValues[NameToIndex["modelDisplayName"]] = entry.model
-		newValues[NameToIndex["model"]] = entry.model
-		newValues[NameToIndex["CRDs"]] = len(entry.comps)
-		newValues[NameToIndex["link"]] = entry.helmURL
+		newValues[NameToIndex["modelDisplayName"]] = entry.Model
+		newValues[NameToIndex["model"]] = entry.Model
+		newValues[NameToIndex["CRDs"]] = len(entry.Comps)
+		newValues[NameToIndex["link"]] = entry.HelmURL
 		values = append(values, newValues)
-		copy(am[entry.model], newValues)
+		copy(am[entry.Model], newValues)
 		batchSize--
 		fmt.Println("Batch size: ", batchSize)
 		if batchSize <= 0 {
