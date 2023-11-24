@@ -25,6 +25,12 @@ type ModelFilter struct {
 	Offset      int
 }
 
+type ModelChannel struct {
+	Comps   []ComponentDefinition
+	Model   string
+	HelmURL string
+}
+
 // Create the filter from map[string]interface{}
 func (cf *ModelFilter) Create(m map[string]interface{}) {
 	if m == nil {

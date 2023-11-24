@@ -20,17 +20,16 @@ const COLUMNRANGE = "!A:AF3" //Update this on addition of new columns
 
 // Stages have to run sequentially. The steps within each stage can be concurrent.
 // pipeline function should return only after completion
-func executeInStages(pipeline func(in chan []artifacthub.AhPackage, csv chan string, spreadsheet chan struct {
-	comps   []v1alpha1.ComponentDefinition
-	model   string
-	helmURL string
-}, dp *dedup) error,
+func executeInStages(
+	pipeline func(
+		in chan []artifacthub.AhPackage, 
+		csv chan string, 
+	modelChan chan v1alpha1.ModelChannel, 
+	dp *dedup) error,
 	csv chan string,
-	spreadsheetChan chan struct {
-		comps   []v1alpha1.ComponentDefinition
-		model   string
-		helmURL string
-	}, dp *dedup, pkg ...[]artifacthub.AhPackage) {
+	modelChan chan v1alpha1.ModelChannel, 
+	dp *dedup, 
+	pkg ...[]artifacthub.AhPackage) {
 	for stageno, p := range pkg {
 		input := make(chan []artifacthub.AhPackage)
 		go func() {
@@ -49,7 +48,7 @@ func executeInStages(pipeline func(in chan []artifacthub.AhPackage, csv chan str
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				pipeline(input, csv, spreadsheetChan, dp) //synchronous
+				pipeline(input, csv, modelChan, dp) //synchronous
 				fmt.Println("Pipeline exited for a go routine")
 			}()
 		}
@@ -80,11 +79,7 @@ func (d *dedup) check(key string) bool {
 }
 
 // used in generator.go
-func StartPipeline(in chan []artifacthub.AhPackage, csv chan string, spreadsheet chan struct {
-	comps   []v1alpha1.ComponentDefinition
-	model   string
-	helmURL string
-}, dp *dedup) error {
+func StartPipeline(in chan []artifacthub.AhPackage, csv chan string, modelChan chan v1alpha1.ModelChannel, dp *dedup) error {
 	pkgsChan := make(chan []artifacthub.AhPackage)
 	compsChan := make(chan struct {
 		comps []v1alpha1.ComponentDefinition
@@ -182,14 +177,10 @@ func StartPipeline(in chan []artifacthub.AhPackage, csv chan string, spreadsheet
 				comps: newcomps,
 				model: ap.Name,
 			}
-			spreadsheet <- struct {
-				comps   []v1alpha1.ComponentDefinition
-				model   string
-				helmURL string
-			}{
-				comps:   newcomps,
-				model:   ap.Name,
-				helmURL: ap.ChartUrl,
+			modelChan <- v1alpha1.ModelChannel{
+				Comps:   newcomps,
+				Model:   ap.Name,
+				HelmURL: ap.ChartUrl,
 			}
 		}
 	}

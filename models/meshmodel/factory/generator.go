@@ -24,6 +24,8 @@ var (
 	ComponentModelsFileName = path.Join(OutputDirectoryPath, "component_models.yaml")
 )
 
+
+
 func GenerateModels(spreadsheetID string, sheetID int) {
 	if _, err := os.Stat(OutputDirectoryPath); err != nil {
 		err := os.Mkdir(OutputDirectoryPath, 0744)
@@ -127,28 +129,19 @@ func GenerateModels(spreadsheetID string, sheetID int) {
 		}
 	}
 
-	// 	spreadsheetChan := make(chan struct {
-	// 	comps   []v1alpha1.ComponentDefinition
-	// 	model   string
-	// 	helmURL string
-	// }, 100)
-	var spreadsheetChan chan struct {
-    comps   []v1alpha1.ComponentDefinition
-    model   string
-    helmURL string
-}
+	modelChan := make(chan v1alpha1.ModelChannel, 100)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		utils.Spreadsheet(srv, sheetName, spreadsheetChan, availableModels, availableComponentsPerModel)
+		utils.Spreadsheet(srv, sheetName, spreadsheetID, modelChan, availableModels, availableComponentsPerModel)
 	}()
 	dp := Newdedup()
 
-	executeInStages(StartPipeline, csvChan, spreadsheetChan, dp, priority, cncf, official, verified, unverified)
+	executeInStages(StartPipeline, csvChan, modelChan, dp, priority, cncf, official, verified, unverified)
 	time.Sleep(20 * time.Second)
 
-	close(spreadsheetChan)
+	close(modelChan)
 	wg.Wait()
 }
