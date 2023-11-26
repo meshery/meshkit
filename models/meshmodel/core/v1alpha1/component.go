@@ -131,6 +131,8 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	
 	if f.ReturnAnnotations {
 		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = true")
+	} else {
+		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = false")
 	}
 
 	if f.APIVersion != "" {
