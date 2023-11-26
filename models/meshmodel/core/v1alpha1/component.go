@@ -131,6 +131,10 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	
 	if f.ReturnAnnotations {
 		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = true")
+	} else {
+        // Include isAnnotation component by default
+		// TODO: change 'isAnnotation' = true" to 'isAnnotation' = false" if isAnnotation components should not be default provided
+		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = true")
 	}
 
 	if f.APIVersion != "" {
