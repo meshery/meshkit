@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 
@@ -28,6 +29,7 @@ var (
 	ErrYamlToCueCode                 = "11086"
 	ErrJsonSchemaToCueCode           = "11087"
 	ErrCueLookupCode                 = "11089"
+	ErrTypeCastCode                  = "11100"
 )
 
 func ErrCueLookup(err error) error {
@@ -107,4 +109,8 @@ func ErrGettingLatestReleaseTag(err error) error {
 		[]string{"Failed to make GET request to github", "Invalid response received on github.com/<org>/<repo>/releases/stable"},
 		[]string{"Make sure Github is reachable", "Make sure a valid response is available on github.com/<org>/<repo>/releases/stable"},
 	)
+}
+
+func ErrTypeCast(valType string) error {
+	return errors.New(ErrTypeCastCode, errors.Alert, []string{"invaid type assertion requested"}, []string{fmt.Sprintf("The underlying type of the interface is %s", valType)}, []string{"The interface type is not compatible with the request type cast"}, []string{"use correct data type for type casting"})
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -244,4 +245,26 @@ func Contains[G []K, K comparable](slice G, ele K) bool {
 		}
 	}
 	return false
+}
+
+
+func Cast[K any](val interface{}) (K, error) {
+	assertedValue, ok := val.(K)
+	if !ok {
+		return assertedValue, ErrTypeCast(reflect.TypeOf(val).Name())
+	}
+	return assertedValue, nil
+}
+
+func MarshalAndUnmarshal[fromType any, toType any](val fromType) (unmarshalledvalue toType, err error){
+	data, err := Marshal(val)
+	if err != nil {
+		return
+	}
+
+	err = Unmarshal(data, &unmarshalledvalue)
+	if err != nil {
+		return
+	}
+	return
 }

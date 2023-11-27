@@ -5,11 +5,11 @@ import (
 )
 
 const (
-	ErrConnectCode        = "11000"
-	ErrEncodedConnCode    = "11000"
-	ErrPublishCode        = "11001"
-	ErrPublishRequestCode = "11001"
-	ErrQueueSubscribeCode = "11001"
+	ErrConnectCode        = "11103"
+	ErrEncodedConnCode    = "11104"
+	ErrPublishCode        = "11105"
+	ErrPublishRequestCode = "11101"
+	ErrQueueSubscribeCode = "11102"
 )
 
 func ErrConnect(err error) error {
