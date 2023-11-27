@@ -129,8 +129,10 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
 	
-	if f.ReturnAnnotations {
+	if f.Annotations == "true" {
 		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = true")
+	} else if f.Annotations == "false" {
+		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = false")
 	}
 
 	if f.APIVersion != "" {
@@ -186,7 +188,7 @@ type ComponentFilter struct {
 	OrderOn      string
 	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
 	Offset       int
-	ReturnAnnotations bool
+	Annotations  string
 }
 
 // Create the filter from map[string]interface{}
