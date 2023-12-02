@@ -247,7 +247,6 @@ func Contains[G []K, K comparable](slice G, ele K) bool {
 	return false
 }
 
-
 func Cast[K any](val interface{}) (K, error) {
 	assertedValue, ok := val.(K)
 	if !ok {
@@ -256,7 +255,7 @@ func Cast[K any](val interface{}) (K, error) {
 	return assertedValue, nil
 }
 
-func MarshalAndUnmarshal[fromType any, toType any](val fromType) (unmarshalledvalue toType, err error){
+func MarshalAndUnmarshal[fromType any, toType any](val fromType) (unmarshalledvalue toType, err error) {
 	data, err := Marshal(val)
 	if err != nil {
 		return

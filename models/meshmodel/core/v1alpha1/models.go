@@ -14,15 +14,16 @@ import (
 var modelCreationLock sync.Mutex //Each component/relationship will perform a check and if the model already doesn't exist, it will create a model. This lock will make sure that there are no race conditions.
 type ModelFilter struct {
 	Name        string
-	Registrant string //name of the registrant for a given model
+	Registrant  string //name of the registrant for a given model
 	DisplayName string //If Name is already passed, avoid passing Display name unless greedy=true, else the filter will translate to an AND returning only the models where name and display name match exactly. Ignore, if this behavior is expected.
 	Greedy      bool   //when set to true - instead of an exact match, name will be prefix matched. Also an OR will be performed of name and display_name
 	Version     string
 	Category    string
 	OrderOn     string
 	Sort        string //asc or desc. Default behavior is asc
-	Limit       int    //If 0 or  unspecified then all records are returned and limit is not used
+	Limit       int    //If 0 or unspecified then all records are returned and limit is not used
 	Offset      int
+	Annotations string //When this query parameter is "true", only models with the "isAnnotation" property set to true are returned. When  this query parameter is "false", all models except those considered to be annotation models are returned. Any other value of the query parameter results in both annoations as well as non-annotation models being returned.
 }
 
 // Create the filter from map[string]interface{}
