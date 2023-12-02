@@ -108,7 +108,6 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
 
-	
 	if f.Greedy {
 		if f.Name != "" && f.DisplayName != "" {
 			finder = finder.Where("component_definition_dbs.kind LIKE ? OR display_name LIKE ?", "%"+f.Name+"%", f.DisplayName+"%")
@@ -128,7 +127,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	if f.ModelName != "" && f.ModelName != "all" {
 		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
-	
+
 	if f.Annotations == "true" {
 		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = true")
 	} else if f.Annotations == "false" {
@@ -188,7 +187,7 @@ type ComponentFilter struct {
 	OrderOn      string
 	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
 	Offset       int
-	Annotations  string
+	Annotations  string //When this query parameter is "true", only components with the "isAnnotation" property set to true are returned. When this query parameter is "false", all components except those considered to be annotation components are returned. Any other value of the query parameter results in both annotations as well as non-annotation models being returned.
 }
 
 // Create the filter from map[string]interface{}
