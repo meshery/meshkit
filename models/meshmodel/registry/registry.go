@@ -343,6 +343,11 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		if mf.Registrant != "" {
 			finder = finder.Where("hosts.hostname = ?", mf.Registrant)
 		}
+		if mf.Annotations == "true" {
+			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
+		} else if mf.Annotations == "false" {
+			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
+		}
 		if mf.OrderOn != "" {
 			if mf.Sort == "desc" {
 				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: mf.OrderOn}, Desc: true})
