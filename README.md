@@ -46,3 +46,22 @@ Find out more on the <a href="https://layer5.io/community">Layer5 community</a>.
 <p align="center">
 <i>Not sure where to start?</i> Grab an open issue with the <a href="https://github.com/layer5io/layer5/labels/help%20wanted">help-wanted label</a>.
 </p>
+
+## Contributing
+
+Please do! We're a warm and welcoming community of open source contributors. Please join. All types of contributions are welcome. Be sure to read the [Contributor Guides](https://docs.meshery.io/project/contributing) for a tour of resources available to you and how to get started.
+
+### Stargazers
+
+<p align="center">
+  <i>If you like Meshery, please <a href="../../stargazers">★</a> star this repository to show your support! 🤩</i>
+ <br />
+<a href="../../stargazers">
+ <img align="center" src="https://api.star-history.com/svg?repos=meshery/meshkit&type=Date" />
+</a></p>
+
+### License
+
+This repository and site are available as open-source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
+
+
