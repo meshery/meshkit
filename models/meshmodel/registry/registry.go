@@ -16,6 +16,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+var NonImportCount int64 // Keep track of the number of Items{Components,models,Realtionship} that were unable to make it to registries table
+
 // MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
 // registry (Meshery)
 //
@@ -117,6 +119,7 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
 		if entity.Schema == "" { //For components with an empty schema, exit quietly
+			NonImportCount++
 			return nil
 		}
 
@@ -439,6 +442,19 @@ func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	var h Host
 	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
 	return h
+}
+
+// Count the number of Entities in registries
+func (rm *RegistryManager) GetRegisteriesCount() (int64, error) {
+	var totalcount int64
+	db := rm.db
+
+	query := db.Table("registries").
+		Count(&totalcount)
+	if query.Error != nil {
+		return 0, query.Error
+	}
+	return totalcount, nil
 }
 
 func HostnameToPascalCase(input string) string {
