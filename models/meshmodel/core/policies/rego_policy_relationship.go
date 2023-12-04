@@ -3,6 +3,7 @@ package policies
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -69,7 +70,7 @@ func mapRelationshipsWithSubType(relationships *[]v1alpha1.RelationshipDefinitio
 }
 
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
-func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (map[string]interface{}, error) {
+func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (interface{}, error) {
 	regoEngine, err := rego.New(
 		rego.Query(regoQueryString),
 		rego.Load([]string{r.policyDir}, nil),
@@ -93,7 +94,13 @@ func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (map
 	}
 
 	if !eval_result.Allowed() {
-		return eval_result[0].Expressions[0].Value.(map[string]interface{}), nil
+		if len(eval_result) > 0 {
+			if len(eval_result[0].Expressions) > 0 {
+				return eval_result[0].Expressions[0].Value, nil
+			}
+			return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
+		}
+		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
 	}
 
 	return nil, ErrEval(err)
