@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var NonImportCount int64 // Keep track of the number of Items{Components,models,Realtionship} that were unable to make it to registries table
+var NonImportModel v1alpha1.EntitySummary // Keep track of the number of Items{Components,models,Realtionship} that were unable to make it to registries table
 
 // MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
 // registry (Meshery)
@@ -115,26 +115,61 @@ func (rm *RegistryManager) Cleanup() {
 		&v1alpha1.RelationshipDefinitionDB{},
 	)
 }
+
+type CustomError struct {
+	message string
+}
+
+// Error returns the error message for the CustomError type.
+func (e *CustomError) Error() string {
+	return e.message
+}
+func onEntityError(en Entity, causeModel bool, causeRegistrant bool) {
+	if causeModel {
+		NonImportModel.Models++
+		return
+	}
+	if causeRegistrant {
+		return
+	}
+	switch en.(type) {
+	case v1alpha1.ComponentDefinition:
+		NonImportModel.Components++
+		return
+	case v1alpha1.RelationshipDefinition:
+		NonImportModel.Relationships++
+		return
+	case v1alpha1.PolicyDefinition:
+		NonImportModel.Policies++
+		return
+	default:
+		return
+	}
+
+}
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
 		if entity.Schema == "" { //For components with an empty schema, exit quietly
-			NonImportCount++
+			onEntityError(entity, false, false)
 			return nil
 		}
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
+			onEntityError(entity, false, true)
 			return err
 		}
 
 		componentID, modelID, err := v1alpha1.CreateComponent(rm.db, entity)
 		if err != nil {
+			onEntityError(entity, false, false)
 			return err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
+			onEntityError(entity, true, false)
 			return err
 		}
 
@@ -146,21 +181,28 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		return rm.db.Create(&entry).Error
+		err = rm.db.Create(&entry).Error
+		if err != nil {
+			onEntityError(entity, false, false)
+		}
+		return err
 	case v1alpha1.RelationshipDefinition:
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
+			onEntityError(entity, false, true)
 			return err
 		}
 
 		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
 		if err != nil {
+			onEntityError(entity, false, false)
 			return err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
+			onEntityError(entity, true, false)
 			return err
 		}
 
@@ -172,21 +214,28 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		return rm.db.Create(&entry).Error
+		err = rm.db.Create(&entry).Error
+		if err != nil {
+			onEntityError(entity, false, false)
+		}
+		return err
 	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
+			onEntityError(entity, false, true)
 			return err
 		}
 
 		policyID, modelID, err := v1alpha1.CreatePolicy(rm.db, entity)
 		if err != nil {
+			onEntityError(entity, false, false)
 			return err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
+			onEntityError(entity, true, false)
 			return err
 		}
 
@@ -198,8 +247,11 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		return rm.db.Create(&entry).Error
-
+		err = rm.db.Create(&entry).Error
+		if err != nil {
+			onEntityError(entity, false, false)
+		}
+		return err
 	default:
 		return nil
 	}
@@ -443,18 +495,21 @@ func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
 	return h
 }
+func (rm *RegistryManager) GetRegisteriesCount() (v1alpha1.EntitySummary, error) {
 
-// Count the number of Entities in registries
-func (rm *RegistryManager) GetRegisteriesCount() (int64, error) {
-	var totalcount int64
+	var counts v1alpha1.EntitySummary
 	db := rm.db
 
 	query := db.Table("registries").
-		Count(&totalcount)
+		Select("SUM(CASE WHEN type = 'model' THEN 1 ELSE 0 END) AS models, " +
+			"SUM(CASE WHEN type = 'component' THEN 1 ELSE 0 END) AS components, " +
+			"SUM(CASE WHEN type = 'relationship' THEN 1 ELSE 0 END) AS relationships," +
+			"SUM(CASE WHEN type = 'policy' THEN 1 ELSE 0 END) AS policies").
+		Scan(&counts)
 	if query.Error != nil {
-		return 0, query.Error
+		return counts, query.Error
 	}
-	return totalcount, nil
+	return counts, nil
 }
 
 func HostnameToPascalCase(input string) string {
