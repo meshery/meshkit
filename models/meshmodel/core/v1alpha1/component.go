@@ -41,7 +41,7 @@ type ComponentDefinition struct {
 }
 type ComponentDefinitionDB struct {
 	ID      uuid.UUID `json:"-"`
-	ModelID uuid.UUID `json:"-" gorm:"modelID"`
+	ModelID uuid.UUID `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
 	TypeMeta
 	DisplayName string          `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat `json:"format" yaml:"format"`
@@ -108,7 +108,6 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
 
-	
 	if f.Greedy {
 		if f.Name != "" && f.DisplayName != "" {
 			finder = finder.Where("component_definition_dbs.kind LIKE ? OR display_name LIKE ?", "%"+f.Name+"%", f.DisplayName+"%")
@@ -128,7 +127,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	if f.ModelName != "" && f.ModelName != "all" {
 		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
-	
+
 	if f.Annotations == "true" {
 		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = true")
 	} else if f.Annotations == "false" {

@@ -317,6 +317,9 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	// total count before pagination
 	var count int64
 
+	// include components and relationships in response body
+	var includeComponents, includeRelationships bool
+
 	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
 		if mf.Greedy {
 			if mf.Name != "" && mf.DisplayName != "" {
@@ -359,6 +362,8 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		if mf.Offset != 0 {
 			finder = finder.Offset(mf.Offset)
 		}
+		includeComponents = mf.Components
+		includeRelationships = mf.Relationships
 	}
 	err := finder.
 		Scan(&modelWithCategoriess).Error
@@ -373,6 +378,24 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		model.HostID = host.ID
 		model.HostName = host.Hostname
 		model.DisplayHostName = host.Hostname
+
+		if includeComponents {
+			var components []v1alpha1.ComponentDefinitionDB
+			finder := db.Model(&v1alpha1.ComponentDefinitionDB{}).
+				Select("component_definition_dbs.*").
+				Where("component_definition_dbs.model_id = ?", model.ID)
+			finder.Scan(&components)
+			model.Components = components
+		}
+		if includeRelationships {
+			var relationships []v1alpha1.RelationshipDefinitionDB
+			finder := db.Model(&v1alpha1.RelationshipDefinitionDB{}).
+				Select("relationship_definition_dbs.*").
+				Where("relationship_definition_dbs.model_id = ?", model.ID)
+			finder.Scan(&relationships)
+			model.Relationships = relationships
+		}
+
 		m = append(m, model)
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)

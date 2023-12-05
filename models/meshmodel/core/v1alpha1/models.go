@@ -14,7 +14,7 @@ import (
 var modelCreationLock sync.Mutex //Each component/relationship will perform a check and if the model already doesn't exist, it will create a model. This lock will make sure that there are no race conditions.
 type ModelFilter struct {
 	Name        string
-	Registrant string //name of the registrant for a given model
+	Registrant  string //name of the registrant for a given model
 	DisplayName string //If Name is already passed, avoid passing Display name unless greedy=true, else the filter will translate to an AND returning only the models where name and display name match exactly. Ignore, if this behavior is expected.
 	Greedy      bool   //when set to true - instead of an exact match, name will be prefix matched. Also an OR will be performed of name and display_name
 	Version     string
@@ -23,6 +23,9 @@ type ModelFilter struct {
 	Sort        string //asc or desc. Default behavior is asc
 	Limit       int    //If 0 or  unspecified then all records are returned and limit is not used
 	Offset      int
+
+	Components    bool
+	Relationships bool
 }
 
 // Create the filter from map[string]interface{}
@@ -35,16 +38,19 @@ func (cf *ModelFilter) Create(m map[string]interface{}) {
 
 // swagger:response Model
 type Model struct {
-	ID              uuid.UUID              `json:"-" yaml:"-"`
-	Name            string                 `json:"name"`
-	Version         string                 `json:"version"`
-	DisplayName     string                 `json:"displayName" gorm:"modelDisplayName"`
-	HostName        string                 `json:"hostname"`
-	HostID          uuid.UUID              `json:"hostID"`
-	DisplayHostName string                 `json:"displayhostname"`
-	Category        Category               `json:"category"`
-	Metadata        map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
+	ID              uuid.UUID                  `json:"-" yaml:"-"`
+	Name            string                     `json:"name"`
+	Version         string                     `json:"version"`
+	DisplayName     string                     `json:"displayName" gorm:"modelDisplayName"`
+	HostName        string                     `json:"hostname"`
+	HostID          uuid.UUID                  `json:"hostID"`
+	DisplayHostName string                     `json:"displayhostname"`
+	Category        Category                   `json:"category"`
+	Metadata        map[string]interface{}     `json:"metadata" yaml:"modelMetadata"`
+	Components      []ComponentDefinitionDB    `json:"components"`
+	Relationships   []RelationshipDefinitionDB `json:"relationships"`
 }
+
 type ModelDB struct {
 	ID          uuid.UUID `json:"-"`
 	CategoryID  uuid.UUID `json:"-" gorm:"categoryID"`
@@ -100,6 +106,8 @@ func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 	c.DisplayName = cmd.DisplayName
 	c.Name = cmd.Name
 	c.Version = cmd.Version
+	c.Components = make([]ComponentDefinitionDB, 0)
+	c.Relationships = make([]RelationshipDefinitionDB, 0)
 	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
 	return
 }
