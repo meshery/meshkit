@@ -12,7 +12,6 @@ import (
 	k8s "github.com/layer5io/meshkit/utils/kubernetes"
 )
 
-
 func GetFromManifest(ctx context.Context, url string, resource int, cfg Config) (*Component, error) {
 	manifest, err := utils.ReadFileSource(url)
 	if err != nil {

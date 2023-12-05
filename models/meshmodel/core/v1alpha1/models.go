@@ -21,9 +21,11 @@ type ModelFilter struct {
 	Category    string
 	OrderOn     string
 	Sort        string //asc or desc. Default behavior is asc
-	Limit       int    //If 0 or  unspecified then all records are returned and limit is not used
+	Limit       int    //If 0 or unspecified then all records are returned and limit is not used
 	Offset      int
+	Annotations string //When this query parameter is "true", only models with the "isAnnotation" property set to true are returned. When  this query parameter is "false", all models except those considered to be annotation models are returned. Any other value of the query parameter results in both annoations as well as non-annotation models being returned.
 
+	// When these are set to true, we also retrieve components/relationships associated with the model.
 	Components    bool
 	Relationships bool
 }

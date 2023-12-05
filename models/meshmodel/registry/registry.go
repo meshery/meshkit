@@ -337,6 +337,11 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 				finder = finder.Where("model_dbs.display_name = ?", mf.DisplayName)
 			}
 		}
+		if mf.Annotations == "true" {
+			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
+		} else if mf.Annotations == "false" {
+			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
+		}
 		if mf.Version != "" {
 			finder = finder.Where("model_dbs.version = ?", mf.Version)
 		}
@@ -345,6 +350,11 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		}
 		if mf.Registrant != "" {
 			finder = finder.Where("hosts.hostname = ?", mf.Registrant)
+		}
+		if mf.Annotations == "true" {
+			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
+		} else if mf.Annotations == "false" {
+			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
 		}
 		if mf.OrderOn != "" {
 			if mf.Sort == "desc" {

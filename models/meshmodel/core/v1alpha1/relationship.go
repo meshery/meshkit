@@ -24,6 +24,7 @@ type RelationshipDefinition struct {
 	DisplayHostName string                 `json:"displayhostname"`
 	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
 	SubType         string                 `json:"subType" yaml:"subType" gorm:"subType"`
+	RegoQuery       string                 `json:"rego_query" yaml:"rego_query" gorm:"rego_query"`
 	Selectors       map[string]interface{} `json:"selectors" yaml:"selectors"`
 	CreatedAt       time.Time              `json:"-"`
 	UpdatedAt       time.Time              `json:"-"`
@@ -35,6 +36,7 @@ type RelationshipDefinitionDB struct {
 	TypeMeta
 	Metadata  []byte    `json:"metadata" yaml:"metadata"`
 	SubType   string    `json:"subType" yaml:"subType"`
+	RegoQuery string    `json:"rego_query" yaml:"rego_query" gorm:"rego_query"`
 	Selectors []byte    `json:"selectors" yaml:"selectors"`
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
@@ -127,6 +129,7 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r Relat
 	r.SubType = rdb.SubType
 	r.Kind = rdb.Kind
 	r.Model = m
+	r.RegoQuery = rdb.RegoQuery
 	return
 }
 
@@ -160,5 +163,6 @@ func (r *RelationshipDefinition) GetRelationshipDefinitionDB() (rdb Relationship
 	rdb.Kind = r.Kind
 	rdb.SubType = r.SubType
 	rdb.ModelID = r.Model.ID
+	rdb.RegoQuery = r.RegoQuery
 	return
 }

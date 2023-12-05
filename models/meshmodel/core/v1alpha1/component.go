@@ -187,7 +187,7 @@ type ComponentFilter struct {
 	OrderOn      string
 	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
 	Offset       int
-	Annotations  string
+	Annotations  string //When this query parameter is "true", only components with the "isAnnotation" property set to true are returned. When this query parameter is "false", all components except those considered to be annotation components are returned. Any other value of the query parameter results in both annotations as well as non-annotation models being returned.
 }
 
 // Create the filter from map[string]interface{}
