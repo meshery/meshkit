@@ -117,14 +117,6 @@ func (rm *RegistryManager) Cleanup() {
 	)
 }
 
-type CustomError struct {
-	message string
-}
-
-// Error returns the error message for the CustomError type.
-func (e *CustomError) Error() string {
-	return e.message
-}
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
