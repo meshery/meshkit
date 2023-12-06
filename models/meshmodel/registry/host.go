@@ -28,6 +28,7 @@ type Host struct {
 func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 	byt, err := json.Marshal(h)
 	if err != nil {
+		onRegistrantError(h)
 		return uuid.UUID{}, err
 	}
 	hID := uuid.NewSHA1(uuid.UUID{}, byt)
@@ -36,6 +37,7 @@ func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 	defer hostCreationLock.Unlock()
 	err = db.First(&host, "id = ?", hID).Error // check if the host already exists
 	if err != nil && err != gorm.ErrRecordNotFound {
+		onRegistrantError(h)
 		return uuid.UUID{}, err
 	}
 
@@ -44,6 +46,7 @@ func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
 		h.ID = hID
 		err = db.Create(&h).Error
 		if err != nil {
+			onRegistrantError(h)
 			return uuid.UUID{}, err
 		}
 		return h.ID, nil

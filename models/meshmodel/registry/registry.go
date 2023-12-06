@@ -16,8 +16,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var NonImportModel v1alpha1.EntitySummary // Keep track of the number of Items{Components,models,Realtionship} that were unable to make it to registries table
-
 // MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
 // registry (Meshery)
 //
@@ -61,6 +59,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 
 	byt, err := json.Marshal(entity)
 	if err != nil {
+		onModelError(entity)
 		return err
 	}
 
@@ -68,6 +67,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 	var reg Registry
 	err = db.First(&reg, "id = ?", entityID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
+		onModelError(entity)
 		return err
 	}
 
@@ -75,6 +75,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 		entity.ID = entityID
 		err = db.Create(&entity).Error
 		if err != nil {
+			onModelError(entity)
 			return err
 		}
 	}
@@ -124,52 +125,29 @@ type CustomError struct {
 func (e *CustomError) Error() string {
 	return e.message
 }
-func onEntityError(en Entity, causeModel bool, causeRegistrant bool) {
-	if causeModel {
-		NonImportModel.Models++
-		return
-	}
-	if causeRegistrant {
-		return
-	}
-	switch en.(type) {
-	case v1alpha1.ComponentDefinition:
-		NonImportModel.Components++
-		return
-	case v1alpha1.RelationshipDefinition:
-		NonImportModel.Relationships++
-		return
-	case v1alpha1.PolicyDefinition:
-		NonImportModel.Policies++
-		return
-	default:
-		return
-	}
-
-}
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
 		if entity.Schema == "" { //For components with an empty schema, exit quietly
-			onEntityError(entity, false, false)
+			onEntityError(entity)
 			return nil
 		}
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity, false, true)
+			onEntityError(entity)
 			return err
 		}
 
 		componentID, modelID, err := v1alpha1.CreateComponent(rm.db, entity)
 		if err != nil {
-			onEntityError(entity, false, false)
+			onEntityError(entity)
 			return err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
-			onEntityError(entity, true, false)
+			onEntityError(entity)
 			return err
 		}
 
@@ -183,26 +161,26 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		err = rm.db.Create(&entry).Error
 		if err != nil {
-			onEntityError(entity, false, false)
+			onEntityError(entity)
 		}
 		return err
 	case v1alpha1.RelationshipDefinition:
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity, false, true)
+			onEntityError(entity)
 			return err
 		}
 
 		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
 		if err != nil {
-			onEntityError(entity, false, false)
+			onEntityError(entity)
 			return err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
-			onEntityError(entity, true, false)
+			onEntityError(entity)
 			return err
 		}
 
@@ -216,26 +194,26 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		err = rm.db.Create(&entry).Error
 		if err != nil {
-			onEntityError(entity, false, false)
+			onEntityError(entity)
 		}
 		return err
 	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity, false, true)
+			onEntityError(entity)
 			return err
 		}
 
 		policyID, modelID, err := v1alpha1.CreatePolicy(rm.db, entity)
 		if err != nil {
-			onEntityError(entity, false, false)
+			onEntityError(entity)
 			return err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
-			onEntityError(entity, true, false)
+			onEntityError(entity)
 			return err
 		}
 
@@ -249,7 +227,7 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		err = rm.db.Create(&entry).Error
 		if err != nil {
-			onEntityError(entity, false, false)
+			onEntityError(entity)
 		}
 		return err
 	default:
