@@ -17,6 +17,7 @@ type Handler interface {
 	Debug(description ...interface{})
 	Warn(err error)
 	Error(err error)
+	Errorf(format string, args ...interface{})
 
 	// Kubernetes Controller compliant logger
 	ControllerLogger() logr.Logger
@@ -80,6 +81,9 @@ func (l *Logger) Error(err error) {
 		"probable-cause":        errors.GetCause(err),
 		"suggested-remediation": errors.GetRemedy(err),
 	}).Log(logrus.ErrorLevel, err.Error())
+}
+func (l *Logger) Errorf(format string, args ...interface{}) {
+	l.handler.Errorf(format, args...)
 }
 
 func (l *Logger) Info(description ...interface{}) {
