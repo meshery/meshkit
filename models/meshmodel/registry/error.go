@@ -20,7 +20,7 @@ var (
 )
 
 func ErrUnknownHost(err error) error {
-	return errors.New(ErrUnknownHostCode, errors.Alert, []string{"host is not supported"}, []string{err.Error()}, []string{"The component's host is not supported by the version of server you are running"}, []string{"Try upgrading to latest available version"})
+	return errors.New(ErrUnknownHostCode, errors.Alert, []string{"Registrant type is not supported or unknown."}, []string{err.Error()}, []string{"The host registering a Model and it's components is not recognized by Meshery Server (or by the version currently running)."}, []string{"Validate the name and location of the model registrant. Try upgrading to latest available Meshery version."})
 }
 func onModelError(reg Registry) {
 	ModelCount[reg.Entity]++
