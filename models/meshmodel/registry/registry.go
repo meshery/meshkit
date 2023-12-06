@@ -465,7 +465,7 @@ func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
 	return h
 }
-func (rm *RegistryManager) GetRegisteriesCount() (v1alpha1.EntitySummary, error) {
+func (rm *RegistryManager) GetRegistryCount() (v1alpha1.EntitySummary, error) {
 
 	var counts v1alpha1.EntitySummary
 	db := rm.db
