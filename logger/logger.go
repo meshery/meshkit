@@ -17,7 +17,7 @@ type Handler interface {
 	Debug(description ...interface{})
 	Warn(err error)
 	Error(err error)
-
+	Errorf(format string, args ...interface{})
 	// Kubernetes Controller compliant logger
 	ControllerLogger() logr.Logger
 	DatabaseLogger() gormlogger.Interface
@@ -89,6 +89,9 @@ func (l *Logger) Info(description ...interface{}) {
 }
 func (l *Logger) Infof(format string, args ...interface{}) {
 	l.handler.Infof(format, args...)
+}
+func (l *Logger) Errorf(format string, args ...interface{}) {
+	l.handler.Errorf(format, args...)
 }
 func (l *Logger) Debug(description ...interface{}) {
 	l.handler.Log(logrus.DebugLevel,

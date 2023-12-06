@@ -32,15 +32,10 @@ func onEntityError(en Entity) {
 	switch en.(type) {
 	case v1alpha1.ComponentDefinition:
 		NonImportModel.Components++
-		return
 	case v1alpha1.RelationshipDefinition:
 		NonImportModel.Relationships++
-		return
 	case v1alpha1.PolicyDefinition:
 		NonImportModel.Policies++
-		return
-	default:
-		return
 	}
 
 }
