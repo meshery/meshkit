@@ -18,6 +18,7 @@ type Handler interface {
 	Warn(err error)
 	Error(err error)
 	Errorf(format string, args ...interface{})
+
 	// Kubernetes Controller compliant logger
 	ControllerLogger() logr.Logger
 	DatabaseLogger() gormlogger.Interface
