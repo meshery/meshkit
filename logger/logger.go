@@ -81,6 +81,9 @@ func (l *Logger) Error(err error) {
 		"suggested-remediation": errors.GetRemedy(err),
 	}).Log(logrus.ErrorLevel, err.Error())
 }
+func (l *Logger) Errorf(format string, args ...interface{}) {
+	l.handler.Errorf(format, args...)
+}
 
 func (l *Logger) Info(description ...interface{}) {
 	l.handler.Log(logrus.InfoLevel,
@@ -89,9 +92,6 @@ func (l *Logger) Info(description ...interface{}) {
 }
 func (l *Logger) Infof(format string, args ...interface{}) {
 	l.handler.Infof(format, args...)
-}
-func (l *Logger) Errorf(format string, args ...interface{}) {
-	l.handler.Errorf(format, args...)
 }
 func (l *Logger) Debug(description ...interface{}) {
 	l.handler.Log(logrus.DebugLevel,

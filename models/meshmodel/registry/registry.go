@@ -50,7 +50,7 @@ type RegistryManager struct {
 }
 
 // Registers models into registries table.
-func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
+func registerModel(db *database.Handler, regID, modelID uuid.UUID, modelName string, h Host) error {
 	entity := Registry{
 		RegistrantID: regID,
 		Entity:       modelID,
@@ -59,7 +59,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 
 	byt, err := json.Marshal(entity)
 	if err != nil {
-		onModelError(entity)
+		onModelError(entity, modelName, h)
 		return err
 	}
 
@@ -67,7 +67,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 	var reg Registry
 	err = db.First(&reg, "id = ?", entityID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		onModelError(entity)
+		onModelError(entity, modelName, h)
 		return err
 	}
 
@@ -75,7 +75,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 		entity.ID = entityID
 		err = db.Create(&entity).Error
 		if err != nil {
-			onModelError(entity)
+			onModelError(entity, modelName, h)
 			return err
 		}
 	}
@@ -117,37 +117,29 @@ func (rm *RegistryManager) Cleanup() {
 	)
 }
 
-type CustomError struct {
-	message string
-}
-
-// Error returns the error message for the CustomError type.
-func (e *CustomError) Error() string {
-	return e.message
-}
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
 		if entity.Schema == "" { //For components with an empty schema, exit quietly
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return nil
 		}
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return err
 		}
 
 		componentID, modelID, err := v1alpha1.CreateComponent(rm.db, entity)
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return err
 		}
 
-		err = registerModel(rm.db, registrantID, modelID)
+		err = registerModel(rm.db, registrantID, modelID, entity.Model.DisplayHostName, h)
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return err
 		}
 
@@ -161,26 +153,26 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		err = rm.db.Create(&entry).Error
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 		}
 		return err
 	case v1alpha1.RelationshipDefinition:
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return err
 		}
 
 		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return err
 		}
 
-		err = registerModel(rm.db, registrantID, modelID)
+		err = registerModel(rm.db, registrantID, modelID, entity.Model.Name, h)
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return err
 		}
 
@@ -194,26 +186,26 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		err = rm.db.Create(&entry).Error
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 		}
 		return err
 	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return err
 		}
 
 		policyID, modelID, err := v1alpha1.CreatePolicy(rm.db, entity)
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return err
 		}
 
-		err = registerModel(rm.db, registrantID, modelID)
+		err = registerModel(rm.db, registrantID, modelID, entity.Model.DisplayName, h)
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 			return err
 		}
 
@@ -227,7 +219,7 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		err = rm.db.Create(&entry).Error
 		if err != nil {
-			onEntityError(entity)
+			onEntityError(entity, h)
 		}
 		return err
 	default:
@@ -473,23 +465,6 @@ func (rm *RegistryManager) GetRegistrant(e Entity) Host {
 	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
 	return h
 }
-func (rm *RegistryManager) GetRegisteriesCount() (v1alpha1.EntitySummary, error) {
-
-	var counts v1alpha1.EntitySummary
-	db := rm.db
-
-	query := db.Table("registries").
-		Select("SUM(CASE WHEN type = 'model' THEN 1 ELSE 0 END) AS models, " +
-			"SUM(CASE WHEN type = 'component' THEN 1 ELSE 0 END) AS components, " +
-			"SUM(CASE WHEN type = 'relationship' THEN 1 ELSE 0 END) AS relationships," +
-			"SUM(CASE WHEN type = 'policy' THEN 1 ELSE 0 END) AS policies").
-		Scan(&counts)
-	if query.Error != nil {
-		return counts, query.Error
-	}
-	return counts, nil
-}
-
 func HostnameToPascalCase(input string) string {
 	parts := strings.Split(input, ".")
 	caser := cases.Title(language.English)
