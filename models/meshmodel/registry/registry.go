@@ -392,9 +392,11 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		if includeComponents {
 			var components []v1alpha1.ComponentDefinitionDB
 			finder := db.Model(&v1alpha1.ComponentDefinitionDB{}).
-				Select("component_definition_dbs.*").
+				Select("component_definition_dbs.kind, component_definition_dbs.display_name, component_definition_dbs.api_version").
 				Where("component_definition_dbs.model_id = ?", model.ID)
-			finder.Scan(&components)
+			if err := finder.Scan(&components).Error; err != nil {
+				fmt.Println(err)
+			}
 			model.Components = components
 		}
 		if includeRelationships {
@@ -402,7 +404,9 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 			finder := db.Model(&v1alpha1.RelationshipDefinitionDB{}).
 				Select("relationship_definition_dbs.*").
 				Where("relationship_definition_dbs.model_id = ?", model.ID)
-			finder.Scan(&relationships)
+			if err := finder.Scan(&relationships).Error; err != nil {
+				fmt.Println(err)
+			}
 			model.Relationships = relationships
 		}
 
