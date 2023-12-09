@@ -32,7 +32,7 @@ type RelationshipDefinition struct {
 
 type RelationshipDefinitionDB struct {
 	ID      uuid.UUID `json:"-"`
-	ModelID uuid.UUID `json:"-" gorm:"modelID"`
+	ModelID uuid.UUID `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:modelID"`
 	TypeMeta
 	Metadata  []byte    `json:"metadata" yaml:"metadata"`
 	SubType   string    `json:"subType" yaml:"subType"`

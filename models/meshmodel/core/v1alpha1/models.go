@@ -24,6 +24,10 @@ type ModelFilter struct {
 	Limit       int    //If 0 or unspecified then all records are returned and limit is not used
 	Offset      int
 	Annotations string //When this query parameter is "true", only models with the "isAnnotation" property set to true are returned. When  this query parameter is "false", all models except those considered to be annotation models are returned. Any other value of the query parameter results in both annoations as well as non-annotation models being returned.
+
+	// When these are set to true, we also retrieve components/relationships associated with the model.
+	Components    bool
+	Relationships bool
 }
 
 // Create the filter from map[string]interface{}
@@ -36,16 +40,19 @@ func (cf *ModelFilter) Create(m map[string]interface{}) {
 
 // swagger:response Model
 type Model struct {
-	ID              uuid.UUID              `json:"-" yaml:"-"`
-	Name            string                 `json:"name"`
-	Version         string                 `json:"version"`
-	DisplayName     string                 `json:"displayName" gorm:"modelDisplayName"`
-	HostName        string                 `json:"hostname"`
-	HostID          uuid.UUID              `json:"hostID"`
-	DisplayHostName string                 `json:"displayhostname"`
-	Category        Category               `json:"category"`
-	Metadata        map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
+	ID              uuid.UUID                  `json:"-" yaml:"-"`
+	Name            string                     `json:"name"`
+	Version         string                     `json:"version"`
+	DisplayName     string                     `json:"displayName" gorm:"modelDisplayName"`
+	HostName        string                     `json:"hostname"`
+	HostID          uuid.UUID                  `json:"hostID"`
+	DisplayHostName string                     `json:"displayhostname"`
+	Category        Category                   `json:"category"`
+	Metadata        map[string]interface{}     `json:"metadata" yaml:"modelMetadata"`
+	Components      []ComponentDefinitionDB    `json:"components"`
+	Relationships   []RelationshipDefinitionDB `json:"relationships"`
 }
+
 type ModelDB struct {
 	ID          uuid.UUID `json:"-"`
 	CategoryID  uuid.UUID `json:"-" gorm:"categoryID"`
@@ -101,6 +108,8 @@ func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 	c.DisplayName = cmd.DisplayName
 	c.Name = cmd.Name
 	c.Version = cmd.Version
+	c.Components = make([]ComponentDefinitionDB, 0)
+	c.Relationships = make([]RelationshipDefinitionDB, 0)
 	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
 	return
 }
