@@ -59,7 +59,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID, modelName str
 
 	byt, err := json.Marshal(entity)
 	if err != nil {
-		onModelError(entity, modelName, h)
+		onModelError(entity, modelName, h, err)
 		return err
 	}
 
@@ -67,7 +67,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID, modelName str
 	var reg Registry
 	err = db.First(&reg, "id = ?", entityID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		onModelError(entity, modelName, h)
+		onModelError(entity, modelName, h, err)
 		return err
 	}
 
@@ -75,7 +75,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID, modelName str
 		entity.ID = entityID
 		err = db.Create(&entity).Error
 		if err != nil {
-			onModelError(entity, modelName, h)
+			onModelError(entity, modelName, h, err)
 			return err
 		}
 	}
@@ -121,25 +121,25 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
 		if entity.Schema == "" { //For components with an empty schema, exit quietly
-			onEntityError(entity, h)
+			onEntityError(entity, h, nil)
 			return nil
 		}
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 			return err
 		}
 
 		componentID, modelID, err := v1alpha1.CreateComponent(rm.db, entity)
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 			return err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID, entity.Model.DisplayHostName, h)
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 			return err
 		}
 
@@ -153,26 +153,26 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		err = rm.db.Create(&entry).Error
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 		}
 		return err
 	case v1alpha1.RelationshipDefinition:
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 			return err
 		}
 
 		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 			return err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID, entity.Model.Name, h)
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 			return err
 		}
 
@@ -186,26 +186,26 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		err = rm.db.Create(&entry).Error
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 		}
 		return err
 	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 			return err
 		}
 
 		policyID, modelID, err := v1alpha1.CreatePolicy(rm.db, entity)
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 			return err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID, entity.Model.DisplayName, h)
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 			return err
 		}
 
@@ -219,7 +219,7 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		}
 		err = rm.db.Create(&entry).Error
 		if err != nil {
-			onEntityError(entity, h)
+			onEntityError(entity, h, err)
 		}
 		return err
 	default:

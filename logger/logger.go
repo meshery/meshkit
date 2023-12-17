@@ -12,12 +12,10 @@ import (
 
 type Handler interface {
 	Info(description ...interface{})
-	Infof(format string, args ...interface{})
 
 	Debug(description ...interface{})
 	Warn(err error)
 	Error(err error)
-	Errorf(format string, args ...interface{})
 
 	// Kubernetes Controller compliant logger
 	ControllerLogger() logr.Logger
@@ -82,17 +80,11 @@ func (l *Logger) Error(err error) {
 		"suggested-remediation": errors.GetRemedy(err),
 	}).Log(logrus.ErrorLevel, err.Error())
 }
-func (l *Logger) Errorf(format string, args ...interface{}) {
-	l.handler.Errorf(format, args...)
-}
 
 func (l *Logger) Info(description ...interface{}) {
 	l.handler.Log(logrus.InfoLevel,
 		description...,
 	)
-}
-func (l *Logger) Infof(format string, args ...interface{}) {
-	l.handler.Infof(format, args...)
 }
 func (l *Logger) Debug(description ...interface{}) {
 	l.handler.Log(logrus.DebugLevel,
