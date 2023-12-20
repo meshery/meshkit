@@ -49,7 +49,6 @@ func ErrEmptySchema() error {
 func onModelError(reg Registry, modelName string, h Host, err error) {
 	if entityCount, ok := RegisterAttempts.Model[modelName]; ok {
 		entityCount.Attempt++
-		entityCount.Error = err
 		RegisterAttempts.Model[modelName] = entityCount
 	} else {
 		RegisterAttempts.Model[modelName] = EntityErrorCount{Attempt: 1, Error: err}
@@ -80,8 +79,6 @@ func onEntityError(en Entity, h Host, err error) {
 		}
 		if entityCount, ok := RegisterAttempts.Component[entityName]; ok {
 			entityCount.Attempt++
-
-			entityCount.Error = err
 			RegisterAttempts.Component[entityName] = entityCount
 		} else {
 			RegisterAttempts.Component[entityName] = EntityErrorCount{Attempt: 1, Error: err}
@@ -97,7 +94,6 @@ func onEntityError(en Entity, h Host, err error) {
 		entityID := entity.ID
 		if entityCount, ok := RegisterAttempts.Relationship[entityID]; ok {
 			entityCount.Attempt++
-			entityCount.Error = err
 			RegisterAttempts.Relationship[entityID] = entityCount
 		} else {
 			RegisterAttempts.Relationship[entityID] = EntityErrorCount{Attempt: 1, Error: err}
@@ -113,7 +109,6 @@ func onEntityError(en Entity, h Host, err error) {
 		entityID := entity.ID
 		if entityCount, ok := RegisterAttempts.Policy[entityID]; ok {
 			entityCount.Attempt++
-			entityCount.Error = err
 			RegisterAttempts.Policy[entityID] = entityCount
 		} else {
 			RegisterAttempts.Policy[entityID] = EntityErrorCount{Attempt: 1, Error: err}
