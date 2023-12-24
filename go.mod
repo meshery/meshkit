@@ -9,6 +9,7 @@ replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
 	github.com/kubernetes/kompose => github.com/meshery/kompose v1.0.1
+	oras.land/oras-go v1.2.4 => oras.land/oras-go v1.2.3
 )
 
 require (
