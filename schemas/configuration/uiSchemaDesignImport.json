@@ -2,5 +2,5 @@
   "uploadType": {
     "ui:widget": "radio"
   },
-  "ui:order" : ["designType", "uploadType", "name", "file", "url"]
+  "ui:order" : ["name", "designType", "uploadType", "file", "url"]
 }

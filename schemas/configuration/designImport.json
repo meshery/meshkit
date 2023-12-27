@@ -1,16 +1,15 @@
 {
-  "//playground": "https://rjsf-team.github.io/react-jsonschema-form/#eyJmb3JtRGF0YSI6eyJuYW1lIjoiVW50aXRsZWQgRGVzaWduIiwiZGVzaWduVHlwZSI6Ikt1YmVybmV0ZXMgTWFuaWZlc3QiLCJ1cGxvYWRUeXBlIjoiVVJMIEltcG9ydCIsImZpcnN0TmFtZSI6IkNodWNrIiwibGFzdE5hbWUiOiJOb3JyaXMiLCJhZ2UiOjc1LCJiaW8iOiJSb3VuZGhvdXNlIGtpY2tpbmcgYXNzZXMgc2luY2UgMTk0MCIsInBhc3N3b3JkIjoibm9uZWVkIiwidGVsZXBob25lIjoiMS04MDAtS0lDS0FTUyJ9LCJzY2hlbWEiOnsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsibmFtZSI6eyJ0eXBlIjoic3RyaW5nIiwidGl0bGUiOiJEZXNpZ24gZmlsZSBuYW1lIiwiZGVmYXVsdCI6IlVudGl0bGVkIERlc2lnbiIsIngtcmpzZi1ncmlkLWFyZWEiOiIxMiIsImRlc2NyaXB0aW9uIjoiUHJvdmlkZSBhIG5hbWUgZm9yIHlvdXIgZGVzaWduIGZpbGUuIFRoaXMgbmFtZSB3aWxsIGhlbHAgeW91IGlkZW50aWZ5IHRoZSBmaWxlIG1vcmUgZWFzaWx5LiBZb3UgY2FuIGFsc28gY2hhbmdlIHRoZSBuYW1lIG9mIHlvdXIgZGVzaWduIGFmdGVyIGltcG9ydGluZyBpdC4ifSwiZGVzaWduVHlwZSI6eyJ0aXRsZSI6IlNlbGVjdCB0aGUgZGVzaWduIHR5cGUiLCJlbnVtIjpbIkhlbG0gQ2hhcnQiLCJLdWJlcm5ldGVzIE1hbmlmZXN0IiwiRG9ja2VyIENvbXBvc2UiLCJNZXNoZXJ5IERlc2lnbiJdLCJkZWZhdWx0IjoiTWVzaGVyeSBEZXNpZ24iLCJ4LXJqc2YtZ3JpZC1hcmVhIjoiMTIiLCJkZXNjcmlwdGlvbiI6IlNlbGVjdCB0aGUgdHlwZSBvZiBkZXNpZ24geW91IGFyZSB1cGxvYWRpbmcuIFRoZSAnRGVzaWduIFR5cGUnIGRldGVybWluZXMgdGhlIGZvcm1hdCwgc3RydWN0dXJlLCBhbmQgY29udGVudCBvZiB0aGUgZmlsZSB5b3UgYXJlIHVwbG9hZGluZy4gQ2hvb3NlIHRoZSBhcHByb3ByaWF0ZSBkZXNpZ24gdHlwZSB0aGF0IG1hdGNoZXMgdGhlIG5hdHVyZSBvZiB5b3VyIGZpbGUuIENoZWNrb3V0IGh0dHBzOi8vZG9jcy5tZXNoZXJ5LmlvL2d1aWRlcy9tZXNoZXJ5LWRlc2lnbiB0byBsZWFybiBtb3JlIGFib3V0IGRlc2lnbnMifX0sImFsbE9mIjpbeyJpZiI6eyJwcm9wZXJ0aWVzIjp7ImRlc2lnblR5cGUiOnsibm90Ijp7ImNvbnN0IjoiSGVsbSBDaGFydCJ9fX19LCJ0aGVuIjp7InByb3BlcnRpZXMiOnsidXBsb2FkVHlwZSI6eyJ0aXRsZSI6IlNlbGVjdCB0aGUgdXBsb2FkIG1ldGhvZCIsImVudW0iOlsiRmlsZSBVcGxvYWQiLCJVUkwgSW1wb3J0Il0sImRlZmF1bHQiOiJGaWxlIFVwbG9hZCIsIngtcmpzZi1ncmlkLWFyZWEiOiIxMiIsImRlc2NyaXB0aW9uIjoiQ2hvb3NlIHRoZSBtZXRob2QgeW91IHByZWZlciB0byB1cGxvYWQgeW91ciBkZXNpZ24gZmlsZS4gU2VsZWN0ICdGaWxlIFVwbG9hZCcgaWYgeW91IGhhdmUgdGhlIGZpbGUgb24geW91ciBsb2NhbCBzeXN0ZW0sIG9yICdVUkwgSW1wb3J0JyBpZiB5b3UgaGF2ZSB0aGUgZmlsZSBob3N0ZWQgb25saW5lLiJ9fSwiYWxsT2YiOlt7ImlmIjp7InByb3BlcnRpZXMiOnsidXBsb2FkVHlwZSI6eyJjb25zdCI6IkZpbGUgVXBsb2FkIn19fSwidGhlbiI6eyJwcm9wZXJ0aWVzIjp7ImZpbGUiOnsidHlwZSI6InN0cmluZyIsImZvcm1hdCI6ImZpbGUiLCJkZXNjcmlwdGlvbiI6IkJyb3dzZSB0aGUgZGVzaWduIGZpbGUgZnJvbSB5b3VyIGZpbGUgc3lzdGVtIiwieC1yanNmLWdyaWQtYXJlYSI6IjEyIn19LCJyZXF1aXJlZCI6WyJmaWxlIl19fSx7ImlmIjp7InByb3BlcnRpZXMiOnsidXBsb2FkVHlwZSI6eyJjb25zdCI6IlVSTCBJbXBvcnQifX19LCJ0aGVuIjp7InByb3BlcnRpZXMiOnsidXJsIjp7InR5cGUiOiJzdHJpbmciLCJmb3JtYXQiOiJ1cmkiLCJ0aXRsZSI6IlVSTCIsImRlc2NyaXB0aW9uIjoiUHJvdmlkZSB0aGUgVVJMIG9mIHRoZSBkZXNpZ24gZmlsZSB5b3Ugd2FudCB0byBpbXBvcnQuIFRoaXMgc2hvdWxkIGJlIGEgZGlyZWN0IFVSTCB0byB0aGUgZmlsZSwgZm9yIGV4YW1wbGU6IGh0dHBzOi8vcmF3LmdpdGh1Yi5jb20veW91ci1kZXNpZ24tZmlsZS55YW1sIiwieC1yanNmLWdyaWQtYXJlYSI6IjEyIn19LCJyZXF1aXJlZCI6WyJ1cmwiXX19XSwicmVxdWlyZWQiOlsidXBsb2FkVHlwZSJdfX0seyJpZiI6eyJwcm9wZXJ0aWVzIjp7ImRlc2lnblR5cGUiOnsiY29uc3QiOiJIZWxtIENoYXJ0In19fSwidGhlbiI6eyJwcm9wZXJ0aWVzIjp7InVybCI6eyJ0eXBlIjoic3RyaW5nIiwiZm9ybWF0IjoidXJpIiwidGl0bGUiOiJVUkwiLCJkZXNjcmlwdGlvbiI6IlByb3ZpZGUgdGhlIFVSTCBvZiB0aGUgZGVzaWduIGZpbGUgeW91IHdhbnQgdG8gaW1wb3J0LiBUaGlzIHNob3VsZCBiZSBhIGRpcmVjdCBVUkwgdG8gdGhlIGZpbGUsIGZvciBleGFtcGxlOiBodHRwczovL3Jhdy5naXRodWIuY29tL3lvdXItZGVzaWduLWZpbGUueWFtbCIsIngtcmpzZi1ncmlkLWFyZWEiOiIxMiJ9fSwicmVxdWlyZWQiOlsidXJsIl19fSx7InJlcXVpcmVkIjpbImRlc2lnblR5cGUiXX1dfSwidWlTY2hlbWEiOnsidXBsb2FkVHlwZSI6eyJ1aTp3aWRnZXQiOiJyYWRpbyJ9LCJ1aTpvcmRlciI6WyJkZXNpZ25UeXBlIiwidXBsb2FkVHlwZSIsIm5hbWUiLCJmaWxlIiwidXJsIl19LCJ0aGVtZSI6ImRlZmF1bHQiLCJsaXZlU2V0dGluZ3MiOnsic2hvd0Vycm9yTGlzdCI6InRvcCIsInZhbGlkYXRlIjpmYWxzZSwiZGlzYWJsZWQiOmZhbHNlLCJub0h0bWw1VmFsaWRhdGUiOmZhbHNlLCJyZWFkb25seSI6ZmFsc2UsIm9taXRFeHRyYURhdGEiOmZhbHNlLCJsaXZlT21pdCI6ZmFsc2UsImV4cGVyaW1lbnRhbF9kZWZhdWx0Rm9ybVN0YXRlQmVoYXZpb3IiOnsiYXJyYXlNaW5JdGVtcyI6InBvcHVsYXRlIiwiZW1wdHlPYmplY3RGaWVsZHMiOiJwb3B1bGF0ZUFsbERlZmF1bHRzIn19fQ==",
   "type": "object",
   "properties": {
     "name": {
       "type": "string",
       "title": "Design file name",
       "default": "Untitled Design",
-      "x-rjsf-grid-area": "12",
+      "x-rjsf-grid-area": "6",
       "description": "Provide a name for your design file. This name will help you identify the file more easily. You can also change the name of your design after importing it."
     },
     "designType": {
-      "title": "Select the design type",
+      "title": "Design type",
       "enum": [
         "Helm Chart",
         "Kubernetes Manifest",
@@ -18,7 +17,7 @@
         "Meshery Design"
       ],
       "default": "Meshery Design",
-      "x-rjsf-grid-area": "12",
+      "x-rjsf-grid-area": "6",
       "description": "Select the type of design you are uploading. The 'Design Type' determines the format, structure, and content of the file you are uploading. Choose the appropriate design type that matches the nature of your file. Checkout https://docs.meshery.io/guides/meshery-design to learn more about designs"
     }
   },
@@ -36,7 +35,7 @@
       "then": {
         "properties": {
           "uploadType": {
-            "title": "Select the upload method",
+            "title": "Upload method",
             "enum": [
               "File Upload",
               "URL Import"
