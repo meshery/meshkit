@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,6 +37,8 @@ type Registry struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
+
+var Mutex sync.Mutex
 
 // Entity is referred as any type of schema managed by the registry
 // ComponentDefinitions and PolicyDefinitions are examples of entities
@@ -226,7 +229,28 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 		return nil
 	}
 }
+func FailedMsgCompute(failedMsg string, hostName string) (string, error) {
+	nonImportModel, exists := NonImportModel[hostName]
+	if !exists {
+		return "", ErrUnknownHostInMap()
+	}
 
+	if nonImportModel.Models > 0 || nonImportModel.Components > 0 || nonImportModel.Relationships > 0 || nonImportModel.Policies > 0 {
+		failedMsg = "failed to import"
+		appendIfNonZero := func(msg string, count int64, entityName string) string {
+			if count > 0 {
+				return fmt.Sprintf("%s %d %s", msg, count, entityName)
+			}
+			return msg
+		}
+
+		failedMsg = appendIfNonZero(failedMsg, nonImportModel.Models, "models")
+		failedMsg = appendIfNonZero(failedMsg, nonImportModel.Components, "components")
+		failedMsg = appendIfNonZero(failedMsg, nonImportModel.Relationships, "relationships")
+		failedMsg = appendIfNonZero(failedMsg, nonImportModel.Policies, "policies")
+	}
+	return failedMsg, nil
+}
 func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.MeshModelHostsWithEntitySummary, int64, error) {
 	var result []v1alpha1.MesheryHostSummaryDB
 	var totalcount int64
