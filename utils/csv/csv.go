@@ -78,11 +78,13 @@ func (c *CSV[E]) Parse(ch chan E) error {
 		if c.predicateFunc != nil && c.predicateFunc(columnNames, values) {
 			for index, value := range values {
 				if index < size {
-					attribute, ok := c.columnToNameMapping[columnNames[index]]
-					if !ok {
-						attribute = strings.ReplaceAll(strings.ToLower(columnNames[index]), " ", "_")
+					if c.columnToNameMapping != nil {
+						attribute, ok := c.columnToNameMapping[columnNames[index]]
+						if !ok {
+							attribute = strings.ReplaceAll(strings.ToLower(columnNames[index]), " ", "_")
+						}
+						data[attribute] = value
 					}
-					data[attribute] = value
 				}
 			}
 
