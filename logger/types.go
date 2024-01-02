@@ -1,6 +1,8 @@
 package logger
 
-import "io"
+import (
+	"io"
+)
 
 const (
 	JsonLogFormat = iota
@@ -11,7 +13,7 @@ const (
 type Format int
 
 type Options struct {
-	Format     Format
-	DebugLevel bool
-	Output     io.Writer
+	Format   Format
+	LogLevel int
+	Output   io.Writer
 }
