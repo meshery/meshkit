@@ -17,7 +17,7 @@ type CSV[E any] struct {
 	filePath     string
 	lineForColNo int
 	// Stores the mapping for coumn name to golang equivalent attribute name.
-	// It is optional and default mapping is the lower case representation
+	// It is optional and default mapping is the lower case representation with spaces replaced with "_"
 	// eg: ColumnnName: Descritption, equivalent golang attribute to which it will be mapped during unmarshal "description".
 	columnToNameMapping map[string]string
 	predicateFunc       func(columns []string, currentRow []string) bool
