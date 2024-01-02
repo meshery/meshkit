@@ -177,7 +177,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 type ComponentFilter struct {
 	Name         string
 	APIVersion   string
-	Greedy       bool //when set to true - instead of an exact match, name will be prefix matched
+	Greedy       bool //when set to true - instead of an exact match, name will be matched as a substring
 	Trim         bool //when set to true - the schema is not returned
 	DisplayName  string
 	ModelName    string

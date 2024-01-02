@@ -17,9 +17,9 @@ type CRDItem struct {
 }
 
 type Spec struct {
-	Names names `json:"names"`
-	Group string `json:"group"`
-	Versions []struct{
+	Names    names  `json:"names"`
+	Group    string `json:"group"`
+	Versions []struct {
 		Name string `json:"name"`
 	} `json:"versions"`
 }
@@ -47,8 +47,8 @@ func GetAllCustomResourcesInCluster(ctx context.Context, client rest.Interface) 
 
 func GetGVRForCustomResources(crd *CRDItem) *schema.GroupVersionResource {
 	return &schema.GroupVersionResource{
-		Group: crd.Spec.Group,
-		Version: crd.Spec.Versions[0].Name,
+		Group:    crd.Spec.Group,
+		Version:  crd.Spec.Versions[0].Name,
 		Resource: crd.Spec.Names.ResourceName,
 	}
 }
