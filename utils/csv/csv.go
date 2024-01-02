@@ -54,7 +54,7 @@ func (c *CSV[E]) ExtractCols(lineForColNo int) ([]string, error) {
 	return data, nil
 }
 
-func (c *CSV[E]) Parse(ch chan E) error {
+func (c *CSV[E]) Parse(ch chan E, errorChan chan error) error {
 	defer func() {
 		c.cancel()
 	}()
@@ -77,20 +77,23 @@ func (c *CSV[E]) Parse(ch chan E) error {
 
 		if c.predicateFunc != nil && c.predicateFunc(columnNames, values) {
 			for index, value := range values {
+				var attribute string
 				if index < size {
+					attribute = strings.ReplaceAll(strings.ToLower(columnNames[index]), " ", "_")
 					if c.columnToNameMapping != nil {
-						attribute, ok := c.columnToNameMapping[columnNames[index]]
-						if !ok {
-							attribute = strings.ReplaceAll(strings.ToLower(columnNames[index]), " ", "_")
+						key, ok := c.columnToNameMapping[columnNames[index]]
+						if ok {
+							attribute = key
 						}
-						data[attribute] = value
 					}
+					data[attribute] = value
 				}
 			}
 
 			parsedData, err := utils.MarshalAndUnmarshal[map[string]interface{}, E](data)
 			if err != nil {
-				return utils.ErrReadFile(err, c.filePath)
+				errorChan <- err
+				continue
 			}
 			ch <- parsedData
 		}
