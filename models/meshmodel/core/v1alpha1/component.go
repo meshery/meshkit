@@ -41,7 +41,7 @@ type ComponentDefinition struct {
 }
 type ComponentDefinitionDB struct {
 	ID      uuid.UUID `json:"-"`
-	ModelID uuid.UUID `json:"-" gorm:"modelID"`
+	ModelID uuid.UUID `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
 	TypeMeta
 	DisplayName string          `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat `json:"format" yaml:"format"`
@@ -177,7 +177,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 type ComponentFilter struct {
 	Name         string
 	APIVersion   string
-	Greedy       bool //when set to true - instead of an exact match, name will be prefix matched
+	Greedy       bool //when set to true - instead of an exact match, name will be matched as a substring
 	Trim         bool //when set to true - the schema is not returned
 	DisplayName  string
 	ModelName    string

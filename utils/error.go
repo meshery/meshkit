@@ -21,6 +21,7 @@ var (
 	ErrRemoteFileNotFoundCode        = "11052"
 	ErrReadingRemoteFileCode         = "11053"
 	ErrReadingLocalFileCode          = "11054"
+	ErrReadFileCode                  = "11106"
 	ErrGettingLatestReleaseTagCode   = "11055"
 	ErrInvalidProtocol               = errors.New(ErrInvalidProtocolCode, errors.Alert, []string{"invalid protocol: only http, https and file are valid protocols"}, []string{}, []string{"Network protocol is incorrect"}, []string{"Make sure to specify the right network protocol"})
 	ErrMissingFieldCode              = "11076"
@@ -98,6 +99,10 @@ func ErrReadingRemoteFile(err error) error {
 
 func ErrReadingLocalFile(err error) error {
 	return errors.New(ErrReadingLocalFileCode, errors.Alert, []string{"error reading local file"}, []string{err.Error()}, []string{"File does not exist in the location (~/.kube/config)", "File is absent. Filename is not 'config'.", "Insufficient permissions to read file"}, []string{"Verify that the available kubeconfig is accessible by Meshery Server - verify sufficient file permissions (only needs read permission)."})
+}
+
+func ErrReadFile(err error, filepath string) error {
+	return errors.New(ErrReadFileCode, errors.Alert, []string{"error reading file"}, []string{err.Error()}, []string{fmt.Sprintf("File does not exist in the location %s", filepath), "Insufficient permissions"}, []string{"Verify that file exist at the provided location", "Verify sufficient file permissions."})
 }
 
 func ErrGettingLatestReleaseTag(err error) error {

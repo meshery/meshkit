@@ -267,3 +267,12 @@ func MarshalAndUnmarshal[fromType any, toType any](val fromType) (unmarshalledva
 	}
 	return
 }
+
+func IsClosed[K any](ch chan K) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
+}
