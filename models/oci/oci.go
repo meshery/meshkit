@@ -48,7 +48,39 @@ type layerOptions struct {
 // PushOption is a function for configuring PushOptions.
 type PushOption func(o *PushOptions)
 
-func BuildImage(sourcePath string, opts ...PushOption) (*gcrv1.Image, error) {
+// WithPushLayerType set the layer type that will be used when creating
+// the image layer.
+func WithPushLayerType(l LayerType) PushOption {
+	return func(o *PushOptions) {
+		o.layerType = l
+	}
+}
+
+// WithPushMediaTypeExt configures the media type extension for the image layer.
+// This is only used when the layer type is `LayerTypeStatic`.
+// The final media type will be prefixed with `application/vnd.cncf.flux.content.v1`
+func WithPushMediaTypeExt(extension string) PushOption {
+	return func(o *PushOptions) {
+		o.layerOpts.mediaTypeExt = extension
+	}
+}
+
+// WithPushIgnorePaths configures ignore paths for PushOptions
+func WithPushIgnorePaths(paths ...string) PushOption {
+	return func(o *PushOptions) {
+		o.layerOpts.ignorePaths = append(o.layerOpts.ignorePaths, paths...)
+	}
+}
+
+// WithPushMetadata configures Metadata that will be used for image annotations.
+func WithPushMetadata(meta client.Metadata) PushOption {
+	return func(o *PushOptions) {
+		o.meta = meta
+	}
+}
+
+
+func BuildImage(sourcePath string, opts ...PushOption) (gcrv1.Image, error) {
 	o := &PushOptions{
 		layerType: LayerTypeTarball,
 	}
@@ -76,7 +108,7 @@ func BuildImage(sourcePath string, opts ...PushOption) (*gcrv1.Image, error) {
 		return nil, fmt.Errorf("appeding content to artifact failed: %w", err)
 	}
 
-	return &img, nil
+	return img, nil
 }
 
 // createLayer creates a layer depending on the layerType.
