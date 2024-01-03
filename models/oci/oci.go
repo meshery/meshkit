@@ -19,7 +19,6 @@ import (
 	"github.com/fluxcd/pkg/oci/client"
 )
 
-
 // LayerType is an enumeration of the supported layer types
 // when pushing an image.
 type LayerType string
@@ -32,8 +31,8 @@ const (
 	LayerTypeStatic LayerType = "static"
 )
 
-// PushOptions are options for configuring the Push operation.
-type PushOptions struct {
+// BuildOptions are options for configuring the Push operation.
+type BuildOptions struct {
 	layerType LayerType
 	layerOpts layerOptions
 	meta      client.Metadata
@@ -45,13 +44,13 @@ type layerOptions struct {
 	ignorePaths  []string
 }
 
-// PushOption is a function for configuring PushOptions.
-type PushOption func(o *PushOptions)
+// BuildOption is a function for configuring BuildOptions.
+type BuildOption func(o *BuildOptions)
 
 // WithPushLayerType set the layer type that will be used when creating
 // the image layer.
-func WithPushLayerType(l LayerType) PushOption {
-	return func(o *PushOptions) {
+func WithPushLayerType(l LayerType) BuildOption {
+	return func(o *BuildOptions) {
 		o.layerType = l
 	}
 }
@@ -59,29 +58,28 @@ func WithPushLayerType(l LayerType) PushOption {
 // WithPushMediaTypeExt configures the media type extension for the image layer.
 // This is only used when the layer type is `LayerTypeStatic`.
 // The final media type will be prefixed with `application/vnd.cncf.flux.content.v1`
-func WithPushMediaTypeExt(extension string) PushOption {
-	return func(o *PushOptions) {
+func WithPushMediaTypeExt(extension string) BuildOption {
+	return func(o *BuildOptions) {
 		o.layerOpts.mediaTypeExt = extension
 	}
 }
 
-// WithPushIgnorePaths configures ignore paths for PushOptions
-func WithPushIgnorePaths(paths ...string) PushOption {
-	return func(o *PushOptions) {
+// WithPushIgnorePaths configures ignore paths for BuildOptions
+func WithPushIgnorePaths(paths ...string) BuildOption {
+	return func(o *BuildOptions) {
 		o.layerOpts.ignorePaths = append(o.layerOpts.ignorePaths, paths...)
 	}
 }
 
 // WithPushMetadata configures Metadata that will be used for image annotations.
-func WithPushMetadata(meta client.Metadata) PushOption {
-	return func(o *PushOptions) {
+func WithPushMetadata(meta client.Metadata) BuildOption {
+	return func(o *BuildOptions) {
 		o.meta = meta
 	}
 }
 
-
-func BuildImage(sourcePath string, opts ...PushOption) (gcrv1.Image, error) {
-	o := &PushOptions{
+func BuildImage(sourcePath string, opts ...BuildOption) (gcrv1.Image, error) {
+	o := &BuildOptions{
 		layerType: LayerTypeTarball,
 	}
 
@@ -145,4 +143,3 @@ func getLayerMediaType(extension string) types.MediaType {
 	}
 	return types.MediaType(fmt.Sprintf("%s.%s", oci.CanonicalMediaTypePrefix, extension))
 }
-
