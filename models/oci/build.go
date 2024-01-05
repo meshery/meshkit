@@ -15,6 +15,7 @@ import (
 )
 
 
+// Supports local folder (directory) path only. 
 func build(artifactPath, sourceDir string, ignorePaths []string) (err error) {
 	absDir, err := filepath.Abs(sourceDir)
 	if err != nil {
