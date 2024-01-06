@@ -103,7 +103,7 @@ func BuildImage(sourcePath string, opts ...BuildOption) (gcrv1.Image, error) {
 
 	img, err = mutate.Append(img, mutate.Addendum{Layer: layer})
 	if err != nil {
-		return nil, fmt.Errorf("appeding content to artifact failed: %w", err)
+		return nil, fmt.Errorf("appending content to artifact failed: %w", err)
 	}
 
 	return img, nil
