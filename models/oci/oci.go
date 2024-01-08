@@ -70,7 +70,7 @@ func BuildImage(sourcePath string, opts ...BuildOption) (gcrv1.Image, error) {
 
 	img, err = mutate.Append(img, mutate.Addendum{Layer: layer})
 	if err != nil {
-		return nil, fmt.Errorf("appending content to artifact failed: %w", err)
+		return nil, ErrAppendingLayer(err)
 	}
 
 	return img, nil
@@ -98,11 +98,11 @@ func createLayer(path string, layerType LayerType, opts layerOptions) (gcrv1.Lay
 		var ociMediaType = getLayerMediaType(opts.mediaTypeExt)
 		content, err := os.ReadFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("error reading file for static layer: %w", err)
+			return nil, ErrReadingFile(err)
 		}
 		return static.NewLayer(content, ociMediaType), nil
 	default:
-		return nil, fmt.Errorf("unsupported layer type: '%s'", layerType)
+		return nil, ErrUnSupportedLayerType(fmt.Errorf("unsupported layer type: '%s'", layerType))
 	}
 }
 
