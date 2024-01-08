@@ -11,8 +11,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/v1/types"	
 	"github.com/fluxcd/pkg/oci"
 	"github.com/fluxcd/pkg/oci/client"
 )
@@ -45,7 +44,7 @@ type layerOptions struct {
 // BuildOption is a function for configuring BuildOptions.
 type BuildOption func(o *BuildOptions)
 
-
+// Builds OCI Img for the artifacts in the given path. Returns v1.Image manifest.
 func BuildImage(sourcePath string, opts ...BuildOption) (gcrv1.Image, error) {
 	o := &BuildOptions{
 		layerType: LayerTypeTarball,
@@ -114,13 +113,3 @@ func getLayerMediaType(extension string) types.MediaType {
 	return types.MediaType(fmt.Sprintf("%s.%s", oci.CanonicalMediaTypePrefix, extension))
 }
 
-// saves the oci artifact to the given path as tarball type
-func SaveOCIArtifact(img gcrv1.Image, artifactPath, name string) error {	
-	repoWithTag := fmt.Sprintf("%s:%s", name, "latest") // TODO: Add support to make this dynamic from user input 
-	err := crane.Save(img, repoWithTag, artifactPath)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
