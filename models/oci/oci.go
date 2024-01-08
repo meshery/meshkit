@@ -6,15 +6,13 @@ import (
 	"path/filepath"
 	"time"
 
-	// "github.com/google/go-containerregistry/pkg/crane"
-	// "github.com/google/go-containerregistry/pkg/name"
 	gcrv1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/fluxcd/pkg/oci"
 	"github.com/fluxcd/pkg/oci/client"
 )
@@ -47,36 +45,6 @@ type layerOptions struct {
 // BuildOption is a function for configuring BuildOptions.
 type BuildOption func(o *BuildOptions)
 
-// WithPushLayerType set the layer type that will be used when creating
-// the image layer.
-func WithPushLayerType(l LayerType) BuildOption {
-	return func(o *BuildOptions) {
-		o.layerType = l
-	}
-}
-
-// WithPushMediaTypeExt configures the media type extension for the image layer.
-// This is only used when the layer type is `LayerTypeStatic`.
-// The final media type will be prefixed with `application/vnd.cncf.flux.content.v1`
-func WithPushMediaTypeExt(extension string) BuildOption {
-	return func(o *BuildOptions) {
-		o.layerOpts.mediaTypeExt = extension
-	}
-}
-
-// WithPushIgnorePaths configures ignore paths for BuildOptions
-func WithPushIgnorePaths(paths ...string) BuildOption {
-	return func(o *BuildOptions) {
-		o.layerOpts.ignorePaths = append(o.layerOpts.ignorePaths, paths...)
-	}
-}
-
-// WithPushMetadata configures Metadata that will be used for image annotations.
-func WithPushMetadata(meta client.Metadata) BuildOption {
-	return func(o *BuildOptions) {
-		o.meta = meta
-	}
-}
 
 func BuildImage(sourcePath string, opts ...BuildOption) (gcrv1.Image, error) {
 	o := &BuildOptions{
@@ -121,7 +89,9 @@ func createLayer(path string, layerType LayerType, opts layerOptions) (gcrv1.Lay
 		}
 		defer os.RemoveAll(tmpDir)
 		tmpFile := filepath.Join(tmpDir, "artifact.tgz")
-		if err := build(tmpFile, path, opts.ignorePaths); err != nil {
+		defaultOpts := client.DefaultOptions()
+		ociClient := client.NewClient(defaultOpts)
+		if err := ociClient.Build(tmpFile, path, opts.ignorePaths); err != nil {
 			return nil, err
 		}
 		return tarball.LayerFromFile(tmpFile, tarball.WithMediaType(ociMediaType), tarball.WithCompressedCaching)
@@ -142,4 +112,15 @@ func getLayerMediaType(extension string) types.MediaType {
 		return oci.CanonicalMediaTypePrefix
 	}
 	return types.MediaType(fmt.Sprintf("%s.%s", oci.CanonicalMediaTypePrefix, extension))
+}
+
+// saves the oci artifact to the given path as tarball type
+func SaveOCIArtifact(img gcrv1.Image, artifactPath, name string) error {	
+	repoWithTag := fmt.Sprintf("%s:%s", name, "latest") // TODO: Add support to make this dynamic from user input 
+	err := crane.Save(img, repoWithTag, artifactPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
