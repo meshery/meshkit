@@ -24,7 +24,7 @@ type RelationshipDefinition struct {
 	DisplayHostName string                 `json:"displayhostname"`
 	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
 	SubType         string                 `json:"subType" yaml:"subType" gorm:"subType"`
-	EvaluationQuery string                 `json:"evaluation_query" yaml:"evaluation_query" gorm:"evaluation_query"`
+	EvaluationQuery string                 `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
 	Selectors       map[string]interface{} `json:"selectors" yaml:"selectors"`
 	CreatedAt       time.Time              `json:"-"`
 	UpdatedAt       time.Time              `json:"-"`
@@ -36,7 +36,7 @@ type RelationshipDefinitionDB struct {
 	TypeMeta
 	Metadata        []byte    `json:"metadata" yaml:"metadata"`
 	SubType         string    `json:"subType" yaml:"subType"`
-	EvaluationQuery string    `json:"evaluation_query" yaml:"evaluation_query" gorm:"evaluation_query"`
+	EvaluationQuery string    `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
 	Selectors       []byte    `json:"selectors" yaml:"selectors"`
 	CreatedAt       time.Time `json:"-"`
 	UpdatedAt       time.Time `json:"-"`
