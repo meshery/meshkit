@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/fluxcd/pkg/oci"
+	"github.com/fluxcd/pkg/oci/client"
 	gcrv1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/google/go-containerregistry/pkg/v1/types"	
-	"github.com/fluxcd/pkg/oci"
-	"github.com/fluxcd/pkg/oci/client"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 // LayerType is an enumeration of the supported layer types
@@ -112,4 +112,3 @@ func getLayerMediaType(extension string) types.MediaType {
 	}
 	return types.MediaType(fmt.Sprintf("%s.%s", oci.CanonicalMediaTypePrefix, extension))
 }
-

@@ -7,12 +7,12 @@ import (
 )
 
 var (
-	ErrAppendingLayerCode = "11107"
-	ErrReadingFileCode         = "11108"
+	ErrAppendingLayerCode       = "11107"
+	ErrReadingFileCode          = "11108"
 	ErrUnSupportedLayerTypeCode = "11109"
-	ErrGettingLayerCode = "11110"
-	ErrCompressingLayerCode = "11111"
-	ErrUnTaringLayerCode = "11112"
+	ErrGettingLayerCode         = "11110"
+	ErrCompressingLayerCode     = "11111"
+	ErrUnTaringLayerCode        = "11112"
 )
 
 func ErrAppendingLayer(err error) error {
@@ -38,8 +38,3 @@ func ErrCompressingLayer(err error) error {
 func ErrUnTaringLayer(err error) error {
 	return errors.New(ErrUnTaringLayerCode, errors.Alert, []string{"untaring layer failed"}, []string{err.Error()}, []string{"failed to untar the layer"}, []string{"Try using a different layer", "check if image is not malformed"})
 }
-
-
-
-
-
