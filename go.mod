@@ -15,7 +15,7 @@ replace (
 require (
 	cuelang.org/go v0.6.0
 	github.com/fluxcd/pkg/oci v0.34.0
-	github.com/fluxcd/pkg/sourceignore v0.4.0
+	github.com/fluxcd/pkg/tar v0.4.0
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-logr/logr v1.3.0
 	github.com/gofrs/uuid v4.4.0+incompatible
@@ -104,7 +104,7 @@ require (
 	github.com/fatih/color v1.14.1 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
-	github.com/fluxcd/pkg/tar v0.4.0 // indirect
+	github.com/fluxcd/pkg/sourceignore v0.4.0 // indirect
 	github.com/fluxcd/pkg/version v0.2.2 // indirect
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
