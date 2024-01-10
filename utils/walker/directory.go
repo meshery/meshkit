@@ -28,6 +28,7 @@ func WalkLocalDirectory(path string) ([]*File, error) {
 					Content: string(content),
 					Name: d.Name(),
 					Path: path,
+				}
 				
 				files = append(files, f)
 			}
