@@ -14,7 +14,6 @@ func WalkLocalDirectory(path string) ([]*File, error) {
 				return err
 			}
 			if !d.IsDir() {
-				var f *File
 				file, err := os.OpenFile(path, os.O_RDONLY, 0444)
 				if err != nil {
 					return err
@@ -24,9 +23,12 @@ func WalkLocalDirectory(path string) ([]*File, error) {
 					return err
 				}
 
-				f.Name = d.Name()
-				f.Path = path
-				f.Content = string(content)
+
+				f := &File{
+					Content: string(content),
+					Name: d.Name(),
+					Path: path,
+				
 				files = append(files, f)
 			}
 			return nil
