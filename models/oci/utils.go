@@ -43,7 +43,7 @@ func UnCompressOCIArtifact(source, destination string) error {
 
 	opt := []validate.Option{}
 
-	if err := validate.Image(img, opt...); err != nil {
+	if err = validate.Image(img, opt...); err != nil {
 		return ErrValidatingImage(err)
 	}
 
