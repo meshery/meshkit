@@ -13,6 +13,8 @@ var (
 	ErrGettingLayerCode         = "11110"
 	ErrCompressingLayerCode     = "11111"
 	ErrUnTaringLayerCode        = "11112"
+	ErrGettingImageCode         = "11113"
+	ErrValidatingImageCode      = "11114"
 )
 
 func ErrAppendingLayer(err error) error {
@@ -37,4 +39,12 @@ func ErrCompressingLayer(err error) error {
 
 func ErrUnTaringLayer(err error) error {
 	return errors.New(ErrUnTaringLayerCode, errors.Alert, []string{"untaring layer failed"}, []string{err.Error()}, []string{"failed to untar the layer"}, []string{"Try using a different layer", "check if image is not malformed"})
+}
+
+func ErrGettingImage(err error) error {
+	return errors.New(ErrGettingImageCode, errors.Alert, []string{"getting image failed"}, []string{err.Error()}, []string{"failed to get the image"}, []string{"Try using a different image", "check if image is not malformed"})
+}
+
+func ErrValidatingImage(err error) error {
+	return errors.New(ErrValidatingImageCode, errors.Alert, []string{"validating image failed"}, []string{err.Error()}, []string{"failed to validate the image"}, []string{"Try using a different image", "check if image is not malformed"})
 }

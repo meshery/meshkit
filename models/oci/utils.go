@@ -8,6 +8,8 @@ import (
 	"github.com/fluxcd/pkg/tar"
 	"github.com/google/go-containerregistry/pkg/crane"
 	gcrv1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 	"github.com/layer5io/meshkit/utils"
 )
 
@@ -32,8 +34,19 @@ func SaveOCIArtifact(img gcrv1.Image, artifactPath, name string) error {
 	return nil
 }
 
-// uncompress the OCI Artifact tarball at the given path
-func UnCompressOCIArtifact(img gcrv1.Image, destination string) error {
+// uncompress the OCI Artifact tarball at the given destination path
+func UnCompressOCIArtifact(source, destination string) error {
+	img, err := tarball.ImageFromPath(source, nil)
+	if err != nil {
+		return ErrGettingImage(err)
+	}
+
+	opt := []validate.Option{}
+
+	if err = validate.Image(img, opt...); err != nil {
+		return ErrValidatingImage(err)
+	}
+
 	layers, err := img.Layers()
 	if err != nil {
 		return ErrGettingLayer(err)
