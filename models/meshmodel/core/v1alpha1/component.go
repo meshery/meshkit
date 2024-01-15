@@ -26,7 +26,7 @@ const (
 // swagger:response ComponentDefinition
 // use NewComponent function for instantiating
 type ComponentDefinition struct {
-	ID uuid.UUID `json:"-"`
+	ID uuid.UUID `json:"id"`
 	TypeMeta
 	DisplayName     string                 `json:"displayName" gorm:"displayName"`
 	Format          ComponentFormat        `json:"format" yaml:"format"`
@@ -40,7 +40,7 @@ type ComponentDefinition struct {
 	UpdatedAt       time.Time              `json:"-"`
 }
 type ComponentDefinitionDB struct {
-	ID      uuid.UUID `json:"-"`
+	ID      uuid.UUID `json:"id"`
 	ModelID uuid.UUID `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
 	TypeMeta
 	DisplayName string          `json:"displayName" gorm:"displayName"`
