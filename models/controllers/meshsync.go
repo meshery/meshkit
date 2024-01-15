@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	// opClient "github.com/layer5io/meshery-operator/pkg/client"
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	v1 "k8s.io/api/core/v1"
@@ -115,5 +114,16 @@ func (ms *meshsync) GetPublicEndpoint() (string, error) {
 }
 
 func (ms *meshsync) GetVersion() (string, error) {
-	return "", nil
+	meshsyncclient, err := opClient.New(&ms.kclient.RestConfig)
+	if err != nil {
+		return "", err
+	}
+
+	meshsyncresource, err := meshsyncclient.CoreV1Alpha1().MeshSyncs("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
+
+	if err != nil {
+		return "", err
+	}
+
+	return meshsyncresource.Spec.Version, nil
 }

@@ -22,7 +22,7 @@ require (
 	github.com/google/go-containerregistry v0.17.0
 	github.com/google/uuid v1.4.0
 	github.com/kubernetes/kompose v1.31.1
-	github.com/layer5io/meshery-operator v0.6.15
+	github.com/layer5io/meshery-operator v0.7.0
 	github.com/nats-io/nats.go v1.31.0
 	github.com/open-policy-agent/opa v0.57.1
 	github.com/pkg/errors v0.9.1
