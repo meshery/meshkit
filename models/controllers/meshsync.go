@@ -118,9 +118,9 @@ func (ms *meshsync) GetVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	meshsyncresource, err := meshsyncclient.CoreV1Alpha1().MeshSyncs("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
-	
+
 	if err != nil {
 		return "", err
 	}

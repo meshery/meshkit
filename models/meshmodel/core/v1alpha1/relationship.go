@@ -16,7 +16,7 @@ import (
 // swagger:response RelationshipDefinition
 // TODO: Add support for Model
 type RelationshipDefinition struct {
-	ID uuid.UUID `json:"-"`
+	ID uuid.UUID `json:"id"`
 	TypeMeta
 	Model           Model                    `json:"model"`
 	HostName        string                   `json:"hostname"`
@@ -31,7 +31,7 @@ type RelationshipDefinition struct {
 }
 
 type RelationshipDefinitionDB struct {
-	ID      uuid.UUID `json:"-"`
+	ID      uuid.UUID `json:"id"`
 	ModelID uuid.UUID `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:modelID"`
 	TypeMeta
 	Metadata        []byte    `json:"metadata" yaml:"metadata"`
