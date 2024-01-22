@@ -106,6 +106,9 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	return nil
 }
 
+func (pkg *AhPackage) Validator() {
+	
+}
 // GetAllAhHelmPackages returns a list of all AhPackages and is super slow to avoid rate limits.
 func GetAllAhHelmPackages() ([]AhPackage, error) {
 	pkgs := make([]AhPackage, 0)

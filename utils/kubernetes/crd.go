@@ -52,3 +52,9 @@ func GetGVRForCustomResources(crd *CRDItem) *schema.GroupVersionResource {
 		Resource: crd.Spec.Names.ResourceName,
 	}
 }
+
+
+func IsCRD(manifest map[string]interface{}) bool {
+	kind, ok := manifest["kind"].(string)
+	return ok && kind == "CustomResourceDefinition"
+}

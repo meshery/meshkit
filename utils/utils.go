@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	mathrand "math/rand"
 	"net/http"
 	"os"
 	"os/user"
@@ -301,4 +302,29 @@ func FormatName(input string) string {
 	formatedName := strings.ReplaceAll(input, " ", "-")
 	formatedName = strings.ToLower(formatedName)
 	return formatedName
+}
+
+func GetRandomAlphabetsOfDigit(length int) (s string) {
+	charSet := "abcdedfghijklmnopqrstuvwxyz"
+	for i := 0; i < length; i++ {
+		random := mathrand.Intn(len(charSet))
+		randomChar := charSet[random]
+		s += string(randomChar)
+	}
+	return
+}
+
+// combineErrors merges a slice of error
+// into one error separated by the given separator
+func CombineErrors(errs []error, sep string) error {
+	if len(errs) == 0 {
+		return nil
+	}
+
+	var errString []string
+	for _, err := range errs {
+		errString = append(errString, err.Error())
+	}
+
+	return errors.New(strings.Join(errString, sep))
 }

@@ -31,6 +31,7 @@ var (
 	ErrJsonSchemaToCueCode           = "11087"
 	ErrCueLookupCode                 = "11089"
 	ErrTypeCastCode                  = "11100"
+	ErrCreateFileCode                = "replace_me"
 )
 
 func ErrCueLookup(err error) error {
@@ -103,6 +104,10 @@ func ErrReadingLocalFile(err error) error {
 
 func ErrReadFile(err error, filepath string) error {
 	return errors.New(ErrReadFileCode, errors.Alert, []string{"error reading file"}, []string{err.Error()}, []string{fmt.Sprintf("File does not exist in the location %s", filepath), "Insufficient permissions"}, []string{"Verify that file exist at the provided location", "Verify sufficient file permissions."})
+}
+
+func ErrCreateFile(err error, filepath string) error {
+	return errors.New(ErrCreateFileCode, errors.Alert, []string{}, []string{err.Error()}, []string{}, []string{})
 }
 
 func ErrGettingLatestReleaseTag(err error) error {
