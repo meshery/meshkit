@@ -136,7 +136,7 @@ func clonewalk(g *Git) error {
 	defer os.RemoveAll(path)
 	var err error
 	if g.showLogs {
-		_, err = git.PlainClone("/Users/shabana/Documents/Go/go-git/gcp", false, &git.CloneOptions{
+		_, err = git.PlainClone(path, false, &git.CloneOptions{
 			URL:      fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
 			Progress: os.Stdout,
 			SingleBranch: true,

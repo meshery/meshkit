@@ -21,7 +21,6 @@ func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
 		err = walker.ErrCloningRepo(err)
 		return nil, err
 	}
-	fmt.Println("teset ...........", url)
  	protocol := url.Scheme
 	
 	downloader := NewDownloaderForScheme(protocol, url)

@@ -1,7 +1,11 @@
 package github
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"testing"
 )
 
@@ -23,19 +27,36 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 		t.Run("GenerateComponents", func(t *testing.T) {
 
 			pkg, err := test.ghPackageManager.GetPackage()
-			t.Logf("ERROR :: %v", err)
 			if err != nil {
 				t.Errorf("error while getting package: %v", err)
 				return
 			}
 			comps, err := pkg.GenerateComponents()
-			t.Logf("ERROR 22222 :: %v", err)
 			if err != nil {
 				fmt.Println(err)
 				t.Errorf("error while generating components: %v", err)
 				return
 			}
-			t.Log("GOT ", len(comps), "WANT ", test.want)
+			for _, comp := range comps {
+			    dirName := "./"+comp.Model.Name
+				_, err := os.Stat(dirName) 
+				if errors.Is(err, os.ErrNotExist) {
+					err := os.Mkdir(dirName, fs.ModePerm)
+					if err != nil {
+						t.Errorf("error creating dir at %s: %v", dirName, err)
+						return
+					}
+				}
+				byt, _ := json.MarshalIndent(comp, "", "")
+
+				f, err := os.Create(dirName+"/"+comp.Kind+".json")
+				if err != nil {
+					t.Errorf("error creating file for %s: %v", comp.Kind, err)
+					continue
+				}
+				f.Write(byt)
+			}
+			t.Log("generated ", len(comps), "want: ", test.want)
 			if len(comps) != test.want {
 				t.Errorf("generated %d, want %d", len(comps), test.want)
 				return

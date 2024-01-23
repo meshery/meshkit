@@ -14,7 +14,8 @@ import (
 )
 
 type GitRepo struct {
-	URL     *url.URL
+	URL         *url.URL
+	FilesToWalk []string
 }
 
 // Assumpations: 1. Always a K8s manifest
@@ -33,7 +34,6 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	if len(dirNames) > 0 {
 		packageName = dirNames[0]
 	}
-	fmt.Println("owner, repo, branch, version, root, err ...........", owner, repo, branch, version, root, err)
 
 	filePath := fmt.Sprintf("%s_%s_%s_%s", owner, repo, branch, utils.GetRandomAlphabetsOfDigit(5))
 	fd, err := os.Create(filePath)
@@ -64,12 +64,12 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 
 	fmt.Println("TEST SUCCESUGLY CLONED")
 	return GitHubPackage{
-		Name: packageName,
-		filePath: filePath,
-		branch: branch,
+		Name:       packageName,
+		filePath:   filePath,
+		branch:     branch,
 		repository: repo,
-		SourceURL: gr.URL.String(),
-		version: version,
+		SourceURL:  gr.URL.String(),
+		version:    version,
 	}, nil
 }
 
