@@ -559,7 +559,7 @@ func createHelmIndex(repo string) (*HelmIndex, error) {
 	var hi HelmIndex
 	dec := yaml.NewDecoder(resp.Body)
 	if err := dec.Decode(&hi); err != nil {
-		return nil, ErrDecodeYaml(err)
+		return nil, utils.ErrDecodeYaml(err)
 	}
 
 	return &hi, nil

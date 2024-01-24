@@ -32,6 +32,9 @@ var (
 	ErrCueLookupCode                 = "11089"
 	ErrTypeCastCode                  = "11100"
 	ErrCreateFileCode                = "replace_me"
+	// ErrDecodeYamlCode represents the error which is generated when yaml
+	// decode process fails
+	ErrDecodeYamlCode = "11035"
 )
 
 func ErrCueLookup(err error) error {
@@ -123,4 +126,9 @@ func ErrGettingLatestReleaseTag(err error) error {
 
 func ErrTypeCast(valType string) error {
 	return errors.New(ErrTypeCastCode, errors.Alert, []string{"invaid type assertion requested"}, []string{fmt.Sprintf("The underlying type of the interface is %s", valType)}, []string{"The interface type is not compatible with the request type cast"}, []string{"use correct data type for type casting"})
+}
+
+// ErrDecodeYaml is the error when the yaml unmarshal fails
+func ErrDecodeYaml(err error) error {
+	return errors.New(ErrDecodeYamlCode, errors.Alert, []string{"Error occurred while decoding YAML"}, []string{err.Error()}, []string{}, []string{})
 }
