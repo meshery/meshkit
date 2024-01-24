@@ -38,7 +38,6 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	filePath := fmt.Sprintf("%s_%s_%s_%s", owner, repo, branch, utils.GetRandomAlphabetsOfDigit(5))
 	fd, err := os.Create(filePath)
 	if err != nil {
-		fmt.Println("ERR CREATE FILE >>>>>>>>>>>", err)
 		return nil, utils.ErrCreateFile(err, filePath)
 	}
 	br := bufio.NewWriter(fd)
@@ -55,6 +54,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 			}
 			return nil
 		}).
+		ReferenceName(fmt.Sprintf("refs/tags/%s", version)).
 		Walk()
 
 	if err != nil {
