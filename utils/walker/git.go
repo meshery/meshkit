@@ -162,9 +162,22 @@ func clonewalk(g *Git) error {
 		return ErrCloningRepo(err)
 	}
 
+	rootPath := filepath.Join(path, g.root)
+	info, err := os.Stat(rootPath)
+	if err != nil {
+		return ErrCloningRepo(err)
+	}
+
+	if !info.IsDir() {
+		err := g.readFile(info, rootPath)
+		if err != nil {
+			return ErrCloningRepo(err)
+		}
+		return nil
+	}
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
-		err = filepath.WalkDir(filepath.Join(path, g.root), func(path string, d fs.DirEntry, er error) error {
+		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
 			if d.IsDir() && g.dirInterceptor != nil {
 				return g.dirInterceptor(Directory{
 					Name: d.Name(),
@@ -180,7 +193,7 @@ func clonewalk(g *Git) error {
 			}
 			return g.readFile(f, path)
 		})
-		return err
+		return ErrCloningRepo(err)
 	}
 
 	// If recurse mode is off, we only walk the root directory passed with g.root
@@ -192,7 +205,7 @@ func clonewalk(g *Git) error {
 	for _, entry := range entries {
 		file, err := entry.Info()
 		if err != nil {
-			return err
+			return ErrCloningRepo(err)
 		}
 		files = append(files, file)
 	}

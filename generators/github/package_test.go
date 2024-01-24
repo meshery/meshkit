@@ -15,12 +15,19 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 		ghPackageManager GitHubPackageManager
 		want             int
 	}{
-		{
+		{   // Source pointing to a directory
 			ghPackageManager: GitHubPackageManager{
 				PackageName: "k8s-config-connector",
 				SourceURL:   "git://github.com/GoogleCloudPlatform/k8s-config-connector/master/v1.112.0/crds/",
 			},
 			want: 337,
+		},
+		{   // Source pointing to a file in a repo
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "k8s-config-connector",
+				SourceURL:   "git://github.com/GoogleCloudPlatform/k8s-config-connector/master/v1.112.0/crds/accesscontextmanager_v1alpha1_accesscontextmanageraccesslevelcondition.yaml",
+			},
+			want: 1,
 		},
 	}
 
