@@ -23,7 +23,7 @@ func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
 	}
  	protocol := url.Scheme
 	
-	downloader := NewDownloaderForScheme(protocol, url)
+	downloader := NewDownloaderForScheme(protocol, url, ghpm.PackageName)
 	ghPackage, err := downloader.GetContent()
 	fmt.Println(ghPackage, "GH PACKAGE ")
 	if err != nil {

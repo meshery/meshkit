@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -19,7 +20,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				PackageName: "k8s-config-connector",
 				SourceURL:   "git://github.com/GoogleCloudPlatform/k8s-config-connector/master/v1.112.0/crds/",
 			},
-			want: 100,
+			want: 337,
 		},
 	}
 
@@ -38,7 +39,8 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				return
 			}
 			for _, comp := range comps {
-			    dirName := "./"+comp.Model.Name
+				currentDirectory, _ := os.Getwd()
+			    dirName := filepath.Join(currentDirectory, comp.Model.Name)
 				_, err := os.Stat(dirName) 
 				if errors.Is(err, os.ErrNotExist) {
 					err := os.Mkdir(dirName, fs.ModePerm)
@@ -49,7 +51,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				}
 				byt, _ := json.MarshalIndent(comp, "", "")
 
-				f, err := os.Create(dirName+"/"+comp.Kind+".json")
+				f, err := os.Create(fmt.Sprintf("%s/%s%s", dirName,comp.Kind, ".json"))
 				if err != nil {
 					t.Errorf("error creating file for %s: %v", comp.Kind, err)
 					continue

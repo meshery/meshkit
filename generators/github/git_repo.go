@@ -15,6 +15,7 @@ import (
 
 type GitRepo struct {
 	URL         *url.URL
+	PackageName  string
 	FilesToWalk []string
 }
 
@@ -27,12 +28,6 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	owner, repo, branch, version, root, err := gr.extractRepoDetailsFromSourceURL()
 	if err != nil {
 		return nil, err
-	}
-
-	dirNames := strings.Split(root, "/")
-	var packageName string
-	if len(dirNames) > 0 {
-		packageName = dirNames[0]
 	}
 
 	filePath := fmt.Sprintf("%s_%s_%s_%s", owner, repo, branch, utils.GetRandomAlphabetsOfDigit(5))
@@ -64,7 +59,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 
 	fmt.Println("TEST SUCCESUGLY CLONED")
 	return GitHubPackage{
-		Name:       packageName,
+		Name:       gr.PackageName,
 		filePath:   filePath,
 		branch:     branch,
 		repository: repo,
@@ -85,8 +80,4 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, versio
 		err = ErrInvalidGitHubSourceURL(fmt.Errorf("specify owner, repo, branch and filepath in the url according to the specified source url format"))
 	}
 	return
-}
-
-func dirInterceptor(file walker.Directory) error {
-	return nil
 }
