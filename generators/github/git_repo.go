@@ -10,13 +10,13 @@ import (
 
 	"github.com/layer5io/meshkit/models"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/layer5io/meshkit/utils/helm"
 	"github.com/layer5io/meshkit/utils/walker"
 )
 
 type GitRepo struct {
 	URL         *url.URL
-	PackageName  string
-	
+	PackageName string
 }
 
 // Assumpations: 1. Always a K8s manifest
@@ -41,14 +41,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 		Repo(repo).
 		Branch(branch).
 		Root(root).
-		RegisterFileInterceptor(func(file walker.File) error {
-			ext := filepath.Ext(file.Name)
-			if ext == ".yaml" || ext == ".yml" {
-				br.WriteString("\n---\n")
-				br.WriteString(file.Content)
-			}
-			return nil
-		}).
+		RegisterFileInterceptor(fileInterceptor(br)).
 		ReferenceName(fmt.Sprintf("refs/tags/%s", version)).
 		Walk()
 
@@ -81,4 +74,27 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, versio
 		err = ErrInvalidGitHubSourceURL(fmt.Errorf("specify owner, repo, branch and filepath in the url according to the specified source url format"))
 	}
 	return
+}
+
+func fileInterceptor(br *bufio.Writer) walker.FileInterceptor {
+	return func(file walker.File) error {
+		ext := filepath.Ext(file.Name)
+		if ext == ".yaml" || ext == ".yml" {
+			br.WriteString("\n---\n")
+			br.WriteString(file.Content)
+		}
+		return nil
+	}
+}
+
+// When passing a directory to extract charts and the format introspector is provided as file/dir interceptor i.e. ConvertToK8sManifest ensure the Recurese is off. It is required othweise we will process the dir as well as process the file in that dir separately.
+// Add more calrifying commment and entry inside docs.
+func dirInterceptor(br *bufio.Writer) walker.DirInterceptor {
+	return func(d walker.Directory) error {
+		err := helm.ConvertToK8sManifest(d.Path, br)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 }
