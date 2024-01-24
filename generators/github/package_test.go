@@ -29,6 +29,13 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			},
 			want: 1,
 		},
+		{   // Source pointing to a directly downloadable file (not a repo per se)
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "k8s-config-connector",
+				SourceURL:   "https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-config-connector/master/crds/alloydb_v1beta1_alloydbbackup.yaml/1.113.0",
+			},
+			want: 1,
+		},
 	}
 
 	for _, test := range tests {

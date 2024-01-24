@@ -6,14 +6,21 @@ import (
 	"github.com/layer5io/meshkit/models"
 )
 
-type Scheme interface {
+type DownloaderScheme interface {
 	GetContent() (models.Package, error)
 }
 
-func NewDownloaderForScheme(scheme string, url *url.URL, packageName string) Scheme {
+func NewDownloaderForScheme(scheme string, url *url.URL, packageName string) DownloaderScheme {
 	switch scheme {
 	case "git":
 		return GitRepo{
+			URL: url,
+			PackageName: packageName,
+		}
+	case "http":
+		fallthrough
+	case "https":
+		return GitURL{
 			URL: url,
 			PackageName: packageName,
 		}

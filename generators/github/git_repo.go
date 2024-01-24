@@ -16,7 +16,7 @@ import (
 type GitRepo struct {
 	URL         *url.URL
 	PackageName  string
-	FilesToWalk []string
+	
 }
 
 // Assumpations: 1. Always a K8s manifest
@@ -68,6 +68,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	}, nil
 }
 
+// <git://owner/repo/branch/versiontag/root(path to the directory/file)>
 func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, versionTag, root string, err error) {
 	parts := strings.SplitN(strings.TrimPrefix(gr.URL.Path, "/"), "/", 5)
 	if len(parts) == 5 {
