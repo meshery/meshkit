@@ -20,7 +20,7 @@ func NewDownloaderForScheme(scheme string, url *url.URL, packageName string) Dow
 	case "http":
 		fallthrough
 	case "https":
-		return GitURL{
+		return URL{
 			URL: url,
 			PackageName: packageName,
 		}

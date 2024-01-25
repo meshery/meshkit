@@ -119,13 +119,18 @@ func ExtractZip(path, artifactPath string) error {
 
 }
 
-func ExtractTarGz(path string, gzipStream io.Reader) error {
+func ExtractTarGz(path, downloadfilePath string) error {
+	gzipStream, err := os.Open(downloadfilePath)
+	if err != nil {
+		return ErrReadFile(err, downloadfilePath)
+	}
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
 		return ErrExtractTarXZ(err, path)
 	}
 	defer func(){
 		_ = uncompressedStream.Close()
+		_ = gzipStream.Close()
 	}()
 
 	tarReader := tar.NewReader(uncompressedStream)
@@ -170,15 +175,25 @@ func ExtractTarGz(path string, gzipStream io.Reader) error {
 	return nil
 }
 
-func ProcessExtractedContent(dirPath string, f func(path string) error) error {
-	entries, err := os.ReadDir(dirPath)
+func ProcessContent(filePath string, f func(path string) error) error {
+	pathInfo, err := os.Stat(filePath)
 	if err != nil {
-		return ErrReadDir(err, dirPath)
+		return ErrReadDir(err, filePath)
 	}
-
-	for _, entry := range entries {
-		err := f(filepath.Join(dirPath, entry.Name()))
-		fmt.Println("INSIDE PROCESS >>>>>>>>>", entry.Name())
+	if pathInfo.IsDir() {
+		entries, err := os.ReadDir(filePath)
+		if err != nil {
+			return ErrReadDir(err, filePath)
+		}
+		
+		for _, entry := range entries {
+			err := f(filepath.Join(filePath, entry.Name()))
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		err := f(filePath)
 		if err != nil {
 			return err
 		}

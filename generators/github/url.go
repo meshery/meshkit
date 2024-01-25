@@ -2,7 +2,7 @@ package github
 
 import (
 	"bufio"
-	"fmt"
+	"io"
 
 	"net/url"
 	"os"
@@ -14,7 +14,7 @@ import (
 	"github.com/layer5io/meshkit/utils/helm"
 )
 
-type GitURL struct {
+type URL struct {
 	URL         *url.URL
 	PackageName string
 }
@@ -22,11 +22,11 @@ type GitURL struct {
 // < http/https://url/version>
 //close the descriptors
 
-func (gu GitURL) GetContent() (models.Package, error) {
+func (u URL) GetContent() (models.Package, error) {
 	downloadDirPath := filepath.Join(os.TempDir(), utils.GetRandomAlphabetsOfDigit(5))
 	_ = os.MkdirAll(downloadDirPath, 0755)
 
-	url := gu.URL.String()
+	url := u.URL.String()
 	version := url[strings.LastIndex(url, "/")+1:]
 	url, _ = strings.CutSuffix(url, "/"+version)
 
@@ -40,48 +40,42 @@ func (gu GitURL) GetContent() (models.Package, error) {
 
 	manifestFilePath := filepath.Join(os.TempDir(), utils.GetRandomAlphabetsOfDigit(5)) + ".yml"
 
-	err = ProcessDownloadedContent(downloadDirPath, downloadfilePath, manifestFilePath)
+	manifestFile, _ := os.Create(manifestFilePath)
+
+	w := bufio.NewWriter(manifestFile)
+
+	defer func() {
+		_ = os.RemoveAll(downloadDirPath)
+		_ = w.Flush()
+	}()
+
+	err = ProcessContent(w, downloadDirPath, downloadfilePath)
 	if err != nil {
 		return nil, err
 	}
 	return GitHubPackage{
-		Name:     gu.PackageName,
+		Name:     u.PackageName,
 		filePath: manifestFilePath,
 		version:  version,
 	}, nil
 }
 
-func ProcessDownloadedContent(downloadDirPath, downloadfilePath, manifestFilePath string) error {
-	reader, err := os.Open(downloadfilePath)
-	if err != nil {
-		return utils.ErrReadFile(err, downloadfilePath)
-	}
-	manifestFile, _ := os.Create(manifestFilePath)
-	fmt.Println("FILE PATH : ", downloadfilePath)
-
-	w := bufio.NewWriter(manifestFile)
-
-	defer func() {
-		_ = reader.Close()
-		_ = os.RemoveAll(downloadDirPath)
-		_ = w.Flush()
-	}()
-
+func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error {
+	var err error
 	if utils.IsTarGz(downloadfilePath) {
-		fmt.Println("yes targz : ")
-		err = utils.ExtractTarGz(downloadDirPath, reader)
-		fmt.Println("AFER LOADING targz", err)
+		err = utils.ExtractTarGz(downloadDirPath, downloadfilePath)
 	} else if utils.IsZip(downloadfilePath) {
-		fmt.Println("yes zip : ")
 		err = utils.ExtractZip(downloadDirPath, downloadfilePath)
-		fmt.Println("AFER LOADING zip", err)
+	} else {
+		// If it is not an archive/zip, then the file itself is to be processed.
+		downloadDirPath = downloadfilePath
 	}
 
 	if err != nil {
 		return err
 	}
 
-	utils.ProcessExtractedContent(downloadDirPath, func(path string) error {
+	err = utils.ProcessContent(downloadDirPath, func(path string) error {
 		err := helm.ConvertToK8sManifest(path, w)
 		if err != nil {
 			return err
