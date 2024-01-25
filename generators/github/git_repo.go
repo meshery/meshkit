@@ -15,6 +15,7 @@ import (
 )
 
 type GitRepo struct {
+	// <git://github.com/owner/repo/branch/versiontag/root(path to the directory/file)>
 	URL         *url.URL
 	PackageName string
 }
@@ -42,6 +43,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 		Branch(branch).
 		Root(root).
 		RegisterFileInterceptor(fileInterceptor(br)).
+		RegisterDirInterceptor(dirInterceptor(br)).
 		ReferenceName(fmt.Sprintf("refs/tags/%s", version)).
 		Walk()
 
@@ -61,7 +63,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	}, nil
 }
 
-// <git://owner/repo/branch/versiontag/root(path to the directory/file)>
+
 func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, versionTag, root string, err error) {
 	parts := strings.SplitN(strings.TrimPrefix(gr.URL.Path, "/"), "/", 5)
 	if len(parts) == 5 {

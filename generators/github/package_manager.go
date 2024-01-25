@@ -14,7 +14,6 @@ type GitHubPackageManager struct {
 	Version string
 }
 
-// Do something if raw.githubuser.content url provided
 func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
 	url, err := url.Parse(ghpm.SourceURL)
 	if err != nil {
