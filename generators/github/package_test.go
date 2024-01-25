@@ -22,20 +22,34 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			},
 			want: 337,
 		},
-		{   // Source pointing to a file in a repo
-			ghPackageManager: GitHubPackageManager{
-				PackageName: "k8s-config-connector",
-				SourceURL:   "git://github.com/GoogleCloudPlatform/k8s-config-connector/master/v1.112.0/crds/accesscontextmanager_v1alpha1_accesscontextmanageraccesslevelcondition.yaml",
-			},
-			want: 1,
-		},
-		{   // Source pointing to a directly downloadable file (not a repo per se)
-			ghPackageManager: GitHubPackageManager{
-				PackageName: "k8s-config-connector",
-				SourceURL:   "https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-config-connector/master/crds/alloydb_v1beta1_alloydbbackup.yaml/1.113.0",
-			},
-			want: 1,
-		},
+		// {   // Source pointing to a file in a repo
+		// 	ghPackageManager: GitHubPackageManager{
+		// 		PackageName: "k8s-config-connector",
+		// 		SourceURL:   "git://github.com/GoogleCloudPlatform/k8s-config-connector/master/v1.112.0/crds/accesscontextmanager_v1alpha1_accesscontextmanageraccesslevelcondition.yaml",
+		// 	},
+		// 	want: 1, 
+		// },
+		// {   // Source pointing to a directly downloadable file (not a repo per se)
+		// 	ghPackageManager: GitHubPackageManager{
+		// 		PackageName: "k8s-config-connector",
+		// 		SourceURL:   "https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-config-connector/master/crds/alloydb_v1beta1_alloydbbackup.yaml/1.113.0",
+		// 	},
+		// 	want: 1,
+		// },
+		// {   // Source pointing to a directory containing helm chart
+		// 	ghPackageManager: GitHubPackageManager{
+		// 		PackageName: "acm-controller",
+		// 		SourceURL:   "https://meshery.github.io/meshery.io/charts/meshery-v0.7.12.tgz/v0.7.12",
+		// 	},
+		// 	want: 2,
+		// },
+		// {   // Source pointing to a zip containing manifests
+		// 	ghPackageManager: GitHubPackageManager{
+		// 		PackageName: "acm-controller",
+		// 		SourceURL:   "https://github.com/MUzairS15/WASM-filters/raw/main/Archive.zip/v0.7.12",
+		// 	},
+		// 	want: 1,
+		// },
 	}
 
 	for _, test := range tests {

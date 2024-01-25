@@ -22,6 +22,7 @@ var (
 	ErrReadingRemoteFileCode         = "11053"
 	ErrReadingLocalFileCode          = "11054"
 	ErrReadFileCode                  = "11106"
+	ErrWriteFileCode                 = "replace_me"
 	ErrGettingLatestReleaseTagCode   = "11055"
 	ErrInvalidProtocol               = errors.New(ErrInvalidProtocolCode, errors.Alert, []string{"invalid protocol: only http, https and file are valid protocols"}, []string{}, []string{"Network protocol is incorrect"}, []string{"Make sure to specify the right network protocol"})
 	ErrMissingFieldCode              = "11076"
@@ -34,7 +35,10 @@ var (
 	ErrCreateFileCode                = "replace_me"
 	// ErrDecodeYamlCode represents the error which is generated when yaml
 	// decode process fails
-	ErrDecodeYamlCode = "11035"
+	ErrDecodeYamlCode   = "11035"
+	ErrExtractTarXZCode = "repalce_me"
+	ErrExtractZipCode   = "repalce_me"
+	ErrReadDirCode      = "repalce_me"
 )
 
 func ErrCueLookup(err error) error {
@@ -109,6 +113,10 @@ func ErrReadFile(err error, filepath string) error {
 	return errors.New(ErrReadFileCode, errors.Alert, []string{"error reading file"}, []string{err.Error()}, []string{fmt.Sprintf("File does not exist in the location %s", filepath), "Insufficient permissions"}, []string{"Verify that file exist at the provided location", "Verify sufficient file permissions."})
 }
 
+func ErrWriteFile(err error, filepath string) error {
+	return errors.New(ErrWriteFileCode, errors.Alert, []string{"error writing file"}, []string{err.Error()}, []string{fmt.Sprintf("File does not exist in the location %s", filepath), "Insufficient write permissions"}, []string{"Verify that file exist at the provided location", "Verify sufficient file permissions."})
+}
+
 func ErrCreateFile(err error, filepath string) error {
 	return errors.New(ErrCreateFileCode, errors.Alert, []string{}, []string{err.Error()}, []string{}, []string{})
 }
@@ -131,4 +139,18 @@ func ErrTypeCast(valType string) error {
 // ErrDecodeYaml is the error when the yaml unmarshal fails
 func ErrDecodeYaml(err error) error {
 	return errors.New(ErrDecodeYamlCode, errors.Alert, []string{"Error occurred while decoding YAML"}, []string{err.Error()}, []string{}, []string{})
+}
+
+// ErrExtractTarXVZ is the error for unzipping the targz file
+func ErrExtractTarXZ(err error, path string) error {
+	return errors.New(ErrExtractTarXZCode, errors.Alert, []string{fmt.Sprintf("Error while extracting file at %s", path)}, []string{err.Error()}, []string{"The gzip might be corrupt"}, []string{})
+}
+
+// ErrExtractZip is the error for unzipping the zip file
+func ErrExtractZip(err error, path string) error {
+	return errors.New(ErrExtractZipCode, errors.Alert, []string{fmt.Sprintf("Error while extracting file at %s", path)}, []string{err.Error()}, []string{"The zip might be corrupt"}, []string{})
+}
+
+func ErrReadDir(err error, dirPath string) error {
+	return errors.New(ErrReadDirCode, errors.Alert, []string{"error reading directory"}, []string{err.Error()}, []string{fmt.Sprintf("Directory does not exist at the location %s", dirPath), "Insufficient permissions"}, []string{"Verify that directory exist at the provided location", "Verify sufficient directory read permission."})
 }

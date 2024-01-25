@@ -2,11 +2,14 @@ package helm
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/layer5io/meshkit/utils"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -36,12 +39,50 @@ func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 
 // Takes in the directory and converts HelmCharts/multiple manifests into a single K8s manifest
 func ConvertToK8sManifest(path string, w io.Writer) error {
+	fmt.Println("test detecting helm chart: ", path)
 	if IsHelmChart(path) {
+		fmt.Println("test detected helm chart")
 		err := LoadHelmChart(path, w, true)
 		if err != nil {
 			return err
 		}
+		// If not a helm chart then assume k8s manifest.
+		// Add introspection for compose files later on.
+	} else if utils.IsYaml(path) {
+		pathInfo, _ := os.Stat(path)
+		if pathInfo.IsDir() {
+			filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+				err = writeToFile(w, path)
+				if err != nil {
+					return err
+				}
+				return nil
+			})
+		} else {
+			err := writeToFile(w, path)
+			if err != nil {
+				return err
+			}
+		}
 	}
+	return nil
+}
+
+// writes in form of yaml files
+func writeToFile(w io.Writer, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return utils.ErrReadFile(err, path)
+	}
+	_, err = w.Write(data)
+	if err != nil {
+		return utils.ErrWriteFile(err, path)
+	}
+	_, err = w.Write([]byte("\n---\n"))
+	if err != nil {
+		return utils.ErrWriteFile(err, path)
+	}
+
 	return nil
 }
 
@@ -57,9 +98,8 @@ func IsHelmChart(dirPath string) bool {
 	return true
 }
 
-
 func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool) error {
-	var errs []error 
+	var errs []error
 	chart, err := loader.Load(path)
 	if err != nil {
 		return ErrLoadHelmChart(err)
@@ -73,7 +113,8 @@ func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool) error {
 				errs = append(errs, err)
 				continue
 			}
-			if index == size - 1 {
+			fmt.Println("\ntest inside load helm chart: ", string(crd.File.Data))
+			if index == size-1 {
 				break
 			}
 			_, _ = w.Write([]byte("\n---\n"))
@@ -88,5 +129,5 @@ func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool) error {
 			return ErrLoadHelmChart(err)
 		}
 	}
-	return nil
+	return utils.CombineErrors(errs, "\n")
 }
