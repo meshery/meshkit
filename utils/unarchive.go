@@ -108,7 +108,10 @@ func ExtractZip(path, artifactPath string) error {
 			if err != nil {
 				return ErrExtractZip(err, path)
 			}
-			io.CopyBuffer(openedFile, fd, buffer)
+			_, err = io.CopyBuffer(openedFile, fd, buffer)
+			if err != nil {
+				return ErrExtractZip(err, path)
+			}
 			defer func() {
 				_ = openedFile.Close()
 			}()
@@ -150,19 +153,19 @@ func ExtractTarGz(path, downloadfilePath string) error {
 		if err != nil {
 			return ErrExtractTarXZ(err, path)
 		}
-		fmt.Println("insinde extact loop: ", header.Typeflag-'0', header.Name)
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(filepath.Join(path, header.Name), 0755); err != nil {
+			if err = os.MkdirAll(filepath.Join(path, header.Name), 0755); err != nil {
 				return ErrExtractTarXZ(err, path)
 			}
 		case tar.TypeReg:
 			_ = os.MkdirAll(filepath.Join(path, filepath.Dir(header.Name)), 0755)
-			outFile, err := os.Create(filepath.Join(path, header.Name))
+			var outFile *os.File
+			outFile, err = os.Create(filepath.Join(path, header.Name))
 			if err != nil {
 				return ErrExtractTarXZ(err, path)
 			}
-			if _, err := io.Copy(outFile, tarReader); err != nil {
+			if _, err = io.Copy(outFile, tarReader); err != nil {
 				return ErrExtractTarXZ(err, path)
 			}
 			outFile.Close()

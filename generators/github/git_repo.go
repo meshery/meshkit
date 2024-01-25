@@ -90,8 +90,7 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, versio
 func fileInterceptor(br *bufio.Writer) walker.FileInterceptor {
 	return func(file walker.File) error {
 		tempPath := filepath.Join(os.TempDir(), utils.GetRandomAlphabetsOfDigit(5))
-		ProcessContent(br, tempPath, file.Path)
-		return nil
+		return ProcessContent(br, tempPath, file.Path)
 	}
 }
 

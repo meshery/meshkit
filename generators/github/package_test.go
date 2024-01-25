@@ -85,7 +85,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				dirName := filepath.Join(currentDirectory, comp.Model.Name)
 				_, err := os.Stat(dirName)
 				if errors.Is(err, os.ErrNotExist) {
-					err := os.Mkdir(dirName, fs.ModePerm)
+					err = os.Mkdir(dirName, fs.ModePerm)
 					if err != nil {
 						t.Errorf("error creating dir at %s: %v", dirName, err)
 						return
@@ -98,7 +98,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 					t.Errorf("error creating file for %s: %v", comp.Kind, err)
 					continue
 				}
-				f.Write(byt)
+				_, _ = f.Write(byt)
 			}
 			t.Log("generated ", len(comps), "want: ", test.want)
 			if len(comps) != test.want {

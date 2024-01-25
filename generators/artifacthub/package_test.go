@@ -41,7 +41,7 @@ func TestGetChartUrl(t *testing.T) {
 				dirName := "./" + comp.Model.Name
 				_, err := os.Stat(dirName)
 				if errors.Is(err, os.ErrNotExist) {
-					err := os.Mkdir(dirName, fs.ModePerm)
+					err = os.Mkdir(dirName, fs.ModePerm)
 					if err != nil {
 						t.Errorf("err creating dir : %v", err)
 					}
@@ -53,7 +53,7 @@ func TestGetChartUrl(t *testing.T) {
 					t.Errorf("error create file : %v", err)
 					continue
 				}
-				f.Write(byt)
+				_, _ = f.Write(byt)
 			}
 		})
 	}

@@ -39,15 +39,12 @@ func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 
 // Takes in the directory and converts HelmCharts/multiple manifests into a single K8s manifest
 func ConvertToK8sManifest(path string, w io.Writer) error {
-	fmt.Println("test detecting helm chart: ", path)
 	info, _ := os.Stat(path)
 	helmChartPath := path
 	if !info.IsDir() {
 		helmChartPath, _ = strings.CutSuffix(path, filepath.Base(path))
 	}
-
 	if IsHelmChart(helmChartPath) {
-		fmt.Println("test detected helm chart")
 		err := LoadHelmChart(helmChartPath, w, true)
 		if err != nil {
 			return err
@@ -57,13 +54,16 @@ func ConvertToK8sManifest(path string, w io.Writer) error {
 	} else if utils.IsYaml(path) {
 		pathInfo, _ := os.Stat(path)
 		if pathInfo.IsDir() {
-			filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
-				err = writeToFile(w, path)
+			err := filepath.WalkDir(path, func(path string, d fs.DirEntry, _err error) error {
+			err := writeToFile(w, path)
 				if err != nil {
 					return err
 				}
 				return nil
 			})
+			if err != nil {
+				return err
+			}			
 		} else {
 			err := writeToFile(w, path)
 			if err != nil {

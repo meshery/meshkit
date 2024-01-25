@@ -169,7 +169,7 @@ func clonewalk(g *Git) error {
 	}
 
 	if !info.IsDir() {
-		err := g.readFile(info, rootPath)
+		err = g.readFile(info, rootPath)
 		if err != nil {
 			return ErrCloningRepo(err)
 		}
@@ -193,7 +193,10 @@ func clonewalk(g *Git) error {
 			}
 			return g.readFile(f, path)
 		})
-		return ErrCloningRepo(err)
+		if err != nil {
+			return ErrCloningRepo(err)
+		}
+		return nil
 	}
 
 	// If recurse mode is off, we only walk the root directory passed with g.root
