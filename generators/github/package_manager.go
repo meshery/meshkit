@@ -11,7 +11,7 @@ import (
 type GitHubPackageManager struct {
 	PackageName string
 	SourceURL   string
-	Version string
+	Version     string
 }
 
 func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
@@ -20,8 +20,8 @@ func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
 		err = walker.ErrCloningRepo(err)
 		return nil, err
 	}
- 	protocol := url.Scheme
-	
+	protocol := url.Scheme
+
 	downloader := NewDownloaderForScheme(protocol, url, ghpm.PackageName)
 	ghPackage, err := downloader.GetContent()
 	fmt.Println(ghPackage, "GH PACKAGE ")

@@ -14,14 +14,14 @@ func NewDownloaderForScheme(scheme string, url *url.URL, packageName string) Dow
 	switch scheme {
 	case "git":
 		return GitRepo{
-			URL: url,
+			URL:         url,
 			PackageName: packageName,
 		}
 	case "http":
 		fallthrough
 	case "https":
 		return URL{
-			URL: url,
+			URL:         url,
 			PackageName: packageName,
 		}
 	}

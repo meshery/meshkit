@@ -31,7 +31,6 @@ func TestGetChartUrl(t *testing.T) {
 				t.Errorf("got %v, want %v", tt.ahpkg.ChartUrl, tt.want)
 			}
 
-
 			comps, err := tt.ahpkg.GenerateComponents()
 			if err != nil {
 				fmt.Println(err)

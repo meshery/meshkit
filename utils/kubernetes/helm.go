@@ -22,6 +22,6 @@ func ConvertHelmChartToK8sManifest(cfg ApplyHelmChartConfig) (manifest []byte, e
 	if err != nil {
 		return nil, ErrApplyHelmChart(err)
 	}
-	
+
 	return helm.DryRunHelmChart(helmChart)
 }

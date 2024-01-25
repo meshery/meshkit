@@ -66,7 +66,7 @@ func readData(name string) (buffer []byte, err error) {
 	}()
 	buffer = make([]byte, 512)
 	_, err = raw.Read(buffer)
-	
+
 	if err != nil {
 		return
 	}
@@ -128,7 +128,7 @@ func ExtractTarGz(path, downloadfilePath string) error {
 	if err != nil {
 		return ErrExtractTarXZ(err, path)
 	}
-	defer func(){
+	defer func() {
 		_ = uncompressedStream.Close()
 		_ = gzipStream.Close()
 	}()
@@ -185,7 +185,7 @@ func ProcessContent(filePath string, f func(path string) error) error {
 		if err != nil {
 			return ErrReadDir(err, filePath)
 		}
-		
+
 		for _, entry := range entries {
 			err := f(filepath.Join(filePath, entry.Name()))
 			if err != nil {

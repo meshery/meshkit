@@ -65,7 +65,6 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	}, nil
 }
 
-
 func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, versionTag, root string, err error) {
 	parts := strings.SplitN(strings.TrimPrefix(gr.URL.Path, "/"), "/", 5)
 	size := len(parts)
@@ -74,11 +73,11 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, versio
 		repo = parts[1]
 		branch = parts[2]
 		// The version is used to clone a repo at a particular tag, when specifying the URL, the format is <git://github.com/owner/repo/branch/versiontag/root(path to the directory/file)>, the optional version attribute if provided is at 3rd index.
-		// And hence the part after the 
+		// And hence the part after the
 		if size > 4 {
 			versionTag = parts[3]
 			root = parts[4]
-			} else {
+		} else {
 			// If the url doesn't contain the version, meaning we will include all tags and all the remaining part after branch/ will be considered as location inside the repo.
 			root = parts[3]
 		}

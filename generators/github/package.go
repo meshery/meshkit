@@ -12,10 +12,10 @@ import (
 
 type GitHubPackage struct {
 	Name       string `yaml:"name" json:"name"`
-	filePath   string 
-	branch     string 
-	repository string 
-	version    string 
+	filePath   string
+	branch     string
+	repository string
+	version    string
 	SourceURL  string `yaml:"source_url" json:"source_url"`
 }
 

@@ -4,7 +4,7 @@ import "github.com/layer5io/meshkit/errors"
 
 var (
 	ErrDryRunHelmChartCode = "replace_me"
-	ErrLoadHelmChartCode       = "replace_me"
+	ErrLoadHelmChartCode   = "replace_me"
 )
 
 func ErrDryRunHelmChart(err error) error {
