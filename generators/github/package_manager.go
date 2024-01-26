@@ -11,7 +11,6 @@ import (
 type GitHubPackageManager struct {
 	PackageName string
 	SourceURL   string
-	Version     string
 }
 
 func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
