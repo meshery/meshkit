@@ -276,3 +276,29 @@ func IsClosed[K any](ch chan K) bool {
 		return false
 	}
 }
+
+// WriteToFile writes the given content to the given file path
+func WriteToFile(path string, content string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.WriteString(content)
+	if err != nil {
+		return err
+	}
+	// Close the file to save the changes.
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// FormatName formats the given string to by replacing " " with "-"
+func FormatName(input string) string {
+	formatedName := strings.ReplaceAll(input, " ", "-")
+	formatedName = strings.ToLower(formatedName)
+	return formatedName
+}
