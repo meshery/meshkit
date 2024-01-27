@@ -16,30 +16,30 @@ import (
 // swagger:response RelationshipDefinition
 // TODO: Add support for Model
 type RelationshipDefinition struct {
-	ID uuid.UUID `json:"-"`
+	ID uuid.UUID `json:"id"`
 	TypeMeta
-	Model           Model                  `json:"model"`
-	HostName        string                 `json:"hostname"`
-	HostID          uuid.UUID              `json:"hostID"`
-	DisplayHostName string                 `json:"displayhostname"`
-	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
-	SubType         string                 `json:"subType" yaml:"subType" gorm:"subType"`
-	RegoQuery       string                 `json:"rego_query" yaml:"rego_query" gorm:"rego_query"`
-	Selectors       map[string]interface{} `json:"selectors" yaml:"selectors"`
-	CreatedAt       time.Time              `json:"-"`
-	UpdatedAt       time.Time              `json:"-"`
+	Model           Model                    `json:"model"`
+	HostName        string                   `json:"hostname"`
+	HostID          uuid.UUID                `json:"hostID"`
+	DisplayHostName string                   `json:"displayhostname"`
+	Metadata        map[string]interface{}   `json:"metadata" yaml:"metadata"`
+	SubType         string                   `json:"subType" yaml:"subType" gorm:"subType"`
+	EvaluationQuery string                   `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
+	Selectors       []map[string]interface{} `json:"selectors" yaml:"selectors"`
+	CreatedAt       time.Time                `json:"-"`
+	UpdatedAt       time.Time                `json:"-"`
 }
 
 type RelationshipDefinitionDB struct {
-	ID      uuid.UUID `json:"-"`
+	ID      uuid.UUID `json:"id"`
 	ModelID uuid.UUID `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:modelID"`
 	TypeMeta
-	Metadata  []byte    `json:"metadata" yaml:"metadata"`
-	SubType   string    `json:"subType" yaml:"subType"`
-	RegoQuery string    `json:"rego_query" yaml:"rego_query" gorm:"rego_query"`
-	Selectors []byte    `json:"selectors" yaml:"selectors"`
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
+	Metadata        []byte    `json:"metadata" yaml:"metadata"`
+	SubType         string    `json:"subType" yaml:"subType"`
+	EvaluationQuery string    `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
+	Selectors       []byte    `json:"selectors" yaml:"selectors"`
+	CreatedAt       time.Time `json:"-"`
+	UpdatedAt       time.Time `json:"-"`
 }
 
 // For now, only filtering by Kind and SubType are allowed.
@@ -123,13 +123,13 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r Relat
 	}
 	_ = json.Unmarshal(rdb.Metadata, &r.Metadata)
 	if r.Selectors == nil {
-		r.Selectors = make(map[string]interface{})
+		r.Selectors = []map[string]interface{}{}
 	}
 	_ = json.Unmarshal(rdb.Selectors, &r.Selectors)
 	r.SubType = rdb.SubType
 	r.Kind = rdb.Kind
 	r.Model = m
-	r.RegoQuery = rdb.RegoQuery
+	r.EvaluationQuery = rdb.EvaluationQuery
 	return
 }
 
@@ -163,6 +163,6 @@ func (r *RelationshipDefinition) GetRelationshipDefinitionDB() (rdb Relationship
 	rdb.Kind = r.Kind
 	rdb.SubType = r.SubType
 	rdb.ModelID = r.Model.ID
-	rdb.RegoQuery = r.RegoQuery
+	rdb.EvaluationQuery = r.EvaluationQuery
 	return
 }
