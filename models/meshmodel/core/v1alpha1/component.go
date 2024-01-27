@@ -26,13 +26,13 @@ const (
 // swagger:response ComponentDefinition
 // use NewComponent function for instantiating
 type ComponentDefinition struct {
-	ID uuid.UUID `json:"id"`
+	ID uuid.UUID `json:"id,omitempty"`
 	TypeMeta
 	DisplayName     string                 `json:"displayName" gorm:"displayName"`
 	Format          ComponentFormat        `json:"format" yaml:"format"`
-	HostName        string                 `json:"hostname"`
-	HostID          uuid.UUID              `json:"hostID"`
-	DisplayHostName string                 `json:"displayhostname"`
+	HostName        string                 `json:"hostname,omitempty"`
+	HostID          uuid.UUID              `json:"hostID,omitempty"`
+	DisplayHostName string                 `json:"displayhostname,omitempty"`
 	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
 	Model           Model                  `json:"model"`
 	Schema          string                 `json:"schema,omitempty" yaml:"schema"`
