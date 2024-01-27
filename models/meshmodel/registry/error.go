@@ -43,6 +43,7 @@ var (
 	ErrWritingRegisteryAttemptsCode    = "11100"
 	ErrRegisteringEntityCode           = "11101"
 	ErrUnknownHostInMapCode            = "11102"
+	ErrCreatingUserDataDirectoryCode   = "1005"
 )
 
 func ErrUnknownHostInMap() error {
@@ -52,7 +53,7 @@ func ErrUnknownHost(err error) error {
 	return errors.New(ErrUnknownHostCode, errors.Alert, []string{"Registrant type is not supported or unknown."}, []string{err.Error()}, []string{"The host registering a Model and it's components is not recognized by Meshery Server (or by the version currently running)."}, []string{"Validate the name and location of the model registrant. Try upgrading to latest available Meshery version."})
 }
 func ErrEmptySchema() error {
-	return errors.New(ErrEmptySchemaCode, errors.Alert, []string{"Empty schema for the component"}, nil, []string{"The schema is empty for the component."}, []string{"For the particular component the schema is empty. Use the docs or discussion forum for more details  "})
+	return errors.New(ErrEmptySchemaCode, errors.Alert, []string{"Empty schema for the component"}, []string{"Empty schema for the component"}, []string{"The schema is empty for the component."}, []string{"For the particular component the schema is empty. Use the docs or discussion forum for more details  "})
 }
 func ErrMarshalingRegisteryAttempts(err error) error {
 	return errors.New(ErrMarshalingRegisteryAttemptsCode, errors.Alert, []string{"Error marshaling RegisterAttempts to JSON"}, []string{"Error marshaling RegisterAttempts to JSON: ", err.Error()}, []string{}, []string{})
@@ -63,7 +64,9 @@ func ErrWritingRegisteryAttempts(err error) error {
 func ErrRegisteringEntity(failedMsg string, hostName string) error {
 	return errors.New(ErrRegisteringEntityCode, errors.Alert, []string{fmt.Sprintf("The import process for a registrant %s encountered difficulties,due to which %s. Specific issues during the import process resulted in certain entities not being successfully registered in the table.", hostName, failedMsg)}, []string{fmt.Sprintf("For registrant %s %s", hostName, failedMsg)}, []string{"Could be because of empty schema or some issue with the json or yaml file"}, []string{"Check /server/cmd/registery_attempts.json for futher details"})
 }
-
+func ErrCreatingUserDataDirectory(dir string) error {
+	return errors.New(ErrCreatingUserDataDirectoryCode, errors.Fatal, []string{"Unable to create the directory for storing user data at: ", dir}, []string{"Unable to create the directory for storing user data at: ", dir}, []string{}, []string{})
+}
 func onModelError(reg Registry, modelName string, h Host, err error) {
 	if entityCount, ok := RegisterAttempts.Model[modelName]; ok {
 		entityCount.Attempt++
