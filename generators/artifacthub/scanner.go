@@ -25,6 +25,7 @@ func GetAhPackagesWithName(name string) ([]AhPackage, error) {
 	for key, val := range AhApiSearchParams {
 		url = fmt.Sprintf("%s%s=%s&", url, key, val)
 	}
+	fmt.Println("teset insinde getahpackage: ", url)
 	// get packages
 	resp, err := http.Get(url)
 	if err != nil {

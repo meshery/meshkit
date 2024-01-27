@@ -32,11 +32,16 @@ type AhPackage struct {
 	Version           string `yaml:"version"`
 }
 
+func (pkg AhPackage) GetVersion() string {
+	return pkg.Version
+}
+
 func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error) {
 	components := make([]v1alpha1.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
 	crds, err := manifests.GetCrdsFromHelm(pkg.ChartUrl)
 	if err != nil {
+		fmt.Println("INSIDE GENERATE COMPONENTS FOR MODEL", pkg.Name, ": ERR", err)
 		return components, ErrComponentGenerate(err)
 	}
 	for _, crd := range crds {

@@ -2,7 +2,6 @@ package artifacthub
 
 import (
 	"fmt"
-	"net/url"
 
 	"github.com/layer5io/meshkit/models"
 )
@@ -20,23 +19,11 @@ func (ahpm ArtifactHubPackageManager) GetPackage() (models.Package, error) {
 	}
 	// update package information
 	for i, ap := range pkgs {
-		if ahpm.SourceURL != "" {
-			url, err := url.Parse(ahpm.SourceURL)
-			if err != nil {
-				ap.ChartUrl = url.String()
-				pkgs[i] = ap
-				continue
-			}
-		}
 		_ = ap.UpdatePackageData()
 		pkgs[i] = ap
 	}
-	if ahpm.SourceURL != "" {
-		pkgs = FilterPackageWithGivenSourceURL(pkgs, ahpm.SourceURL)
-		if len(pkgs) != 0 {
-			return pkgs[0], nil
-		}
-	}
+
+	fmt.Println("PKGS : ", len(pkgs))
 	// Add filtering/sort based on preferred_models.yaml as well.
 	pkgs = SortPackagesWithScore(pkgs)
 	if len(pkgs) == 0 {

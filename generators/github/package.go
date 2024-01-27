@@ -19,6 +19,10 @@ type GitHubPackage struct {
 	SourceURL  string `yaml:"source_url" json:"source_url"`
 }
 
+func (gp GitHubPackage) GetVersion() string {
+	return gp.version
+}
+
 func (gp GitHubPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error) {
 	components := make([]v1alpha1.ComponentDefinition, 0)
 
