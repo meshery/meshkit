@@ -9,6 +9,9 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
+var (
+	GoogleSpreadSheetURL  = "https://docs.google.com/spreadsheets/d/"
+)
 
 func NewSheetSRV(cred string) (*sheets.Service, error) {
 	ctx := context.Background()
