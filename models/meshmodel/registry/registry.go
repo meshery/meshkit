@@ -393,7 +393,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 			var components []v1alpha1.ComponentDefinitionDB
 			finder := db.Model(&v1alpha1.ComponentDefinitionDB{}).
 				Select("component_definition_dbs.id, component_definition_dbs.kind,component_definition_dbs.display_name, component_definition_dbs.api_version, component_definition_dbs.metadata").
-				Where("component_definition_dbs.model_id = ?", model.ID)				
+				Where("component_definition_dbs.model_id = ?", model.ID)
 			if err := finder.Scan(&components).Error; err != nil {
 				fmt.Println(err)
 			}

@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	GoogleSpreadSheetURL  = "https://docs.google.com/spreadsheets/d/"
+	GoogleSpreadSheetURL = "https://docs.google.com/spreadsheets/d/"
 )
 
 func NewSheetSRV(cred string) (*sheets.Service, error) {

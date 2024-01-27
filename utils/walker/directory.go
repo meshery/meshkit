@@ -23,13 +23,12 @@ func WalkLocalDirectory(path string) ([]*File, error) {
 					return err
 				}
 
-
 				f := &File{
 					Content: string(content),
-					Name: d.Name(),
-					Path: path,
+					Name:    d.Name(),
+					Path:    path,
 				}
-				
+
 				files = append(files, f)
 			}
 			return nil
