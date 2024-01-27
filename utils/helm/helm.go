@@ -27,12 +27,12 @@ func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 	act.ClientOnly = true
 	rel, err := act.Run(chart, nil)
 	if err != nil {
-		return nil, ErrDryRunHelmChart(err)
+		return nil, ErrDryRunHelmChart(err, chart.Name())
 	}
 	var manifests bytes.Buffer
 	_, err = manifests.Write([]byte(strings.TrimSpace(rel.Manifest)))
 	if err != nil {
-		return nil, ErrDryRunHelmChart(err)
+		return nil, ErrDryRunHelmChart(err, chart.Name())
 	}
 	return manifests.Bytes(), nil
 }
@@ -108,7 +108,7 @@ func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool) error {
 	var errs []error
 	chart, err := loader.Load(path)
 	if err != nil {
-		return ErrLoadHelmChart(err)
+		return ErrLoadHelmChart(err, path)
 	}
 	if extractOnlyCrds {
 		crds := chart.CRDObjects()
@@ -119,7 +119,6 @@ func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool) error {
 				errs = append(errs, err)
 				continue
 			}
-			fmt.Println("\ntest inside load helm chart: ")
 			if index == size-1 {
 				break
 			}
@@ -128,11 +127,11 @@ func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool) error {
 	} else {
 		manifests, err := DryRunHelmChart(chart)
 		if err != nil {
-			return ErrLoadHelmChart(err)
+			return ErrLoadHelmChart(err, path)
 		}
 		_, err = w.Write(manifests)
 		if err != nil {
-			return ErrLoadHelmChart(err)
+			return ErrLoadHelmChart(err, path)
 		}
 	}
 	return utils.CombineErrors(errs, "\n")

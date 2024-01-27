@@ -22,7 +22,7 @@ var (
 	ErrReadingRemoteFileCode         = "11053"
 	ErrReadingLocalFileCode          = "11054"
 	ErrReadFileCode                  = "11106"
-	ErrWriteFileCode                 = "replace_me"
+	ErrWriteFileCode                 = "11110"
 	ErrGettingLatestReleaseTagCode   = "11055"
 	ErrInvalidProtocol               = errors.New(ErrInvalidProtocolCode, errors.Alert, []string{"invalid protocol: only http, https and file are valid protocols"}, []string{}, []string{"Network protocol is incorrect"}, []string{"Make sure to specify the right network protocol"})
 	ErrMissingFieldCode              = "11076"
@@ -32,13 +32,13 @@ var (
 	ErrJsonSchemaToCueCode           = "11087"
 	ErrCueLookupCode                 = "11089"
 	ErrTypeCastCode                  = "11100"
-	ErrCreateFileCode                = "replace_me"
+	ErrCreateFileCode                = "11111"
 	// ErrDecodeYamlCode represents the error which is generated when yaml
 	// decode process fails
 	ErrDecodeYamlCode   = "11035"
-	ErrExtractTarXZCode = "repalce_me"
-	ErrExtractZipCode   = "repalce_me"
-	ErrReadDirCode      = "repalce_me"
+	ErrExtractTarXZCode = "11112"
+	ErrExtractZipCode   = "11113"
+	ErrReadDirCode      = "11114"
 )
 
 func ErrCueLookup(err error) error {

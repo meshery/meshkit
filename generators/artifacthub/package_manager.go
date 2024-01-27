@@ -23,7 +23,6 @@ func (ahpm ArtifactHubPackageManager) GetPackage() (models.Package, error) {
 		pkgs[i] = ap
 	}
 
-	fmt.Println("PKGS : ", len(pkgs))
 	// Add filtering/sort based on preferred_models.yaml as well.
 	pkgs = SortPackagesWithScore(pkgs)
 	if len(pkgs) == 0 {

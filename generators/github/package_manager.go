@@ -1,7 +1,6 @@
 package github
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/layer5io/meshkit/models"
@@ -23,9 +22,8 @@ func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
 
 	downloader := NewDownloaderForScheme(protocol, url, ghpm.PackageName)
 	ghPackage, err := downloader.GetContent()
-	fmt.Println(ghPackage, "GH PACKAGE ")
 	if err != nil {
-		return nil, ErrGenerateGitHubPackage(err)
+		return nil, ErrGenerateGitHubPackage(err, ghpm.PackageName)
 	}
 	return ghPackage, nil
 }

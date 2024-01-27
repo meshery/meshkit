@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -19,7 +18,6 @@ func IsTarGz(name string) bool {
 	}
 
 	if err != nil && err != io.EOF {
-		// return fmt.Errorf("file '%s' cannot be read: %s", name, err)
 		return false
 	}
 
@@ -47,7 +45,6 @@ func IsYaml(name string) bool {
 		return false
 	}
 
-	fmt.Println("test content type: ", http.DetectContentType(buffer))
 	if contentType := http.DetectContentType(buffer); !strings.Contains(contentType, "text/plain") {
 		return false
 	}
@@ -80,12 +77,10 @@ func ExtractZip(path, artifactPath string) error {
 	}()
 
 	if err != nil {
-		fmt.Println("inside extract zip", err)
 		return ErrExtractZip(err, path)
 	}
 	buffer := make([]byte, 1<<4)
 	for _, file := range zipReader.File {
-		fmt.Println("inside loop zip", file.Name)
 
 		fd, err := file.Open()
 		defer func() {
@@ -137,7 +132,6 @@ func ExtractTarGz(path, downloadfilePath string) error {
 	}()
 
 	tarReader := tar.NewReader(uncompressedStream)
-	fmt.Println("insinde extact ")
 
 	if err != nil {
 		return ErrExtractTarXZ(err, path)

@@ -1,8 +1,9 @@
 package generators
 
 import "github.com/layer5io/meshkit/errors"
+
 var (
-	ErrUnsupportedRegistrantCode = "replace_me"
+	ErrUnsupportedRegistrantCode = "11107"
 )
 
 func ErrUnsupportedRegistrant(err error) error {
