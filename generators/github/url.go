@@ -57,6 +57,7 @@ func (u URL) GetContent() (models.Package, error) {
 		Name:     u.PackageName,
 		filePath: manifestFilePath,
 		version:  version,
+		SourceURL: u.URL.String(),
 	}, nil
 }
 

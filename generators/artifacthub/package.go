@@ -41,7 +41,6 @@ func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error
 	// TODO: Move this to the configuration
 	crds, err := manifests.GetCrdsFromHelm(pkg.ChartUrl)
 	if err != nil {
-		fmt.Println("INSIDE GENERATE COMPONENTS FOR MODEL", pkg.Name, ": ERR", err)
 		return components, ErrComponentGenerate(err)
 	}
 	for _, crd := range crds {

@@ -41,15 +41,18 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	defer func() {
 		_ = br.Flush()
 	}()
-	err = gitWalker.
+	gw := gitWalker.
 		Owner(owner).
 		Repo(repo).
 		Branch(branch).
 		Root(root).
 		RegisterFileInterceptor(fileInterceptor(br)).
-		RegisterDirInterceptor(dirInterceptor(br)).
-		ReferenceName(fmt.Sprintf("refs/tags/%s", version)).
-		Walk()
+		RegisterDirInterceptor(dirInterceptor(br))
+
+	if version != "" {
+		gw = gw.ReferenceName(fmt.Sprintf("refs/tags/%s", version))
+	}
+	err = gw.Walk()
 
 	if err != nil {
 		return nil, walker.ErrCloningRepo(err)

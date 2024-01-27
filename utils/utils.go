@@ -328,3 +328,31 @@ func CombineErrors(errs []error, sep string) error {
 
 	return errors.New(strings.Join(errString, sep))
 }
+
+func MergeMaps(mergeInto, toMerge map[string]interface{}) map[string]interface{} {
+	if mergeInto == nil {
+		mergeInto = make(map[string]interface{})
+	}
+	for k, v := range toMerge {
+		mergeInto[k] = v
+	}
+	return mergeInto
+}
+
+func WriteJSONToFile[K any](outputPath string, data K) error {
+	byt, err := json.MarshalIndent(data, " ", " ")
+	if err != nil {
+		return ErrMarshal(err)
+	}
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return ErrCreateFile(err, outputPath)
+	}
+
+	_, err = file.Write(byt)
+	if err != nil {
+		return ErrWriteFile(err, outputPath)
+	}
+	return nil
+}
