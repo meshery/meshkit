@@ -2,7 +2,6 @@ package helm
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
