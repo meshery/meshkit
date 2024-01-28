@@ -42,11 +42,7 @@ func GetAhPackagesWithName(name string) ([]AhPackage, error) {
 	}
 	resPkgs := res["packages"]
 	for _, pkg := range resPkgs {
-		ahPkg := AhPackage{
-			Name:       pkg["name"].(string),
-			Repository: pkg["repository"].(map[string]interface{})["name"].(string),
-		}
-		pkgs = append(pkgs, ahPkg)
+		pkgs = append(pkgs, *parseArtifacthubResponse(pkg))
 	}
 	return pkgs, nil
 }
