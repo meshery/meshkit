@@ -28,7 +28,7 @@ func (gp GitHubPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, er
 
 	data, err := os.ReadFile(gp.filePath)
 	if err != nil {
-		return nil, ErrGenerateGitHubPackage(err)
+		return nil, ErrGenerateGitHubPackage(err, gp.Name)
 	}
 
 	manifestBytes := bytes.Split(data, []byte("\n---\n"))
