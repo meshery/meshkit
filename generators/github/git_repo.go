@@ -31,7 +31,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 		return nil, err
 	}
 
-	filePath := fmt.Sprintf("%s%s_%s_%s_%s", os.TempDir(), owner, repo, branch, utils.GetRandomAlphabetsOfDigit(5))
+	filePath := filepath.Join(os.TempDir(), owner, repo, branch, utils.GetRandomAlphabetsOfDigit(5))
 	fd, err := os.Create(filePath) // perform cleanup
 	if err != nil {
 		return nil, utils.ErrCreateFile(err, filePath)
