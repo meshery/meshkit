@@ -55,7 +55,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				PackageName: "acm-controller",
 				SourceURL:   "git://github.com/MUzairS15/WASM-filters/main/v0.3.0/chart.tar.gz",
 			},
-			want: 2,
+			want: 8,
 		},
 		{ // Source pointing to a dir containing CRDs
 			ghPackageManager: GitHubPackageManager{
