@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"strings"
 
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
@@ -50,12 +49,11 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 			case v1.PodRunning:
 				ms.status = Running
 				broker := NewMesheryBrokerHandler(ms.kclient)
-				brokerEndpoint, errOfEndpoint := broker.GetPublicEndpoint()
-				if errOfEndpoint != nil {
+				brokerEndpoint, err := broker.GeEndpointForPort(brokerMonitoringPortName)
+				if err != nil {
 					return ms.status
 				}
-				hostIP := strings.Split(brokerEndpoint, ":")[0]
-				isConnected := ConnectivityTest(MeshSync, hostIP)
+				isConnected := ConnectivityTest(MeshSync, brokerEndpoint)
 				if isConnected {
 					ms.status = Connected
 				}
@@ -126,4 +124,8 @@ func (ms *meshsync) GetVersion() (string, error) {
 	}
 
 	return meshsyncresource.Spec.Version, nil
+}
+
+func (mb *meshsync) GeEndpointForPort(portName string) (string, error) {
+	return "", nil
 }

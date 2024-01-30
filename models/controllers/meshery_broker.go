@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
+	"github.com/layer5io/meshkit/utils/kubernetes"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	v1 "k8s.io/api/core/v1"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
@@ -14,6 +15,9 @@ import (
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 )
 
+var (
+	brokerMonitoringPortName = "monitor"
+)
 type mesheryBroker struct {
 	name    string
 	status  MesheryControllerStatus
@@ -38,13 +42,14 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 		return Unknown
 	}
 	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
-	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
+	_, err = operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
 	if err == nil {
-		brokerEndpoint := broker.Status.Endpoint.External
-		hostIP := strings.Split(brokerEndpoint, ":")[0]
-		if broker.Status.Endpoint.External != "" && ConnectivityTest(MesheryServer, hostIP) {
-			mb.status = Connected
-			return mb.status
+		monitoringEndpoint, err := mb.GeEndpointForPort(brokerMonitoringPortName) 
+		if err == nil {
+			if ConnectivityTest(MesheryServer, monitoringEndpoint) {
+				mb.status = Connected
+				return mb.status
+			}
 		}
 		mb.status = Deployed
 		return mb.status
@@ -115,6 +120,18 @@ func (mb *mesheryBroker) GetVersion() (string, error) {
 		return "", err
 	}
 	return getImageVersionOfContainer(statefulSet.Spec.Template, "nats"), nil
+}
+
+func (mb *mesheryBroker) GeEndpointForPort(portName string) (string, error) {
+	endpoint, err := kubernetes.GetServiceEndpoint(context.TODO(), mb.kclient.KubeClient, &mesherykube.ServiceOptions{
+		Name: "meshery-broker",
+		Namespace: "meshery",
+		PortSelector: portName,
+	})
+	if err != nil {
+		return "", err
+	}
+	return endpoint.External.String(), nil
 }
 
 func getImageVersionOfContainer(container v1.PodTemplateSpec, containerName string) string {

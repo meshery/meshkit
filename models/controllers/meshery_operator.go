@@ -112,3 +112,7 @@ func (mo *mesheryOperator) setStatus(st MesheryControllerStatus) {
 	defer mo.mx.Unlock()
 	mo.status = st
 }
+
+func (mo *mesheryOperator) GeEndpointForPort(portName string) (string, error) {
+	return "", nil
+}

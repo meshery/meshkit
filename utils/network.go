@@ -18,6 +18,10 @@ type HostPort struct {
 	Port    int32
 }
 
+func (hp *HostPort) String() string {
+	return fmt.Sprintf("%s:%d", hp.Address, hp.Port)
+}
+
 type MockOptions struct {
 	DesiredEndpoint string
 }
