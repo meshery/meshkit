@@ -113,6 +113,6 @@ func (mo *mesheryOperator) setStatus(st MesheryControllerStatus) {
 	mo.status = st
 }
 
-func (mo *mesheryOperator) GeEndpointForPort(portName string) (string, error) {
+func (mo *mesheryOperator) GetEndpointForPort(portName string) (string, error) {
 	return "", nil
 }

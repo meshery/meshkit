@@ -49,5 +49,5 @@ type IMesheryController interface {
 	Undeploy() error
 	GetPublicEndpoint() (string, error)
 	GetVersion() (string, error)
-	GeEndpointForPort(portName string) (string, error)
+	GetEndpointForPort(portName string) (string, error)
 }

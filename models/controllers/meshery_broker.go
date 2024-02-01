@@ -18,6 +18,7 @@ import (
 var (
 	brokerMonitoringPortName = "monitor"
 )
+
 type mesheryBroker struct {
 	name    string
 	status  MesheryControllerStatus
@@ -44,7 +45,7 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
 	_, err = operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
 	if err == nil {
-		monitoringEndpoint, err := mb.GeEndpointForPort(brokerMonitoringPortName) 
+		monitoringEndpoint, err := mb.GetEndpointForPort(brokerMonitoringPortName)
 		if err == nil {
 			if ConnectivityTest(MesheryServer, monitoringEndpoint) {
 				mb.status = Connected
@@ -122,10 +123,10 @@ func (mb *mesheryBroker) GetVersion() (string, error) {
 	return getImageVersionOfContainer(statefulSet.Spec.Template, "nats"), nil
 }
 
-func (mb *mesheryBroker) GeEndpointForPort(portName string) (string, error) {
+func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
 	endpoint, err := kubernetes.GetServiceEndpoint(context.TODO(), mb.kclient.KubeClient, &mesherykube.ServiceOptions{
-		Name: "meshery-broker",
-		Namespace: "meshery",
+		Name:         "meshery-broker",
+		Namespace:    "meshery",
 		PortSelector: portName,
 	})
 	if err != nil {
