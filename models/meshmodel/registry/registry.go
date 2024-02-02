@@ -202,6 +202,26 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	}
 }
 
+// UpdateEntityIgnoreStatus updates the ignore status of an entity based on the provided parameters.
+// By default during models generation ignore is set to false
+func (rm *RegistryManager) UpdateEntityIgnoreStatus(ID string, status bool, entity string) error {
+	// Convert string UUID to google UUID
+	entityID, err := uuid.Parse(ID)
+	if err != nil {
+		return err
+	}
+	switch entity {
+	case "models":
+		err := v1alpha1.UpdateModelsIgnoreStatus(rm.db, entityID, status)
+		if err != nil {
+			return err
+		}
+		return nil
+	default:
+		return nil
+	}
+}
+
 func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.MeshModelHostsWithEntitySummary, int64, error) {
 	var result []v1alpha1.MesheryHostSummaryDB
 	var totalcount int64

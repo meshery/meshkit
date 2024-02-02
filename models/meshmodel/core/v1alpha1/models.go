@@ -44,6 +44,7 @@ type Model struct {
 	Name            string                     `json:"name"`
 	Version         string                     `json:"version"`
 	DisplayName     string                     `json:"displayName" gorm:"modelDisplayName"`
+	Ignored         bool                       `json:"ignored" gorm:"ignored"`
 	HostName        string                     `json:"hostname"`
 	HostID          uuid.UUID                  `json:"hostID"`
 	DisplayHostName string                     `json:"displayhostname"`
@@ -61,6 +62,7 @@ type ModelDB struct {
 	DisplayName string    `json:"modelDisplayName" gorm:"modelDisplayName"`
 	SubCategory string    `json:"subCategory" gorm:"subCategory"`
 	Metadata    []byte    `json:"modelMetadata" gorm:"modelMetadata"`
+	Ignored     bool      `json:"ignored" gorm:"ignored"`
 }
 
 func (m Model) Type() types.CapabilityType {
@@ -102,10 +104,16 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 	}
 	return model.ID, nil
 }
+
+func UpdateModelsIgnoreStatus(db *database.Handler, modelID uuid.UUID, status bool) error {
+	return db.Model(&ModelDB{}).Where("id = ?", modelID).Update("ignored", status).Error
+}
+
 func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 	c.ID = cmd.ID
 	c.Category = cat
 	c.DisplayName = cmd.DisplayName
+	c.Ignored = cmd.Ignored
 	c.Name = cmd.Name
 	c.Version = cmd.Version
 	c.Components = make([]ComponentDefinitionDB, 0)
@@ -116,6 +124,7 @@ func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 func (c *Model) GetModelDB() (cmd ModelDB) {
 	cmd.ID = c.ID
 	cmd.DisplayName = c.DisplayName
+	cmd.Ignored = c.Ignored
 	cmd.Name = c.Name
 	cmd.Version = c.Version
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
