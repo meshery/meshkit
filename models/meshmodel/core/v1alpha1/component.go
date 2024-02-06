@@ -39,6 +39,7 @@ type ComponentDefinition struct {
 	CreatedAt       time.Time              `json:"-"`
 	UpdatedAt       time.Time              `json:"-"`
 }
+
 type ComponentDefinitionDB struct {
 	ID      uuid.UUID `json:"id"`
 	ModelID uuid.UUID `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
@@ -211,6 +212,20 @@ func (cmd *ComponentDefinitionDB) GetComponentDefinition(model Model) (c Compone
 	c.Model = model
 	return
 }
+
+func (cmd *ComponentDefinitionDB) GetComponentDefinitionSummary() (c ComponentDefinition) {
+	c.ID = cmd.ID
+	c.TypeMeta = cmd.TypeMeta
+	c.Format = cmd.Format
+	c.DisplayName = cmd.DisplayName
+	c.HostName = cmd.HostName
+	if c.Metadata == nil {
+		c.Metadata = make(map[string]interface{})
+	}
+	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
+	return
+}
+
 func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitionDB) {
 	cmd.ID = c.ID
 	cmd.TypeMeta = c.TypeMeta

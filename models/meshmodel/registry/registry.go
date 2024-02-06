@@ -397,7 +397,10 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 			if err := finder.Scan(&components).Error; err != nil {
 				fmt.Println(err)
 			}
-			model.Components = components
+			model.Components = make([]v1alpha1.ComponentDefinition, len(components))
+			for i, component := range components {
+				model.Components[i] = component.GetComponentDefinitionSummary()
+			}
 		}
 		if includeRelationships {
 			var relationships []v1alpha1.RelationshipDefinitionDB

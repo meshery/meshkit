@@ -49,7 +49,7 @@ type Model struct {
 	DisplayHostName string                     `json:"displayhostname"`
 	Category        Category                   `json:"category"`
 	Metadata        map[string]interface{}     `json:"metadata" yaml:"modelMetadata"`
-	Components      []ComponentDefinitionDB    `json:"components"`
+	Components      []ComponentDefinition    `json:"components"`
 	Relationships   []RelationshipDefinitionDB `json:"relationships"`
 }
 
@@ -108,7 +108,7 @@ func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 	c.DisplayName = cmd.DisplayName
 	c.Name = cmd.Name
 	c.Version = cmd.Version
-	c.Components = make([]ComponentDefinitionDB, 0)
+	c.Components = make([]ComponentDefinition, 0)
 	c.Relationships = make([]RelationshipDefinitionDB, 0)
 	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
 	return
