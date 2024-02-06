@@ -218,7 +218,6 @@ func (cmd *ComponentDefinitionDB) GetComponentDefinitionSummary() (c ComponentDe
 	c.TypeMeta = cmd.TypeMeta
 	c.Format = cmd.Format
 	c.DisplayName = cmd.DisplayName
-	c.HostName = cmd.HostName
 	if c.Metadata == nil {
 		c.Metadata = make(map[string]interface{})
 	}
