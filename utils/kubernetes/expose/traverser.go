@@ -2,11 +2,11 @@ package expose
 
 import (
 	"context"
-	"errors"
+
 	"fmt"
-	"strings"
 
 	"github.com/layer5io/meshkit/logger"
+	"github.com/layer5io/meshkit/utils"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -189,25 +189,10 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 		}
 	}
 
-	err := combineErrors(errs, "\n")
+	err := utils.CombineErrors(errs, "\n")
 	if err != nil {
 		return accumulatedSvcs, ErrTraverser(err)
 	}
 
 	return accumulatedSvcs, nil
-}
-
-// combineErrors merges a slice of error
-// into one error separated by the given separator
-func combineErrors(errs []error, sep string) error {
-	if len(errs) == 0 {
-		return nil
-	}
-
-	var errString []string
-	for _, err := range errs {
-		errString = append(errString, err.Error())
-	}
-
-	return errors.New(strings.Join(errString, sep))
 }

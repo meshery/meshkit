@@ -30,9 +30,6 @@ var (
 	// no valid helm repository is found
 	ErrHelmRepositoryNotFoundCode = "11034"
 
-	// ErrDecodeYamlCode represents the error which is generated when yaml
-	// decode process fails
-	ErrDecodeYamlCode = "11035"
 	// ErrEntryWithChartVersionNotExistsCode represents the error which is generated
 	// when no entry is found with specified name and app version
 	ErrEntryWithChartVersionNotExistsCode = "11036"
@@ -102,9 +99,4 @@ func ErrEntryWithChartVersionNotExists(entry, appVersion string) error {
 // ErrHelmRepositoryNotFound is the error when no valid remote helm repository is found
 func ErrHelmRepositoryNotFound(repo string, err error) error {
 	return errors.New(ErrHelmRepositoryNotFoundCode, errors.Alert, []string{"Helm repo not found"}, []string{fmt.Sprintf("either the repo %s does not exists or is corrupt: %v", repo, err)}, []string{}, []string{})
-}
-
-// ErrDecodeYaml is the error when the yaml unmarshal fails
-func ErrDecodeYaml(err error) error {
-	return errors.New(ErrDecodeYamlCode, errors.Alert, []string{"Error occurred while decoding YAML"}, []string{err.Error()}, []string{}, []string{})
 }

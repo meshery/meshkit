@@ -3,11 +3,13 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/layer5io/meshkit/utils"
 	"gorm.io/gorm"
 )
 
@@ -40,13 +42,13 @@ func (cf *ModelFilter) Create(m map[string]interface{}) {
 
 // swagger:response Model
 type Model struct {
-	ID              uuid.UUID                  `json:"id" yaml:"-"`
+	ID              uuid.UUID                  `json:"id,omitempty" yaml:"-"`
 	Name            string                     `json:"name"`
 	Version         string                     `json:"version"`
 	DisplayName     string                     `json:"displayName" gorm:"modelDisplayName"`
-	HostName        string                     `json:"hostname"`
-	HostID          uuid.UUID                  `json:"hostID"`
-	DisplayHostName string                     `json:"displayhostname"`
+	HostName        string                     `json:"hostname,omitempty"`
+	HostID          uuid.UUID                  `json:"hostID,omitempty"`
+	DisplayHostName string                     `json:"displayhostname,omitempty"`
 	Category        Category                   `json:"category"`
 	Metadata        map[string]interface{}     `json:"metadata" yaml:"modelMetadata"`
 	Components      []ComponentDefinitionDB    `json:"components"`
@@ -120,4 +122,18 @@ func (c *Model) GetModelDB() (cmd ModelDB) {
 	cmd.Version = c.Version
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
 	return
+}
+
+func (c Model) WriteModelDefinition(modelDefPath string) error {
+	err := utils.CreateDirectory(modelDefPath)
+	if err != nil {
+		return err
+	}
+
+	modelFilePath := filepath.Join(modelDefPath, "model.json")
+	err = utils.WriteJSONToFile[Model](modelFilePath, c)
+	if err != nil {
+		return err
+	}
+	return nil
 }

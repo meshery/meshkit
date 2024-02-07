@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	mathrand "math/rand"
 	"net/http"
 	"os"
 	"os/user"
@@ -301,4 +302,67 @@ func FormatName(input string) string {
 	formatedName := strings.ReplaceAll(input, " ", "-")
 	formatedName = strings.ToLower(formatedName)
 	return formatedName
+}
+
+func GetRandomAlphabetsOfDigit(length int) (s string) {
+	charSet := "abcdedfghijklmnopqrstuvwxyz"
+	for i := 0; i < length; i++ {
+		random := mathrand.Intn(len(charSet))
+		randomChar := charSet[random]
+		s += string(randomChar)
+	}
+	return
+}
+
+// combineErrors merges a slice of error
+// into one error separated by the given separator
+func CombineErrors(errs []error, sep string) error {
+	if len(errs) == 0 {
+		return nil
+	}
+
+	var errString []string
+	for _, err := range errs {
+		errString = append(errString, err.Error())
+	}
+
+	return errors.New(strings.Join(errString, sep))
+}
+
+func MergeMaps(mergeInto, toMerge map[string]interface{}) map[string]interface{} {
+	if mergeInto == nil {
+		mergeInto = make(map[string]interface{})
+	}
+	for k, v := range toMerge {
+		mergeInto[k] = v
+	}
+	return mergeInto
+}
+
+func WriteJSONToFile[K any](outputPath string, data K) error {
+	byt, err := json.MarshalIndent(data, " ", " ")
+	if err != nil {
+		return ErrMarshal(err)
+	}
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return ErrCreateFile(err, outputPath)
+	}
+
+	_, err = file.Write(byt)
+	if err != nil {
+		return ErrWriteFile(err, outputPath)
+	}
+	return nil
+}
+
+func CreateDirectory(path string) error{
+	err := os.MkdirAll(path, 0755)
+	if err != nil {
+		err = ErrCreateDir(err, path)
+
+		return err
+	}
+	return nil
 }
