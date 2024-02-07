@@ -3,11 +3,13 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/layer5io/meshkit/utils"
 	"gorm.io/gorm/clause"
 )
 
@@ -219,4 +221,10 @@ func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitio
 	cmd.DisplayName = c.DisplayName
 	cmd.Schema = c.Schema
 	return
+}
+
+func (c ComponentDefinition) WriteComponentDefinition(componentDirPath string) error {
+	componentPath := filepath.Join(componentDirPath, c.Kind+".json")
+	err := utils.WriteJSONToFile[ComponentDefinition](componentPath, c)
+	return err
 }

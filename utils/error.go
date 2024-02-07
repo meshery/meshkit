@@ -33,6 +33,7 @@ var (
 	ErrCueLookupCode                 = "11089"
 	ErrTypeCastCode                  = "11100"
 	ErrCreateFileCode                = "11111"
+	ErrCreateDirCode                 = "11117"
 	// ErrDecodeYamlCode represents the error which is generated when yaml
 	// decode process fails
 	ErrDecodeYamlCode   = "11035"
@@ -118,7 +119,11 @@ func ErrWriteFile(err error, filepath string) error {
 }
 
 func ErrCreateFile(err error, filepath string) error {
-	return errors.New(ErrCreateFileCode, errors.Alert, []string{}, []string{err.Error()}, []string{}, []string{})
+	return errors.New(ErrCreateFileCode, errors.Alert, []string{fmt.Sprintf("error creating file at %s", filepath)}, []string{err.Error()}, []string{"invalid path provided", "insufficient permissions"}, []string{"provide a valid path", "retry by using an absolute path", "check for sufficient permissions for the user"})
+}
+
+func ErrCreateDir(err error, filepath string) error {
+	return errors.New(ErrCreateDirCode, errors.Alert, []string{fmt.Sprintf("error creating directory at %s", filepath)}, []string{err.Error()}, []string{"invalid path provided", "insufficient permissions"}, []string{"provide a valid path", "retry by using an absolute path", "check for sufficient permissions for the user"})
 }
 
 func ErrGettingLatestReleaseTag(err error) error {
