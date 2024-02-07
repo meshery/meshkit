@@ -26,10 +26,16 @@ type GitRepo struct {
 func (gr GitRepo) GetContent() (models.Package, error) {
 	gitWalker := walker.NewGit()
 
-	owner, repo, branch, version, root, err := gr.extractRepoDetailsFromSourceURL()
+	owner, repo, branch, root, err := gr.extractRepoDetailsFromSourceURL()
 	if err != nil {
 		return nil, err
 	}
+
+	versions, err := utils.GetLatestReleaseTagsSorted(owner, repo)
+	if err != nil {
+		return nil, ErrInvalidGitHubSourceURL(err)
+	}
+	version := versions[len(versions)-1]
 	dirPath := filepath.Join(os.TempDir(), owner, repo, branch)
 	_ = os.MkdirAll(dirPath, 0755)
 	filePath := filepath.Join(dirPath, utils.GetRandomAlphabetsOfDigit(5))
@@ -69,22 +75,15 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	}, nil
 }
 
-func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, versionTag, root string, err error) {
-	parts := strings.SplitN(strings.TrimPrefix(gr.URL.Path, "/"), "/", 5)
+func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root string, err error) {
+	parts := strings.SplitN(strings.TrimPrefix(gr.URL.Path, "/"), "/", 4)
 	size := len(parts)
-	if size >= 4 {
+	if size > 3 {
 		owner = parts[0]
 		repo = parts[1]
 		branch = parts[2]
-		// The version is used to clone a repo at a particular tag, when specifying the URL, the format is <git://github.com/owner/repo/branch/versiontag/root(path to the directory/file)>, the optional version attribute if provided is at 3rd index.
-		// And hence the part after the
-		if size > 4 {
-			versionTag = parts[3]
-			root = parts[4]
-		} else {
-			// If the url doesn't contain the version, meaning we will include all tags and all the remaining part after branch/ will be considered as location inside the repo.
-			root = parts[3]
-		}
+		root = parts[3]
+
 	} else {
 		err = ErrInvalidGitHubSourceURL(fmt.Errorf("specify owner, repo, branch and filepath in the url according to the specified source url format"))
 	}
