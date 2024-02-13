@@ -62,14 +62,14 @@ type Model struct {
 }
 
 type ModelDB struct {
-	ID          uuid.UUID `json:"id"`
-	CategoryID  uuid.UUID `json:"-" gorm:"categoryID"`
-	Name        string    `json:"modelName" gorm:"modelName"`
-	Version     string    `json:"version"`
-	DisplayName string    `json:"modelDisplayName" gorm:"modelDisplayName"`
-	SubCategory string    `json:"subCategory" gorm:"subCategory"`
-	Metadata    []byte    `json:"modelMetadata" gorm:"modelMetadata"`
-	Ignored     bool      `json:"ignored" gorm:"ignored"`
+	ID          uuid.UUID 		`json:"id"`
+	CategoryID  uuid.UUID 		`json:"-" gorm:"categoryID"`
+	Name        string    		`json:"modelName" gorm:"modelName"`
+	Version     string    		`json:"version"`
+	DisplayName string    		`json:"modelDisplayName" gorm:"modelDisplayName"`
+	SubCategory string    		`json:"subCategory" gorm:"subCategory"`
+	Metadata    []byte    		`json:"modelMetadata" gorm:"modelMetadata"`
+	Status      ModelStatus     `json:"status" gorm:"status"`
 }
 
 func (m Model) Type() types.CapabilityType {
