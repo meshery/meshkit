@@ -38,13 +38,20 @@ func (cf *ModelFilter) Create(m map[string]interface{}) {
 	cf.Name = m["name"].(string)
 }
 
+type ModelStatus string
+
+const (
+	IGNORED   ModelStatus = "ignored"
+	// Add more statuses as needed
+)
+
 // swagger:response Model
 type Model struct {
 	ID              uuid.UUID                  `json:"id" yaml:"-"`
 	Name            string                     `json:"name"`
 	Version         string                     `json:"version"`
 	DisplayName     string                     `json:"displayName" gorm:"modelDisplayName"`
-	Ignored         bool                       `json:"ignored" gorm:"ignored"`
+	Status          ModelStatus                `json:"status" gorm:"status"`
 	HostName        string                     `json:"hostname"`
 	HostID          uuid.UUID                  `json:"hostID"`
 	DisplayHostName string                     `json:"displayhostname"`
@@ -105,8 +112,8 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 	return model.ID, nil
 }
 
-func UpdateModelsIgnoreStatus(db *database.Handler, modelID uuid.UUID, status bool) error {
-	return db.Model(&ModelDB{}).Where("id = ?", modelID).Update("ignored", status).Error
+func UpdateModelsStatus(db *database.Handler, modelID uuid.UUID, status string) error {
+	return db.Model(&ModelDB{}).Where("id = ?", modelID).Update("status", status).Error
 }
 
 func (cmd *ModelDB) GetModel(cat Category) (c Model) {

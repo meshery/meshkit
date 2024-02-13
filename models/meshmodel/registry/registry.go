@@ -204,7 +204,7 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 
 // UpdateEntityIgnoreStatus updates the ignore status of an entity based on the provided parameters.
 // By default during models generation ignore is set to false
-func (rm *RegistryManager) UpdateEntityIgnoreStatus(ID string, status bool, entity string) error {
+func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entity string) error {
 	// Convert string UUID to google UUID
 	entityID, err := uuid.Parse(ID)
 	if err != nil {
