@@ -1,6 +1,11 @@
 package artifacthub
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
 	"strings"
 	"testing"
 )
@@ -24,6 +29,31 @@ func TestGetChartUrl(t *testing.T) {
 			}
 			if !strings.HasPrefix(tt.ahpkg.ChartUrl, tt.want) {
 				t.Errorf("got %v, want %v", tt.ahpkg.ChartUrl, tt.want)
+			}
+
+			comps, err := tt.ahpkg.GenerateComponents()
+			if err != nil {
+				fmt.Println(err)
+				t.Errorf("error while generating components: %v", err)
+				return
+			}
+			for _, comp := range comps {
+				dirName := "./" + comp.Model.Name
+				_, err := os.Stat(dirName)
+				if errors.Is(err, os.ErrNotExist) {
+					err = os.Mkdir(dirName, fs.ModePerm)
+					if err != nil {
+						t.Errorf("err creating dir : %v", err)
+					}
+				}
+				byt, _ := json.MarshalIndent(comp, "", "")
+
+				f, err := os.Create(dirName + "/" + comp.Kind + ".json")
+				if err != nil {
+					t.Errorf("error create file : %v", err)
+					continue
+				}
+				_, _ = f.Write(byt)
 			}
 		})
 	}

@@ -116,7 +116,8 @@ func (rm *RegistryManager) Cleanup() {
 func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
-		if entity.Schema == "" { //For components with an empty schema, exit quietly
+		isAnnotation, _ := entity.Metadata["isAnnotation"].(bool)
+		if entity.Schema == "" && !isAnnotation { //For components which an empty schema and is not an annotation, exit quietly
 			return nil
 		}
 

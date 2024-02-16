@@ -5,7 +5,9 @@ import (
 
 	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/layer5io/meshkit/utils/kubernetes"
 	"github.com/layer5io/meshkit/utils/manifests"
+	"gopkg.in/yaml.v2"
 )
 
 // Remove the fields which is either not required by end user (like status) or is prefilled by system (like apiVersion, kind and metadata)
@@ -73,4 +75,25 @@ func DeleteFields(m map[string]interface{}) {
 		}
 		m[key] = prop
 	}
+}
+
+func FilterCRDs(manifests [][]byte) ([]string, []error) {
+	var errs []error
+	var filteredManifests []string
+	for _, m := range manifests {
+
+		var crd map[string]interface{}
+		err := yaml.Unmarshal(m, &crd)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		isCrd := kubernetes.IsCRD(crd)
+		if !isCrd {
+			continue
+		}
+		filteredManifests = append(filteredManifests, string(m))
+	}
+	return filteredManifests, errs
 }
