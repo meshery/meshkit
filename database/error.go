@@ -3,14 +3,14 @@ package database
 import "github.com/layer5io/meshkit/errors"
 
 var (
-	ErrNoneDatabaseCode              = "11010"
-	ErrDatabaseOpenCode              = "11011"
-	ErrSQLMapUnmarshalJSONCode       = "11012"
-	ErrSQLMapUnmarshalTextCode       = "11013"
-	ErrSQLMapMarshalValueCode        = "11014"
-	ErrSQLMapUnmarshalScannedCode    = "11015"
-	ErrSQLMapInvalidScanCode         = "11016"
-	ErrClosingDatabaseConnectionCode = "11017"
+	ErrNoneDatabaseCode              = "meshkit-11126"
+	ErrDatabaseOpenCode              = "meshkit-11127"
+	ErrSQLMapUnmarshalJSONCode       = "meshkit-11128"
+	ErrSQLMapUnmarshalTextCode       = "meshkit-11129"
+	ErrSQLMapMarshalValueCode        = "meshkit-11130"
+	ErrSQLMapUnmarshalScannedCode    = "meshkit-11131"
+	ErrSQLMapInvalidScanCode         = "meshkit-11132"
+	ErrClosingDatabaseConnectionCode = "meshkit-11133"
 	ErrNoneDatabase                  = errors.New(ErrNoneDatabaseCode, errors.Alert, []string{"No Database selected"}, []string{}, []string{"database name is empty"}, []string{"Input a name for the database"})
 	ErrSQLMapInvalidScan             = errors.New(ErrSQLMapInvalidScanCode, errors.Alert, []string{"invalid data type: expected []byte"}, []string{}, []string{}, []string{})
 )
