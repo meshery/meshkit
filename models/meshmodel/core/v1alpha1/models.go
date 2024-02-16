@@ -122,7 +122,7 @@ func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 	c.ID = cmd.ID
 	c.Category = cat
 	c.DisplayName = cmd.DisplayName
-	c.Ignored = cmd.Ignored
+	c.Status = cmd.Status
 	c.Name = cmd.Name
 	c.Version = cmd.Version
 	c.Components = make([]ComponentDefinitionDB, 0)
@@ -133,7 +133,7 @@ func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 func (c *Model) GetModelDB() (cmd ModelDB) {
 	cmd.ID = c.ID
 	cmd.DisplayName = c.DisplayName
-	cmd.Ignored = c.Ignored
+	cmd.Status = c.Status
 	cmd.Name = c.Name
 	cmd.Version = c.Version
 	cmd.Metadata, _ = json.Marshal(c.Metadata)

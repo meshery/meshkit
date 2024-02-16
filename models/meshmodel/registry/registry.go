@@ -213,7 +213,7 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entity s
 	}
 	switch entity {
 	case "models":
-		err := v1alpha1.UpdateModelsIgnoreStatus(rm.db, entityID, status)
+		err := v1alpha1.UpdateModelsStatus(rm.db, entityID, status)
 		if err != nil {
 			return err
 		}
