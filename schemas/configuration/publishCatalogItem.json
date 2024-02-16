@@ -1,0 +1,59 @@
+{
+    "//playground": "https://rjsf-team.github.io/react-jsonschema-form/#eyJmb3JtRGF0YSI6eyJjb21wYXRpYmlsaXR5IjpbImlzdGlvIl0sInR5cGUiOiJkZXBsb3ltZW50IiwiZmlyc3ROYW1lIjoiQ2h1Y2siLCJsYXN0TmFtZSI6Ik5vcnJpcyIsImFnZSI6NzUsImJpbyI6IlJvdW5kaG91c2Uga2lja2luZyBhc3NlcyBzaW5jZSAxOTQwIiwicGFzc3dvcmQiOiJub25lZWQiLCJ0ZWxlcGhvbmUiOiIxLTgwMC1LSUNLQVNTIn0sInNjaGVtYSI6eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJjb21wYXRpYmlsaXR5Ijp7InR5cGUiOiJhcnJheSIsInRpdGxlIjoiVGVjaG5vbG9neSIsIml0ZW1zIjp7ImVudW0iOlsiaXN0aW8iLCJsaW5rZXJkIl0sInR5cGUiOiJzdHJpbmcifSwidW5pcXVlSXRlbXMiOnRydWUsIm1pbkl0ZW1zIjoxLCJkZXNjcmlwdGlvbiI6IlRoZSBsaXN0IG9mIGNvbXBhdGlibGUgdGVjaG5vbG9naWVzLiIsIngtcmpzZi1ncmlkLWFyZWEiOjZ9LCJwYXR0ZXJuX2NhdmVhdHMiOnsidHlwZSI6InN0cmluZyIsInRpdGxlIjoiQ2F2ZWF0cyBhbmQgQ29uc2lkZXJhdGlvbnMiLCJkZXNjcmlwdGlvbiI6IkNhdmVhdHMgcmVsYXRlZCB0byB0aGUgZGVzaWduLiIsImZvcm1hdCI6InRleHRhcmVhIiwieC1yanNmLWdyaWQtYXJlYSI6MTJ9LCJwYXR0ZXJuX2luZm8iOnsidHlwZSI6InN0cmluZyIsInRpdGxlIjoiRGVzY3JpcHRpb24iLCJkZXNjcmlwdGlvbiI6IkFkZGl0aW9uYWwgaW5mb3JtYXRpb24gYWJvdXQgdGhlIGRlc2lnbi4iLCJmb3JtYXQiOiJ0ZXh0YXJlYSIsIngtcmpzZi1ncmlkLWFyZWEiOjEyfSwidHlwZSI6eyJ0eXBlIjoic3RyaW5nIiwidGl0bGUiOiJUeXBlIiwiZW51bSI6WyJkZXBsb3ltZW50Iiwib2JzZXJ2YWJpbGl0eSIsInJlc2lsaWVuY3kiLCJzY2FsaW5nIiwic2VjdXJpdHkiLCJ0cmFmZmljLW1hbmFnZW1lbnQiLCJ0cm91Ymxlc2hvb3RpbmciLCJ3b3JrbG9hZHMiXSwiZGVmYXVsdCI6ImRlcGxveW1lbnQiLCJkZXNjcmlwdGlvbiI6IlRoZSBjYXRlZ29yeSBvZiB0aGUgcGF0dGVybi4iLCJ4LXJqc2YtZ3JpZC1hcmVhIjo2fX0sInJlcXVpcmVkIjpbImNvbXBhdGliaWxpdHkiLCJwYXR0ZXJuX2NhdmVhdHMiLCJwYXR0ZXJuX2luZm8iLCJ0eXBlIl19LCJ1aVNjaGVtYSI6eyJ1aTpvcmRlciI6WyJ0eXBlIiwiY29tcGF0aWJpbGl0eSIsInBhdHRlcm5fY2F2ZWF0cyIsInBhdHRlcm5faW5mbyJdfSwidGhlbWUiOiJkZWZhdWx0IiwibGl2ZVNldHRpbmdzIjp7InNob3dFcnJvckxpc3QiOiJ0b3AiLCJ2YWxpZGF0ZSI6ZmFsc2UsImRpc2FibGVkIjpmYWxzZSwibm9IdG1sNVZhbGlkYXRlIjpmYWxzZSwicmVhZG9ubHkiOmZhbHNlLCJvbWl0RXh0cmFEYXRhIjpmYWxzZSwibGl2ZU9taXQiOmZhbHNlLCJleHBlcmltZW50YWxfZGVmYXVsdEZvcm1TdGF0ZUJlaGF2aW9yIjp7ImFycmF5TWluSXRlbXMiOiJwb3B1bGF0ZSIsImVtcHR5T2JqZWN0RmllbGRzIjoicG9wdWxhdGVBbGxEZWZhdWx0cyJ9fX0=",
+    "type": "object",
+    "properties": {
+        "compatibility": {
+            "type": "array",
+            "title": "Technology",
+            "items": {
+                "enum": [
+                    "kubernetes"
+                ],
+                "type": "string"
+            },
+            "uniqueItems": true,
+            "minItems": 1,
+            "description": "A list of technologies included in or implicated by this design; a list of relevant technology tags.",
+            "x-rjsf-grid-area": 6
+        },
+        "pattern_caveats": {
+            "type": "string",
+            "title": "Caveats and Considerations",
+            "description": "Specific stipulations to consider and known behaviors to be aware of when using this design.",
+            "format": "textarea",
+            "x-rjsf-grid-area": 12,
+            "x-encode-in-uri": true
+        },
+        "pattern_info": {
+            "type": "string",
+            "title": "Description",
+            "description": "Purpose of the design along with its intended and unintended uses.",
+            "format": "textarea",
+            "x-rjsf-grid-area": 12,
+            "x-encode-in-uri": true
+        },
+        "type": {
+            "type": "string",
+            "title": "Type",
+            "enum": [
+                "Deployment",
+                "Observability",
+                "Resiliency",
+                "Scaling",
+                "Security",
+                "Traffic-management",
+                "Troubleshooting",
+                "Workloads"
+            ],
+            "default": "Deployment",
+            "description": "Categorization of the type of design or operational flow depicted in this design.",
+            "x-rjsf-grid-area": 6
+        }
+    },
+    "required": [
+        "compatibility",
+        "pattern_caveats",
+        "pattern_info",
+        "type"
+    ]
+}

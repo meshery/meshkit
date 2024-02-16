@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"os"
 	"time"
 
@@ -15,7 +16,9 @@ type Handler interface {
 	Debug(description ...interface{})
 	Warn(err error)
 	Error(err error)
-
+	SetLevel(level logrus.Level)
+	GetLevel() logrus.Level
+	UpdateLogOutput(w io.Writer)
 	// Kubernetes Controller compliant logger
 	ControllerLogger() logr.Logger
 	DatabaseLogger() gormlogger.Interface
@@ -57,10 +60,7 @@ func New(appname string, opts Options) (Handler, error) {
 		log.SetOutput(opts.Output)
 	}
 
-	log.SetLevel(logrus.InfoLevel)
-	if opts.DebugLevel {
-		log.SetLevel(logrus.DebugLevel)
-	}
+	log.SetLevel(logrus.Level(opts.LogLevel))
 
 	entry := log.WithFields(logrus.Fields{"app": appname})
 	return &Logger{handler: entry}, nil
@@ -104,4 +104,16 @@ func (l *Logger) Warn(err error) {
 		"probable-cause":        errors.GetCause(err),
 		"suggested-remediation": errors.GetRemedy(err),
 	}).Log(logrus.WarnLevel, err.Error())
+}
+
+func (l *Logger) SetLevel(level logrus.Level) {
+	l.handler.Logger.SetLevel(level)
+}
+
+func (l *Logger) GetLevel() logrus.Level {
+	return l.handler.Logger.GetLevel()
+}
+
+func (l *Logger) UpdateLogOutput(output io.Writer) {
+	l.handler.Logger.SetOutput(output)
 }

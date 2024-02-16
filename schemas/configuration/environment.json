@@ -1,0 +1,30 @@
+{
+  "title": "Environment",
+  "properties": {
+    "description": {
+      "description": "Description of the Environment",
+      "format": "textarea",
+      "title": "Description",
+      "type": "string",
+      "x-rjsf-grid-area": "12"
+    },
+    "name": {
+      "description": "The name of Environment",
+      "title": "Name",
+      "type": "string",
+      "x-rjsf-grid-area": "12"
+    },
+    "organization": {
+      "type": "string",
+      "title": "Organization",
+      "enum": [],
+      "enumNames": [],
+      "x-rjsf-grid-area": "12"
+    }
+  },
+  "type": "object",
+   "required": [
+    "name",
+    "organization"
+  ]
+}

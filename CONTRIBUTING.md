@@ -91,6 +91,18 @@ All contributors are invited to review pull requests. See this short video on [h
 # New to Git?
 Resources: https://lab.github.com and https://try.github.com/
 
+
+# FQA
+
+### Instructions for making custom dictionary entries
+
+Enter new key:value pairs into the `useDictionary()` map in https://github.com/meshery/meshkit/blob/master/utils/utils.go
+
+- Key: string to match
+- Value: string to display
+
+The custom dictionary entries are case insensitive.
+
 ### License
 
 This repository and site are available as open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).

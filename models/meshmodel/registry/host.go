@@ -1,9 +1,9 @@
 package registry
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +12,8 @@ import (
 	"github.com/layer5io/meshkit/utils/kubernetes"
 	"gorm.io/gorm"
 )
+
+var hostCreationLock sync.Mutex //Each entity will perform a check and if the host already doesn't exist, it will create a host. This lock will make sure that there are no race conditions.
 
 type Host struct {
 	ID        uuid.UUID `json:"-"`
@@ -24,9 +26,31 @@ type Host struct {
 }
 
 func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
-	h.ID = uuid.New()
-	err := db.Create(&h).Error
-	return h.ID, err
+	byt, err := json.Marshal(h)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	hID := uuid.NewSHA1(uuid.UUID{}, byt)
+	var host Host
+	hostCreationLock.Lock()
+	defer hostCreationLock.Unlock()
+	err = db.First(&host, "id = ?", hID).Error // check if the host already exists
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return uuid.UUID{}, err
+	}
+
+	// if not exists then create a new host and return the id
+	if err == gorm.ErrRecordNotFound {
+		h.ID = hID
+		err = db.Create(&h).Error
+		if err != nil {
+			return uuid.UUID{}, err
+		}
+		return h.ID, nil
+	}
+
+	// else return the id of the existing host
+	return host.ID, nil
 }
 
 func (h *Host) AfterFind(tx *gorm.DB) error {
@@ -35,8 +59,8 @@ func (h *Host) AfterFind(tx *gorm.DB) error {
 		h.IHost = ArtifactHub{}
 	case "kubernetes":
 		h.IHost = Kubernetes{}
-	default:
-		return ErrUnknownHost(errors.New("unable to find compatible host for the component"))
+	default: // do nothing if the host is not pre-unknown. Currently adapters fall into this case.
+		return nil
 	}
 	return nil
 }
@@ -67,15 +91,15 @@ func (ah ArtifactHub) HandleDependents(comp v1alpha1.Component, kc *kubernetes.C
 		})
 		if err != nil {
 			if !isDeploy {
-				summary = fmt.Sprintf("error undeploying dependent resources for %s, please proceed with manual uninstall or try again: %s", strings.TrimSuffix(comp.Spec.Type, ".K8s"), comp.Name)
+				summary = fmt.Sprintf("error undeploying dependent helm chart for %s, please proceed with manual uninstall or try again", comp.Name)
 			} else {
-				summary = fmt.Sprintf("error deploying dependent resources for %s, please procced with manual install or try again: %s", strings.TrimSuffix(comp.Spec.Type, ".K8s"), comp.Name)
+				summary = fmt.Sprintf("error deploying dependent helm chart for %s, please procced with manual install or try again", comp.Name)
 			}
 		} else {
 			if !isDeploy {
-				summary = fmt.Sprintf("Undeployed helm chart%s: %s", strings.TrimSuffix(comp.Spec.Type, ".K8s"), comp.Name)
+				summary = fmt.Sprintf("Undeployed dependent helm chart for %s", comp.Name)
 			} else {
-				summary = fmt.Sprintf("Deployed helm chart%s: %s", strings.TrimSuffix(comp.Spec.Type, ".K8s"), comp.Name)
+				summary = fmt.Sprintf("Deployed dependent helm chart for %s", comp.Name)
 			}
 		}
 	}

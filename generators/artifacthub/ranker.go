@@ -24,3 +24,12 @@ func SortPackagesWithScore(pkgs []AhPackage) []AhPackage {
 	})
 	return pkgs
 }
+
+func FilterPackageWithGivenSourceURL(pkgs []AhPackage, url string) []AhPackage {
+	for _, pkg := range pkgs {
+		if pkg.ChartUrl == url {
+			return []AhPackage{pkg}
+		}
+	}
+	return []AhPackage{}
+}

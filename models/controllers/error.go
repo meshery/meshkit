@@ -15,7 +15,7 @@ func ErrGetControllerStatus(err error) error {
 }
 
 func ErrDeployController(err error) error {
-	return errors.New(ErrDeployControllerCode, errors.Alert, []string{"Error deploying meshery controller"}, []string{err.Error()}, []string{"Controller configuration may not be valid"}, []string{"Make sure the controller configuration is valid"})
+	return errors.New(ErrDeployControllerCode, errors.Alert, []string{"Error deploying Meshery Operator"}, []string{err.Error()}, []string{"Meshery Server could not connect to the Kubernetes cluster. Meshery Operator  was not deployed", "Insufficient file permission to read kubeconfig"}, []string{"Verify that the available kubeconfig is accessible by Meshery Server - verify sufficient file permissions (only needs read permission)"})
 }
 
 func ErrGetControllerPublicEndpoint(err error) error {

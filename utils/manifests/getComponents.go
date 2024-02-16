@@ -3,7 +3,6 @@ package manifests
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
 
@@ -50,9 +49,12 @@ func GetCrdsFromHelm(url string) ([]string, error) {
 			if err == io.EOF {
 				break
 			}
-			fmt.Println(err)
+			return nil, err
 		}
-		b, _ := json.Marshal(parsedYaml)
+		b, err := json.Marshal(parsedYaml)
+		if err != nil {
+			return nil, err
+		}
 		mans = append(mans, string(b))
 	}
 

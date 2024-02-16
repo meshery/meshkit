@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	mathrand "math/rand"
 	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -244,4 +246,123 @@ func Contains[G []K, K comparable](slice G, ele K) bool {
 		}
 	}
 	return false
+}
+
+func Cast[K any](val interface{}) (K, error) {
+	assertedValue, ok := val.(K)
+	if !ok {
+		return assertedValue, ErrTypeCast(reflect.TypeOf(val).Name())
+	}
+	return assertedValue, nil
+}
+
+func MarshalAndUnmarshal[fromType any, toType any](val fromType) (unmarshalledvalue toType, err error) {
+	data, err := Marshal(val)
+	if err != nil {
+		return
+	}
+
+	err = Unmarshal(data, &unmarshalledvalue)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func IsClosed[K any](ch chan K) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
+}
+
+// WriteToFile writes the given content to the given file path
+func WriteToFile(path string, content string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.WriteString(content)
+	if err != nil {
+		return err
+	}
+	// Close the file to save the changes.
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// FormatName formats the given string to by replacing " " with "-"
+func FormatName(input string) string {
+	formatedName := strings.ReplaceAll(input, " ", "-")
+	formatedName = strings.ToLower(formatedName)
+	return formatedName
+}
+
+func GetRandomAlphabetsOfDigit(length int) (s string) {
+	charSet := "abcdedfghijklmnopqrstuvwxyz"
+	for i := 0; i < length; i++ {
+		random := mathrand.Intn(len(charSet))
+		randomChar := charSet[random]
+		s += string(randomChar)
+	}
+	return
+}
+
+// combineErrors merges a slice of error
+// into one error separated by the given separator
+func CombineErrors(errs []error, sep string) error {
+	if len(errs) == 0 {
+		return nil
+	}
+
+	var errString []string
+	for _, err := range errs {
+		errString = append(errString, err.Error())
+	}
+
+	return errors.New(strings.Join(errString, sep))
+}
+
+func MergeMaps(mergeInto, toMerge map[string]interface{}) map[string]interface{} {
+	if mergeInto == nil {
+		mergeInto = make(map[string]interface{})
+	}
+	for k, v := range toMerge {
+		mergeInto[k] = v
+	}
+	return mergeInto
+}
+
+func WriteJSONToFile[K any](outputPath string, data K) error {
+	byt, err := json.MarshalIndent(data, " ", " ")
+	if err != nil {
+		return ErrMarshal(err)
+	}
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return ErrCreateFile(err, outputPath)
+	}
+
+	_, err = file.Write(byt)
+	if err != nil {
+		return ErrWriteFile(err, outputPath)
+	}
+	return nil
+}
+
+func CreateDirectory(path string) error{
+	err := os.MkdirAll(path, 0755)
+	if err != nil {
+		err = ErrCreateDir(err, path)
+
+		return err
+	}
+	return nil
 }

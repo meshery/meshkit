@@ -2,9 +2,7 @@ package controllers
 
 import (
 	"context"
-	"strings"
 
-	// opClient "github.com/layer5io/meshery-operator/pkg/client"
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	v1 "k8s.io/api/core/v1"
@@ -39,11 +37,11 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 
 	if err == nil {
 		ms.status = Enabled
-		meshSyncPod, err := ms.kclient.KubeClient.CoreV1().Pods("meshery").List(context.TODO(), metav1.ListOptions{
+		meshSyncPod, errMeshery := ms.kclient.KubeClient.CoreV1().Pods("meshery").List(context.TODO(), metav1.ListOptions{
 			LabelSelector: "component=meshsync",
 		})
 
-		if len(meshSyncPod.Items) == 0 || kubeerror.IsNotFound(err) {
+		if len(meshSyncPod.Items) == 0 || kubeerror.IsNotFound(errMeshery) {
 			return ms.status
 		}
 		for _, pod := range meshSyncPod.Items {
@@ -51,12 +49,11 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 			case v1.PodRunning:
 				ms.status = Running
 				broker := NewMesheryBrokerHandler(ms.kclient)
-				brokerEndpoint, err := broker.GetPublicEndpoint()
+				brokerEndpoint, err := broker.GetEndpointForPort(brokerMonitoringPortName)
 				if err != nil {
 					return ms.status
 				}
-				hostIP := strings.Split(brokerEndpoint, ":")[0]
-				isConnected := ConnectivityTest(MeshSync, hostIP)
+				isConnected := ConnectivityTest(MeshSync, brokerEndpoint)
 				if isConnected {
 					ms.status = Connected
 				}
@@ -115,5 +112,20 @@ func (ms *meshsync) GetPublicEndpoint() (string, error) {
 }
 
 func (ms *meshsync) GetVersion() (string, error) {
+	meshsyncclient, err := opClient.New(&ms.kclient.RestConfig)
+	if err != nil {
+		return "", err
+	}
+
+	meshsyncresource, err := meshsyncclient.CoreV1Alpha1().MeshSyncs("meshery").Get(context.TODO(), "meshery-meshsync", metav1.GetOptions{})
+
+	if err != nil {
+		return "", err
+	}
+
+	return meshsyncresource.Spec.Version, nil
+}
+
+func (mb *meshsync) GetEndpointForPort(portName string) (string, error) {
 	return "", nil
 }

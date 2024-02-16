@@ -3,11 +3,13 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/layer5io/meshkit/utils"
 	"gorm.io/gorm/clause"
 )
 
@@ -26,13 +28,13 @@ const (
 // swagger:response ComponentDefinition
 // use NewComponent function for instantiating
 type ComponentDefinition struct {
-	ID uuid.UUID `json:"-"`
+	ID uuid.UUID `json:"id,omitempty"`
 	TypeMeta
 	DisplayName     string                 `json:"displayName" gorm:"displayName"`
 	Format          ComponentFormat        `json:"format" yaml:"format"`
-	HostName        string                 `json:"hostname"`
-	HostID          uuid.UUID              `json:"hostID"`
-	DisplayHostName string                 `json:"displayhostname"`
+	HostName        string                 `json:"hostname,omitempty"`
+	HostID          uuid.UUID              `json:"hostID,omitempty"`
+	DisplayHostName string                 `json:"displayhostname,omitempty"`
 	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
 	Model           Model                  `json:"model"`
 	Schema          string                 `json:"schema,omitempty" yaml:"schema"`
@@ -40,8 +42,8 @@ type ComponentDefinition struct {
 	UpdatedAt       time.Time              `json:"-"`
 }
 type ComponentDefinitionDB struct {
-	ID      uuid.UUID `json:"-"`
-	ModelID uuid.UUID `json:"-" gorm:"modelID"`
+	ID      uuid.UUID `json:"id"`
+	ModelID uuid.UUID `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
 	TypeMeta
 	DisplayName string          `json:"displayName" gorm:"displayName"`
 	Format      ComponentFormat `json:"format" yaml:"format"`
@@ -69,19 +71,20 @@ func emptySchemaCheck(schema string) (valid bool) {
 	valid = true
 	return
 }
-func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
+func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, uuid.UUID, error) {
 	c.ID = uuid.New()
 	mid, err := CreateModel(db, c.Model)
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.UUID{}, uuid.UUID{}, err
 	}
+
 	if !emptySchemaCheck(c.Schema) {
 		c.Metadata["hasInvalidSchema"] = true
 	}
 	cdb := c.GetComponentDefinitionDB()
 	cdb.ModelID = mid
 	err = db.Create(&cdb).Error
-	return c.ID, err
+	return c.ID, mid, err
 }
 func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition, count int64, unique int) {
 	type componentDefinitionWithModel struct {
@@ -106,6 +109,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*").
 		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
+
 	if f.Greedy {
 		if f.Name != "" && f.DisplayName != "" {
 			finder = finder.Where("component_definition_dbs.kind LIKE ? OR display_name LIKE ?", "%"+f.Name+"%", f.DisplayName+"%")
@@ -125,6 +129,13 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 	if f.ModelName != "" && f.ModelName != "all" {
 		finder = finder.Where("model_dbs.name = ?", f.ModelName)
 	}
+
+	if f.Annotations == "true" {
+		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = true")
+	} else if f.Annotations == "false" {
+		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = false")
+	}
+
 	if f.APIVersion != "" {
 		finder = finder.Where("component_definition_dbs.api_version = ?", f.APIVersion)
 	}
@@ -168,7 +179,7 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 type ComponentFilter struct {
 	Name         string
 	APIVersion   string
-	Greedy       bool //when set to true - instead of an exact match, name will be prefix matched
+	Greedy       bool //when set to true - instead of an exact match, name will be matched as a substring
 	Trim         bool //when set to true - the schema is not returned
 	DisplayName  string
 	ModelName    string
@@ -178,6 +189,7 @@ type ComponentFilter struct {
 	OrderOn      string
 	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
 	Offset       int
+	Annotations  string //When this query parameter is "true", only components with the "isAnnotation" property set to true are returned. When this query parameter is "false", all components except those considered to be annotation components are returned. Any other value of the query parameter results in both annotations as well as non-annotation models being returned.
 }
 
 // Create the filter from map[string]interface{}
@@ -209,4 +221,10 @@ func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitio
 	cmd.DisplayName = c.DisplayName
 	cmd.Schema = c.Schema
 	return
+}
+
+func (c ComponentDefinition) WriteComponentDefinition(componentDirPath string) error {
+	componentPath := filepath.Join(componentDirPath, c.Kind+".json")
+	err := utils.WriteJSONToFile[ComponentDefinition](componentPath, c)
+	return err
 }

@@ -100,11 +100,19 @@ func (mo *mesheryOperator) GetPublicEndpoint() (string, error) {
 }
 
 func (mo *mesheryOperator) GetVersion() (string, error) {
-	return "", nil
+	deployment, err := mo.client.KubeClient.AppsV1().Deployments("meshery").Get(context.TODO(), "meshery-operator", metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return getImageVersionOfContainer(deployment.Spec.Template, "manager"), nil
 }
 
 func (mo *mesheryOperator) setStatus(st MesheryControllerStatus) {
 	mo.mx.Lock()
 	defer mo.mx.Unlock()
 	mo.status = st
+}
+
+func (mo *mesheryOperator) GetEndpointForPort(portName string) (string, error) {
+	return "", nil
 }

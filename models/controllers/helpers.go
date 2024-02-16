@@ -15,7 +15,7 @@ import (
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 )
 
-const BrokerPingEndpoint = "8222/connz"
+const BrokerPingEndpoint = "/connz"
 
 type Connections struct {
 	Connections []connection `json:"connections"`
@@ -88,8 +88,8 @@ func applyOperatorHelmChart(chartRepo string, client mesherykube.Client, meshery
 	return nil
 }
 
-func ConnectivityTest(clientName, externalIP string) bool {
-	endpoint, err := url.Parse("http://" + externalIP + ":" + BrokerPingEndpoint)
+func ConnectivityTest(clientName, hostPort string) bool {
+	endpoint, err := url.Parse("http://" + hostPort + BrokerPingEndpoint)
 	if err != nil {
 		return false
 	}

@@ -19,7 +19,7 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 	crds = cfg.ExtractCrds(manifest)
 	for _, crd := range crds {
 		var parsedCrd cue.Value
-		if cfg.CrdFilter.IsJson != true {
+		if !cfg.CrdFilter.IsJson {
 			file, err := yaml.Extract("crds", crd) // first argument is dummy
 			if err != nil {
 				// inability to generate component for a single crd should not affect the rest
