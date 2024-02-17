@@ -32,6 +32,10 @@ type AhPackage struct {
 	Version           string `yaml:"version"`
 }
 
+func (pkg AhPackage) GetVersion() string {
+	return pkg.Version
+}
+
 func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error) {
 	components := make([]v1alpha1.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
@@ -106,6 +110,10 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	return nil
 }
 
+func (pkg *AhPackage) Validator() {
+
+}
+
 // GetAllAhHelmPackages returns a list of all AhPackages and is super slow to avoid rate limits.
 func GetAllAhHelmPackages() ([]AhPackage, error) {
 	pkgs := make([]AhPackage, 0)
@@ -144,28 +152,49 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 			fmt.Println(err)
 			continue
 		}
-		verified := false
-		cncf := false
-		official := false
-		if res["repository"].(map[string]interface{})["verified_publisher"] != nil {
-			verified = res["repository"].(map[string]interface{})["verified_publisher"].(bool)
-		}
-		if res["repository"].(map[string]interface{})["official"] != nil {
-			official = res["repository"].(map[string]interface{})["official"].(bool)
-		}
-		if res["repository"].(map[string]interface{})["cncf"] != nil {
-			cncf = res["repository"].(map[string]interface{})["cncf"].(bool)
-		}
-		pkgs = append(pkgs, AhPackage{
-			Name:              name,
-			Version:           p["version"].(string),
-			Repository:        repo,
-			RepoUrl:           p["repository"].(map[string]interface{})["url"].(string),
-			VerifiedPublisher: verified,
-			CNCF:              cncf,
-			Official:          official,
-		})
+		
+		
+		pkgs = append(pkgs, *parseArtifacthubResponse(res))
 		time.Sleep(500 * time.Millisecond)
 	}
 	return pkgs, nil
+}
+
+func parseArtifacthubResponse(response map[string]interface{}) *AhPackage {
+	verified := false
+	cncf := false
+	official := false
+	name, _ := response["name"].(string)
+	version, _ := response["version"].(string)
+	repository, ok := response["repository"].(map[string]interface{})
+	var repoName, repoURL string
+
+	if ok {
+		if repository["name"] != nil {
+			repoName = repository["name"].(string)
+		}
+		if repository["verified_publisher"] != nil {
+			verified = repository["verified_publisher"].(bool)
+		}
+		if repository["official"] != nil {
+			official = repository["official"].(bool)
+		}
+		if repository["cncf"] != nil {
+			cncf = response["repository"].(map[string]interface{})["cncf"].(bool)
+		}
+
+		if repository["url"] != nil {
+			repoURL = repository["url"].(string)
+		}
+	}
+
+	return &AhPackage{
+		Name: name,
+		Version: version,
+		Repository: repoName,
+		RepoUrl: repoURL,
+		VerifiedPublisher: verified,
+		CNCF: cncf,
+		Official: official,
+	}
 }

@@ -8,6 +8,7 @@ import (
 
 type ArtifactHubPackageManager struct {
 	PackageName string
+	SourceURL   string
 }
 
 func (ahpm ArtifactHubPackageManager) GetPackage() (models.Package, error) {
@@ -21,8 +22,8 @@ func (ahpm ArtifactHubPackageManager) GetPackage() (models.Package, error) {
 		_ = ap.UpdatePackageData()
 		pkgs[i] = ap
 	}
-	// filter only packages with crds
-	pkgs = FilterPackagesWithCrds(pkgs)
+
+	// Add filtering/sort based on preferred_models.yaml as well.
 	pkgs = SortPackagesWithScore(pkgs)
 	if len(pkgs) == 0 {
 		return nil, fmt.Errorf("could not find any appropriate artifacthub package")

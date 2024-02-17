@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
 // Git represents the Git Walker
@@ -26,6 +27,7 @@ type Git struct {
 	maxFileSizeInBytes int64 //defaults to 50 MB
 	fileInterceptor    FileInterceptor
 	dirInterceptor     DirInterceptor
+	referenceName      plumbing.ReferenceName
 }
 
 // NewGit returns a pointer to an instance of Git
@@ -114,6 +116,11 @@ func (g *Git) Root(root string) *Git {
 	return g
 }
 
+func (g *Git) ReferenceName(refName string) *Git {
+	g.referenceName = plumbing.ReferenceName(refName)
+	return g
+}
+
 // Walk will initiate traversal process
 func (g *Git) Walk() error {
 	return clonewalk(g)
@@ -135,24 +142,42 @@ func clonewalk(g *Git) error {
 	path := filepath.Join(os.TempDir(), g.repo, strconv.FormatInt(time.Now().UTC().UnixNano(), 10))
 	defer os.RemoveAll(path)
 	var err error
+	cloneOptions := &git.CloneOptions{
+		URL:          fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
+		SingleBranch: true,
+	}
+
+	if g.referenceName != "" {
+		cloneOptions.ReferenceName = g.referenceName
+	}
+
 	if g.showLogs {
-		_, err = git.PlainClone(path, false, &git.CloneOptions{
-			URL:      fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
-			Progress: os.Stdout,
-		})
+		cloneOptions.Progress = os.Stdout
+		_, err = git.PlainClone(path, false, cloneOptions)
 	} else {
-		_, err = git.PlainClone(path, false, &git.CloneOptions{
-			URL: fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
-		})
+		_, err = git.PlainClone(path, false, cloneOptions)
 	}
 
 	if err != nil {
 		return ErrCloningRepo(err)
 	}
 
+	rootPath := filepath.Join(path, g.root)
+	info, err := os.Stat(rootPath)
+	if err != nil {
+		return ErrCloningRepo(err)
+	}
+
+	if !info.IsDir() {
+		err = g.readFile(info, rootPath)
+		if err != nil {
+			return ErrCloningRepo(err)
+		}
+		return nil
+	}
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
-		err = filepath.WalkDir(filepath.Join(path, g.root), func(path string, d fs.DirEntry, er error) error {
+		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
 			if d.IsDir() && g.dirInterceptor != nil {
 				return g.dirInterceptor(Directory{
 					Name: d.Name(),
@@ -168,7 +193,10 @@ func clonewalk(g *Git) error {
 			}
 			return g.readFile(f, path)
 		})
-		return err
+		if err != nil {
+			return ErrCloningRepo(err)
+		}
+		return nil
 	}
 
 	// If recurse mode is off, we only walk the root directory passed with g.root
@@ -180,7 +208,7 @@ func clonewalk(g *Git) error {
 	for _, entry := range entries {
 		file, err := entry.Info()
 		if err != nil {
-			return err
+			return ErrCloningRepo(err)
 		}
 		files = append(files, file)
 	}
