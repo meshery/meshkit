@@ -42,11 +42,6 @@ func (cf *ModelFilter) Create(m map[string]interface{}) {
 
 type ModelStatus string
 
-const (
-	IGNORED   ModelStatus = "ignored"
-	// Add more statuses as needed
-)
-
 // swagger:response Model
 type Model struct {
 	ID              uuid.UUID                  `json:"id,omitempty" yaml:"-"`
@@ -64,14 +59,14 @@ type Model struct {
 }
 
 type ModelDB struct {
-	ID          uuid.UUID 		`json:"id"`
-	CategoryID  uuid.UUID 		`json:"-" gorm:"categoryID"`
-	Name        string    		`json:"modelName" gorm:"modelName"`
-	Version     string    		`json:"version"`
-	DisplayName string    		`json:"modelDisplayName" gorm:"modelDisplayName"`
-	SubCategory string    		`json:"subCategory" gorm:"subCategory"`
-	Metadata    []byte    		`json:"modelMetadata" gorm:"modelMetadata"`
-	Status      ModelStatus     `json:"status" gorm:"status"`
+	ID          uuid.UUID   `json:"id"`
+	CategoryID  uuid.UUID   `json:"-" gorm:"categoryID"`
+	Name        string      `json:"modelName" gorm:"modelName"`
+	Version     string      `json:"version"`
+	DisplayName string      `json:"modelDisplayName" gorm:"modelDisplayName"`
+	SubCategory string      `json:"subCategory" gorm:"subCategory"`
+	Metadata    []byte      `json:"modelMetadata" gorm:"modelMetadata"`
+	Status      ModelStatus `json:"status" gorm:"status"`
 }
 
 func (m Model) Type() types.CapabilityType {
@@ -105,6 +100,7 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 		cmodel.ID = modelID
 		mdb := cmodel.GetModelDB()
 		mdb.CategoryID = id
+		mdb.Status = "registered"
 		err = db.Create(&mdb).Error
 		if err != nil {
 			return uuid.UUID{}, err
