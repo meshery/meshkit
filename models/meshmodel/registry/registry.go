@@ -393,6 +393,9 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		if mf.Offset != 0 {
 			finder = finder.Offset(mf.Offset)
 		}
+		if mf.Status != "" {
+			finder = finder.Where("model_dbs.status = ?", mf.Status)
+		}
 		includeComponents = mf.Components
 		includeRelationships = mf.Relationships
 	}

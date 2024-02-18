@@ -30,6 +30,7 @@ type ModelFilter struct {
 	// When these are set to true, we also retrieve components/relationships associated with the model.
 	Components    bool
 	Relationships bool
+	Status        string
 }
 
 // Create the filter from map[string]interface{}
