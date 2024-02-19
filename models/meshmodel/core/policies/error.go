@@ -3,8 +3,8 @@ package policies
 import "github.com/layer5io/meshkit/errors"
 
 const (
-	ErrPrepareForEvalCode = "11098"
-	ErrEvalCode           = "11099"
+	ErrPrepareForEvalCode = "meshkit-11144"
+	ErrEvalCode           = "meshkit-11145"
 )
 
 func ErrPrepareForEval(err error) error {

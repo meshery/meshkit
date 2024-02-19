@@ -3,7 +3,7 @@ package generators
 import "github.com/layer5io/meshkit/errors"
 
 var (
-	ErrUnsupportedRegistrantCode = "11107"
+	ErrUnsupportedRegistrantCode = "meshkit-11138"
 )
 
 func ErrUnsupportedRegistrant(err error) error {

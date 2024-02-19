@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	ErrEmptyConfigCode = "11055"
-	ErrViperCode       = "11056"
-	ErrInMemCode       = "11057"
+	ErrEmptyConfigCode = "meshkit-11123"
+	ErrViperCode       = "meshkit-11124"
+	ErrInMemCode       = "meshkit-11125"
 
 	// ErrEmptyConfig is returned when the config has not been initialized.
 	ErrEmptyConfig = errors.New(ErrEmptyConfigCode, errors.Alert, []string{"Config not initialized"}, []string{}, []string{"Viper is crashing"}, []string{"Make sure viper is configured properly"})

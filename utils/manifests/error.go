@@ -3,14 +3,14 @@ package manifests
 import "github.com/layer5io/meshkit/errors"
 
 const (
-	ErrGetCrdNamesCode           = "1001"
-	ErrGetSchemasCode            = "1002"
-	ErrGetAPIVersionCode         = "1003"
-	ErrGetAPIGroupCode           = "1004"
-	ErrPopulatingYamlCode        = "1005"
-	ErrAbsentFilterCode          = "1006"
-	ErrCreatingDirectoryCode     = "1007"
-	ErrGetResourceIdentifierCode = "11075"
+	ErrGetCrdNamesCode           = "meshkit-11233"
+	ErrGetSchemasCode            = "meshkit-11234"
+	ErrGetAPIVersionCode         = "meshkit-11235"
+	ErrGetAPIGroupCode           = "meshkit-11236"
+	ErrPopulatingYamlCode        = "meshkit-11237"
+	ErrAbsentFilterCode          = "meshkit-11238"
+	ErrCreatingDirectoryCode     = "meshkit-11239"
+	ErrGetResourceIdentifierCode = "meshkit-11240"
 )
 
 func ErrGetResourceIdentifier(err error) error {
