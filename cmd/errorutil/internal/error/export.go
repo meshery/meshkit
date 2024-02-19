@@ -2,9 +2,11 @@ package error
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
 	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
@@ -49,15 +51,17 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 			log.Errorf("duplicate code '%s' - skipping export", k)
 			continue
 		}
-		e := v[0]
-		if _, err := strconv.Atoi(e.Code); err != nil {
+
+		errorInfo := v[0]
+		errorCode := strings.TrimPrefix(errorInfo.Code, fmt.Sprintf("%s-", componentInfo.Name))
+		if _, err := strconv.Atoi(errorCode); err != nil {
 			log.Errorf("non-integer code '%s' - skipping export", k)
 			continue
 		}
 		// default value used if validations below fail
 		export.Errors[k] = Error{
-			Name:                 e.Name,
-			Code:                 e.Code,
+			Name:                 errorInfo.Name,
+			Code:                 errorInfo.Code,
 			Severity:             "",
 			ShortDescription:     "",
 			LongDescription:      "",
@@ -65,14 +69,14 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 			SuggestedRemediation: "",
 		}
 		// were details for this error generated using errors.New(...)?
-		if _, ok := infoAll.Errors[e.Name]; ok {
-			log.Infof("error details found for error name '%s' and code '%s'", e.Name, e.Code)
+		if _, ok := infoAll.Errors[errorInfo.Name]; ok {
+			log.Infof("error details found for error name '%s' and code '%s'", errorInfo.Name, errorInfo.Code)
 			// no duplicates?
-			if len(infoAll.Errors[e.Name]) == 1 {
-				details := infoAll.Errors[e.Name][0]
+			if len(infoAll.Errors[errorInfo.Name]) == 1 {
+				details := infoAll.Errors[errorInfo.Name][0]
 				export.Errors[k] = Error{
 					Name:                 details.Name,
-					Code:                 e.Code,
+					Code:                 errorInfo.Code,
 					Severity:             details.Severity,
 					ShortDescription:     details.ShortDescription,
 					LongDescription:      details.LongDescription,
@@ -80,10 +84,10 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 					SuggestedRemediation: details.SuggestedRemediation,
 				}
 			} else {
-				log.Errorf("duplicate error details for error name '%s' and code '%s'", e.Name, e.Code)
+				log.Errorf("duplicate error details for error name '%s' and code '%s'", errorInfo.Name, errorInfo.Code)
 			}
 		} else {
-			log.Warnf("no error details found for error name '%s' and code '%s'", e.Name, e.Code)
+			log.Warnf("no error details found for error name '%s' and code '%s'", errorInfo.Name, errorInfo.Code)
 		}
 	}
 	jsn, err := json.MarshalIndent(export, "", "  ")

@@ -5,9 +5,9 @@ import (
 )
 
 var (
-	ErrGetControllerStatusCode         = "11080"
-	ErrDeployControllerCode            = "11081"
-	ErrGetControllerPublicEndpointCode = "11082"
+	ErrGetControllerStatusCode         = "meshkit-11141"
+	ErrDeployControllerCode            = "meshkit-11142"
+	ErrGetControllerPublicEndpointCode = "meshkit-11143"
 )
 
 func ErrGetControllerStatus(err error) error {

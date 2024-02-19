@@ -7,14 +7,14 @@ import (
 )
 
 var (
-	ErrAppendingLayerCode       = "11107"
-	ErrReadingFileCode          = "11108"
-	ErrUnSupportedLayerTypeCode = "11109"
-	ErrGettingLayerCode         = "11110"
-	ErrCompressingLayerCode     = "11111"
-	ErrUnTaringLayerCode        = "11112"
-	ErrGettingImageCode         = "11113"
-	ErrValidatingImageCode      = "11114"
+	ErrAppendingLayerCode       = "meshkit-11147"
+	ErrReadingFileCode          = "meshkit-11148"
+	ErrUnSupportedLayerTypeCode = "meshkit-11149"
+	ErrGettingLayerCode         = "meshkit-11150"
+	ErrCompressingLayerCode     = "meshkit-11151"
+	ErrUnTaringLayerCode        = "meshkit-11152"
+	ErrGettingImageCode         = "meshkit-11153"
+	ErrValidatingImageCode      = "meshkit-11154"
 )
 
 func ErrAppendingLayer(err error) error {

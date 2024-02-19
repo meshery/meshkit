@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	ErrGenerateGitHubPackageCode  = "11108"
-	ErrInvalidGitHubSourceURLCode = "11109"
+	ErrGenerateGitHubPackageCode  = "meshkit-11139"
+	ErrInvalidGitHubSourceURLCode = "meshkit-11140"
 )
 
 func ErrGenerateGitHubPackage(err error, pkgName string) error {

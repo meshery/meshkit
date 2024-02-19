@@ -9,82 +9,82 @@ import (
 
 var (
 	// ErrExposeResourceCode is generated while exposing the kubernetes resource
-	ErrExposeResourceCode = "11032"
+	ErrExposeResourceCode = "meshkit-11205"
 
 	// ErrGettingResourceCode is generated when there is an error getting the kubernetes resource
-	ErrGettingResourceCode = "11033"
+	ErrGettingResourceCode = "meshkit-11206"
 
 	// ErrTraverserCode is a collection of errors generated during traversing the resources
-	ErrTraverserCode = "11034"
+	ErrTraverserCode = "meshkit-11207"
 
 	// ErrResourceCannotBeExposedCode is generated when the given resource cannot be exposed
-	ErrResourceCannotBeExposedCode = "11035"
+	ErrResourceCannotBeExposedCode = "meshkit-11208"
 
 	// ErrSelectorBasedMapCode is generated when the given resource's selectors can't
 	// be parsed to a map
-	ErrSelectorBasedMapCode = "11036"
+	ErrSelectorBasedMapCode = "meshkit-11209"
 
 	// ErrProtocolBasedMapCode is generated when the given resource's protocol can't
 	// be parsed to a map
-	ErrProtocolBasedMapCode = "11037"
+	ErrProtocolBasedMapCode = "meshkit-11210"
 
 	// ErrLableBasedMapCode is generated when the given resource's protocol can't
 	// be parsed to a map
-	ErrLableBasedMapCode = "11038"
+	ErrLableBasedMapCode = "meshkit-11211"
 
 	// ErrPortParsingCode is generated when the given resource's ports can't
 	// be parsed to a slice
-	ErrPortParsingCode = "11039"
+	ErrPortParsingCode = "meshkit-11212"
 
 	// ErrGenerateServiceCode is generated when a service cannot be generated
 	// for the given resource
-	ErrGenerateServiceCode = "11040"
+	ErrGenerateServiceCode = "meshkit-11213"
 
 	// ErrConstructingRestHelperCode is generated when a rest helper cannot be generated
 	// for the generated service
-	ErrConstructingRestHelperCode = "11041"
+	ErrConstructingRestHelperCode = "meshkit-11214"
 
 	// ErrCreatingServiceCode is generated when there is an error deploying the service
-	ErrCreatingServiceCode = "11042"
+	ErrCreatingServiceCode = "meshkit-11215"
 
 	// ErrPodHasNoLabelsCode is generated when there is an error
-	ErrPodHasNoLabelsCode = "11058"
+	ErrPodHasNoLabelsCode = "meshkit-11216"
 
 	// ErrServiceHasNoSelectorsCode is generated when there is an error
-	ErrServiceHasNoSelectorsCode = "11059"
+	ErrServiceHasNoSelectorsCode = "meshkit-11217"
 
 	// ErrInvalidDeploymentNoSelectorsLabelsCode is generated when there is an error
-	ErrInvalidDeploymentNoSelectorsLabelsCode = "11060"
+	ErrInvalidDeploymentNoSelectorsLabelsCode = "meshkit-11218"
 
 	// ErrInvalidDeploymentNoSelectorsCode is generated when there is an error
-	ErrInvalidDeploymentNoSelectorsCode = "11061"
+	ErrInvalidDeploymentNoSelectorsCode = "meshkit-11219"
 
 	// ErrInvalidReplicaNoSelectorsLabelsCode is generated when there is an error
-	ErrInvalidReplicaNoSelectorsLabelsCode = "11062"
+	ErrInvalidReplicaNoSelectorsLabelsCode = "meshkit-11220"
 
 	// ErrInvalidReplicaSetNoSelectorsCode is generated when there is an error
-	ErrInvalidReplicaSetNoSelectorsCode = "11063"
+	ErrInvalidReplicaSetNoSelectorsCode = "meshkit-11221"
 
 	// ErrNoPortsFoundForHeadlessResourceCode is generated when there is an error
-	ErrNoPortsFoundForHeadlessResourceCode = "11064"
+	ErrNoPortsFoundForHeadlessResourceCode = "meshkit-11222"
 
 	// ErrUnknownSessionAffinityErrCode is generated when there is an error
-	ErrUnknownSessionAffinityErrCode = "11065"
+	ErrUnknownSessionAffinityErrCode = "meshkit-11223"
 
 	// ErrMatchExpressionsConvertionErrCode is generated when there is an error
-	ErrMatchExpressionsConvertionErrCode = "11066"
+	ErrMatchExpressionsConvertionErrCode = "meshkit-11224"
 
 	// ErrFailedToExtractPodSelectorErrCode is generated when there is an error
-	ErrFailedToExtractPodSelectorErrCode = "11067"
+	ErrFailedToExtractPodSelectorErrCode = "meshkit-11225"
 
 	// ErrFailedToExtractPortsCode is generated when there is an error
-	ErrFailedToExtractPortsCode = "11068"
+	ErrFailedToExtractPortsCode = "meshkit-11226"
 
 	// ErrFailedToExtractProtocolsErrCode is generated when there is an error
-	ErrFailedToExtractProtocolsErrCode = "11069"
+	ErrFailedToExtractProtocolsErrCode = "meshkit-11227"
 
 	// ErrCannotExposeObjectErrCode is generated when there is an error
-	ErrCannotExposeObjectErrCode = "11070"
+	ErrCannotExposeObjectErrCode = "meshkit-11228"
 )
 
 // Custom errors and generators - These errors are not meshkit errors, they are intended to be wrapped
