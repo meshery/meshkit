@@ -30,6 +30,7 @@ type ModelFilter struct {
 	// When these are set to true, we also retrieve components/relationships associated with the model.
 	Components    bool
 	Relationships bool
+	Status        string
 }
 
 // Create the filter from map[string]interface{}
@@ -40,12 +41,15 @@ func (cf *ModelFilter) Create(m map[string]interface{}) {
 	cf.Name = m["name"].(string)
 }
 
+type ModelStatus string
+
 // swagger:response Model
 type Model struct {
 	ID              uuid.UUID                  `json:"id,omitempty" yaml:"-"`
 	Name            string                     `json:"name"`
 	Version         string                     `json:"version"`
 	DisplayName     string                     `json:"displayName" gorm:"modelDisplayName"`
+	Status          ModelStatus                `json:"status" gorm:"status"`
 	HostName        string                     `json:"hostname,omitempty"`
 	HostID          uuid.UUID                  `json:"hostID,omitempty"`
 	DisplayHostName string                     `json:"displayhostname,omitempty"`
@@ -56,13 +60,14 @@ type Model struct {
 }
 
 type ModelDB struct {
-	ID          uuid.UUID `json:"id"`
-	CategoryID  uuid.UUID `json:"-" gorm:"categoryID"`
-	Name        string    `json:"modelName" gorm:"modelName"`
-	Version     string    `json:"version"`
-	DisplayName string    `json:"modelDisplayName" gorm:"modelDisplayName"`
-	SubCategory string    `json:"subCategory" gorm:"subCategory"`
-	Metadata    []byte    `json:"modelMetadata" gorm:"modelMetadata"`
+	ID          uuid.UUID   `json:"id"`
+	CategoryID  uuid.UUID   `json:"-" gorm:"categoryID"`
+	Name        string      `json:"modelName" gorm:"modelName"`
+	Version     string      `json:"version"`
+	DisplayName string      `json:"modelDisplayName" gorm:"modelDisplayName"`
+	SubCategory string      `json:"subCategory" gorm:"subCategory"`
+	Metadata    []byte      `json:"modelMetadata" gorm:"modelMetadata"`
+	Status      ModelStatus `json:"status" gorm:"status"`
 }
 
 func (m Model) Type() types.CapabilityType {
@@ -96,6 +101,7 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 		cmodel.ID = modelID
 		mdb := cmodel.GetModelDB()
 		mdb.CategoryID = id
+		mdb.Status = "registered"
 		err = db.Create(&mdb).Error
 		if err != nil {
 			return uuid.UUID{}, err
@@ -104,10 +110,16 @@ func CreateModel(db *database.Handler, cmodel Model) (uuid.UUID, error) {
 	}
 	return model.ID, nil
 }
+
+func UpdateModelsStatus(db *database.Handler, modelID uuid.UUID, status string) error {
+	return db.Model(&ModelDB{}).Where("id = ?", modelID).Update("status", status).Error
+}
+
 func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 	c.ID = cmd.ID
 	c.Category = cat
 	c.DisplayName = cmd.DisplayName
+	c.Status = cmd.Status
 	c.Name = cmd.Name
 	c.Version = cmd.Version
 	c.Components = make([]ComponentDefinitionDB, 0)
@@ -118,6 +130,7 @@ func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 func (c *Model) GetModelDB() (cmd ModelDB) {
 	cmd.ID = c.ID
 	cmd.DisplayName = c.DisplayName
+	cmd.Status = c.Status
 	cmd.Name = c.Name
 	cmd.Version = c.Version
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
