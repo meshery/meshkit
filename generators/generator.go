@@ -6,6 +6,7 @@ import (
 	"github.com/layer5io/meshkit/generators/artifacthub"
 	"github.com/layer5io/meshkit/generators/github"
 	"github.com/layer5io/meshkit/models"
+	"github.com/layer5io/meshkit/utils"
 )
 
 const (
@@ -14,6 +15,7 @@ const (
 )
 
 func NewGenerator(registrant, url, packageName string) (models.PackageManager, error) {
+	registrant = utils.ReplaceSpacesAndConvertToLowercase(registrant)
 	switch registrant {
 	case artifactHub:
 		return artifacthub.ArtifactHubPackageManager{
