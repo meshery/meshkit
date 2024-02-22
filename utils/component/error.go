@@ -3,10 +3,10 @@ package component
 import "github.com/layer5io/meshkit/errors"
 
 const (
-	ErrCrdGenerateCode  = "11088"
-	ErrDefinitionCode   = "11090"
-	ErrGetSchemaCode    = "11091"
-	ErrUpdateSchemaCode = "11092"
+	ErrCrdGenerateCode  = "meshkit-11155"
+	ErrDefinitionCode   = "meshkit-11156"
+	ErrGetSchemaCode    = "meshkit-11157"
+	ErrUpdateSchemaCode = "meshkit-11158"
 )
 
 // No reference usage found. Also check in adapters before deleting

@@ -3,7 +3,6 @@ package utils
 import (
 	"bytes"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -79,8 +78,6 @@ func UpdateSVGString(svgStr string, width, height int) (string, error) {
 					xmlnsindex := -1
 					nahbro := 0
 					if a.Name.Local == "xmlns" {
-						fmt.Println("found at ", i)
-						fmt.Println(a.Name)
 						xmlnsindex = i
 						nahbro++
 					}

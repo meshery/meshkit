@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	ErrDryRunHelmChartCode = "11115"
-	ErrLoadHelmChartCode   = "11116"
+	ErrDryRunHelmChartCode = "meshkit-11187"
+	ErrLoadHelmChartCode   = "meshkit-11188"
 )
 
 func ErrDryRunHelmChart(err error, chartName string) error {

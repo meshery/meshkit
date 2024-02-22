@@ -135,7 +135,7 @@ func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.In
 					oldValue = strings.Trim(value.Value, "\"")
 					isInteger = isInt(oldValue)
 					if (update && !isInteger) || (update && updateAll) {
-						value.Value = fmt.Sprintf("\"%s\"", comp.GetNextErrorCode())
+						value.Value = fmt.Sprintf("\"%s-%s\"", comp.Name, comp.GetNextErrorCode())
 						newValue = strings.Trim(value.Value, "\"")
 						anyValueChanged = true
 						logger.WithFields(logrus.Fields{"name": id.Name, "value": newValue, "oldValue": oldValue}).Info("Err* variable with literal value replaced.")

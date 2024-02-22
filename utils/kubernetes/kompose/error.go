@@ -3,10 +3,10 @@ package kompose
 import "github.com/layer5io/meshkit/errors"
 
 const (
-	ErrCvrtKomposeCode               = "11075"
-	ErrValidateDockerComposeFileCode = "11084"
-	ErrIncompatibleVersionCode       = "11083"
-	ErrNoVersionCode                 = "11077"
+	ErrCvrtKomposeCode               = "meshkit-11229"
+	ErrValidateDockerComposeFileCode = "meshkit-11230"
+	ErrIncompatibleVersionCode       = "meshkit-11231"
+	ErrNoVersionCode                 = "meshkit-11232"
 )
 
 func ErrCvrtKompose(err error) error {

@@ -7,32 +7,32 @@ import (
 )
 
 var (
-	ErrApplyManifestCode    = "11021"
-	ErrServiceDiscoveryCode = "11022"
-	ErrApplyHelmChartCode   = "11023"
-	ErrNewKubeClientCode    = "11024"
-	ErrNewDynClientCode     = "11025"
-	ErrNewDiscoveryCode     = "11026"
-	ErrNewInformerCode      = "11027"
-	ErrEndpointNotFoundCode = "11028"
-	ErrInvalidAPIServerCode = "11029"
-	ErrLoadConfigCode       = "11030"
-	ErrValidateConfigCode   = "11031"
+	ErrApplyManifestCode    = "meshkit-11190"
+	ErrServiceDiscoveryCode = "meshkit-11191"
+	ErrApplyHelmChartCode   = "meshkit-11192"
+	ErrNewKubeClientCode    = "meshkit-11193"
+	ErrNewDynClientCode     = "meshkit-11194"
+	ErrNewDiscoveryCode     = "meshkit-11195"
+	ErrNewInformerCode      = "meshkit-11196"
+	ErrEndpointNotFoundCode = "meshkit-11197"
+	ErrInvalidAPIServerCode = "meshkit-11198"
+	ErrLoadConfigCode       = "meshkit-11199"
+	ErrValidateConfigCode   = "meshkit-11200"
 	// ErrCreatingHelmIndexCode represents the errors which are generated
 	// during creation of helm index
-	ErrCreatingHelmIndexCode = "11032"
+	ErrCreatingHelmIndexCode = "meshkit-11201"
 
 	// ErrEntryWithAppVersionNotExistsCode represents the error which is generated
 	// when no entry is found with specified name and app version
-	ErrEntryWithAppVersionNotExistsCode = "11033"
+	ErrEntryWithAppVersionNotExistsCode = "meshkit-11202"
 
 	// ErrHelmRepositoryNotFoundCode represents the error which is generated when
 	// no valid helm repository is found
-	ErrHelmRepositoryNotFoundCode = "11034"
+	ErrHelmRepositoryNotFoundCode = "meshkit-11203"
 
 	// ErrEntryWithChartVersionNotExistsCode represents the error which is generated
 	// when no entry is found with specified name and app version
-	ErrEntryWithChartVersionNotExistsCode = "11036"
+	ErrEntryWithChartVersionNotExistsCode = "meshkit-11204"
 	ErrEndpointNotFound                   = errors.New(ErrEndpointNotFoundCode, errors.Alert, []string{"Unable to discover an endpoint"}, []string{}, []string{}, []string{})
 	ErrInvalidAPIServer                   = errors.New(ErrInvalidAPIServerCode, errors.Alert, []string{"Invalid API Server URL"}, []string{}, []string{}, []string{})
 )

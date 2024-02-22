@@ -5,11 +5,11 @@ import (
 )
 
 const (
-	ErrConnectCode        = "11103"
-	ErrEncodedConnCode    = "11104"
-	ErrPublishCode        = "11105"
-	ErrPublishRequestCode = "11101"
-	ErrQueueSubscribeCode = "11102"
+	ErrConnectCode        = "meshkit-11118"
+	ErrEncodedConnCode    = "meshkit-11119"
+	ErrPublishCode        = "meshkit-11120"
+	ErrPublishRequestCode = "meshkit-11121"
+	ErrQueueSubscribeCode = "meshkit-11122"
 )
 
 func ErrConnect(err error) error {

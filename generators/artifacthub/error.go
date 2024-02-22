@@ -5,10 +5,10 @@ import (
 )
 
 var (
-	ErrGetChartUrlCode        = "11092"
-	ErrGetAhPackageCode       = "1093"
-	ErrComponentGenerateCode  = "11094"
-	ErrGetAllHelmPackagesCode = "11095"
+	ErrGetChartUrlCode        = "meshkit-11134"
+	ErrGetAhPackageCode       = "meshkit-11135"
+	ErrComponentGenerateCode  = "meshkit-11136"
+	ErrGetAllHelmPackagesCode = "meshkit-11137"
 )
 
 func ErrGetAllHelmPackages(err error) error {

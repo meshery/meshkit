@@ -366,3 +366,7 @@ func CreateDirectory(path string) error{
 	}
 	return nil
 }
+
+func ReplaceSpacesAndConvertToLowercase(s string) string {
+	return strings.ToLower(strings.ReplaceAll(s, " ", ""))
+}
