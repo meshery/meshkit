@@ -203,6 +203,26 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 	}
 }
 
+// UpdateEntityIgnoreStatus updates the ignore status of an entity based on the provided parameters.
+// By default during models generation ignore is set to false
+func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entity string) error {
+	// Convert string UUID to google UUID
+	entityID, err := uuid.Parse(ID)
+	if err != nil {
+		return err
+	}
+	switch entity {
+	case "models":
+		err := v1alpha1.UpdateModelsStatus(rm.db, entityID, status)
+		if err != nil {
+			return err
+		}
+		return nil
+	default:
+		return nil
+	}
+}
+
 func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.MeshModelHostsWithEntitySummary, int64, error) {
 	var result []v1alpha1.MesheryHostSummaryDB
 	var totalcount int64
@@ -372,6 +392,9 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 		}
 		if mf.Offset != 0 {
 			finder = finder.Offset(mf.Offset)
+		}
+		if mf.Status != "" {
+			finder = finder.Where("model_dbs.status = ?", mf.Status)
 		}
 		includeComponents = mf.Components
 		includeRelationships = mf.Relationships

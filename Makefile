@@ -16,7 +16,7 @@ tidy:
 
 ## Run Meshery Error Code Utility. Generate error codes.
 errorutil:
-	go run github.com/layer5io/meshkit/cmd/errorutil --force -d . update --skip-dirs meshery -i ./helpers -o ./helpers
+	go run github.com/layer5io/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
 
 ## Run Meshery Error Code Utility. Analyze only.
 errorutil-analyze:
