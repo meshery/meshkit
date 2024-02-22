@@ -72,7 +72,7 @@ func (c *CSV[E]) Parse(ch chan E, errorChan chan error) error {
 		}
 
 		if err != nil {
-			return err
+			return utils.ErrReadFile(err, c.filePath)
 		}
 
 		if c.predicateFunc != nil && c.predicateFunc(columnNames, values) {
