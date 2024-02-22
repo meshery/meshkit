@@ -27,7 +27,6 @@ func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
 	}
 	ghPackage, err := downloader.GetContent()
 	if err != nil {
-		fmt.Println("ERRRRERERERE",ErrGenerateGitHubPackage(err, ghpm.PackageName) )
 		return nil, ErrGenerateGitHubPackage(err, ghpm.PackageName)
 	}
 	return ghPackage, nil
