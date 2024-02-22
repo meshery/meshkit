@@ -1,7 +1,6 @@
 package github
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/layer5io/meshkit/models"
