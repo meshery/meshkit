@@ -8,6 +8,7 @@ import (
 	"io"
 	mathrand "math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -357,7 +358,7 @@ func WriteJSONToFile[K any](outputPath string, data K) error {
 	return nil
 }
 
-func CreateDirectory(path string) error{
+func CreateDirectory(path string) error {
 	err := os.MkdirAll(path, 0755)
 	if err != nil {
 		err = ErrCreateDir(err, path)
@@ -369,4 +370,13 @@ func CreateDirectory(path string) error{
 
 func ReplaceSpacesAndConvertToLowercase(s string) string {
 	return strings.ToLower(strings.ReplaceAll(s, " ", ""))
+}
+
+func ExtractDomainFromURL(location string) string {
+	parsedURL, err := url.Parse(location)
+	// If unable to extract domain return the location as is.
+	if err != nil {
+		return location
+	}
+	return regexp.MustCompile(`(([a-zA-Z0-9]+\.)([a-zA-Z0-9]+))$`).FindString(parsedURL.Hostname())
 }
