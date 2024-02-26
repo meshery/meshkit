@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/layer5io/meshkit/models/model/core/types"
 )
 
 type PolicyDefinition struct {
@@ -55,7 +55,7 @@ func (p PolicyDefinition) Type() types.CapabilityType {
 	return types.PolicyDefinition
 }
 
-func GetMeshModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefinition) {
+func GetModelPolicy(db *database.Handler, f PolicyFilter) (pl []PolicyDefinition) {
 	type componentDefinitionWithModel struct {
 		PolicyDefinitionDB
 		Model

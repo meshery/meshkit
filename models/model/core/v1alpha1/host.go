@@ -2,7 +2,7 @@ package v1alpha1
 
 import "github.com/google/uuid"
 
-type MeshModelHostsWithEntitySummary struct {
+type ModelHostsWithEntitySummary struct {
 	ID       uuid.UUID     `json:"id"`
 	Hostname string        `json:"hostname"`
 	Port     int           `json:"port"`

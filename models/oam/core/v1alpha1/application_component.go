@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/models/model/core/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,7 +35,7 @@ type ComponentParameter struct {
 	Description *string  `json:"description,omitempty"`
 }
 
-const MesheryAnnotationPrefix = "design.meshmodel.io"
+const MesheryAnnotationPrefix = "design.model.io"
 
 func GetAPIVersionFromComponent(comp Component) string {
 	return comp.Annotations[MesheryAnnotationPrefix+".k8s.APIVersion"]

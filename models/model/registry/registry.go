@@ -8,22 +8,22 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/types"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/models/model/core/types"
+	"github.com/layer5io/meshkit/models/model/core/v1alpha1"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-// MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
+// ModelRegistrantData struct defines the body of the POST request that is sent to the capability
 // registry (Meshery)
 //
 // The body contains the
 // 1. Host information
 // 2. Entity type
 // 3. Entity
-type MeshModelRegistrantData struct {
+type ModelRegistrantData struct {
 	Host       Host                 `json:"host"`
 	EntityType types.CapabilityType `json:"entityType"`
 	Entity     []byte               `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
@@ -223,7 +223,7 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entity s
 	}
 }
 
-func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.MeshModelHostsWithEntitySummary, int64, error) {
+func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.ModelHostsWithEntitySummary, int64, error) {
 	var result []v1alpha1.MesheryHostSummaryDB
 	var totalcount int64
 	db := rm.db
@@ -263,10 +263,10 @@ func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.Me
 		return nil, 0, err
 	}
 
-	var response []v1alpha1.MeshModelHostsWithEntitySummary
+	var response []v1alpha1.ModelHostsWithEntitySummary
 
 	for _, r := range result {
-		res := v1alpha1.MeshModelHostsWithEntitySummary{
+		res := v1alpha1.ModelHostsWithEntitySummary{
 			ID:       r.HostID,
 			Hostname: HostnameToPascalCase(r.Hostname),
 			Port:     r.Port,
@@ -285,21 +285,21 @@ func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64, *int) 
 	switch filter := f.(type) {
 	case *v1alpha1.ComponentFilter:
 		en := make([]Entity, 0)
-		comps, count, unique := v1alpha1.GetMeshModelComponents(rm.db, *filter)
+		comps, count, unique := v1alpha1.GetModelComponents(rm.db, *filter)
 		for _, comp := range comps {
 			en = append(en, comp)
 		}
 		return en, &count, &unique
 	case *v1alpha1.RelationshipFilter:
 		en := make([]Entity, 0)
-		relationships, count := v1alpha1.GetMeshModelRelationship(rm.db, *filter)
+		relationships, count := v1alpha1.GetModelRelationship(rm.db, *filter)
 		for _, rel := range relationships {
 			en = append(en, rel)
 		}
 		return en, &count, nil
 	case *v1alpha1.PolicyFilter:
 		en := make([]Entity, 0)
-		policies := v1alpha1.GetMeshModelPolicy(rm.db, *filter)
+		policies := v1alpha1.GetModelPolicy(rm.db, *filter)
 		for _, pol := range policies {
 			en = append(en, pol)
 		}

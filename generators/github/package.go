@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"os"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/models/model/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/component"
 	"github.com/layer5io/meshkit/utils/manifests"
