@@ -60,7 +60,7 @@ type Model struct {
 }
 
 type ModelDB struct {
-	ID          uuid.UUID   `json:"id"`
+	ID          uuid.UUID   `json:"modelDBId"`
 	CategoryID  uuid.UUID   `json:"-" gorm:"categoryID"`
 	Name        string      `json:"modelName" gorm:"modelName"`
 	Version     string      `json:"version"`

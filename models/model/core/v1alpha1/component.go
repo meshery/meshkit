@@ -42,7 +42,7 @@ type ComponentDefinition struct {
 	UpdatedAt       time.Time              `json:"-"`
 }
 type ComponentDefinitionDB struct {
-	ID      uuid.UUID `json:"id"`
+	ID      uuid.UUID `json:"componentDefinitionId"`
 	ModelID uuid.UUID `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
 	TypeMeta
 	DisplayName string          `json:"displayName" gorm:"displayName"`
