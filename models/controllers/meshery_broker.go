@@ -46,7 +46,7 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 	_, err = operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
 	if err == nil {
 		monitoringEndpoint, endpointErr := mb.GetEndpointForPort(brokerMonitoringPortName)
-		if endpoint_err == nil {
+		if endpointErr == nil {
 			if ConnectivityTest(MesheryServer, monitoringEndpoint) {
 				mb.status = Connected
 				return mb.status
