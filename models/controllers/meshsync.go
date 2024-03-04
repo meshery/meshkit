@@ -50,7 +50,7 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 				ms.status = Running
 				broker := NewMesheryBrokerHandler(ms.kclient)
 				brokerEndpoint, endpointErr := broker.GetEndpointForPort(brokerMonitoringPortName)
-				if endpoint_err != nil {
+				if endpointErr != nil {
 					return ms.status
 				}
 				isConnected := ConnectivityTest(MeshSync, brokerEndpoint)
