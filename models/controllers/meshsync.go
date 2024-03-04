@@ -49,7 +49,7 @@ func (ms *meshsync) GetStatus() MesheryControllerStatus {
 			case v1.PodRunning:
 				ms.status = Running
 				broker := NewMesheryBrokerHandler(ms.kclient)
-				brokerEndpoint, endpoint_err := broker.GetEndpointForPort(brokerMonitoringPortName)
+				brokerEndpoint, endpointErr := broker.GetEndpointForPort(brokerMonitoringPortName)
 				if endpoint_err != nil {
 					return ms.status
 				}
