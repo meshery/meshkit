@@ -71,6 +71,9 @@ func mapRelationshipsWithSubType(relationships *[]v1alpha1.RelationshipDefinitio
 
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
 func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (interface{}, error) {
+	if r == nil {
+		return nil, ErrEval(fmt.Errorf("policy engine is not yet ready"))
+	}
 	regoEngine, err := rego.New(
 		rego.Query(regoQueryString),
 		rego.Load([]string{r.policyDir}, nil),
