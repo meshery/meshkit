@@ -11,7 +11,7 @@ import (
 
 const (
 	artifactHub = "artifacthub"
-	gitHub = "github"
+	gitHub      = "github"
 )
 
 func NewGenerator(registrant, url, packageName string) (models.PackageManager, error) {
@@ -20,12 +20,12 @@ func NewGenerator(registrant, url, packageName string) (models.PackageManager, e
 	case artifactHub:
 		return artifacthub.ArtifactHubPackageManager{
 			PackageName: packageName,
-			SourceURL: url,
+			SourceURL:   url,
 		}, nil
 	case gitHub:
 		return github.GitHubPackageManager{
 			PackageName: packageName,
-			SourceURL: url,
+			SourceURL:   url,
 		}, nil
 	}
 	return nil, ErrUnsupportedRegistrant(fmt.Errorf("generator not implemented for the registrant %s", registrant))

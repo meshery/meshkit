@@ -152,8 +152,7 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 			fmt.Println(err)
 			continue
 		}
-		
-		
+
 		pkgs = append(pkgs, *parseArtifacthubResponse(res))
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -189,12 +188,12 @@ func parseArtifacthubResponse(response map[string]interface{}) *AhPackage {
 	}
 
 	return &AhPackage{
-		Name: name,
-		Version: version,
-		Repository: repoName,
-		RepoUrl: repoURL,
+		Name:              name,
+		Version:           version,
+		Repository:        repoName,
+		RepoUrl:           repoURL,
 		VerifiedPublisher: verified,
-		CNCF: cncf,
-		Official: official,
+		CNCF:              cncf,
+		Official:          official,
 	}
 }

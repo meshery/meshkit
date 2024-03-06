@@ -2,14 +2,10 @@ package policies
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
@@ -25,34 +21,21 @@ type Rego struct {
 	policyDir   string
 }
 
-func NewRegoInstance(policyDir string, relationshipDir string) (*Rego, error) {
-	var relationships []v1alpha1.RelationshipDefinition
+func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*Rego, error) {
+	var txn storage.Transaction
+	var store storage.Store
+
 	ctx := context.Background()
+	registeredRelationships, _, _ := regManager.GetEntities(&v1alpha1.RelationshipFilter{})
 
-	err := filepath.Walk(relationshipDir, func(path string, info fs.FileInfo, err error) error {
-		var relationship v1alpha1.RelationshipDefinition
-		if !info.IsDir() {
-			byt, err := os.ReadFile(path)
-			if err != nil {
-				return utils.ErrReadingLocalFile(err)
-			}
-			err = json.Unmarshal(byt, &relationship)
-			if err != nil {
-				return utils.ErrUnmarshal(err)
-			}
-			relationships = append(relationships, relationship)
+	if len(registeredRelationships) > 0 {
+		data := map[string]interface{}{
+			"relationships": registeredRelationships,
 		}
-		return nil
-	})
+		store = inmem.NewFromObject(data)
+		txn, _ = store.NewTransaction(ctx, storage.WriteParams)
 
-	if err != nil {
-		return nil, err
 	}
-
-	data := mapRelationshipsWithSubType(&relationships)
-	store := inmem.NewFromObject(data)
-	txn, _ := store.NewTransaction(ctx, storage.WriteParams)
-
 	return &Rego{
 		store:       store,
 		ctx:         ctx,
@@ -61,16 +44,11 @@ func NewRegoInstance(policyDir string, relationshipDir string) (*Rego, error) {
 	}, nil
 }
 
-func mapRelationshipsWithSubType(relationships *[]v1alpha1.RelationshipDefinition) map[string]interface{} {
-	relMap := make(map[string]interface{}, len(*relationships))
-	for _, relationship := range *relationships {
-		relMap[strings.ToLower(relationship.SubType)] = relationship
-	}
-	return relMap
-}
-
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
 func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (interface{}, error) {
+	if r == nil {
+		return nil, ErrEval(fmt.Errorf("policy engine is not yet ready"))
+	}
 	regoEngine, err := rego.New(
 		rego.Query(regoQueryString),
 		rego.Load([]string{r.policyDir}, nil),

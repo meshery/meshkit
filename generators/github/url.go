@@ -54,9 +54,9 @@ func (u URL) GetContent() (models.Package, error) {
 		return nil, err
 	}
 	return GitHubPackage{
-		Name:     u.PackageName,
-		filePath: manifestFilePath,
-		version:  version,
+		Name:      u.PackageName,
+		filePath:  manifestFilePath,
+		version:   version,
 		SourceURL: u.URL.String(),
 	}, nil
 }
