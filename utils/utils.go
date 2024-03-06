@@ -357,7 +357,7 @@ func WriteJSONToFile[K any](outputPath string, data K) error {
 	return nil
 }
 
-func CreateDirectory(path string) error{
+func CreateDirectory(path string) error {
 	err := os.MkdirAll(path, 0755)
 	if err != nil {
 		err = ErrCreateDir(err, path)
