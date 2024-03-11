@@ -251,7 +251,7 @@ func Contains[G []K, K comparable](slice G, ele K) bool {
 
 func Cast[K any](val interface{}) (K, error) {
 	var assertedValue K
-	if isInterfaceNil(val) {
+	if IsInterfaceNil(val) {
 		return assertedValue, ErrTypeCast(fmt.Errorf("nil interface cannot be type casted"))
 	}
 	var ok bool
