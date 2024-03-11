@@ -250,9 +250,14 @@ func Contains[G []K, K comparable](slice G, ele K) bool {
 }
 
 func Cast[K any](val interface{}) (K, error) {
-	assertedValue, ok := val.(K)
+	var assertedValue K
+	if isInterfaceNil(val) {
+		return assertedValue, ErrTypeCast(fmt.Errorf("nil interface cannot be type casted"))
+	}
+	var ok bool
+	assertedValue, ok = val.(K)
 	if !ok {
-		return assertedValue, ErrTypeCast(reflect.TypeOf(val).Name())
+		return assertedValue, ErrTypeCast(fmt.Errorf("the underlying type of the interface is %s", reflect.TypeOf(val).Name()))
 	}
 	return assertedValue, nil
 }
@@ -379,4 +384,16 @@ func ExtractDomainFromURL(location string) string {
 		return location
 	}
 	return regexp.MustCompile(`(([a-zA-Z0-9]+\.)([a-zA-Z0-9]+))$`).FindString(parsedURL.Hostname())
+}
+
+func isInterfaceNil(val interface{}) bool {
+	if val == nil {
+		return true
+	}
+	switch reflect.TypeOf(val).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		return reflect.ValueOf(val).IsNil()
+	}
+	return false
+
 }
