@@ -386,7 +386,7 @@ func ExtractDomainFromURL(location string) string {
 	return regexp.MustCompile(`(([a-zA-Z0-9]+\.)([a-zA-Z0-9]+))$`).FindString(parsedURL.Hostname())
 }
 
-func isInterfaceNil(val interface{}) bool {
+func IsInterfaceNil(val interface{}) bool {
 	if val == nil {
 		return true
 	}
