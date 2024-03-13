@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/layer5io/meshkit/models/model/core/types"
 	"github.com/layer5io/meshkit/utils"
 	"gorm.io/gorm/clause"
 )
@@ -86,7 +86,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, uu
 	err = db.Create(&cdb).Error
 	return c.ID, mid, err
 }
-func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition, count int64, unique int) {
+func GetModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition, count int64, unique int) {
 	type componentDefinitionWithModel struct {
 		ComponentDefinitionDB
 		ModelDB

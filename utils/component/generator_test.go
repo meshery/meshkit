@@ -3,7 +3,7 @@ package component
 import (
 	"testing"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/models/model/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils/manifests"
 )
 

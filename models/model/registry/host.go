@@ -65,7 +65,7 @@ func (h *Host) AfterFind(tx *gorm.DB) error {
 	return nil
 }
 
-// Each host from where meshmodels can be generated needs to implement this interface
+// Each host from where models can be generated needs to implement this interface
 // HandleDependents, contains host specific logic for provisioning required CRDs/operators for corresponding components.
 type IHost interface {
 	HandleDependents(comp v1alpha1.Component, kc *kubernetes.Client, isDeploy bool) (string, error)

@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/types"
+	"github.com/layer5io/meshkit/models/model/core/types"
 	"gorm.io/gorm/clause"
 )
 
@@ -63,7 +63,7 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 		return
 	}
 }
-func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []RelationshipDefinition, count int64) {
+func GetModelRelationship(db *database.Handler, f RelationshipFilter) (r []RelationshipDefinition, count int64) {
 	type componentDefinitionWithModel struct {
 		RelationshipDefinitionDB
 		ModelDB
