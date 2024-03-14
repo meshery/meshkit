@@ -137,8 +137,8 @@ func ErrGettingLatestReleaseTag(err error) error {
 	)
 }
 
-func ErrTypeCast(valType string) error {
-	return errors.New(ErrTypeCastCode, errors.Alert, []string{"invaid type assertion requested"}, []string{fmt.Sprintf("The underlying type of the interface is %s", valType)}, []string{"The interface type is not compatible with the request type cast"}, []string{"use correct data type for type casting"})
+func ErrTypeCast(err error) error {
+	return errors.New(ErrTypeCastCode, errors.Alert, []string{"invaid type assertion requested"}, []string{err.Error()}, []string{"The interface type is not compatible with the request type cast"}, []string{"use correct data type for type casting"})
 }
 
 // ErrDecodeYaml is the error when the yaml unmarshal fails
