@@ -53,7 +53,7 @@ type ComponentDefinitionDB struct {
 	UpdatedAt   time.Time       `json:"-"`
 }
 
-func (c ComponentDefinition) Type() types.CapabilityType {
+func (c ComponentDefinition) Type() types.EntityType {
 	return types.ComponentDefinition
 }
 func (c ComponentDefinition) GetID() uuid.UUID {
