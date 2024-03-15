@@ -18,28 +18,32 @@ import (
 type RelationshipDefinition struct {
 	ID uuid.UUID `json:"id"`
 	TypeMeta
-	Model           Model                    `json:"model"`
-	HostName        string                   `json:"hostname"`
-	HostID          uuid.UUID                `json:"hostID"`
-	DisplayHostName string                   `json:"displayhostname"`
-	Metadata        map[string]interface{}   `json:"metadata" yaml:"metadata"`
-	SubType         string                   `json:"subType" yaml:"subType" gorm:"subType"`
-	EvaluationQuery string                   `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
-	Selectors       []map[string]interface{} `json:"selectors" yaml:"selectors"`
-	CreatedAt       time.Time                `json:"-"`
-	UpdatedAt       time.Time                `json:"-"`
+	Model           Model                  `json:"model"`
+	HostName        string                 `json:"hostname"`
+	HostID          uuid.UUID              `json:"hostID"`
+	DisplayHostName string                 `json:"displayhostname"`
+	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
+	// The property has been named RelationshipType instead of Type to avoid collision from Type() function, which enables support for dynamic type
+	RelationshipType string                   `json:"type" yaml:"type" gorm:"type"`
+	SubType          string                   `json:"subType" yaml:"subType" gorm:"subType"`
+	EvaluationQuery  string                   `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
+	Selectors        []map[string]interface{} `json:"selectors" yaml:"selectors"`
+	CreatedAt        time.Time                `json:"-"`
+	UpdatedAt        time.Time                `json:"-"`
 }
 
 type RelationshipDefinitionDB struct {
 	ID      uuid.UUID `json:"id"`
 	ModelID uuid.UUID `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:modelID"`
 	TypeMeta
-	Metadata        []byte    `json:"metadata" yaml:"metadata"`
-	SubType         string    `json:"subType" yaml:"subType"`
-	EvaluationQuery string    `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
-	Selectors       []byte    `json:"selectors" yaml:"selectors"`
-	CreatedAt       time.Time `json:"-"`
-	UpdatedAt       time.Time `json:"-"`
+	Metadata []byte `json:"metadata" yaml:"metadata"`
+	// The property has been named RelationshipType instead of Type to avoid collision from Type() function, which enables support for dynamic type
+	RelationshipType string    `json:"type" yaml:"type" gorm:"type"`
+	SubType          string    `json:"subType" yaml:"subType"`
+	EvaluationQuery  string    `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
+	Selectors        []byte    `json:"selectors" yaml:"selectors"`
+	CreatedAt        time.Time `json:"-"`
+	UpdatedAt        time.Time `json:"-"`
 }
 
 // For now, only filtering by Kind and SubType are allowed.
