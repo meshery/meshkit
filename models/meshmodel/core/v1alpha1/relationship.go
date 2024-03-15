@@ -174,6 +174,7 @@ func (r *RelationshipDefinition) GetRelationshipDefinitionDB() (rdb Relationship
 	rdb.Metadata, _ = json.Marshal(r.Metadata)
 	rdb.Selectors, _ = json.Marshal(r.Selectors)
 	rdb.Kind = r.Kind
+	rdb.RelationshipType = r.RelationshipType
 	rdb.SubType = r.SubType
 	rdb.ModelID = r.Model.ID
 	rdb.EvaluationQuery = r.EvaluationQuery
