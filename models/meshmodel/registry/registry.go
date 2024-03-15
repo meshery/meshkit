@@ -383,6 +383,8 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 			} else {
 				finder = finder.Order(mf.OrderOn)
 			}
+		} else {
+			finder = finder.Order("display_name")
 		}
 
 		finder.Count(&count)

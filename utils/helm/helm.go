@@ -57,7 +57,7 @@ func ConvertToK8sManifest(path string, w io.Writer) error {
 		pathInfo, _ := os.Stat(path)
 		if pathInfo.IsDir() {
 			err := filepath.WalkDir(path, func(path string, d fs.DirEntry, _err error) error {
-			err := writeToFile(w, path)
+				err := writeToFile(w, path)
 				if err != nil {
 					return err
 				}
@@ -65,7 +65,7 @@ func ConvertToK8sManifest(path string, w io.Writer) error {
 			})
 			if err != nil {
 				return err
-			}			
+			}
 		} else {
 			err := writeToFile(w, path)
 			if err != nil {
