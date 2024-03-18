@@ -7,16 +7,17 @@ import (
 )
 
 var (
-	ErrAppendingLayerCode       = "meshkit-11147"
-	ErrReadingFileCode          = "meshkit-11148"
-	ErrUnSupportedLayerTypeCode = "meshkit-11149"
-	ErrGettingLayerCode         = "meshkit-11150"
-	ErrCompressingLayerCode     = "meshkit-11151"
-	ErrUnTaringLayerCode        = "meshkit-11152"
-	ErrGettingImageCode         = "meshkit-11153"
-	ErrValidatingImageCode      = "meshkit-11154"
-	ErrConnectingToRegistryCode = "meshkit-11155"
-	ErrFileNotFoundCode         = "meshkit-11156"
+	ErrAppendingLayerCode           = "meshkit-11147"
+	ErrReadingFileCode              = "meshkit-11148"
+	ErrUnSupportedLayerTypeCode     = "meshkit-11149"
+	ErrGettingLayerCode             = "meshkit-11150"
+	ErrCompressingLayerCode         = "meshkit-11151"
+	ErrUnTaringLayerCode            = "meshkit-11152"
+	ErrGettingImageCode             = "meshkit-11153"
+	ErrValidatingImageCode          = "meshkit-11154"
+	ErrConnectingToRegistryCode     = "meshkit-11155"
+	ErrFileNotFoundCode             = "meshkit-11156"
+	ErrAuthenticatingToRegistryCode = "meshkit-11157"
 )
 
 func ErrAppendingLayer(err error) error {
@@ -57,4 +58,8 @@ func ErrConnectingToRegistry(err error) error {
 
 func ErrFileNotFound(err error) error {
 	return errors.New(ErrFileNotFoundCode, errors.Alert, []string{"file not found"}, []string{err.Error()}, []string{"file not found"}, []string{"Try using a different file", "check if file exists"})
+}
+
+func ErrAuthenticatingToRegistry(err error) error {
+	return errors.New(ErrAuthenticatingToRegistryCode, errors.Alert, []string{"authenticating to registry failed"}, []string{err.Error()}, []string{"failed to authenticate to the registry"}, []string{"Please check if the credentials are correct"})
 }
