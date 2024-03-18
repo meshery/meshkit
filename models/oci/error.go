@@ -15,6 +15,8 @@ var (
 	ErrUnTaringLayerCode        = "meshkit-11152"
 	ErrGettingImageCode         = "meshkit-11153"
 	ErrValidatingImageCode      = "meshkit-11154"
+	ErrConnectingToRegistryCode = "meshkit-11155"
+	ErrFileNotFoundCode         = "meshkit-11156"
 )
 
 func ErrAppendingLayer(err error) error {
@@ -47,4 +49,12 @@ func ErrGettingImage(err error) error {
 
 func ErrValidatingImage(err error) error {
 	return errors.New(ErrValidatingImageCode, errors.Alert, []string{"validating image failed"}, []string{err.Error()}, []string{"failed to validate the image"}, []string{"Try using a different image", "check if image is not malformed"})
+}
+
+func ErrConnectingToRegistry(err error) error {
+	return errors.New(ErrConnectingToRegistryCode, errors.Alert, []string{"connecting to registry failed"}, []string{err.Error()}, []string{"failed to connect to the registry"}, []string{"Try using a different registry", "check if registry URL is correct"})
+}
+
+func ErrFileNotFound(err error) error {
+	return errors.New(ErrFileNotFoundCode, errors.Alert, []string{"file not found"}, []string{err.Error()}, []string{"file not found"}, []string{"Try using a different file", "check if file exists"})
 }

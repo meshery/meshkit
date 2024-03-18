@@ -1,6 +1,7 @@
 package oci
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	// v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	oras "oras.land/oras-go/v2"
+	"oras.land/oras-go/v2/content/file"
+	"oras.land/oras-go/v2/registry/remote"
+	// "oras.land/oras-go/v2/registry/remote/auth"
+	// "oras.land/oras-go/v2/registry/remote/retry"
 )
 
 // LayerType is an enumeration of the supported layer types
@@ -111,4 +118,29 @@ func getLayerMediaType(extension string) types.MediaType {
 		return oci.CanonicalMediaTypePrefix
 	}
 	return types.MediaType(fmt.Sprintf("%s.%s", oci.CanonicalMediaTypePrefix, extension))
+}
+
+// function to pull models from the public oci repository
+func PullFromOCIRegistry(dirPath ,registryURL, imageTag string) error {
+	// Create a new file store
+	fs, err := file.New(dirPath)
+	if err != nil {
+		return ErrFileNotFound(err)
+	}
+
+	defer fs.Close()
+	ctx := context.Background()
+
+	// Connect to remote registry
+	repo, err := remote.NewRepository(registryURL)
+	if err != nil {
+		return ErrConnectingToRegistry(err)
+	}
+
+	_ , err = oras.Copy(ctx, repo, imageTag, fs, imageTag, oras.DefaultCopyOptions)
+	if err != nil {
+		return ErrGettingImage(err)
+	}
+
+	return nil
 }
