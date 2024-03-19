@@ -132,19 +132,19 @@ func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, 
 
 	ctx := context.Background()
 
-	mediaType := "application/vnd.oci.image.manifest.v1+json"
+	mediaType := "application/vnd.test.folder"
 	fileNames := []string{dirPath}
 	fileDescriptors := make([]v1.Descriptor, 0, len(fileNames))
 	for _, name := range fileNames {
 		fileDescriptor, err := fs.Add(ctx, name, mediaType, "")
 		if err != nil {
-			panic(err)
+			return ErrFileNotFound(err)
 		}
 		fileDescriptors = append(fileDescriptors, fileDescriptor)
 	}
 
 	// Pack the folder and tag the packed manifest
-	artifactType := "application/vnd.oci.image.manifest.v1+json"
+	artifactType := "application/vnd.test.artifact"
 	opts := oras.PackManifestOptions{
 		Layers: fileDescriptors,
 	}
