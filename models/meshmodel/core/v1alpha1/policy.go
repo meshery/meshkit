@@ -51,7 +51,7 @@ func (p PolicyDefinition) GetID() uuid.UUID {
 	return p.ID
 }
 
-func (p PolicyDefinition) Type() types.CapabilityType {
+func (p PolicyDefinition) Type() types.EntityType {
 	return types.PolicyDefinition
 }
 

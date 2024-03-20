@@ -85,9 +85,13 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root s
 		root = parts[3]
 
 	} else {
-		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL $s is invalid, specify owner, repo, branch and filepath in the url according to the specified source url format", gr.URL.String()))
+		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid, specify owner, repo, branch and filepath in the url according to the specified source url format", gr.URL.String()))
 	}
 	return
+}
+
+func (gr GitRepo) ExtractRepoDetailsFromSourceURL() (owner, repo, branch, root string, err error) {
+	return gr.extractRepoDetailsFromSourceURL()
 }
 
 func fileInterceptor(br *bufio.Writer) walker.FileInterceptor {

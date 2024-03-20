@@ -23,11 +23,11 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 		// 	want: 337,
 		// },
 		// { // Source pointing to a file in a repo
-			// ghPackageManager: GitHubPackageManager{
+		// ghPackageManager: GitHubPackageManager{
 		// 		PackageName: "k8s-config-connector",
 		// 		SourceURL:   "git://github.com/GoogleCloudPlatform/k8s-config-connector/master/crds/accesscontextmanager_v1alpha1_accesscontextmanageraccesslevelcondition.yaml",
 		// 	},
-		// 	want: 1, 
+		// 	want: 1,
 		// },
 
 		// { // Source pointing to a directly downloadable file (not a repo per se)
@@ -35,7 +35,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 		// 		PackageName: "k8s-config-connector",
 		// 		SourceURL:   "git://github.com/GoogleCloudPlatform/k8s-config-connector/master/crds/accesscontextmanager_v1alpha1_accesscontextmanageraccesslevelcondition.yaml",
 		// 	},
-		// 	want: 1, 
+		// 	want: 1,
 		// },
 
 		{ // Source pointing to a directly downloadable file (not a repo per se)

@@ -50,7 +50,7 @@ type Event struct {
 	// DeletedAt Timestamp when the resource was deleted.
 	DeletedAt *DeletedAt `db:"deleted_at" json:"deleted_at,omitempty"`
 
-	// Description A summary/receipt of event that occured.
+	// Description A summary/receipt of event that occurred.
 	Description string `db:"description" json:"description"`
 	ID          ID     `db:"id" json:"id"`
 

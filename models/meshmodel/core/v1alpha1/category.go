@@ -30,8 +30,8 @@ type CategoryFilter struct {
 	Limit   int    //If 0 or  unspecified then all records are returned and limit is not used
 	Offset  int
 }
-
-const DefaultCategory = "Miscellaneous"
+// "Uncategorized" is assigned when Category is empty in the component definitions.
+const DefaultCategory = "Uncategorized"
 
 // Create the filter from map[string]interface{}
 func (cf *CategoryFilter) Create(m map[string]interface{}) {

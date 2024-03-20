@@ -24,15 +24,15 @@ import (
 // 2. Entity type
 // 3. Entity
 type MeshModelRegistrantData struct {
-	Host       Host                 `json:"host"`
-	EntityType types.CapabilityType `json:"entityType"`
-	Entity     []byte               `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
+	Host       Host             `json:"host"`
+	EntityType types.EntityType `json:"entityType"`
+	Entity     []byte           `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
 }
 type Registry struct {
 	ID           uuid.UUID
 	RegistrantID uuid.UUID
 	Entity       uuid.UUID
-	Type         types.CapabilityType
+	Type         types.EntityType
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -40,7 +40,7 @@ type Registry struct {
 // Entity is referred as any type of schema managed by the registry
 // ComponentDefinitions and PolicyDefinitions are examples of entities
 type Entity interface {
-	Type() types.CapabilityType
+	Type() types.EntityType
 	GetID() uuid.UUID
 }
 
@@ -383,6 +383,8 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 			} else {
 				finder = finder.Order(mf.OrderOn)
 			}
+		} else {
+			finder = finder.Order("display_name")
 		}
 
 		finder.Count(&count)

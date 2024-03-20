@@ -132,7 +132,7 @@ func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.In
 				switch value := value0.(type) {
 				case *ast.BasicLit:
 					isLiteral = true
-					oldValue = strings.Trim(value.Value, "\"")
+					oldValue = strings.Trim(strings.Trim(value.Value, "\""), fmt.Sprintf("%s-", comp.Name))
 					isInteger = isInt(oldValue)
 					if (update && !isInteger) || (update && updateAll) {
 						value.Value = fmt.Sprintf("\"%s-%s\"", comp.Name, comp.GetNextErrorCode())
