@@ -127,7 +127,7 @@ func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, 
 	// Create a new file store
 	fs, err := file.New(".")
 	if err != nil {
-		return ErrFileNotFound(err)
+		return ErrWriteFile(err)
 	}
 
 	ctx := context.Background()
@@ -177,12 +177,13 @@ func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, 
 	return nil
 }
 
-// authentification to the public oci registry
-func AuthToOCIRegistry(repo *remote.Repository, registryAdd, username, password string) error {
+// authentification to the public oci registry 
+// registryURL example : docker.io
+func AuthToOCIRegistry(repo *remote.Repository, registryURI, username, password string) error {
 	repo.Client = &auth.Client{
 		Client: retry.DefaultClient,
 		Cache:  auth.NewCache(),
-		Credential: auth.StaticCredential(registryAdd, auth.Credential{
+		Credential: auth.StaticCredential(registryURI, auth.Credential{
 			Username: username,
 			Password: password,
 		}),

@@ -18,6 +18,7 @@ var (
 	ErrConnectingToRegistryCode     = "meshkit-11155"
 	ErrFileNotFoundCode             = "meshkit-11156"
 	ErrAuthenticatingToRegistryCode = "meshkit-11157"
+	ErrWriteFileCode                = "meshkit-11158"
 )
 
 func ErrAppendingLayer(err error) error {
@@ -62,4 +63,8 @@ func ErrFileNotFound(err error) error {
 
 func ErrAuthenticatingToRegistry(err error) error {
 	return errors.New(ErrAuthenticatingToRegistryCode, errors.Alert, []string{"authenticating to registry failed"}, []string{err.Error()}, []string{"failed to authenticate to the registry"}, []string{"Please check if the credentials are correct"})
+}
+
+func ErrWriteFile(err error) error {
+	return errors.New(ErrWriteFileCode, errors.Alert, []string{"writing file failed"}, []string{err.Error()}, []string{"failed to write the file"}, []string{"Try using a different file", "check if appropriate write permissions are given to the file"})
 }
