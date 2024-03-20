@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
-	"github.com/layer5io/meshkit/utils/kubernetes"
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	v1 "k8s.io/api/core/v1"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
@@ -45,7 +44,8 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 	// TODO: Confirm if the presence of operator is needed to use the operator client sdk
 	_, err = operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), "meshery-broker", metav1.GetOptions{})
 	if err == nil {
-		monitoringEndpoint, err := mb.GetEndpointForPort(brokerMonitoringPortName)
+		var monitoringEndpoint string
+		monitoringEndpoint, err = mb.GetEndpointForPort(brokerMonitoringPortName)
 		if err == nil {
 			if ConnectivityTest(MesheryServer, monitoringEndpoint) {
 				mb.status = Connected
@@ -124,7 +124,7 @@ func (mb *mesheryBroker) GetVersion() (string, error) {
 }
 
 func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
-	endpoint, err := kubernetes.GetServiceEndpoint(context.TODO(), mb.kclient.KubeClient, &mesherykube.ServiceOptions{
+	endpoint, err := mesherykube.GetServiceEndpoint(context.TODO(), mb.kclient.KubeClient, &mesherykube.ServiceOptions{
 		Name:         "meshery-broker",
 		Namespace:    "meshery",
 		PortSelector: portName,

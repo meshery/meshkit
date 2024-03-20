@@ -18,43 +18,50 @@ import (
 type RelationshipDefinition struct {
 	ID uuid.UUID `json:"id"`
 	TypeMeta
-	Model           Model                    `json:"model"`
-	HostName        string                   `json:"hostname"`
-	HostID          uuid.UUID                `json:"hostID"`
-	DisplayHostName string                   `json:"displayhostname"`
-	Metadata        map[string]interface{}   `json:"metadata" yaml:"metadata"`
-	SubType         string                   `json:"subType" yaml:"subType" gorm:"subType"`
-	EvaluationQuery string                   `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
-	Selectors       []map[string]interface{} `json:"selectors" yaml:"selectors"`
-	CreatedAt       time.Time                `json:"-"`
-	UpdatedAt       time.Time                `json:"-"`
+	Model           Model                  `json:"model"`
+	HostName        string                 `json:"hostname"`
+	HostID          uuid.UUID              `json:"hostID"`
+	DisplayHostName string                 `json:"displayhostname"`
+	Metadata        map[string]interface{} `json:"metadata" yaml:"metadata"`
+	// The property has been named RelationshipType instead of Type to avoid collision from Type() function, which enables support for dynamic type.
+	// Though, the column name and the json representation is "type".
+	RelationshipType string                   `json:"type" yaml:"type" gorm:"type"`
+	SubType          string                   `json:"subType" yaml:"subType" gorm:"subType"`
+	EvaluationQuery  string                   `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
+	Selectors        []map[string]interface{} `json:"selectors" yaml:"selectors"`
+	CreatedAt        time.Time                `json:"-"`
+	UpdatedAt        time.Time                `json:"-"`
 }
 
 type RelationshipDefinitionDB struct {
 	ID      uuid.UUID `json:"id"`
 	ModelID uuid.UUID `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:modelID"`
 	TypeMeta
-	Metadata        []byte    `json:"metadata" yaml:"metadata"`
-	SubType         string    `json:"subType" yaml:"subType"`
-	EvaluationQuery string    `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
-	Selectors       []byte    `json:"selectors" yaml:"selectors"`
-	CreatedAt       time.Time `json:"-"`
-	UpdatedAt       time.Time `json:"-"`
+	Metadata []byte `json:"metadata" yaml:"metadata"`
+	// The property has been named RelationshipType instead of Type to avoid collision from Type() function, which enables support for dynamic type.
+	// Though, the column name and the json representation is "type".
+	RelationshipType string    `json:"type" yaml:"type" gorm:"type"`
+	SubType          string    `json:"subType" yaml:"subType"`
+	EvaluationQuery  string    `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
+	Selectors        []byte    `json:"selectors" yaml:"selectors"`
+	CreatedAt        time.Time `json:"-"`
+	UpdatedAt        time.Time `json:"-"`
 }
 
 // For now, only filtering by Kind and SubType are allowed.
 // In the future, we will add support to query using `selectors` (using CUE)
 // TODO: Add support for Model
 type RelationshipFilter struct {
-	Kind      string
-	Greedy    bool //when set to true - instead of an exact match, kind will be prefix matched
-	SubType   string
-	Version   string
-	ModelName string
-	OrderOn   string
-	Sort      string //asc or desc. Default behavior is asc
-	Limit     int    //If 0 or  unspecified then all records are returned and limit is not used
-	Offset    int
+	Kind             string
+	Greedy           bool //when set to true - instead of an exact match, kind will be prefix matched
+	SubType          string
+	RelationshipType string
+	Version          string
+	ModelName        string
+	OrderOn          string
+	Sort             string //asc or desc. Default behavior is asc
+	Limit            int    //If 0 or  unspecified then all records are returned and limit is not used
+	Offset           int
 }
 
 // Create the filter from map[string]interface{}
@@ -66,7 +73,7 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []RelationshipDefinition, count int64) {
 	type componentDefinitionWithModel struct {
 		RelationshipDefinitionDB
-		ModelDB
+		ModelDB //nolint
 		CategoryDB
 	}
 	var componentDefinitionsWithModel []componentDefinitionWithModel
@@ -81,6 +88,11 @@ func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []R
 			finder = finder.Where("relationship_definition_dbs.kind = ?", f.Kind)
 		}
 	}
+
+	if f.RelationshipType != "" {
+		finder = finder.Where("relationship_definition_dbs.type = ?", f.RelationshipType)
+	}
+
 	if f.SubType != "" {
 		finder = finder.Where("relationship_definition_dbs.sub_type = ?", f.SubType)
 	}
@@ -126,6 +138,7 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r Relat
 		r.Selectors = []map[string]interface{}{}
 	}
 	_ = json.Unmarshal(rdb.Selectors, &r.Selectors)
+	r.RelationshipType = rdb.RelationshipType
 	r.SubType = rdb.SubType
 	r.Kind = rdb.Kind
 	r.Model = m
@@ -133,7 +146,7 @@ func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r Relat
 	return
 }
 
-func (r RelationshipDefinition) Type() types.CapabilityType {
+func (r RelationshipDefinition) Type() types.EntityType {
 	return types.RelationshipDefinition
 }
 func (r RelationshipDefinition) GetID() uuid.UUID {
@@ -161,6 +174,7 @@ func (r *RelationshipDefinition) GetRelationshipDefinitionDB() (rdb Relationship
 	rdb.Metadata, _ = json.Marshal(r.Metadata)
 	rdb.Selectors, _ = json.Marshal(r.Selectors)
 	rdb.Kind = r.Kind
+	rdb.RelationshipType = r.RelationshipType
 	rdb.SubType = r.SubType
 	rdb.ModelID = r.Model.ID
 	rdb.EvaluationQuery = r.EvaluationQuery

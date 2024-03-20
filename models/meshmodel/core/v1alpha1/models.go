@@ -70,7 +70,7 @@ type ModelDB struct {
 	Status      ModelStatus `json:"status" gorm:"status"`
 }
 
-func (m Model) Type() types.CapabilityType {
+func (m Model) Type() types.EntityType {
 	return types.Model
 }
 func (m Model) GetID() uuid.UUID {
