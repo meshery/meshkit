@@ -73,7 +73,7 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 func GetMeshModelRelationship(db *database.Handler, f RelationshipFilter) (r []RelationshipDefinition, count int64) {
 	type componentDefinitionWithModel struct {
 		RelationshipDefinitionDB
-		ModelDB
+		ModelDB //nolint
 		CategoryDB
 	}
 	var componentDefinitionsWithModel []componentDefinitionWithModel
