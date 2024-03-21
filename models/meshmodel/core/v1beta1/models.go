@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	types "github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm"
 )
 
@@ -38,12 +39,10 @@ type ModelFilter struct {
 type Model struct {
 	ID              uuid.UUID              `json:"id,omitempty" yaml:"-"`
 	Name            string                 `json:"name"`
-	Version         string                 `json:"version"`
 	DisplayName     string                 `json:"displayName" gorm:"modelDisplayName"`
+	Version         string                 `json:"version"`
 	Status          ModelStatus            `json:"status" gorm:"status"`
-	HostName        string                 `json:"hostname,omitempty"`
-	HostID          uuid.UUID              `json:"hostID,omitempty"`
-	DisplayHostName string                 `json:"displayhostname,omitempty"`
+	Registrant      registry.Hostv1beta1   `json:"registrant" gorm:"registrant"` // to be Connection
 	Category        Category               `json:"category"`
 	Metadata        map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
 	// Components      []ComponentDefinitionDB    `json:"components"`
@@ -51,14 +50,15 @@ type Model struct {
 }
 
 type ModelDB struct {
-	ID          uuid.UUID   `json:"id"`
-	CategoryID  uuid.UUID   `json:"-" gorm:"categoryID"`
-	Name        string      `json:"modelName" gorm:"modelName"`
-	Version     string      `json:"version"`
-	DisplayName string      `json:"modelDisplayName" gorm:"modelDisplayName"`
-	SubCategory string      `json:"subCategory" gorm:"subCategory"`
-	Metadata    []byte      `json:"modelMetadata" gorm:"modelMetadata"`
-	Status      ModelStatus `json:"status" gorm:"status"`
+	ID           uuid.UUID   `json:"id"`
+	CategoryID   uuid.UUID   `json:"-" gorm:"categoryID"`
+	RegistrantID uuid.UUID   `json:"hostID" gorm:"hostID"`
+	Name         string      `json:"modelName" gorm:"modelName"`
+	Version      string      `json:"version"`
+	DisplayName  string      `json:"modelDisplayName" gorm:"modelDisplayName"`
+	SubCategory  string      `json:"subCategory" gorm:"subCategory"`
+	Metadata     []byte      `json:"modelMetadata" gorm:"modelMetadata"`
+	Status       ModelStatus `json:"status" gorm:"status"`
 }
 
 func (m Model) Type() types.EntityType {
@@ -69,6 +69,12 @@ func (m Model) GetID() uuid.UUID {
 }
 
 func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
+
+	hostID, err := m.Registrant.Create(db)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
 	byt, err := json.Marshal(m)
 	if err != nil {
 		return uuid.UUID{}, err
@@ -80,7 +86,7 @@ func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
 	}
 	modelCreationLock.Lock()
 	defer modelCreationLock.Unlock()
-	err = db.First(&model, "id = ?", modelID).Error
+	err = db.First(&model, "id = ? and hostID = ?", modelID, hostID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
 	}
@@ -92,6 +98,7 @@ func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
 		m.ID = modelID
 		mdb := m.GetModelDB()
 		mdb.CategoryID = id
+		mdb.RegistrantID = hostID
 		mdb.Status = "registered"
 		err = db.Create(&mdb).Error
 		if err != nil {
@@ -101,7 +108,6 @@ func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
 	}
 	return model.ID, nil
 }
-
 
 func (c *Model) GetModelDB() (cmd ModelDB) {
 	cmd.ID = c.ID
