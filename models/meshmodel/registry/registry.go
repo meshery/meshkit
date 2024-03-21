@@ -281,6 +281,7 @@ func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.Me
 
 	return response, totalcount, nil
 }
+
 func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64, *int) {
 	switch filter := f.(type) {
 	case *v1alpha1.ComponentFilter:

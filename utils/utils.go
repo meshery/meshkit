@@ -397,3 +397,16 @@ func IsInterfaceNil(val interface{}) bool {
 	return false
 
 }
+
+func IsSchemaEmpty(schema string) (valid bool) {
+	if schema == "" {
+		return
+	}
+	m := make(map[string]interface{})
+	_ = json.Unmarshal([]byte(schema), &m)
+	if m["properties"] == nil {
+		return
+	}
+	valid = true
+	return
+}
