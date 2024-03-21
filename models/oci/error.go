@@ -19,6 +19,9 @@ var (
 	ErrFileNotFoundCode             = "meshkit-11156"
 	ErrAuthenticatingToRegistryCode = "meshkit-11157"
 	ErrWriteFileCode                = "meshkit-11158"
+	ErrAddLayerCode = "meshkit-11159"
+	ErrTaggingPackageCode = "meshkit-11160"
+
 )
 
 func ErrAppendingLayer(err error) error {
@@ -67,4 +70,12 @@ func ErrAuthenticatingToRegistry(err error) error {
 
 func ErrWriteFile(err error) error {
 	return errors.New(ErrWriteFileCode, errors.Alert, []string{"writing file failed"}, []string{err.Error()}, []string{"failed to write the file"}, []string{"Try using a different file", "check if appropriate write permissions are given to the file"})
+}
+
+func ErrAddLayer(err error) error {
+	return errors.New(ErrAddLayerCode, errors.Alert, []string{"adding file failed"}, []string{err.Error()}, []string{"failed to add the layer"}, []string{"Try using a different file's", "check if layer is compatible with the base image"})
+}
+
+func ErrTaggingPackage(err error) error {
+	return errors.New(ErrTaggingPackageCode, errors.Alert, []string{"tagging package failed"}, []string{err.Error()}, []string{"failed to tag the package"}, []string{"Try using a different tag", "check if package is not malformed"})
 }

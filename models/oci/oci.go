@@ -138,7 +138,7 @@ func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, 
 	for _, name := range fileNames {
 		fileDescriptor, err := fs.Add(ctx, name, mediaType, "")
 		if err != nil {
-			return ErrFileNotFound(err)
+			return ErrAddLayer(err)
 		}
 		fileDescriptors = append(fileDescriptors, fileDescriptor)
 	}
@@ -154,7 +154,7 @@ func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, 
 	}
 
 	if err = fs.Tag(ctx, manifestDescriptor, imageTag); err != nil {
-		return ErrGettingLayer(err)
+		return ErrWriteFile(err)
 	}
 
 	// Connect to a remote repository
