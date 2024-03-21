@@ -37,14 +37,15 @@ type ModelFilter struct {
 
 // swagger:response Model
 type Model struct {
-	ID              uuid.UUID              `json:"id,omitempty" yaml:"-"`
-	Name            string                 `json:"name"`
-	DisplayName     string                 `json:"displayName" gorm:"modelDisplayName"`
-	Version         string                 `json:"version"`
-	Status          ModelStatus            `json:"status" gorm:"status"`
-	Registrant      registry.Hostv1beta1   `json:"registrant" gorm:"registrant"` // to be Connection
-	Category        Category               `json:"category"`
-	Metadata        map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
+	ID          uuid.UUID              `json:"id,omitempty" yaml:"-"`
+	Name        string                 `json:"name"`
+	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
+	Version     string                 `json:"version"`
+	Status      ModelStatus            `json:"status" gorm:"status"`
+	Registrant  registry.Hostv1beta1   `json:"registrant" gorm:"registrant"` // to be Connection
+	Category    Category               `json:"category"`
+	SubCategory string                 `json:"subCategory" gorm:"subCategory"`
+	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
 	// Components      []ComponentDefinitionDB    `json:"components"`
 	// Relationships   []RelationshipDefinitionDB `json:"relationships"`
 }
