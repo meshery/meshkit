@@ -35,15 +35,21 @@ type ModelFilter struct {
 	Status        string
 }
 
+type model struct {
+	Version string `json:"version,omitempty" yaml:"version"`
+}
+
 // swagger:response Model
 type Model struct {
-	ID          uuid.UUID              `json:"id,omitempty" yaml:"-"`
+	ID uuid.UUID `json:"id,omitempty" yaml:"-"`
+	VersionMeta
 	Name        string                 `json:"name"`
 	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
 	Version     string                 `json:"version"`
 	Status      ModelStatus            `json:"status" gorm:"status"`
 	Registrant  registry.Hostv1beta1   `json:"registrant" gorm:"registrant"` // to be Connection
 	Category    Category               `json:"category"`
+	Model       model                  `json:"model,omitempty" gorm:"model"`
 	SubCategory string                 `json:"subCategory" gorm:"subCategory"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
 	// Components      []ComponentDefinitionDB    `json:"components"`
@@ -51,8 +57,10 @@ type Model struct {
 }
 
 type ModelDB struct {
-	ID           uuid.UUID   `json:"id"`
-	CategoryID   uuid.UUID   `json:"-" gorm:"categoryID"`
+	ID uuid.UUID `json:"id"`
+	VersionMeta
+	CategoryID uuid.UUID `json:"-" gorm:"categoryID"`
+	Model      model     `json:"model,omitempty" gorm:"model"`
 	RegistrantID uuid.UUID   `json:"hostID" gorm:"hostID"`
 	Name         string      `json:"modelName" gorm:"modelName"`
 	Version      string      `json:"version"`
@@ -112,6 +120,7 @@ func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
 
 func (c *Model) GetModelDB() (cmd ModelDB) {
 	cmd.ID = c.ID
+	cmd.VersionMeta = c.VersionMeta
 	cmd.DisplayName = c.DisplayName
 	cmd.Status = c.Status
 	cmd.Name = c.Name
@@ -122,6 +131,7 @@ func (c *Model) GetModelDB() (cmd ModelDB) {
 
 func (cmd *ModelDB) GetModel(cat Category) (c Model) {
 	c.ID = cmd.ID
+	c.VersionMeta = cmd.VersionMeta
 	c.Category = cat
 	c.DisplayName = cmd.DisplayName
 	c.Status = cmd.Status
