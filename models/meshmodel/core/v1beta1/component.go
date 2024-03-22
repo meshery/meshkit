@@ -10,10 +10,16 @@ import (
 	"github.com/google/uuid"
 )
 
-type TypeMeta struct {
-	Kind       string `json:"kind,omitempty" yaml:"kind"`
-	APIVersion string `json:"apiVersion,omitempty" yaml:"apiVersion"`
+type VersionMeta struct {
+	SchemaVersion string `json:"schemaVersion,omitempty" yaml:"schemaVersion"`
+	Version       string `json:"version,omitempty" yaml:"version"`
 }
+
+type TypeMeta struct {
+	Kind    string `json:"kind,omitempty" yaml:"kind"`
+	Version string `json:"version,omitempty" yaml:"version"`
+}
+
 type ComponentFormat string
 
 const (
@@ -22,36 +28,32 @@ const (
 	CUE  ComponentFormat = "CUE"
 )
 
-type entity struct {
+type component struct {
 	TypeMeta
-	Type    string `json:"type,omitempty" yaml:"type"`
-	SubType string `json:"subType,omitempty" yaml:"subType"`
-	Schema  string `json:"schema,omitempty" yaml:"schema"`
+	Schema string `json:"schema,omitempty" yaml:"schema"`
 }
 
 // swagger:response ComponentDefinition
 // use NewComponent function for instantiating
 type ComponentDefinition struct {
-	ID                uuid.UUID              `json:"id,omitempty"`
-	SchemaVersion     string                 `json:"schemaVersion,omitempty" yaml:"schemaVersion"`
-	DefinitionVersion string                 `json:"definitionVersion,omitempty" yaml:"definitionVersion"`
-	DisplayName       string                 `json:"displayName" gorm:"displayName"`
-	Format            ComponentFormat        `json:"format" yaml:"format"`
-	Model             Model                  `json:"model"`
-	Metadata          map[string]interface{} `json:"metadata" yaml:"metadata"`
+	ID uuid.UUID `json:"id,omitempty"`
+	VersionMeta
+	DisplayName string                 `json:"displayName" gorm:"displayName"`
+	Format      ComponentFormat        `json:"format" yaml:"format"`
+	Model       Model                  `json:"model"`
+	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
 	// Rename this here and in schema as well, it creates confustion b/w entities like comps. relationship. model, here entity means Pod/Deployment....
-	Entity entity `json:"entity,omitempty" yaml:"entity"`
+	Entity component `json:"entity,omitempty" yaml:"entity"`
 }
 
 type ComponentDefinitionDB struct {
-	ID                uuid.UUID       `json:"id"`
-	SchemaVersion     string          `json:"schemaVersion,omitempty" yaml:"schemaVersion"`
-	DefinitionVersion string          `json:"definitionVersion,omitempty" yaml:"definitionVersion"`
-	DisplayName       string          `json:"displayName" gorm:"displayName"`
-	Format            ComponentFormat `json:"format" yaml:"format"`
-	ModelID           uuid.UUID       `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
-	Metadata          []byte          `json:"metadata" yaml:"metadata"`
-	Entity entity `json:"entity,omitempty" yaml:"entity" gorm:"entity"`
+	ID uuid.UUID `json:"id"`
+	VersionMeta
+	DisplayName string          `json:"displayName" gorm:"displayName"`
+	Format      ComponentFormat `json:"format" yaml:"format"`
+	ModelID     uuid.UUID       `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
+	Metadata    []byte          `json:"metadata" yaml:"metadata"`
+	Entity      component       `json:"entity,omitempty" yaml:"entity" gorm:"entity"`
 }
 
 func (c ComponentDefinition) Type() types.EntityType {
@@ -80,6 +82,7 @@ func (c *ComponentDefinition) Create(db *database.Handler) (uuid.UUID, error) {
 
 func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitionDB) {
 	cmd.ID = c.ID
+	cmd.VersionMeta = c.VersionMeta
 	cmd.Entity.TypeMeta = c.Entity.TypeMeta
 	cmd.Format = c.Format
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
@@ -90,6 +93,7 @@ func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitio
 
 func (cmd *ComponentDefinitionDB) GetComponentDefinition(model Model) (c ComponentDefinition) {
 	c.ID = cmd.ID
+	c.VersionMeta = cmd.VersionMeta
 	c.Entity.TypeMeta = cmd.Entity.TypeMeta
 	c.Format = cmd.Format
 	c.DisplayName = cmd.DisplayName
