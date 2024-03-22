@@ -15,12 +15,12 @@ var (
 	ErrUnTaringLayerCode            = "meshkit-11152"
 	ErrGettingImageCode             = "meshkit-11153"
 	ErrValidatingImageCode          = "meshkit-11154"
-	ErrConnectingToRegistryCode     = "meshkit-11155"
-	ErrFileNotFoundCode             = "meshkit-11156"
-	ErrAuthenticatingToRegistryCode = "meshkit-11157"
-	ErrWriteFileCode                = "meshkit-11158"
-	ErrAddLayerCode = "meshkit-11159"
-	ErrTaggingPackageCode = "meshkit-11160"
+	ErrConnectingToRegistryCode     = "meshkit-11243"
+	ErrFileNotFoundCode             = "meshkit-11244"
+	ErrAuthenticatingToRegistryCode = "meshkit-11245"
+	ErrWriteFilesCode               = "meshkit-11246"
+	ErrAddLayerCode 				= "meshkit-11247"
+	ErrTaggingPackageCode 			= "meshkit-11248"
 
 )
 
@@ -69,7 +69,7 @@ func ErrAuthenticatingToRegistry(err error) error {
 }
 
 func ErrWriteFile(err error) error {
-	return errors.New(ErrWriteFileCode, errors.Alert, []string{"writing file failed"}, []string{err.Error()}, []string{"failed to write the file"}, []string{"Try using a different file", "check if appropriate write permissions are given to the file"})
+	return errors.New(ErrWriteFilesCode, errors.Alert, []string{"writing file failed"}, []string{err.Error()}, []string{"failed to write the file"}, []string{"Try using a different file", "check if appropriate write permissions are given to the file"})
 }
 
 func ErrAddLayer(err error) error {
