@@ -171,7 +171,7 @@ func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, 
 
 	_, err = oras.Copy(ctx, fs, imageTag, repo, imageTag, oras.DefaultCopyOptions)
 	if err != nil {
-		return ErrGettingImage(err)
+		return ErrPushingPackage(err)
 	}
 
 	return nil
@@ -196,7 +196,7 @@ func PullFromOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username
 	// Create a new file store
 	fs, err := file.New(dirPath)
 	if err != nil {
-		return ErrFileNotFound(err)
+		return ErrFileNotFound(err, dirPath)
 	}
 
 	defer fs.Close()

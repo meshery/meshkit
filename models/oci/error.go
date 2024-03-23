@@ -21,7 +21,7 @@ var (
 	ErrWriteFilesCode               = "meshkit-11246"
 	ErrAddLayerCode 				= "meshkit-11247"
 	ErrTaggingPackageCode 			= "meshkit-11248"
-
+	ErrPushingPackageCode 			= "meshkit-11249"
 )
 
 func ErrAppendingLayer(err error) error {
@@ -60,8 +60,8 @@ func ErrConnectingToRegistry(err error) error {
 	return errors.New(ErrConnectingToRegistryCode, errors.Alert, []string{"connecting to registry failed"}, []string{err.Error()}, []string{"failed to connect to the registry"}, []string{"Try using a different registry", "check if registry URL is correct"})
 }
 
-func ErrFileNotFound(err error) error {
-	return errors.New(ErrFileNotFoundCode, errors.Alert, []string{"file not found"}, []string{err.Error()}, []string{"file not found"}, []string{"Try using a different file", "check if file exists"})
+func ErrFileNotFound(err error, filePath string) error {
+	return errors.New(ErrFileNotFoundCode, errors.Alert, []string{"file not found at " + filePath}, []string{err.Error()}, []string{"file not found at " + filePath}, []string{"Try using a different file", "check if file exists"})
 }
 
 func ErrAuthenticatingToRegistry(err error) error {
@@ -78,4 +78,8 @@ func ErrAddLayer(err error) error {
 
 func ErrTaggingPackage(err error) error {
 	return errors.New(ErrTaggingPackageCode, errors.Alert, []string{"tagging package failed"}, []string{err.Error()}, []string{"failed to tag the package"}, []string{"Try using a different tag", "check if package is not malformed"})
+}
+
+func ErrPushingPackage(err error) error {
+	return errors.New(ErrPushingPackageCode, errors.Alert, []string{"pushing package failed"}, []string{err.Error()}, []string{"failed to push the package"}, []string{"Try using a different tag", "check if package is not malformed"})
 }
