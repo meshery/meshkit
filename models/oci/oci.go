@@ -124,10 +124,9 @@ func getLayerMediaType(extension string) types.MediaType {
 // function to pull models from any OCI-compatible repository
 func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, password string) error {
 
-	// Create a new file store
-	fs, err := file.New(".")
-	if err != nil {
-		return ErrWriteFile(err)
+	fs, fileErr := file.New(".")
+	if fileErr != nil {
+		return ErrWriteFile(fileErr)
 	}
 
 	ctx := context.Background()
@@ -148,30 +147,30 @@ func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, 
 	opts := oras.PackManifestOptions{
 		Layers: fileDescriptors,
 	}
-	manifestDescriptor, err := oras.PackManifest(ctx, fs, oras.PackManifestVersion1_1_RC4, artifactType, opts)
-	if err != nil {
-		return ErrGettingLayer(err)
+	manifestDescriptor, packageErr := oras.PackManifest(ctx, fs, oras.PackManifestVersion1_1_RC4, artifactType, opts)
+	if packageErr != nil {
+		return ErrGettingLayer(packageErr)
 	}
 
-	if err = fs.Tag(ctx, manifestDescriptor, imageTag); err != nil {
-		return ErrWriteFile(err)
+	if tagErr := fs.Tag(ctx, manifestDescriptor, imageTag); tagErr != nil {
+		return ErrWriteFile(tagErr)
 	}
 
 	// Connect to a remote repository
-	repo, err := remote.NewRepository(registryAdd + "/" + repositoryAdd)
-	if err != nil {
-		return ErrConnectingToRegistry(err)
+	repo, connectErr := remote.NewRepository(registryAdd + "/" + repositoryAdd)
+	if connectErr != nil {
+		return ErrConnectingToRegistry(connectErr)
 	}
 
 	// Authenticate to the registry
-	err = AuthToOCIRegistry(repo, registryAdd, username, password)
-	if err != nil {
-		return ErrAuthenticatingToRegistry(err)
+	authErr := AuthToOCIRegistry(repo, registryAdd, username, password)
+	if authErr != nil {
+		return ErrAuthenticatingToRegistry(authErr)
 	}
 
-	_, err = oras.Copy(ctx, fs, imageTag, repo, imageTag, oras.DefaultCopyOptions)
-	if err != nil {
-		return ErrPushingPackage(err)
+	_, pushErr := oras.Copy(ctx, fs, imageTag, repo, imageTag, oras.DefaultCopyOptions)
+	if pushErr != nil {
+		return ErrPushingPackage(pushErr)
 	}
 
 	return nil
@@ -203,22 +202,22 @@ func PullFromOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username
 	ctx := context.Background()
 
 	// Connect to remote registry
-	repo, err := remote.NewRepository(registryAdd + "/" + repositoryAdd)
-	if err != nil {
-		return ErrConnectingToRegistry(err)
+	repo, connectErr := remote.NewRepository(registryAdd + "/" + repositoryAdd)
+	if connectErr != nil {
+		return ErrConnectingToRegistry(connectErr)
 	}
 
 	// Authenticate to the registry
 	if username != "" && password != "" {
-		err = AuthToOCIRegistry(repo, registryAdd, username, password)
-		if err != nil {
-			return ErrAuthenticatingToRegistry(err)
+		authErr := AuthToOCIRegistry(repo, registryAdd, username, password)
+		if authErr != nil {
+			return ErrAuthenticatingToRegistry(authErr)
 		}
 	}
 
-	_, err = oras.Copy(ctx, repo, imageTag, fs, imageTag, oras.DefaultCopyOptions)
-	if err != nil {
-		return ErrGettingImage(err)
+	_, pullErr := oras.Copy(ctx, repo, imageTag, fs, imageTag, oras.DefaultCopyOptions)
+	if pullErr != nil {
+		return ErrGettingImage(pullErr)
 	}
 
 	return nil
