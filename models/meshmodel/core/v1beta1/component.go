@@ -38,8 +38,8 @@ type component struct {
 
 type componentDefinitionWithModel struct {
 	ComponentDefinitionDB
-	ModelDB //nolint
-	CategoryDB
+	ModelDB ModelDB // acoount for overridn fields	
+	CategoryDB CategoryDB
 }
 
 // swagger:response ComponentDefinition
