@@ -1,6 +1,9 @@
 package entity
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"github.com/layer5io/meshkit/database"
+)
 
 type EntityType string
 
@@ -18,6 +21,6 @@ type Filter interface {
 
 type Entity interface {
 	Status
-	Create() (entityID uuid.UUID, err error)
-	Get() (entityID uuid.UUID, err error)
+	Create(db *database.Handler) (entityID uuid.UUID, err error)
+	Get(db *database.Handler, f Filter) (entities []Entity, count int64, unique int,err error)
 }
