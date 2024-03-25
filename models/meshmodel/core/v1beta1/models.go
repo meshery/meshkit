@@ -3,12 +3,14 @@ package v1beta1
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
-	types "github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/layer5io/meshkit/utils"
 	"gorm.io/gorm"
 )
 
@@ -70,8 +72,8 @@ type ModelDB struct {
 	Model        model       `json:"model,omitempty" gorm:"model"`
 }
 
-func (m Model) Type() types.EntityType {
-	return types.Model
+func (m Model) Type() entity.EntityType {
+	return entity.Model
 }
 func (m Model) GetID() uuid.UUID {
 	return m.ID
@@ -118,6 +120,14 @@ func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
 	return model.ID, nil
 }
 
+func (m *Model) UpdateStatus(db database.Handler, status entity.EntityStatus) error {
+	err := db.Model(&ModelDB{}).Where("id = ?", m.ID).Update("status", status).Error
+	if err != nil {
+		return entity.ErrUpdateEntityStatus(err, string(m.Type()), status.String())
+	}
+	return nil
+}
+
 func (c *Model) GetModelDB() (cmd ModelDB) {
 	// cmd.ID = c.ID id will be assigned by the database itself don't use this, as it will be always uuid.nil, because id is not known when comp gets generated.
 	// While database creates an entry with valid primary key but to avoid confusion, it is disabled and accidental assignment of custom id.
@@ -133,6 +143,7 @@ func (c *Model) GetModelDB() (cmd ModelDB) {
 	cmd.Model = c.Model
 	return
 }
+
 // is reg should be passed as param?
 func (cmd *ModelDB) GetModel(cat Category, reg registry.Hostv1beta1) (c Model) {
 	c.ID = cmd.ID
@@ -149,4 +160,18 @@ func (cmd *ModelDB) GetModel(cat Category, reg registry.Hostv1beta1) (c Model) {
 	// c.Components = make([]ComponentDefinitionDB, 0)
 	// c.Relationships = make([]RelationshipDefinitionDB, 0)
 	return
+}
+
+func (c Model) WriteModelDefinition(modelDefPath string) error {
+	err := utils.CreateDirectory(modelDefPath)
+	if err != nil {
+		return err
+	}
+
+	modelFilePath := filepath.Join(modelDefPath, "model.json")
+	err = utils.WriteJSONToFile[Model](modelFilePath, c)
+	if err != nil {
+		return err
+	}
+	return nil
 }

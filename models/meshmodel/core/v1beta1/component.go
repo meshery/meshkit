@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/layer5io/meshkit/database"
-	types "github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/utils"
 
 	"github.com/google/uuid"
@@ -58,8 +58,8 @@ type ComponentDefinitionDB struct {
 	Component   component       `json:"component,omitempty" yaml:"component" gorm:"component"`
 }
 
-func (c ComponentDefinition) Type() types.EntityType {
-	return types.ComponentDefinition
+func (c ComponentDefinition) Type() entity.EntityType {
+	return entity.ComponentDefinition
 }
 
 func (c ComponentDefinition) GetID() uuid.UUID {
@@ -82,13 +82,17 @@ func (c *ComponentDefinition) Create(db *database.Handler) (uuid.UUID, error) {
 	return c.ID, err
 }
 
+func (m *ComponentDefinition) UpdateStatus(db database.Handler, status entity.EntityStatus) error {
+	return nil
+}
+
 func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitionDB) {
 	// cmd.ID = c.ID id will be assigned by the database itself don't use this, as it will be always uuid.nil, because id is not known when comp gets generated.
 	// While database creates an entry with valid primary key but to avoid confusion, it is disabled and accidental assignment of custom id.
 	cmd.VersionMeta = c.VersionMeta
 	cmd.DisplayName = c.DisplayName
 	cmd.Description = c.Description
-	cmd.Format = c.Format	
+	cmd.Format = c.Format
 	cmd.ModelID = c.Model.ID
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
 	cmd.Component = c.Component

@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
+	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"gorm.io/gorm"
 )
 
@@ -32,11 +33,11 @@ type CategoryFilter struct {
 	Limit   int    //If 0 or  unspecified then all records are returned and limit is not used
 	Offset  int
 }
+
 // "Uncategorized" is assigned when Category is empty in the component definitions.
 const DefaultCategory = "Uncategorized"
 
-
-func(cat *Category) Create(db *database.Handler) (uuid.UUID, error) {
+func (cat *Category) Create(db *database.Handler) (uuid.UUID, error) {
 	if cat.Name == "" {
 		cat.Name = DefaultCategory
 	}
@@ -64,6 +65,10 @@ func(cat *Category) Create(db *database.Handler) (uuid.UUID, error) {
 	return category.ID, nil
 }
 
+func (m *Category) UpdateStatus(db database.Handler, status entity.EntityStatus) error {
+	return nil
+}
+
 func (c *Category) GetCategoryDB(db *database.Handler) (catdb CategoryDB) {
 	catdb.ID = c.ID
 	catdb.Name = c.Name
@@ -77,4 +82,3 @@ func (cdb *CategoryDB) GetCategory(db *database.Handler) (cat Category) {
 	_ = json.Unmarshal(cdb.Metadata, &cat.Metadata)
 	return
 }
-
