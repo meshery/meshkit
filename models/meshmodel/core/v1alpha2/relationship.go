@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
-	types "github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/entity"
 )
 
 // Remove additional DB structs from all entites they are used just for marshaling & unmarshlling and tarcking modelID vs model(modelID when referenced in DB and full model when sending data, use foregin key references tag of gorm for that as used in MeshSync tables) when saving retrivng from database, insted use gorm' serailization tag as used in events.
@@ -54,8 +54,8 @@ type RelationshipFilter struct {
 	Offset           int
 }
 
-func (r RelationshipDefinition) Type() types.EntityType {
-	return types.RelationshipDefinition
+func (r RelationshipDefinition) Type() entity.EntityType {
+	return entity.RelationshipDefinition
 }
 func (r RelationshipDefinition) GetID() uuid.UUID {
 	return r.ID
@@ -74,6 +74,10 @@ func (r *RelationshipDefinition) Create(db *database.Handler) (uuid.UUID, error)
 		return uuid.UUID{}, err
 	}
 	return r.ID, err
+}
+
+func (m *RelationshipDefinition) UpdateStatus(db database.Handler, status entity.EntityStatus) error {
+	return nil
 }
 
 func (r *RelationshipDefinition) GetRelationshipDefinitionDB() (rdb RelationshipDefinitionDB) {

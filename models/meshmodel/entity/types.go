@@ -17,6 +17,7 @@ type Filter interface {
 }
 
 type Entity interface {
+	Status
 	Create() (entityID uuid.UUID, err error)
 	Get() (entityID uuid.UUID, err error)
 }
