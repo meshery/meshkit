@@ -30,7 +30,7 @@ const (
 type ComponentDefinition struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	TypeMeta
-	DisplayName     string                 `json:"displayName" gorm:"displayName"`
+	DisplayName     string                 `json:"displayName"`
 	Format          ComponentFormat        `json:"format" yaml:"format"`
 	HostName        string                 `json:"hostname,omitempty"`
 	HostID          uuid.UUID              `json:"hostID,omitempty"`
@@ -45,7 +45,7 @@ type ComponentDefinitionDB struct {
 	ID      uuid.UUID `json:"id"`
 	ModelID uuid.UUID `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
 	TypeMeta
-	DisplayName string          `json:"displayName" gorm:"displayName"`
+	DisplayName string          `json:"displayName"`
 	Format      ComponentFormat `json:"format" yaml:"format"`
 	Metadata    []byte          `json:"metadata" yaml:"metadata"`
 	Schema      string          `json:"schema,omitempty" yaml:"schema"`
@@ -86,6 +86,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, uu
 	err = db.Create(&cdb).Error
 	return c.ID, mid, err
 }
+
 func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition, count int64, unique int) {
 
 	type componentDefinitionWithModel struct {
