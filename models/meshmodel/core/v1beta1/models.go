@@ -45,13 +45,13 @@ type Model struct {
 	VersionMeta
 	Name        string                 `json:"name"`
 	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
-	Version     string                 `json:"version"`
+	Description string                 `json:"description" gorm:"description"`
 	Status      ModelStatus            `json:"status" gorm:"status"`
 	Registrant  registry.Hostv1beta1   `json:"registrant" gorm:"registrant"` // to be Connection
 	Category    Category               `json:"category"`
-	Model       model                  `json:"model,omitempty" gorm:"model"`
 	SubCategory string                 `json:"subCategory" gorm:"subCategory"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
+	Model       model                  `json:"model,omitempty" gorm:"model"`
 	// Components      []ComponentDefinitionDB    `json:"components"`
 	// Relationships   []RelationshipDefinitionDB `json:"relationships"`
 }
@@ -59,15 +59,15 @@ type Model struct {
 type ModelDB struct {
 	ID uuid.UUID `json:"id"`
 	VersionMeta
-	CategoryID uuid.UUID `json:"-" gorm:"categoryID"`
-	Model      model     `json:"model,omitempty" gorm:"model"`
-	RegistrantID uuid.UUID   `json:"hostID" gorm:"hostID"`
 	Name         string      `json:"modelName" gorm:"modelName"`
-	Version      string      `json:"version"`
 	DisplayName  string      `json:"modelDisplayName" gorm:"modelDisplayName"`
+	Description  string      `json:"description" gorm:"description"`
+	Status       ModelStatus `json:"status" gorm:"status"`
+	RegistrantID uuid.UUID   `json:"hostID" gorm:"hostID"`
+	CategoryID   uuid.UUID   `json:"-" gorm:"categoryID"`
 	SubCategory  string      `json:"subCategory" gorm:"subCategory"`
 	Metadata     []byte      `json:"modelMetadata" gorm:"modelMetadata"`
-	Status       ModelStatus `json:"status" gorm:"status"`
+	Model        model       `json:"model,omitempty" gorm:"model"`
 }
 
 func (m Model) Type() types.EntityType {
@@ -119,26 +119,34 @@ func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
 }
 
 func (c *Model) GetModelDB() (cmd ModelDB) {
-	cmd.ID = c.ID
+	// cmd.ID = c.ID id will be assigned by the database itself don't use this, as it will be always uuid.nil, because id is not known when comp gets generated.
+	// While database creates an entry with valid primary key but to avoid confusion, it is disabled and accidental assignment of custom id.
 	cmd.VersionMeta = c.VersionMeta
-	cmd.DisplayName = c.DisplayName
-	cmd.Status = c.Status
 	cmd.Name = c.Name
-	cmd.Version = c.Version
+	cmd.DisplayName = c.DisplayName
+	cmd.Description = c.Description
+	cmd.Status = c.Status
+	cmd.RegistrantID = c.Registrant.ID
+	cmd.CategoryID = c.Category.ID
+	cmd.SubCategory = c.SubCategory
 	cmd.Metadata, _ = json.Marshal(c.Metadata)
+	cmd.Model = c.Model
 	return
 }
-
-func (cmd *ModelDB) GetModel(cat Category) (c Model) {
+// is reg should be passed as param?
+func (cmd *ModelDB) GetModel(cat Category, reg registry.Hostv1beta1) (c Model) {
 	c.ID = cmd.ID
 	c.VersionMeta = cmd.VersionMeta
-	c.Category = cat
-	c.DisplayName = cmd.DisplayName
-	c.Status = cmd.Status
 	c.Name = cmd.Name
-	c.Version = cmd.Version
+	c.DisplayName = cmd.DisplayName
+	c.Description = cmd.Description
+	c.Status = cmd.Status
+	c.Registrant = reg
+	c.Category = cat
+	c.SubCategory = cmd.SubCategory
+	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
+	c.Model = cmd.Model
 	// c.Components = make([]ComponentDefinitionDB, 0)
 	// c.Relationships = make([]RelationshipDefinitionDB, 0)
-	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
 	return
 }
