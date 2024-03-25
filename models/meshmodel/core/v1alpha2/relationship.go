@@ -74,11 +74,11 @@ func (r RelationshipDefinition) GetID() uuid.UUID {
 	return r.ID
 }
 
-func (r *RelationshipDefinition) Get(db *database.Handler, f entity.Filter) ([]RelationshipDefinition, int64, int, error) {
-	relationshipFilter, err := utils.Cast[RelationshipFilter](f)
-	if err != nil {
-		return nil, 0, 0, err
-	}
+func (relationshipFilter *RelationshipFilter) Get(db *database.Handler, f entity.Filter) ([]RelationshipDefinition, int64, int, error) {
+	// relationshipFilter, err := utils.Cast[RelationshipFilter](f)
+	// if err != nil {
+	// 	return nil, 0, 0, err
+	// }
 
 	var relationshipDefinitionsWithModel []relationshipDefinitionWithModel
 	finder := db.Model(&RelationshipDefinitionDB{}).
@@ -121,7 +121,7 @@ func (r *RelationshipDefinition) Get(db *database.Handler, f entity.Filter) ([]R
 	if relationshipFilter.Limit != 0 {
 		finder = finder.Limit(relationshipFilter.Limit)
 	}
-	err = finder.
+	err := finder.
 		Scan(&relationshipDefinitionsWithModel).Error
 	if err != nil {
 		fmt.Println(err.Error()) //for debugging
