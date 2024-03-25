@@ -1,43 +1,41 @@
-package v1beta1
+package v1alpha2
 
 import (
 	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	types "github.com/layer5io/meshkit/models/meshmodel/entity"
 )
 
 // Remove additional DB structs from all entites they are used just for marshaling & unmarshlling and tarcking modelID vs model(modelID when referenced in DB and full model when sending data, use foregin key references tag of gorm for that as used in MeshSync tables) when saving retrivng from database, insted use gorm' serailization tag as used in events.
 type RelationshipDefinition struct {
 	ID uuid.UUID `json:"id"`
-	VersionMeta
-	Kind             string                 `json:"kind,omitempty" yaml:"kind"`
-	RelationshipType string                 `json:"type" yaml:"type" gorm:"type"`
-	SubType          string                 `json:"subType" yaml:"subType" gorm:"subType"`
-	Model            Model                  `json:"model"`
-	HostName         string                 `json:"hostname"`
-	HostID           uuid.UUID              `json:"hostID"`
-	DisplayHostName  string                 `json:"displayhostname"`
-	Metadata         map[string]interface{} `json:"metadata" yaml:"metadata"`
+	v1beta1.VersionMeta
+	Kind string `json:"kind,omitempty" yaml:"kind"`
 	// The property has been named RelationshipType instead of Type to avoid collision from Type() function, which enables support for dynamic type.
 	// Though, the column name and the json representation is "type".
-	EvaluationQuery string                   `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
-	Selectors       []map[string]interface{} `json:"selectors" yaml:"selectors"`
+	RelationshipType string                   `json:"type" yaml:"type" gorm:"type"`
+	SubType          string                   `json:"subType" yaml:"subType" gorm:"subType"`
+	EvaluationQuery  string                   `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
+	Metadata         map[string]interface{}   `json:"metadata" yaml:"metadata"`
+	Model            v1beta1.Model            `json:"model"`
+	Selectors        []map[string]interface{} `json:"selectors" yaml:"selectors"`
 }
 
 type RelationshipDefinitionDB struct {
-	ID      uuid.UUID `json:"id"`
-	ModelID uuid.UUID `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:modelID"`
-	VersionMeta
-	Kind             string `json:"kind,omitempty" yaml:"kind"`
-	RelationshipType string `json:"type" yaml:"type" gorm:"type"`
-	SubType          string `json:"subType" yaml:"subType"`
-	Metadata         []byte `json:"metadata" yaml:"metadata"`
+	ID uuid.UUID `json:"id"`
+	v1beta1.VersionMeta
+	Kind string `json:"kind,omitempty" yaml:"kind"`
 	// The property has been named RelationshipType instead of Type to avoid collision from Type() function, which enables support for dynamic type.
 	// Though, the column name and the json representation is "type".
-	EvaluationQuery string    `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
-	Selectors       []byte    `json:"selectors" yaml:"selectors"`
+	RelationshipType string    `json:"type" yaml:"type" gorm:"type"`
+	SubType          string    `json:"subType" yaml:"subType"`
+	EvaluationQuery  string    `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
+	Metadata         []byte    `json:"metadata" yaml:"metadata"`
+	ModelID          uuid.UUID `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:modelID"`
+	Selectors        []byte    `json:"selectors" yaml:"selectors"`
 }
 
 // For now, only filtering by Kind and SubType are allowed.
@@ -79,33 +77,34 @@ func (r *RelationshipDefinition) Create(db *database.Handler) (uuid.UUID, error)
 }
 
 func (r *RelationshipDefinition) GetRelationshipDefinitionDB() (rdb RelationshipDefinitionDB) {
-	rdb.ID = r.ID
+	// rdb.ID = r.ID id will be assigned by the database itself don't use this, as it will be always uuid.nil, because id is not known when comp gets generated.
+	// While database creates an entry with valid primary key but to avoid confusion, it is disabled and accidental assignment of custom id.
 	rdb.VersionMeta = r.VersionMeta
-	rdb.Metadata, _ = json.Marshal(r.Metadata)
-	rdb.Selectors, _ = json.Marshal(r.Selectors)
 	rdb.Kind = r.Kind
 	rdb.RelationshipType = r.RelationshipType
 	rdb.SubType = r.SubType
-	rdb.ModelID = r.Model.ID
 	rdb.EvaluationQuery = r.EvaluationQuery
+	rdb.Metadata, _ = json.Marshal(r.Metadata)
+	rdb.ModelID = r.Model.ID
+	rdb.Selectors, _ = json.Marshal(r.Selectors)
 	return
 }
 
-func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m Model) (r RelationshipDefinition) {
+func (rdb *RelationshipDefinitionDB) GetRelationshipDefinition(m v1beta1.Model) (r RelationshipDefinition) {
 	r.ID = rdb.ID
 	r.VersionMeta = rdb.VersionMeta
+	r.Kind = rdb.Kind
+	r.RelationshipType = rdb.RelationshipType
+	r.SubType = rdb.SubType
+	r.EvaluationQuery = rdb.EvaluationQuery
 	if r.Metadata == nil {
 		r.Metadata = make(map[string]interface{})
 	}
 	_ = json.Unmarshal(rdb.Metadata, &r.Metadata)
+	r.Model = m
 	if r.Selectors == nil {
 		r.Selectors = []map[string]interface{}{}
 	}
 	_ = json.Unmarshal(rdb.Selectors, &r.Selectors)
-	r.RelationshipType = rdb.RelationshipType
-	r.SubType = rdb.SubType
-	r.Kind = rdb.Kind
-	r.Model = m
-	r.EvaluationQuery = rdb.EvaluationQuery
 	return
 }

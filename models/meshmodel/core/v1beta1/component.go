@@ -39,21 +39,23 @@ type ComponentDefinition struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	VersionMeta
 	DisplayName string                 `json:"displayName" gorm:"displayName"`
+	Description string                 `json:"description" gorm:"description"`
 	Format      ComponentFormat        `json:"format" yaml:"format"`
 	Model       Model                  `json:"model"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
-	// Rename this here and in schema as well, it creates confustion b/w entities like comps. relationship. model, here entity means Pod/Deployment....
-	Entity component `json:"entity,omitempty" yaml:"entity"`
+	// component corresponds to the specifications of underlying entity eg: Pod/Deployment....
+	Component component `json:"component,omitempty" yaml:"component"`
 }
 
 type ComponentDefinitionDB struct {
 	ID uuid.UUID `json:"id"`
 	VersionMeta
 	DisplayName string          `json:"displayName" gorm:"displayName"`
+	Description string          `json:"description" gorm:"description"`
 	Format      ComponentFormat `json:"format" yaml:"format"`
 	ModelID     uuid.UUID       `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
 	Metadata    []byte          `json:"metadata" yaml:"metadata"`
-	Entity      component       `json:"entity,omitempty" yaml:"entity" gorm:"entity"`
+	Component   component       `json:"component,omitempty" yaml:"component" gorm:"component"`
 }
 
 func (c ComponentDefinition) Type() types.EntityType {
@@ -71,7 +73,7 @@ func (c *ComponentDefinition) Create(db *database.Handler) (uuid.UUID, error) {
 		return uuid.UUID{}, err
 	}
 
-	if !utils.IsSchemaEmpty(c.Entity.Schema) {
+	if !utils.IsSchemaEmpty(c.Component.Schema) {
 		c.Metadata["hasInvalidSchema"] = true
 	}
 	cdb := c.GetComponentDefinitionDB()
@@ -81,27 +83,29 @@ func (c *ComponentDefinition) Create(db *database.Handler) (uuid.UUID, error) {
 }
 
 func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitionDB) {
-	cmd.ID = c.ID
+	// cmd.ID = c.ID id will be assigned by the database itself don't use this, as it will be always uuid.nil, because id is not known when comp gets generated.
+	// While database creates an entry with valid primary key but to avoid confusion, it is disabled and accidental assignment of custom id.
 	cmd.VersionMeta = c.VersionMeta
-	cmd.Entity.TypeMeta = c.Entity.TypeMeta
-	cmd.Format = c.Format
-	cmd.Metadata, _ = json.Marshal(c.Metadata)
 	cmd.DisplayName = c.DisplayName
-	cmd.Entity.Schema = c.Entity.Schema
+	cmd.Description = c.Description
+	cmd.Format = c.Format	
+	cmd.ModelID = c.Model.ID
+	cmd.Metadata, _ = json.Marshal(c.Metadata)
+	cmd.Component = c.Component
 	return
 }
 
 func (cmd *ComponentDefinitionDB) GetComponentDefinition(model Model) (c ComponentDefinition) {
 	c.ID = cmd.ID
 	c.VersionMeta = cmd.VersionMeta
-	c.Entity.TypeMeta = cmd.Entity.TypeMeta
-	c.Format = cmd.Format
 	c.DisplayName = cmd.DisplayName
+	c.Description = cmd.Description
+	c.Format = cmd.Format
+	c.Model = model
 	if c.Metadata == nil {
 		c.Metadata = make(map[string]interface{})
 	}
 	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
-	c.Entity.Schema = cmd.Entity.Schema
-	c.Model = model
+	c.Component = cmd.Component
 	return
 }
