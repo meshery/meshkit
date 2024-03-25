@@ -16,8 +16,6 @@ import (
 
 var modelCreationLock sync.Mutex //Each component/relationship will perform a check and if the model already doesn't exist, it will create a model. This lock will make sure that there are no race conditions.
 
-type ModelStatus string
-
 type ModelFilter struct {
 	Name        string
 	Registrant  string //name of the registrant for a given model
@@ -48,7 +46,7 @@ type Model struct {
 	Name        string                 `json:"name"`
 	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
 	Description string                 `json:"description" gorm:"description"`
-	Status      ModelStatus            `json:"status" gorm:"status"`
+	Status      entity.EntityStatus            `json:"status" gorm:"status"`
 	Registrant  registry.Hostv1beta1   `json:"registrant" gorm:"registrant"` // to be Connection
 	Category    Category               `json:"category"`
 	SubCategory string                 `json:"subCategory" gorm:"subCategory"`
@@ -64,7 +62,7 @@ type ModelDB struct {
 	Name         string      `json:"modelName" gorm:"modelName"`
 	DisplayName  string      `json:"modelDisplayName" gorm:"modelDisplayName"`
 	Description  string      `json:"description" gorm:"description"`
-	Status       ModelStatus `json:"status" gorm:"status"`
+	Status       entity.EntityStatus `json:"status" gorm:"status"`
 	RegistrantID uuid.UUID   `json:"hostID" gorm:"hostID"`
 	CategoryID   uuid.UUID   `json:"-" gorm:"categoryID"`
 	SubCategory  string      `json:"subCategory" gorm:"subCategory"`
@@ -110,7 +108,7 @@ func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
 		mdb := m.GetModelDB()
 		mdb.CategoryID = id
 		mdb.RegistrantID = hostID
-		mdb.Status = "registered"
+		mdb.Status = entity.Enabled
 		err = db.Create(&mdb).Error
 		if err != nil {
 			return uuid.UUID{}, err
