@@ -91,11 +91,11 @@ func (c ComponentDefinition) GetID() uuid.UUID {
 	return c.ID
 }
 
-func (c *ComponentDefinition) Get(db *database.Handler, f entity.Filter) ([]ComponentDefinition, int64, int, error) {
-	componentFilter, err := utils.Cast[ComponentFilter](f)
-	if err != nil {
-		return nil, 0, 0, err
-	}
+func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]ComponentDefinition, int64, int, error) {
+	// componentFilter, err := utils.Cast[ComponentFilter](f)
+	// if err != nil {
+	// 	return nil, 0, 0, err
+	// }
 
 	countUniqueComponents := func(components []componentDefinitionWithModel) int {
 		set := make(map[string]struct{})
@@ -156,7 +156,7 @@ func (c *ComponentDefinition) Get(db *database.Handler, f entity.Filter) ([]Comp
 	if componentFilter.Limit != 0 {
 		finder = finder.Limit(componentFilter.Limit)
 	}
-	err = finder.
+	err := finder.
 		Scan(&componentDefinitionsWithModel).Error
 	if err != nil {
 		fmt.Println(err.Error()) //for debugging
