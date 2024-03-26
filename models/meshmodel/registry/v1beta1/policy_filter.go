@@ -1,4 +1,4 @@
-package registry
+package v1beta1
 
 import (
 	"github.com/layer5io/meshkit/database"

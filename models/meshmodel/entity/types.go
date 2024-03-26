@@ -21,11 +21,10 @@ type Filter interface {
 }
 
 type Entity interface {
-// Entity is referred as any type of schema managed by the registry
-// ComponentDefinitions and PolicyDefinitions are examples of entities
+	// Entity is referred as any type of schema managed by the registry
+	// ComponentDefinitions and PolicyDefinitions are examples of entities
 	Type() EntityType
 	GetEntityDetail() string
 	GetID() uuid.UUID
-	Status
 	Create(db *database.Handler) (entityID uuid.UUID, err error)
 }
