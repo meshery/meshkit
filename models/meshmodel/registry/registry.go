@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -41,37 +39,6 @@ type Registry struct {
 // RegistryManager instance will expose methods for registry operations & sits between the database level operations and user facing API handlers.
 type RegistryManager struct {
 	db *database.Handler //This database handler will be used to perform queries inside the database
-}
-
-// Registers models into registries table.
-func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
-	entity := Registry{
-		RegistrantID: regID,
-		Entity:       modelID,
-		Type:         entity.Model,
-	}
-
-	byt, err := json.Marshal(entity)
-	if err != nil {
-		return err
-	}
-
-	entityID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var reg Registry
-	err = db.First(&reg, "id = ?", entityID).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return err
-	}
-
-	if err == gorm.ErrRecordNotFound {
-		entity.ID = entityID
-		err = db.Create(&entity).Error
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // NewRegistryManager initializes the registry manager by creating appropriate tables.
@@ -113,7 +80,7 @@ func (rm *RegistryManager) RegisterEntity(h v1beta1.Hostv1beta1, en entity.Entit
 		return err
 	}
 
-	entityID, err := en.Create(rm.db)
+	entityID, err := en.Create(rm.db, registrantID)
 	if err != nil {
 		return err
 	}
@@ -144,7 +111,7 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityTy
 	switch entityType {
 	case "models":
 		model := v1beta1.Model{ID: entityID}
-		model.UpdateStatus(rm.db, entity.EntityStatus(status))
+		err := model.UpdateStatus(rm.db, entity.EntityStatus(status))
 		if err != nil {
 			return err
 		}

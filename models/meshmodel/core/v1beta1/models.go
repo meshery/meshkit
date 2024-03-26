@@ -59,12 +59,7 @@ func (m *Model) GetEntityDetail() string {
 	return fmt.Sprintf("type: %s, model: %s, definition version: %s, version: %s", m.Type(), m.Name, m.Version, m.Model.Version)
 }
 
-func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
-
-	hostID, err := m.Registrant.Create(db)
-	if err != nil {
-		return uuid.UUID{}, err
-	}
+func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
 
 	byt, err := json.Marshal(m)
 	if err != nil {
@@ -95,6 +90,8 @@ func (m *Model) Create(db *database.Handler) (uuid.UUID, error) {
 		if err != nil {
 			return uuid.UUID{}, err
 		}
+		// register model inside registries table
+
 		return mdb.ID, nil
 	}
 	return model.ID, nil
@@ -152,6 +149,23 @@ func (c Model) WriteModelDefinition(modelDefPath string) error {
 	err = utils.WriteJSONToFile[Model](modelFilePath, c)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+// Registers models into registries table.
+func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
+	err := db.Select("registries.* from registries").Where("registrant_id = ?", regID).Where("type = ?", "model").Where("entity = ?", modelID).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	if err == gorm.ErrRecordNotFound {
+		err = db.Exec("INSERT INTO registries (registrant_id, entity, type) VALUES (?,?,?)", regID, modelID, "model").Error
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

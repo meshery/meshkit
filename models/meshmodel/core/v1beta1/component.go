@@ -72,7 +72,7 @@ func (c *ComponentDefinition) GetEntityDetail() string {
 	return fmt.Sprintf("type: %s, definition version: %s, name: %s, model: %s, version: %s", c.Type(), c.Version, c.DisplayName, c.Model.Name, c.Model.Version)
 }
 
-func (c *ComponentDefinition) Create(db *database.Handler) (uuid.UUID, error) {
+func (c *ComponentDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
 	c.ID = uuid.New()
 
 	isAnnotation, _ := c.Metadata["isAnnotation"].(bool)
@@ -82,7 +82,7 @@ func (c *ComponentDefinition) Create(db *database.Handler) (uuid.UUID, error) {
 		return uuid.Nil, nil
 	}
 
-	mid, err := c.Model.Create(db)
+	mid, err := c.Model.Create(db, hostID)
 	if err != nil {
 		return uuid.UUID{}, err
 	}

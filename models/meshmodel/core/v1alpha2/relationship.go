@@ -52,9 +52,9 @@ func (r *RelationshipDefinition) GetEntityDetail() string {
 	return fmt.Sprintf("type: %s, definition version: %s, kind: %s, model: %s, version: %s", r.Type(), r.Version, r.Kind, r.Model.Name, r.Model.Version)
 }
 
-func (r *RelationshipDefinition) Create(db *database.Handler) (uuid.UUID, error) {
+func (r *RelationshipDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
 	r.ID = uuid.New()
-	mid, err := r.Model.Create(db)
+	mid, err := r.Model.Create(db, hostID)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
