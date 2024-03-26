@@ -40,11 +40,6 @@ func (cf *ComponentFilter) Create(m map[string]interface{}) {
 }
 
 func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	// componentFilter, err := utils.Cast[ComponentFilter](f)
-	// if err != nil {
-	// 	return nil, 0, 0, err
-	// }
-
 	countUniqueComponents := func(components []componentDefinitionWithModel) int {
 		set := make(map[string]struct{})
 		for _, compWithModel := range components {

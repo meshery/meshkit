@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"gorm.io/gorm/clause"
@@ -68,7 +67,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	var count int64
 
 	// include components and relationships in response body
-	var includeComponents, includeRelationships bool
+	// var includeComponents, includeRelationships bool
 
 	if mf.Greedy {
 		if mf.Name != "" && mf.DisplayName != "" {
@@ -126,8 +125,10 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	if mf.Status != "" {
 		finder = finder.Where("model_dbs.status = ?", mf.Status)
 	}
-	includeComponents = mf.Components
-	includeRelationships = mf.Relationships
+
+	// is this required? not used by UI, confirm with Yash once
+	// includeComponents = mf.Components
+	// includeRelationships = mf.Relationships
 
 	err := finder.
 		Scan(&modelWithCategoriess).Error
@@ -139,33 +140,36 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	defs := []entity.Entity{}
 
 	for _, modelDB := range modelWithCategoriess {
-		reg := v1beta1.Hostv1beta1{}
-		model := modelDB.ModelDB.GetModel(modelDB.CategoryDB.GetCategory(db), reg)
 		// host := rm.GetRegistrant(model)
 		// model.HostID = host.ID
 		// model.HostName = host.Hostname
 		// model.DisplayHostName = host.Hostname
+		// all these above accounted by having registrant as an atribute in the model schema.
+		reg := modelDB.Hostv1beta1
+		model := modelDB.ModelDB.GetModel(modelDB.CategoryDB.GetCategory(db), reg)
 
-		if includeComponents {
-			var components []v1beta1.ComponentDefinitionDB
-			finder := db.Model(&v1beta1.ComponentDefinitionDB{}).
-				Select("component_definition_dbs.id, component_definition_dbs.kind,component_definition_dbs.display_name, component_definition_dbs.api_version, component_definition_dbs.metadata").
-				Where("component_definition_dbs.model_id = ?", model.ID)
-			if err := finder.Scan(&components).Error; err != nil {
-				fmt.Println(err)
-			}
-			// model.Components = components
-		}
-		if includeRelationships {
-			var relationships []v1alpha2.RelationshipDefinitionDB
-			finder := db.Model(&v1alpha2.RelationshipDefinitionDB{}).
-				Select("relationship_definition_dbs.*").
-				Where("relationship_definition_dbs.model_id = ?", model.ID)
-			if err := finder.Scan(&relationships).Error; err != nil {
-				fmt.Println(err)
-			}
-			// model.Relationships = relationships
-		}
+		// is this required? not used by UI, confirm with Yash once
+		// if includeComponents {
+		// 	var components []v1beta1.ComponentDefinitionDB
+		// 	finder := db.Model(&v1beta1.ComponentDefinitionDB{}).
+		// 		Select("component_definition_dbs.id, component_definition_dbs.kind,component_definition_dbs.display_name, component_definition_dbs.api_version, component_definition_dbs.metadata").
+		// 		Where("component_definition_dbs.model_id = ?", model.ID)
+		// 	if err := finder.Scan(&components).Error; err != nil {
+		// 		fmt.Println(err)
+		// 	}
+		// 	// model.Components = components
+		// }
+		// is this required? not used by UI, confirm with Yash once
+		// if includeRelationships {
+		// 	var relationships []v1alpha2.RelationshipDefinitionDB
+		// 	finder := db.Model(&v1alpha2.RelationshipDefinitionDB{}).
+		// 		Select("relationship_definition_dbs.*").
+		// 		Where("relationship_definition_dbs.model_id = ?", model.ID)
+		// 	if err := finder.Scan(&relationships).Error; err != nil {
+		// 		fmt.Println(err)
+		// 	}
+		// 	// model.Relationships = relationships
+		// }
 		defs = append(defs, &model)
 	}
 	return defs, count, countUniqueModels(modelWithCategoriess), nil
