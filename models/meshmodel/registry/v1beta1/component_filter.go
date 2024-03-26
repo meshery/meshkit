@@ -28,7 +28,7 @@ type componentDefinitionWithModel struct {
 	v1beta1.ComponentDefinitionDB
 	ModelDB    v1beta1.ModelDB // acoount for overridn fields
 	CategoryDB v1beta1.CategoryDB
-	HostsDB    v1beta1.Hostv1beta1
+	HostsDB    v1beta1.Host
 }
 
 // Create the filter from map[string]interface{}

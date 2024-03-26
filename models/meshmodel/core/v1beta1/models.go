@@ -27,7 +27,7 @@ type Model struct {
 	DisplayName string                 `json:"displayName" gorm:"modelDisplayName"`
 	Description string                 `json:"description" gorm:"description"`
 	Status      entity.EntityStatus    `json:"status" gorm:"status"`
-	Registrant  Hostv1beta1            `json:"registrant" gorm:"registrant"` // to be Connection
+	Registrant  Host                   `json:"registrant" gorm:"registrant"` // to be Connection
 	Category    Category               `json:"category"`
 	SubCategory string                 `json:"subCategory" gorm:"subCategory"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
@@ -41,7 +41,7 @@ type ModelDB struct {
 	DisplayName  string              `json:"modelDisplayName" gorm:"modelDisplayName"`
 	Description  string              `json:"description" gorm:"description"`
 	Status       entity.EntityStatus `json:"status" gorm:"status"`
-	RegistrantID uuid.UUID           `json:"hostID" gorm:"hostID"`
+	RegistrantID uuid.UUID           `json:"hostID" gorm:"host_id"`
 	CategoryID   uuid.UUID           `json:"-" gorm:"categoryID"`
 	SubCategory  string              `json:"subCategory" gorm:"subCategory"`
 	Metadata     []byte              `json:"modelMetadata" gorm:"modelMetadata"`
@@ -72,7 +72,7 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 	}
 	modelCreationLock.Lock()
 	defer modelCreationLock.Unlock()
-	err = db.First(&model, "id = ? and hostID = ?", modelID, hostID).Error
+	err = db.First(&model, "id = ? and host_id = ?", modelID, hostID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
 	}
@@ -91,7 +91,10 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 			return uuid.UUID{}, err
 		}
 		// register model inside registries table
-
+		err = registerModel(db, hostID, modelID)
+		if err != nil {
+			return uuid.UUID{}, err
+		}
 		return mdb.ID, nil
 	}
 	return model.ID, nil
@@ -122,7 +125,7 @@ func (c *Model) GetModelDB() (cmd ModelDB) {
 }
 
 // is reg should be passed as param?
-func (cmd *ModelDB) GetModel(cat Category, reg Hostv1beta1) (c Model) {
+func (cmd *ModelDB) GetModel(cat Category, reg Host) (c Model) {
 	c.ID = cmd.ID
 	c.VersionMeta = cmd.VersionMeta
 	c.Name = cmd.Name

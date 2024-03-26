@@ -45,9 +45,9 @@ func (p *PolicyDefinition) GetEntityDetail() string {
 	return fmt.Sprintf("type: %s, definition version: %s, name: %s, model: %s, version: %s", p.Type(), p.Version, p.Kind, p.Model.Name, p.Model.Version)
 }
 
-func (p *PolicyDefinition) Create(db *database.Handler) (uuid.UUID, error) {
+func (p *PolicyDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
 	p.ID = uuid.New()
-	mid, err := p.Model.Create(db)
+	mid, err := p.Model.Create(db, hostID)
 	if err != nil {
 		return uuid.UUID{}, err
 	}

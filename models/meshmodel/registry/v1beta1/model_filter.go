@@ -42,7 +42,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		v1beta1.ModelDB
 		v1beta1.CategoryDB
 		// registry.Registry
-		v1beta1.Hostv1beta1
+		v1beta1.Host
 	}
 
 	countUniqueModels := func(models []modelWithCategories) int {
@@ -145,7 +145,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		// model.HostName = host.Hostname
 		// model.DisplayHostName = host.Hostname
 		// all these above accounted by having registrant as an atribute in the model schema.
-		reg := modelDB.Hostv1beta1
+		reg := modelDB.Host
 		model := modelDB.ModelDB.GetModel(modelDB.CategoryDB.GetCategory(db), reg)
 
 		// is this required? not used by UI, confirm with Yash once

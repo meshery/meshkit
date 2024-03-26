@@ -23,9 +23,9 @@ import (
 // 2. Entity type
 // 3. Entity
 type MeshModelRegistrantData struct {
-	Host       v1beta1.Hostv1beta1 `json:"host"`
-	EntityType entity.EntityType   `json:"entityType"`
-	Entity     []byte              `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
+	Host       v1beta1.Host      `json:"host"`
+	EntityType entity.EntityType `json:"entityType"`
+	Entity     []byte            `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
 }
 type Registry struct {
 	ID           uuid.UUID
@@ -52,7 +52,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	}
 	err := rm.db.AutoMigrate(
 		&Registry{},
-		&v1beta1.Hostv1beta1{},
+		&v1beta1.Host{},
 		&v1beta1.ComponentDefinitionDB{},
 		&v1alpha2.RelationshipDefinitionDB{},
 		&v1beta1.PolicyDefinitionDB{},
@@ -67,14 +67,14 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 func (rm *RegistryManager) Cleanup() {
 	_ = rm.db.Migrator().DropTable(
 		&Registry{},
-		&v1beta1.Hostv1beta1{},
+		&v1beta1.Host{},
 		&v1beta1.ComponentDefinitionDB{},
 		&v1beta1.ModelDB{},
 		&v1beta1.CategoryDB{},
 		&v1alpha2.RelationshipDefinitionDB{},
 	)
 }
-func (rm *RegistryManager) RegisterEntity(h v1beta1.Hostv1beta1, en entity.Entity) error {
+func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) error {
 	registrantID, err := h.Create(rm.db)
 	if err != nil {
 		return err
