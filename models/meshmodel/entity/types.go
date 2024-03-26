@@ -26,5 +26,5 @@ type Entity interface {
 	Type() EntityType
 	GetEntityDetail() string
 	GetID() uuid.UUID
-	Create(db *database.Handler) (entityID uuid.UUID, err error)
+	Create(db *database.Handler, hostID uuid.UUID) (entityID uuid.UUID, err error)
 }
