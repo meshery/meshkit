@@ -35,7 +35,6 @@ type component struct {
 	Schema string `json:"schema,omitempty" yaml:"schema"`
 }
 
-
 // swagger:response ComponentDefinition
 // use NewComponent function for instantiating
 type ComponentDefinition struct {
