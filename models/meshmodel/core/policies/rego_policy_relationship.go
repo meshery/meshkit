@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/open-policy-agent/opa/rego"
@@ -26,7 +25,10 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 	var store storage.Store
 
 	ctx := context.Background()
-	registeredRelationships, _, _ := regManager.GetEntities(&v1alpha2.RelationshipFilter{})
+	registeredRelationships, _, _, err := regManager.GetEntities(&registry.RelationshipFilter{})
+	if err != nil {
+		return nil, err
+	}
 
 	if len(registeredRelationships) > 0 {
 		data := map[string]interface{}{

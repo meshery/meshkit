@@ -2,28 +2,14 @@ package entity
 
 import "github.com/layer5io/meshkit/database"
 
-type EntityStatus int 
+type EntityStatus string
 
 const (
-	Ignored EntityStatus = iota
-	Enabled
-	Duplicate
+	Ignored   EntityStatus = "ignored"
+	Enabled   EntityStatus = "enabled"
+	Duplicate EntityStatus = "duplicate"
 )
 
-func(e EntityStatus) String() string {
-	switch e {
-	case Ignored:
-		return "ignored"
-	case Duplicate:
-		return "duplicate"
-	case Enabled:
-		fallthrough		
-	default:
-		return "enabled"
-	}
-	
-}
-
 type Status interface {
-	UpdateStatus(db *database.Handler, status EntityStatus) error 
+	UpdateStatus(db *database.Handler, status EntityStatus) error
 }
