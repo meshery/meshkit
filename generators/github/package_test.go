@@ -103,9 +103,9 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				}
 				byt, _ := json.MarshalIndent(comp, "", "")
 
-				f, err := os.Create(fmt.Sprintf("%s/%s%s", dirName, comp.Kind, ".json"))
+				f, err := os.Create(fmt.Sprintf("%s/%s%s", dirName, comp.Component.Kind, ".json"))
 				if err != nil {
-					t.Errorf("error creating file for %s: %v", comp.Kind, err)
+					t.Errorf("error creating file for %s: %v", comp.Component.Kind, err)
 					continue
 				}
 				_, _ = f.Write(byt)

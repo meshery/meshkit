@@ -48,7 +48,7 @@ func TestGetChartUrl(t *testing.T) {
 				}
 				byt, _ := json.MarshalIndent(comp, "", "")
 
-				f, err := os.Create(dirName + "/" + comp.Kind + ".json")
+				f, err := os.Create(dirName + "/" + comp.Component.Kind + ".json")
 				if err != nil {
 					t.Errorf("error create file : %v", err)
 					continue

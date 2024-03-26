@@ -8,8 +8,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
-	types "github.com/layer5io/meshkit/models/meshmodel/entity"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
+	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
@@ -24,24 +25,17 @@ import (
 // 2. Entity type
 // 3. Entity
 type MeshModelRegistrantData struct {
-	Host       Host             `json:"host"`
-	EntityType types.EntityType `json:"entityType"`
-	Entity     []byte           `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
+	Host       v1beta1.Hostv1beta1 `json:"host"`
+	EntityType entity.EntityType   `json:"entityType"`
+	Entity     []byte              `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
 }
 type Registry struct {
 	ID           uuid.UUID
 	RegistrantID uuid.UUID
 	Entity       uuid.UUID
-	Type         types.EntityType
+	Type         entity.EntityType
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
-}
-
-// Entity is referred as any type of schema managed by the registry
-// ComponentDefinitions and PolicyDefinitions are examples of entities
-type Entity interface {
-	Type() types.EntityType
-	GetID() uuid.UUID
 }
 
 // RegistryManager instance will expose methods for registry operations & sits between the database level operations and user facing API handlers.
@@ -54,7 +48,7 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 	entity := Registry{
 		RegistrantID: regID,
 		Entity:       modelID,
-		Type:         types.Model,
+		Type:         entity.Model,
 	}
 
 	byt, err := json.Marshal(entity)
@@ -91,12 +85,12 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	}
 	err := rm.db.AutoMigrate(
 		&Registry{},
-		&Host{},
-		&v1alpha1.ComponentDefinitionDB{},
-		&v1alpha1.RelationshipDefinitionDB{},
-		&v1alpha1.PolicyDefinitionDB{},
-		&v1alpha1.ModelDB{},
-		&v1alpha1.CategoryDB{},
+		&v1beta1.Hostv1beta1{},
+		&v1beta1.ComponentDefinitionDB{},
+		&v1alpha2.RelationshipDefinitionDB{},
+		&v1beta1.PolicyDefinitionDB{},
+		&v1beta1.ModelDB{},
+		&v1beta1.CategoryDB{},
 	)
 	if err != nil {
 		return nil, err
@@ -106,114 +100,51 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 func (rm *RegistryManager) Cleanup() {
 	_ = rm.db.Migrator().DropTable(
 		&Registry{},
-		&Host{},
-		&v1alpha1.ComponentDefinitionDB{},
-		&v1alpha1.ModelDB{},
-		&v1alpha1.CategoryDB{},
-		&v1alpha1.RelationshipDefinitionDB{},
+		&v1beta1.Hostv1beta1{},
+		&v1beta1.ComponentDefinitionDB{},
+		&v1beta1.ModelDB{},
+		&v1beta1.CategoryDB{},
+		&v1alpha2.RelationshipDefinitionDB{},
 	)
 }
-func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
-	switch entity := en.(type) {
-	case v1alpha1.ComponentDefinition:
-		isAnnotation, _ := entity.Metadata["isAnnotation"].(bool)
-		if entity.Schema == "" && !isAnnotation { //For components which an empty schema and is not an annotation, exit quietly
-			return nil
-		}
-
-		registrantID, err := createHost(rm.db, h)
-		if err != nil {
-			return err
-		}
-
-		componentID, modelID, err := v1alpha1.CreateComponent(rm.db, entity)
-		if err != nil {
-			return err
-		}
-
-		err = registerModel(rm.db, registrantID, modelID)
-		if err != nil {
-			return err
-		}
-
-		entry := Registry{
-			ID:           uuid.New(),
-			RegistrantID: registrantID,
-			Entity:       componentID,
-			Type:         en.Type(),
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
-		}
-		return rm.db.Create(&entry).Error
-	case v1alpha1.RelationshipDefinition:
-
-		registrantID, err := createHost(rm.db, h)
-		if err != nil {
-			return err
-		}
-
-		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
-		if err != nil {
-			return err
-		}
-
-		err = registerModel(rm.db, registrantID, modelID)
-		if err != nil {
-			return err
-		}
-
-		entry := Registry{
-			ID:           uuid.New(),
-			RegistrantID: registrantID,
-			Entity:       relationshipID,
-			Type:         en.Type(),
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
-		}
-		return rm.db.Create(&entry).Error
-	//Add logic for Policies and other entities below
-	case v1alpha1.PolicyDefinition:
-		registrantID, err := createHost(rm.db, h)
-		if err != nil {
-			return err
-		}
-
-		policyID, modelID, err := v1alpha1.CreatePolicy(rm.db, entity)
-		if err != nil {
-			return err
-		}
-
-		err = registerModel(rm.db, registrantID, modelID)
-		if err != nil {
-			return err
-		}
-
-		entry := Registry{
-			ID:           uuid.New(),
-			RegistrantID: registrantID,
-			Entity:       policyID,
-			Type:         en.Type(),
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
-		}
-		return rm.db.Create(&entry).Error
-
-	default:
-		return nil
+func (rm *RegistryManager) RegisterEntity(h v1beta1.Hostv1beta1, en entity.Entity) error {
+	registrantID, err := h.Create(rm.db)
+	if err != nil {
+		return err
 	}
+
+	entityID, err := en.Create(rm.db)
+	if err != nil {
+		return err
+	}
+
+	entry := Registry{
+		ID:           uuid.New(),
+		RegistrantID: registrantID,
+		Entity:       entityID,
+		Type:         en.Type(),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	err = rm.db.Create(&entry).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // UpdateEntityIgnoreStatus updates the ignore status of an entity based on the provided parameters.
 // By default during models generation ignore is set to false
-func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entity string) error {
+func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityType string) error {
 	// Convert string UUID to google UUID
 	entityID, err := uuid.Parse(ID)
 	if err != nil {
 		return err
 	}
-	switch entity {
+	switch entityType {
 	case "models":
-		err := v1alpha1.UpdateModelsStatus(rm.db, entityID, status)
+		model := v1beta1.Model{ID: entityID}
+		model.UpdateStatus(rm.db, entity.EntityStatus(status))
 		if err != nil {
 			return err
 		}
@@ -223,8 +154,8 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entity s
 	}
 }
 
-func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.MeshModelHostsWithEntitySummary, int64, error) {
-	var result []v1alpha1.MesheryHostSummaryDB
+func (rm *RegistryManager) GetRegistrants(f *v1beta1.HostFilter) ([]v1beta1.MeshModelHostsWithEntitySummary, int64, error) {
+	var result []v1beta1.MesheryHostSummaryDB
 	var totalcount int64
 	db := rm.db
 
@@ -263,14 +194,14 @@ func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.Me
 		return nil, 0, err
 	}
 
-	var response []v1alpha1.MeshModelHostsWithEntitySummary
+	var response []v1beta1.MeshModelHostsWithEntitySummary
 
 	for _, r := range result {
-		res := v1alpha1.MeshModelHostsWithEntitySummary{
+		res := v1beta1.MeshModelHostsWithEntitySummary{
 			ID:       r.HostID,
 			Hostname: HostnameToPascalCase(r.Hostname),
 			Port:     r.Port,
-			Summary: v1alpha1.EntitySummary{
+			Summary: v1beta1.EntitySummary{
 				Models:        r.Models,
 				Components:    r.Components,
 				Relationships: r.Relationships,
@@ -282,40 +213,43 @@ func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.Me
 	return response, totalcount, nil
 }
 
-func (rm *RegistryManager) GetEntities(f types.Filter) ([]Entity, *int64, *int) {
-	switch filter := f.(type) {
-	case *v1alpha1.ComponentFilter:
-		en := make([]Entity, 0)
-		comps, count, unique := v1alpha1.GetMeshModelComponents(rm.db, *filter)
-		for _, comp := range comps {
-			en = append(en, comp)
-		}
-		return en, &count, &unique
-	case *v1alpha1.RelationshipFilter:
-		en := make([]Entity, 0)
-		relationships, count := v1alpha1.GetMeshModelRelationship(rm.db, *filter)
-		for _, rel := range relationships {
-			en = append(en, rel)
-		}
-		return en, &count, nil
-	case *v1alpha1.PolicyFilter:
-		en := make([]Entity, 0)
-		policies := v1alpha1.GetMeshModelPolicy(rm.db, *filter)
-		for _, pol := range policies {
-			en = append(en, pol)
-		}
-		return en, nil, nil
-	default:
-		return nil, nil, nil
-	}
+func (rm *RegistryManager) GetEntities(f entity.Filter) ([]entity.Entity, int64, int, error) {
+	return f.Get(rm.db)
+
+	// switch filter := f.(type) {
+	// case *v1beta1.ComponentFilter:
+	// 	en := make([]Entity, 0)
+	// 	comps, count, unique := v1beta1.GetMeshModelComponents(rm.db, *filter)
+	// 	for _, comp := range comps {
+	// 		en = append(en, comp)
+	// 	}
+	// 	return en, &count, &unique
+	// case *v1beta1.RelationshipFilter:
+	// 	en := make([]Entity, 0)
+	// 	relationships, count := v1beta1.GetMeshModelRelationship(rm.db, *filter)
+	// 	for _, rel := range relationships {
+	// 		en = append(en, rel)
+	// 	}
+	// 	return en, &count, nil
+	// case *v1beta1.PolicyFilter:
+	// 	en := make([]Entity, 0)
+	// 	policies := v1beta1.GetMeshModelPolicy(rm.db, *filter)
+	// 	for _, pol := range policies {
+	// 		en = append(en, pol)
+	// 	}
+	// 	return en, nil, nil
+	// default:
+	// 	return nil, nil, nil
+	// }
 }
-func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1alpha1.Model, int64, int) {
-	var m []v1alpha1.Model
+
+func (rm *RegistryManager) GetModels(db *database.Handler, f entity.Filter) ([]v1beta1.Model, int64, int) {
+	var m []v1beta1.Model
 	type modelWithCategories struct {
-		v1alpha1.ModelDB
-		v1alpha1.CategoryDB
+		v1beta1.ModelDB
+		v1beta1.CategoryDB
 		Registry
-		Host
+		v1beta1.Hostv1beta1
 	}
 
 	countUniqueModels := func(models []modelWithCategories) int {
@@ -330,7 +264,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	}
 
 	var modelWithCategoriess []modelWithCategories
-	finder := db.Model(&v1alpha1.ModelDB{}).
+	finder := db.Model(&v1beta1.ModelDB{}).
 		Select("model_dbs.*, category_dbs.*", "registries.*", "hosts.*").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN registries ON registries.entity = model_dbs.id").
@@ -342,7 +276,7 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	// include components and relationships in response body
 	var includeComponents, includeRelationships bool
 
-	if mf, ok := f.(*v1alpha1.ModelFilter); ok {
+	if mf, ok := f.(*ModelFilter); ok {
 		if mf.Greedy {
 			if mf.Name != "" && mf.DisplayName != "" {
 				finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", "%"+mf.Name+"%", "%"+mf.DisplayName+"%")
@@ -410,87 +344,48 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	}
 
 	for _, modelDB := range modelWithCategoriess {
-		model := modelDB.ModelDB.GetModel(modelDB.GetCategory(db))
-		host := rm.GetRegistrant(model)
-		model.HostID = host.ID
-		model.HostName = host.Hostname
-		model.DisplayHostName = host.Hostname
+		reg := v1beta1.Hostv1beta1{}
+		model := modelDB.ModelDB.GetModel(modelDB.CategoryDB.GetCategory(db), reg)
+		// host := rm.GetRegistrant(model)
+		// model.HostID = host.ID
+		// model.HostName = host.Hostname
+		// model.DisplayHostName = host.Hostname
 
 		if includeComponents {
-			var components []v1alpha1.ComponentDefinitionDB
-			finder := db.Model(&v1alpha1.ComponentDefinitionDB{}).
+			var components []v1beta1.ComponentDefinitionDB
+			finder := db.Model(&v1beta1.ComponentDefinitionDB{}).
 				Select("component_definition_dbs.id, component_definition_dbs.kind,component_definition_dbs.display_name, component_definition_dbs.api_version, component_definition_dbs.metadata").
 				Where("component_definition_dbs.model_id = ?", model.ID)
 			if err := finder.Scan(&components).Error; err != nil {
 				fmt.Println(err)
 			}
-			model.Components = components
+			// model.Components = components
 		}
 		if includeRelationships {
-			var relationships []v1alpha1.RelationshipDefinitionDB
-			finder := db.Model(&v1alpha1.RelationshipDefinitionDB{}).
+			var relationships []v1alpha2.RelationshipDefinitionDB
+			finder := db.Model(&v1alpha2.RelationshipDefinitionDB{}).
 				Select("relationship_definition_dbs.*").
 				Where("relationship_definition_dbs.model_id = ?", model.ID)
 			if err := finder.Scan(&relationships).Error; err != nil {
 				fmt.Println(err)
 			}
-			model.Relationships = relationships
+			// model.Relationships = relationships
 		}
 
 		m = append(m, model)
 	}
 	return m, count, countUniqueModels(modelWithCategoriess)
 }
-func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) ([]v1alpha1.Category, int64) {
-	var catdb []v1alpha1.CategoryDB
-	var cat []v1alpha1.Category
-	finder := rm.db.Model(&catdb)
 
-	// total count before pagination
-	var count int64
-
-	if mf, ok := f.(*v1alpha1.CategoryFilter); ok {
-		if mf.Name != "" {
-			if mf.Greedy {
-				finder = finder.Where("name LIKE ?", "%"+mf.Name+"%")
-			} else {
-				finder = finder.Where("name = ?", mf.Name)
-			}
-		}
-		if mf.OrderOn != "" {
-			if mf.Sort == "desc" {
-				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: mf.OrderOn}, Desc: true})
-			} else {
-				finder = finder.Order(mf.OrderOn)
-			}
-		}
-
-		finder.Count(&count)
-
-		if mf.Limit != 0 {
-			finder = finder.Limit(mf.Limit)
-		}
-		if mf.Offset != 0 {
-			finder = finder.Offset(mf.Offset)
-		}
-	}
-
-	if count == 0 {
-		finder.Count(&count)
-	}
-
-	_ = finder.Find(&catdb).Error
-	for _, c := range catdb {
-		cat = append(cat, c.GetCategory(db))
-	}
-
+func (rm *RegistryManager) GetCategories(db *database.Handler, f entity.Filter) ([]entity.Entity, int64) {
+	cat, count, _, _ := f.Get(rm.db)
 	return cat, count
 }
-func (rm *RegistryManager) GetRegistrant(e Entity) Host {
+func (rm *RegistryManager) GetRegistrant(e entity.Entity) v1beta1.Hostv1beta1 {
 	eID := e.GetID()
 	var reg Registry
 	_ = rm.db.Where("entity = ?", eID).Find(&reg).Error
-	var h Host
+	var h v1beta1.Hostv1beta1
 	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
 	return h
 }
