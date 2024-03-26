@@ -15,8 +15,6 @@ import (
 
 var modelCreationLock sync.Mutex //Each component/relationship will perform a check and if the model already doesn't exist, it will create a model. This lock will make sure that there are no race conditions.
 
-
-
 type model struct {
 	Version string `json:"version,omitempty" yaml:"version"`
 }
@@ -34,8 +32,6 @@ type Model struct {
 	SubCategory string                 `json:"subCategory" gorm:"subCategory"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
 	Model       model                  `json:"model,omitempty" gorm:"model"`
-	// Components      []ComponentDefinitionDB    `json:"components"`
-	// Relationships   []RelationshipDefinitionDB `json:"relationships"`
 }
 
 type ModelDB struct {

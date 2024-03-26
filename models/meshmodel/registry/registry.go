@@ -217,15 +217,6 @@ func (rm *RegistryManager) GetEntities(f entity.Filter) ([]entity.Entity, int64,
 	return f.Get(rm.db)
 }
 
-func (rm *RegistryManager) GetRegistrant(e entity.Entity) v1beta1.Hostv1beta1 {
-	eID := e.GetID()
-	var reg Registry
-	_ = rm.db.Where("entity = ?", eID).Find(&reg).Error
-	var h v1beta1.Hostv1beta1
-	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
-	return h
-}
-
 func HostnameToPascalCase(input string) string {
 	parts := strings.Split(input, ".")
 	caser := cases.Title(language.English)
