@@ -50,7 +50,7 @@ type RegistryManager struct {
 }
 
 // Registers models into registries table.
-func registerModel(db *database.Handler, regID, modelID uuid.UUID, modelName string, h Host) error {
+func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 	entity := Registry{
 		RegistrantID: regID,
 		Entity:       modelID,
@@ -59,7 +59,6 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID, modelName str
 
 	byt, err := json.Marshal(entity)
 	if err != nil {
-		onModelError(entity, modelName, h, err)
 		return err
 	}
 
@@ -67,7 +66,6 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID, modelName str
 	var reg Registry
 	err = db.First(&reg, "id = ?", entityID).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		onModelError(entity, modelName, h, err)
 		return err
 	}
 
@@ -75,7 +73,6 @@ func registerModel(db *database.Handler, regID, modelID uuid.UUID, modelName str
 		entity.ID = entityID
 		err = db.Create(&entity).Error
 		if err != nil {
-			onModelError(entity, modelName, h, err)
 			return err
 		}
 	}
@@ -116,30 +113,27 @@ func (rm *RegistryManager) Cleanup() {
 		&v1alpha1.RelationshipDefinitionDB{},
 	)
 }
-func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
+func (rm *RegistryManager) RegisterEntity(h Host, en Entity) (bool, bool, error) {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
-		if entity.Schema == "" { //For components with an empty schema, exit quietly
-			onEntityError(entity, h, nil)
-			return nil
+		isAnnotation, _ := entity.Metadata["isAnnotation"].(bool)
+		if entity.Schema == "" && !isAnnotation { //For components which an empty schema and is not an annotation, exit quietly
+			return false, false, nil
 		}
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity, h, err)
-			return err
+			return false, true, err
 		}
 
 		componentID, modelID, err := v1alpha1.CreateComponent(rm.db, entity)
 		if err != nil {
-			onEntityError(entity, h, err)
-			return err
+			return false, false, err
 		}
 
-		err = registerModel(rm.db, registrantID, modelID, entity.Model.DisplayHostName, h)
+		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
-			onEntityError(entity, h, err)
-			return err
+			return true, false, err
 		}
 
 		entry := Registry{
@@ -150,29 +144,22 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		err = rm.db.Create(&entry).Error
-		if err != nil {
-			onEntityError(entity, h, err)
-		}
-		return err
+		return false, false, rm.db.Create(&entry).Error
 	case v1alpha1.RelationshipDefinition:
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity, h, err)
-			return err
+			return false, true, err
 		}
 
 		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
 		if err != nil {
-			onEntityError(entity, h, err)
-			return err
+			return false, false, err
 		}
 
-		err = registerModel(rm.db, registrantID, modelID, entity.Model.Name, h)
+		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
-			onEntityError(entity, h, err)
-			return err
+			return true, false, err
 		}
 
 		entry := Registry{
@@ -183,29 +170,22 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		err = rm.db.Create(&entry).Error
-		if err != nil {
-			onEntityError(entity, h, err)
-		}
-		return err
+		return false, false, rm.db.Create(&entry).Error
 	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			onEntityError(entity, h, err)
-			return err
+			return false, true, err
 		}
 
 		policyID, modelID, err := v1alpha1.CreatePolicy(rm.db, entity)
 		if err != nil {
-			onEntityError(entity, h, err)
-			return err
+			return false, false, err
 		}
 
-		err = registerModel(rm.db, registrantID, modelID, entity.Model.DisplayName, h)
+		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
-			onEntityError(entity, h, err)
-			return err
+			return true, false, err
 		}
 
 		entry := Registry{
@@ -216,36 +196,11 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		err = rm.db.Create(&entry).Error
-		if err != nil {
-			onEntityError(entity, h, err)
-		}
-		return err
+		return false, false, rm.db.Create(&entry).Error
+
 	default:
-		return nil
+		return false, false, nil
 	}
-}
-func FailedMsgCompute(failedMsg string, hostName string) (string, error) {
-	nonImportModel, exists := NonImportModel[hostName]
-	if !exists {
-		return "", ErrUnknownHostInMap()
-	}
-
-	if nonImportModel.Models > 0 || nonImportModel.Components > 0 || nonImportModel.Relationships > 0 || nonImportModel.Policies > 0 {
-		failedMsg = "failed to import"
-		appendIfNonZero := func(msg string, count int64, entityName string) string {
-			if count > 0 {
-				return fmt.Sprintf("%s %d %s", msg, count, entityName)
-			}
-			return msg
-		}
-
-		failedMsg = appendIfNonZero(failedMsg, nonImportModel.Models, "models")
-		failedMsg = appendIfNonZero(failedMsg, nonImportModel.Components, "components")
-		failedMsg = appendIfNonZero(failedMsg, nonImportModel.Relationships, "relationships")
-		failedMsg = appendIfNonZero(failedMsg, nonImportModel.Policies, "policies")
-	}
-	return failedMsg, nil
 }
 
 // UpdateEntityIgnoreStatus updates the ignore status of an entity based on the provided parameters.
