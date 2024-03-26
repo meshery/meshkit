@@ -5,7 +5,7 @@ import (
 
 	"github.com/layer5io/meshkit/generators/artifacthub"
 	"github.com/layer5io/meshkit/generators/github"
-	"github.com/layer5io/meshkit/models"
+	"github.com/layer5io/meshkit/generators/models"
 	"github.com/layer5io/meshkit/utils"
 )
 

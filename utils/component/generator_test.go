@@ -3,7 +3,7 @@ package component
 import (
 	"testing"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/utils/manifests"
 )
 
@@ -40,7 +40,7 @@ spec:
       jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         properties:
@@ -124,21 +124,21 @@ spec:
       status: {}
 `
 
-func getNewComponent(spec string, name string, version string) v1alpha1.ComponentDefinition {
-	comp := v1alpha1.ComponentDefinition{}
-	comp.Schema = spec
+func getNewComponent(spec string, name string, version string) v1beta1.ComponentDefinition {
+	comp := v1beta1.ComponentDefinition{}
+	comp.Component.Schema = spec
 	comp.DisplayName = manifests.FormatToReadableString(name)
-	comp.APIVersion = version
-	comp.Kind = name
+	comp.Component.Version = version
+	comp.Component.Kind = name
 	return comp
 }
 
 func TestGenerate(t *testing.T) {
 	var tests = []struct {
 		crd  string
-		want v1alpha1.ComponentDefinition
+		want v1beta1.ComponentDefinition
 	}{
-		{istioCrd, getNewComponent("", "WasmPlugin", "extensions.istio.io/v1alpha1")},
+		{istioCrd, getNewComponent("", "WasmPlugin", "extensions.istio.io/v1beta1")},
 	}
 	for _, tt := range tests {
 		t.Run("generateComponent", func(t *testing.T) {
@@ -146,11 +146,11 @@ func TestGenerate(t *testing.T) {
 			if got.DisplayName != tt.want.DisplayName {
 				t.Errorf("got %v, want %v", got.DisplayName, tt.want.DisplayName)
 			}
-			if !(got.Kind == tt.want.Kind) {
-				t.Errorf("got %v, want %v", got.Kind, tt.want.Kind)
+			if !(got.Component.Kind == tt.want.Component.Kind) {
+				t.Errorf("got %v, want %v", got.Component.Kind, tt.want.Component.Kind)
 			}
-			if !(got.APIVersion == tt.want.APIVersion) {
-				t.Errorf("got %v, want %v", got.APIVersion, tt.want.APIVersion)
+			if !(got.Component.Version == tt.want.Component.Version) {
+				t.Errorf("got %v, want %v", got.Component.Version, tt.want.Component.Version)
 			}
 		})
 	}

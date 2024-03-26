@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"os"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/component"
 	"github.com/layer5io/meshkit/utils/manifests"
@@ -23,8 +23,8 @@ func (gp GitHubPackage) GetVersion() string {
 	return gp.version
 }
 
-func (gp GitHubPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error) {
-	components := make([]v1alpha1.ComponentDefinition, 0)
+func (gp GitHubPackage) GenerateComponents() ([]v1beta1.ComponentDefinition, error) {
+	components := make([]v1beta1.ComponentDefinition, 0)
 
 	data, err := os.ReadFile(gp.filePath)
 	if err != nil {
@@ -49,7 +49,7 @@ func (gp GitHubPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, er
 		comp.Model.Metadata["source_uri"] = gp.SourceURL
 		comp.Model.Version = gp.version
 		comp.Model.Name = gp.Name
-		comp.Model.Category = v1alpha1.Category{
+		comp.Model.Category = v1beta1.Category{
 			Name: "",
 		}
 		comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)

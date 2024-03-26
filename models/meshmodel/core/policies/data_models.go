@@ -17,3 +17,5 @@ type NetworkPolicyRegoResponse struct {
 	ServicePodRelationships        []RelationObject `json:"service_pod_relationships,omitempty"`
 	ServiceDeploymentRelationships []RelationObject `json:"service_deployment_relationships,omitempty"`
 }
+
+// Add response struct based on schema for all relationships evaluations. binding, inventory, network...

@@ -3,15 +3,14 @@ package github
 import (
 	"bufio"
 	"fmt"
+	"github.com/layer5io/meshkit/generators/models"
+	"github.com/layer5io/meshkit/utils"
+	"github.com/layer5io/meshkit/utils/helm"
+	"github.com/layer5io/meshkit/utils/walker"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/layer5io/meshkit/models"
-	"github.com/layer5io/meshkit/utils"
-	"github.com/layer5io/meshkit/utils/helm"
-	"github.com/layer5io/meshkit/utils/walker"
 )
 
 type GitRepo struct {

@@ -1,14 +1,14 @@
-package v1alpha1
+package v1beta1
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+// To be removed when Design schema is refactored.
 
-// Component is the structure for the core OAM Application Component
+// Component is the structure for the core Application Component
 type Component struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -16,7 +16,7 @@ type Component struct {
 	Spec ComponentSpec `json:"spec,omitempty"`
 }
 
-// ComponentSpec is the structure for the core OAM Application Component Spec
+// ComponentSpec is the structure for the core Application Component Spec
 type ComponentSpec struct {
 	Type       string                 `json:"type"`
 	Version    string                 `json:"version"`
@@ -26,7 +26,7 @@ type ComponentSpec struct {
 	Parameters []ComponentParameter   `json:"parameters"`
 }
 
-// ComponentParameter is the structure for the core OAM Application Component
+// ComponentParameter is the structure for the core Application Component
 // Paramater
 type ComponentParameter struct {
 	Name        string   `json:"name"`
@@ -46,7 +46,7 @@ func GetKindFromComponent(comp Component) string {
 	return kind
 }
 
-func GetAnnotationsForWorkload(w v1alpha1.ComponentDefinition) map[string]string {
+func GetAnnotationsForWorkload(w ComponentDefinition) map[string]string {
 	res := map[string]string{}
 
 	for key, val := range w.Metadata {
@@ -59,8 +59,8 @@ func GetAnnotationsForWorkload(w v1alpha1.ComponentDefinition) map[string]string
 		res[fmt.Sprintf("%s.model.source_uri", MesheryAnnotationPrefix)] = sourceURI
 	}
 	res[fmt.Sprintf("%s.model.name", MesheryAnnotationPrefix)] = w.Model.Name
-	res[fmt.Sprintf("%s.k8s.APIVersion", MesheryAnnotationPrefix)] = w.APIVersion
-	res[fmt.Sprintf("%s.k8s.Kind", MesheryAnnotationPrefix)] = w.Kind
+	res[fmt.Sprintf("%s.k8s.APIVersion", MesheryAnnotationPrefix)] = w.Component.Version
+	res[fmt.Sprintf("%s.k8s.Kind", MesheryAnnotationPrefix)] = w.Component.Kind
 	res[fmt.Sprintf("%s.model.version", MesheryAnnotationPrefix)] = w.Model.Version
 	res[fmt.Sprintf("%s.model.category", MesheryAnnotationPrefix)] = w.Model.Category.Name
 	return res
