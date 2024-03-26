@@ -1,4 +1,4 @@
-package registry
+package v1beta1
 
 import (
 	"fmt"
@@ -42,6 +42,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	type modelWithCategories struct {
 		v1beta1.ModelDB
 		v1beta1.CategoryDB
+		// registry.Registry
 		v1beta1.Hostv1beta1
 	}
 
@@ -69,65 +70,65 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	// include components and relationships in response body
 	var includeComponents, includeRelationships bool
 
-		if mf.Greedy {
-			if mf.Name != "" && mf.DisplayName != "" {
-				finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", "%"+mf.Name+"%", "%"+mf.DisplayName+"%")
-			} else if mf.Name != "" {
-				finder = finder.Where("model_dbs.name LIKE ?", "%"+mf.Name+"%")
-			} else if mf.DisplayName != "" {
-				finder = finder.Where("model_dbs.display_name LIKE ?", "%"+mf.DisplayName+"%")
-			}
+	if mf.Greedy {
+		if mf.Name != "" && mf.DisplayName != "" {
+			finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", "%"+mf.Name+"%", "%"+mf.DisplayName+"%")
+		} else if mf.Name != "" {
+			finder = finder.Where("model_dbs.name LIKE ?", "%"+mf.Name+"%")
+		} else if mf.DisplayName != "" {
+			finder = finder.Where("model_dbs.display_name LIKE ?", "%"+mf.DisplayName+"%")
+		}
+	} else {
+		if mf.Name != "" {
+			finder = finder.Where("model_dbs.name = ?", mf.Name)
+		}
+		if mf.DisplayName != "" {
+			finder = finder.Where("model_dbs.display_name = ?", mf.DisplayName)
+		}
+	}
+	if mf.Annotations == "true" {
+		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
+	} else if mf.Annotations == "false" {
+		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
+	}
+	if mf.Version != "" {
+		finder = finder.Where("model_dbs.version = ?", mf.Version)
+	}
+	if mf.Category != "" {
+		finder = finder.Where("category_dbs.name = ?", mf.Category)
+	}
+	if mf.Registrant != "" {
+		finder = finder.Where("hosts.hostname = ?", mf.Registrant)
+	}
+	if mf.Annotations == "true" {
+		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
+	} else if mf.Annotations == "false" {
+		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
+	}
+	if mf.OrderOn != "" {
+		if mf.Sort == "desc" {
+			finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: mf.OrderOn}, Desc: true})
 		} else {
-			if mf.Name != "" {
-				finder = finder.Where("model_dbs.name = ?", mf.Name)
-			}
-			if mf.DisplayName != "" {
-				finder = finder.Where("model_dbs.display_name = ?", mf.DisplayName)
-			}
+			finder = finder.Order(mf.OrderOn)
 		}
-		if mf.Annotations == "true" {
-			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
-		} else if mf.Annotations == "false" {
-			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
-		}
-		if mf.Version != "" {
-			finder = finder.Where("model_dbs.version = ?", mf.Version)
-		}
-		if mf.Category != "" {
-			finder = finder.Where("category_dbs.name = ?", mf.Category)
-		}
-		if mf.Registrant != "" {
-			finder = finder.Where("hosts.hostname = ?", mf.Registrant)
-		}
-		if mf.Annotations == "true" {
-			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
-		} else if mf.Annotations == "false" {
-			finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
-		}
-		if mf.OrderOn != "" {
-			if mf.Sort == "desc" {
-				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: mf.OrderOn}, Desc: true})
-			} else {
-				finder = finder.Order(mf.OrderOn)
-			}
-		} else {
-			finder = finder.Order("display_name")
-		}
+	} else {
+		finder = finder.Order("display_name")
+	}
 
-		finder.Count(&count)
+	finder.Count(&count)
 
-		if mf.Limit != 0 {
-			finder = finder.Limit(mf.Limit)
-		}
-		if mf.Offset != 0 {
-			finder = finder.Offset(mf.Offset)
-		}
-		if mf.Status != "" {
-			finder = finder.Where("model_dbs.status = ?", mf.Status)
-		}
-		includeComponents = mf.Components
-		includeRelationships = mf.Relationships
-	
+	if mf.Limit != 0 {
+		finder = finder.Limit(mf.Limit)
+	}
+	if mf.Offset != 0 {
+		finder = finder.Offset(mf.Offset)
+	}
+	if mf.Status != "" {
+		finder = finder.Where("model_dbs.status = ?", mf.Status)
+	}
+	includeComponents = mf.Components
+	includeRelationships = mf.Relationships
+
 	err := finder.
 		Scan(&modelWithCategoriess).Error
 	if err != nil {
