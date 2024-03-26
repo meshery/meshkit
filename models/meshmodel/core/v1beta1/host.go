@@ -12,16 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
-var hostv1beta1CreationLock sync.Mutex //Each entity will perform a check and if the host already doesn't exist, it will create a host. This lock will make sure that there are no race conditions.
+var hostCreationLock sync.Mutex //Each entity will perform a check and if the host already doesn't exist, it will create a host. This lock will make sure that there are no race conditions.
 
-type Hostv1beta1 struct {
+type Host struct {
 	ID        uuid.UUID `json:"-"`
 	Hostname  string
 	Port      int
 	Metadata  string
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
-	IHost     _IHost    `gorm:"-"`
+	IHost     IHost    `gorm:"-"`
 }
 
 type MeshModelHostsWithEntitySummary struct {
@@ -58,15 +58,15 @@ type HostFilter struct {
 	Offset      int
 }
 
-func (h *Hostv1beta1) Create(db *database.Handler) (uuid.UUID, error) {
+func (h *Host) Create(db *database.Handler) (uuid.UUID, error) {
 	byt, err := json.Marshal(h)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
 	hID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var host Hostv1beta1
-	hostv1beta1CreationLock.Lock()
-	defer hostv1beta1CreationLock.Unlock()
+	var host Host
+	hostCreationLock.Lock()
+	defer hostCreationLock.Unlock()
 	err = db.First(&host, "id = ?", hID).Error // check if the host already exists
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return uuid.UUID{}, err
@@ -86,12 +86,12 @@ func (h *Hostv1beta1) Create(db *database.Handler) (uuid.UUID, error) {
 	return host.ID, nil
 }
 
-func (h *Hostv1beta1) AfterFind(tx *gorm.DB) error {
+func (h *Host) AfterFind(tx *gorm.DB) error {
 	switch h.Hostname {
 	case "artifacthub":
-		h.IHost = _ArtifactHub{}
+		h.IHost = ArtifactHub{}
 	case "kubernetes":
-		h.IHost = _Kubernetes{}
+		h.IHost = Kubernetes{}
 	default: // do nothing if the host is not pre-unknown. Currently adapters fall into this case.
 		return nil
 	}
@@ -100,14 +100,14 @@ func (h *Hostv1beta1) AfterFind(tx *gorm.DB) error {
 
 // Each host from where meshmodels can be generated needs to implement this interface
 // HandleDependents, contains host specific logic for provisioning required CRDs/operators for corresponding components.
-type _IHost interface {
+type IHost interface {
 	HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (string, error)
 	String() string
 }
 
-type _ArtifactHub struct{}
+type ArtifactHub struct{}
 
-func (ah _ArtifactHub) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
+func (ah ArtifactHub) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
 	source_uri := comp.Annotations[fmt.Sprintf("%s.model.source_uri", MesheryAnnotationPrefix)]
 	act := kubernetes.UNINSTALL
 	if isDeploy {
@@ -139,16 +139,16 @@ func (ah _ArtifactHub) HandleDependents(comp Component, kc *kubernetes.Client, i
 	return summary, err
 }
 
-func (ah _ArtifactHub) String() string {
+func (ah ArtifactHub) String() string {
 	return "artifacthub"
 }
 
-type _Kubernetes struct{}
+type Kubernetes struct{}
 
-func (k _Kubernetes) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
+func (k Kubernetes) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
 	return summary, err
 }
 
-func (k _Kubernetes) String() string {
+func (k Kubernetes) String() string {
 	return "kubernetes"
 }

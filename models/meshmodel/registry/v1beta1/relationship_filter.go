@@ -99,7 +99,7 @@ func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entit
 	for _, cm := range relationshipDefinitionsWithModel {
 		// Ensure correct reg is passed, rn it is dummy for sake of testing.
 		// In the first query above where we do seelection i think there changes will be requrired, an when that two def and defDB structs are consolidated, using association and preload i think we can do.
-		reg := v1beta1.Hostv1beta1{}
+		reg := v1beta1.Host{}
 		rd := cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db), reg))
 		defs = append(defs, &rd)
 	}

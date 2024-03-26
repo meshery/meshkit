@@ -6,8 +6,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+// To be removed when Design schema is refactored.
 
-// Component is the structure for the core OAM Application Component
+// Component is the structure for the core Application Component
 type Component struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -15,7 +16,7 @@ type Component struct {
 	Spec ComponentSpec `json:"spec,omitempty"`
 }
 
-// ComponentSpec is the structure for the core OAM Application Component Spec
+// ComponentSpec is the structure for the core Application Component Spec
 type ComponentSpec struct {
 	Type       string                 `json:"type"`
 	Version    string                 `json:"version"`
@@ -25,7 +26,7 @@ type ComponentSpec struct {
 	Parameters []ComponentParameter   `json:"parameters"`
 }
 
-// ComponentParameter is the structure for the core OAM Application Component
+// ComponentParameter is the structure for the core Application Component
 // Paramater
 type ComponentParameter struct {
 	Name        string   `json:"name"`
