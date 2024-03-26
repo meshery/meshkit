@@ -21,7 +21,7 @@ type Hostv1beta1 struct {
 	Metadata  string
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
-	IHost     _IHost     `gorm:"-"`
+	IHost     _IHost    `gorm:"-"`
 }
 
 type MeshModelHostsWithEntitySummary struct {
@@ -58,7 +58,7 @@ type HostFilter struct {
 	Offset      int
 }
 
-func(h *Hostv1beta1) Create(db *database.Handler) (uuid.UUID, error) {
+func (h *Hostv1beta1) Create(db *database.Handler) (uuid.UUID, error) {
 	byt, err := json.Marshal(h)
 	if err != nil {
 		return uuid.UUID{}, err

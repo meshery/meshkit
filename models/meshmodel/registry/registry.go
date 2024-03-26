@@ -153,6 +153,7 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityTy
 		return nil
 	}
 }
+
 // to be removed
 func (rm *RegistryManager) GetRegistrants(f *v1beta1.HostFilter) ([]v1beta1.MeshModelHostsWithEntitySummary, int64, error) {
 	var result []v1beta1.MesheryHostSummaryDB
