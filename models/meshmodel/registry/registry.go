@@ -113,27 +113,27 @@ func (rm *RegistryManager) Cleanup() {
 		&v1alpha1.RelationshipDefinitionDB{},
 	)
 }
-func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
+func (rm *RegistryManager) RegisterEntity(h Host, en Entity) (bool, bool, error) {
 	switch entity := en.(type) {
 	case v1alpha1.ComponentDefinition:
 		isAnnotation, _ := entity.Metadata["isAnnotation"].(bool)
 		if entity.Schema == "" && !isAnnotation { //For components which an empty schema and is not an annotation, exit quietly
-			return nil
+			return false, false, nil
 		}
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			return err
+			return false, true, err
 		}
 
 		componentID, modelID, err := v1alpha1.CreateComponent(rm.db, entity)
 		if err != nil {
-			return err
+			return false, false, err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
-			return err
+			return true, false, err
 		}
 
 		entry := Registry{
@@ -144,22 +144,22 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		return rm.db.Create(&entry).Error
+		return false, false, rm.db.Create(&entry).Error
 	case v1alpha1.RelationshipDefinition:
 
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			return err
+			return false, true, err
 		}
 
 		relationshipID, modelID, err := v1alpha1.CreateRelationship(rm.db, entity)
 		if err != nil {
-			return err
+			return false, false, err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
-			return err
+			return true, false, err
 		}
 
 		entry := Registry{
@@ -170,22 +170,22 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		return rm.db.Create(&entry).Error
+		return false, false, rm.db.Create(&entry).Error
 	//Add logic for Policies and other entities below
 	case v1alpha1.PolicyDefinition:
 		registrantID, err := createHost(rm.db, h)
 		if err != nil {
-			return err
+			return false, true, err
 		}
 
 		policyID, modelID, err := v1alpha1.CreatePolicy(rm.db, entity)
 		if err != nil {
-			return err
+			return false, false, err
 		}
 
 		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
-			return err
+			return true, false, err
 		}
 
 		entry := Registry{
@@ -196,10 +196,10 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) error {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		return rm.db.Create(&entry).Error
+		return false, false, rm.db.Create(&entry).Error
 
 	default:
-		return nil
+		return false, false, nil
 	}
 }
 
