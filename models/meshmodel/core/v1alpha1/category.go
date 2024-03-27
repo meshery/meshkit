@@ -30,6 +30,7 @@ type CategoryFilter struct {
 	Limit   int    //If 0 or  unspecified then all records are returned and limit is not used
 	Offset  int
 }
+
 // "Uncategorized" is assigned when Category is empty in the component definitions.
 const DefaultCategory = "Uncategorized"
 

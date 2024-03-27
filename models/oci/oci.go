@@ -176,7 +176,7 @@ func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, 
 	return nil
 }
 
-// authentification to the public oci registry 
+// authentification to the public oci registry
 // registryURL example : docker.io
 func AuthToOCIRegistry(repo *remote.Repository, registryURI, username, password string) error {
 	repo.Client = &auth.Client{

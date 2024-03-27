@@ -19,9 +19,9 @@ var (
 	ErrFileNotFoundCode             = "meshkit-11244"
 	ErrAuthenticatingToRegistryCode = "meshkit-11245"
 	ErrWriteFilesCode               = "meshkit-11246"
-	ErrAddLayerCode 				= "meshkit-11247"
-	ErrTaggingPackageCode 			= "meshkit-11248"
-	ErrPushingPackageCode 			= "meshkit-11249"
+	ErrAddLayerCode                 = "meshkit-11247"
+	ErrTaggingPackageCode           = "meshkit-11248"
+	ErrPushingPackageCode           = "meshkit-11249"
 )
 
 func ErrAppendingLayer(err error) error {
