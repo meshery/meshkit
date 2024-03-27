@@ -7,14 +7,21 @@ import (
 )
 
 var (
-	ErrAppendingLayerCode       = "meshkit-11147"
-	ErrReadingFileCode          = "meshkit-11148"
-	ErrUnSupportedLayerTypeCode = "meshkit-11149"
-	ErrGettingLayerCode         = "meshkit-11150"
-	ErrCompressingLayerCode     = "meshkit-11151"
-	ErrUnTaringLayerCode        = "meshkit-11152"
-	ErrGettingImageCode         = "meshkit-11153"
-	ErrValidatingImageCode      = "meshkit-11154"
+	ErrAppendingLayerCode           = "meshkit-11147"
+	ErrReadingFileCode              = "meshkit-11148"
+	ErrUnSupportedLayerTypeCode     = "meshkit-11149"
+	ErrGettingLayerCode             = "meshkit-11150"
+	ErrCompressingLayerCode         = "meshkit-11151"
+	ErrUnTaringLayerCode            = "meshkit-11152"
+	ErrGettingImageCode             = "meshkit-11153"
+	ErrValidatingImageCode          = "meshkit-11154"
+	ErrConnectingToRegistryCode     = "meshkit-11243"
+	ErrFileNotFoundCode             = "meshkit-11244"
+	ErrAuthenticatingToRegistryCode = "meshkit-11245"
+	ErrWriteFilesCode               = "meshkit-11246"
+	ErrAddLayerCode                 = "meshkit-11247"
+	ErrTaggingPackageCode           = "meshkit-11248"
+	ErrPushingPackageCode           = "meshkit-11249"
 )
 
 func ErrAppendingLayer(err error) error {
@@ -47,4 +54,32 @@ func ErrGettingImage(err error) error {
 
 func ErrValidatingImage(err error) error {
 	return errors.New(ErrValidatingImageCode, errors.Alert, []string{"validating image failed"}, []string{err.Error()}, []string{"failed to validate the image"}, []string{"Try using a different image", "check if image is not malformed"})
+}
+
+func ErrConnectingToRegistry(err error) error {
+	return errors.New(ErrConnectingToRegistryCode, errors.Alert, []string{"connecting to registry failed"}, []string{err.Error()}, []string{"failed to connect to the registry"}, []string{"Try using a different registry", "check if registry URL is correct"})
+}
+
+func ErrFileNotFound(err error, filePath string) error {
+	return errors.New(ErrFileNotFoundCode, errors.Alert, []string{"file not found at " + filePath}, []string{err.Error()}, []string{"file not found at " + filePath}, []string{"Try using a different file", "check if file exists"})
+}
+
+func ErrAuthenticatingToRegistry(err error) error {
+	return errors.New(ErrAuthenticatingToRegistryCode, errors.Alert, []string{"authenticating to registry failed"}, []string{err.Error()}, []string{"failed to authenticate to the registry"}, []string{"Please check if the credentials are correct"})
+}
+
+func ErrWriteFile(err error) error {
+	return errors.New(ErrWriteFilesCode, errors.Alert, []string{"writing file failed"}, []string{err.Error()}, []string{"failed to write the file"}, []string{"Try using a different file", "check if appropriate write permissions are given to the file"})
+}
+
+func ErrAddLayer(err error) error {
+	return errors.New(ErrAddLayerCode, errors.Alert, []string{"adding file failed"}, []string{err.Error()}, []string{"failed to add the layer"}, []string{"Try using a different file's", "check if layer is compatible with the base image"})
+}
+
+func ErrTaggingPackage(err error) error {
+	return errors.New(ErrTaggingPackageCode, errors.Alert, []string{"tagging package failed"}, []string{err.Error()}, []string{"failed to tag the package"}, []string{"Try using a different tag", "check if package is not malformed"})
+}
+
+func ErrPushingPackage(err error) error {
+	return errors.New(ErrPushingPackageCode, errors.Alert, []string{"pushing package failed"}, []string{err.Error()}, []string{"failed to push the package"}, []string{"Try using a different tag", "check if package is not malformed"})
 }
