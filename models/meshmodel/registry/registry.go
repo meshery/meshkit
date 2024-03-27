@@ -50,7 +50,7 @@ type RegistryManager struct {
 }
 
 // Registers models into registries table.
-func registerModel(db *database.Handler, regID, modelID uuid.UUID, modelName string, h Host) error {
+func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
 	entity := Registry{
 		RegistrantID: regID,
 		Entity:       modelID,
@@ -130,7 +130,7 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) (bool, bool, error)
 			return false, false, err
 		}
 
-		err = registerModel(rm.db, registrantID, modelID, entity.Model.DisplayHostName, h)
+		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
 			return true, false, err
 		}
@@ -158,7 +158,7 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) (bool, bool, error)
 
 		}
 
-		err = registerModel(rm.db, registrantID, modelID, entity.Model.Name, h)
+		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
 			return true, false, err
 		}
@@ -186,7 +186,7 @@ func (rm *RegistryManager) RegisterEntity(h Host, en Entity) (bool, bool, error)
 
 		}
 
-		err = registerModel(rm.db, registrantID, modelID, entity.Model.DisplayName, h)
+		err = registerModel(rm.db, registrantID, modelID)
 		if err != nil {
 
 			return true, false, err
