@@ -9,6 +9,7 @@ on:
 jobs:
   golangci:
     name: lint
+    needs: [tidy]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
@@ -25,7 +26,6 @@ jobs:
         run: make check
   tidy:
     name: tidy
-    needs: [golangci]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
