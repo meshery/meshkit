@@ -72,8 +72,7 @@ func (m *RelationshipDefinition) UpdateStatus(db *database.Handler, status entit
 }
 
 func (r *RelationshipDefinition) GetRelationshipDefinitionDB() (rdb RelationshipDefinitionDB) {
-	// rdb.ID = r.ID id will be assigned by the database itself don't use this, as it will be always uuid.nil, because id is not known when comp gets generated.
-	// While database creates an entry with valid primary key but to avoid confusion, it is disabled and accidental assignment of custom id.
+	rdb.ID = r.ID
 	rdb.VersionMeta = r.VersionMeta
 	rdb.Kind = r.Kind
 	rdb.RelationshipType = r.RelationshipType

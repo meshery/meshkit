@@ -16,12 +16,12 @@ var hostCreationLock sync.Mutex //Each entity will perform a check and if the ho
 
 type Host struct {
 	ID        uuid.UUID `json:"-"`
-	Hostname  string
-	Port      int
-	Metadata  string
+	Hostname  string    `json:"hostname"`
+	Port      int       `json:"port"`
+	Metadata  string    `json:""metadata`
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
-	IHost     IHost    `gorm:"-"`
+	IHost     IHost     `gorm:"-"`
 }
 
 type MeshModelHostsWithEntitySummary struct {

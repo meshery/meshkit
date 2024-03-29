@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
@@ -28,7 +29,19 @@ type CategoryDB struct {
 // "Uncategorized" is assigned when Category is empty in the component definitions.
 const DefaultCategory = "Uncategorized"
 
-func (cat *Category) Create(db *database.Handler) (uuid.UUID, error) {
+func (cat Category) Type() entity.EntityType {
+	return entity.Category
+}
+func (cat Category) GetID() uuid.UUID {
+	return cat.ID
+}
+
+
+func (cat *Category) GetEntityDetail() string {
+	return fmt.Sprintf("name: %s", cat.Name)
+}
+
+func (cat *Category) Create(db *database.Handler, _ uuid.UUID) (uuid.UUID, error) {
 	if cat.Name == "" {
 		cat.Name = DefaultCategory
 	}

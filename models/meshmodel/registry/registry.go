@@ -121,6 +121,15 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityTy
 	}
 }
 
+func (rm *RegistryManager) GetRegistrant(e entity.Entity) v1beta1.Host {
+	eID := e.GetID()
+	var reg Registry
+	_ = rm.db.Where("entity = ?", eID).Find(&reg).Error
+	var h v1beta1.Host
+	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
+	return h
+}
+
 // to be removed
 func (rm *RegistryManager) GetRegistrants(f *v1beta1.HostFilter) ([]v1beta1.MeshModelHostsWithEntitySummary, int64, error) {
 	var result []v1beta1.MesheryHostSummaryDB

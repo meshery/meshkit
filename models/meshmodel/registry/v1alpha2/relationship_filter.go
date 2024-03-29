@@ -1,4 +1,4 @@
-package v1beta1
+package v1alpha2
 
 import (
 	"fmt"
@@ -12,10 +12,10 @@ import (
 
 type relationshipDefinitionWithModel struct {
 	v1alpha2.RelationshipDefinitionDB
-	ModelDB v1beta1.ModelDB
+	v1beta1.ModelDB
 	// acoount for overridn fields
 	// v1beta1.ModelDB.Version `json:"modelVersion"`
-	CategoryDB v1beta1.CategoryDB
+	v1beta1.CategoryDB
 }
 
 // For now, only filtering by Kind and SubType are allowed.

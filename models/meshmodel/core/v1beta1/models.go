@@ -13,9 +13,11 @@ import (
 	"gorm.io/gorm"
 )
 
+const SchemaVersion = "core.meshery.io/v1beta1"
+
 var modelCreationLock sync.Mutex //Each component/relationship will perform a check and if the model already doesn't exist, it will create a model. This lock will make sure that there are no race conditions.
 
-type model struct {
+type ModelEntity struct {
 	Version string `json:"version,omitempty" yaml:"version"`
 }
 
@@ -31,7 +33,7 @@ type Model struct {
 	Category    Category               `json:"category"`
 	SubCategory string                 `json:"subCategory" gorm:"subCategory"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"modelMetadata"`
-	Model       model                  `json:"model,omitempty" gorm:"model"`
+	Model       ModelEntity            `json:"model,omitempty" gorm:"model;type:bytes;serializer:json"`
 }
 
 type ModelDB struct {
@@ -41,11 +43,11 @@ type ModelDB struct {
 	DisplayName  string              `json:"modelDisplayName" gorm:"modelDisplayName"`
 	Description  string              `json:"description" gorm:"description"`
 	Status       entity.EntityStatus `json:"status" gorm:"status"`
-	RegistrantID uuid.UUID           `json:"hostID" gorm:"host_id"`
+	RegistrantID uuid.UUID           `json:"hostID" gorm:"column:host_id"` // make as a foreign refer to host's table
 	CategoryID   uuid.UUID           `json:"-" gorm:"categoryID"`
 	SubCategory  string              `json:"subCategory" gorm:"subCategory"`
 	Metadata     []byte              `json:"modelMetadata" gorm:"modelMetadata"`
-	Model        model               `json:"model,omitempty" gorm:"model"`
+	Model        ModelEntity         `json:"model,omitempty" gorm:"model;type:bytes;serializer:json"`
 }
 
 func (m Model) Type() entity.EntityType {
@@ -77,7 +79,7 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 		return uuid.UUID{}, err
 	}
 	if err == gorm.ErrRecordNotFound { //The model is already not present and needs to be inserted
-		id, err := m.Category.Create(db)
+		id, err := m.Category.Create(db, hostID)
 		if err != nil {
 			return uuid.UUID{}, err
 		}
@@ -109,8 +111,7 @@ func (m *Model) UpdateStatus(db *database.Handler, status entity.EntityStatus) e
 }
 
 func (c *Model) GetModelDB() (cmd ModelDB) {
-	// cmd.ID = c.ID id will be assigned by the database itself don't use this, as it will be always uuid.nil, because id is not known when comp gets generated.
-	// While database creates an entry with valid primary key but to avoid confusion, it is disabled and accidental assignment of custom id.
+	cmd.ID = c.ID
 	cmd.VersionMeta = c.VersionMeta
 	cmd.Name = c.Name
 	cmd.DisplayName = c.DisplayName

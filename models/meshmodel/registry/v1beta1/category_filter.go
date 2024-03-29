@@ -3,6 +3,7 @@ package v1beta1
 import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
+	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"gorm.io/gorm/clause"
 )
 
@@ -23,9 +24,9 @@ func (cf *CategoryFilter) Create(m map[string]interface{}) {
 	cf.Name = m["name"].(string)
 }
 
-func (cf *CategoryFilter) Get(db *database.Handler) ([]v1beta1.Category, int64, int, error) {
+func (cf *CategoryFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	var catdb []v1beta1.CategoryDB
-	var cat []v1beta1.Category
+	var cat []entity.Entity
 	finder := db.Model(&catdb)
 
 	// total count before pagination
@@ -61,7 +62,8 @@ func (cf *CategoryFilter) Get(db *database.Handler) ([]v1beta1.Category, int64, 
 
 	_ = finder.Find(&catdb).Error
 	for _, c := range catdb {
-		cat = append(cat, c.GetCategory(db))
+		category := c.GetCategory(db)
+		cat = append(cat, &category)
 	}
 	// duplicate category ?
 	return cat, count, int(count), nil

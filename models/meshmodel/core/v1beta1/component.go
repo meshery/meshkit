@@ -30,7 +30,8 @@ const (
 	CUE  ComponentFormat = "CUE"
 )
 
-type component struct {
+// Contains information as extracted from the core underlying component eg: Pod's apiVersion, kind and schema
+type ComponentEntity struct {
 	TypeMeta
 	Schema string `json:"schema,omitempty" yaml:"schema"`
 }
@@ -46,7 +47,7 @@ type ComponentDefinition struct {
 	Model       Model                  `json:"model"`
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
 	// component corresponds to the specifications of underlying entity eg: Pod/Deployment....
-	Component component `json:"component,omitempty" yaml:"component"`
+	Component ComponentEntity `json:"component,omitempty" yaml:"component"`
 }
 
 type ComponentDefinitionDB struct {
@@ -57,7 +58,7 @@ type ComponentDefinitionDB struct {
 	Format      ComponentFormat `json:"format" yaml:"format"`
 	ModelID     uuid.UUID       `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
 	Metadata    []byte          `json:"metadata" yaml:"metadata"`
-	Component   component       `json:"component,omitempty" yaml:"component" gorm:"component"`
+	Component   ComponentEntity `json:"component,omitempty" yaml:"component" gorm:"type:bytes;serializer:json"`
 }
 
 func (c ComponentDefinition) Type() entity.EntityType {
@@ -101,8 +102,7 @@ func (m *ComponentDefinition) UpdateStatus(db *database.Handler, status entity.E
 }
 
 func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitionDB) {
-	// cmd.ID = c.ID id will be assigned by the database itself don't use this, as it will be always uuid.nil, because id is not known when comp gets generated.
-	// While database creates an entry with valid primary key but to avoid confusion, it is disabled and accidental assignment of custom id.
+	cmd.ID = c.ID
 	cmd.VersionMeta = c.VersionMeta
 	cmd.DisplayName = c.DisplayName
 	cmd.Description = c.Description

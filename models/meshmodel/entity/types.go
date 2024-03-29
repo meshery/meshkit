@@ -12,6 +12,7 @@ const (
 	PolicyDefinition       EntityType = "policy"
 	RelationshipDefinition EntityType = "relationship"
 	Model                  EntityType = "model"
+	Category               EntityType = "category"
 )
 
 // Each entity will have it's own Filter implementation via which it exposes the nobs and dials to fetch entities
