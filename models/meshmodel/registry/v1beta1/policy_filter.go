@@ -24,8 +24,8 @@ func (pf *PolicyFilter) Create(m map[string]interface{}) {
 }
 
 type policyDefinitionWithModel struct {
-	v1beta1.PolicyDefinitionDB
-	Model v1beta1.Model
+	PolicyDB v1beta1.PolicyDefinitionDB `gorm:"embedded"`
+	Model    v1beta1.Model              `gorm:"embedded"`
 }
 
 func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
@@ -52,7 +52,7 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 		return pl, 0, 0, err
 	}
 	for _, cm := range componentDefinitionsWithModel {
-		policyDef := cm.PolicyDefinitionDB.GetPolicyDefinition(cm.Model)
+		policyDef := cm.PolicyDB.GetPolicyDefinition(cm.Model)
 		pl = append(pl, &policyDef)
 	}
 	return pl, count, int(count), nil

@@ -11,11 +11,11 @@ import (
 )
 
 type relationshipDefinitionWithModel struct {
-	v1alpha2.RelationshipDefinitionDB
-	v1beta1.ModelDB
+	RelationshipDefinitionDB v1alpha2.RelationshipDefinitionDB `gorm:"embedded"`
+	ModelDB                  v1beta1.ModelDB                   `gorm:"embedded"`
 	// acoount for overridn fields
 	// v1beta1.ModelDB.Version `json:"modelVersion"`
-	v1beta1.CategoryDB
+	CategoryDB v1beta1.CategoryDB `gorm:"embedded"`
 }
 
 // For now, only filtering by Kind and SubType are allowed.

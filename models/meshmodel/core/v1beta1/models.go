@@ -40,7 +40,7 @@ type ModelDB struct {
 	ID uuid.UUID `json:"id"`
 	VersionMeta
 	Name         string              `json:"modelName" gorm:"modelName"`
-	DisplayName  string              `json:"modelDisplayName" gorm:"modelDisplayName"`
+	DisplayName  string              `json:"modelDisplayName"`
 	Description  string              `json:"description" gorm:"description"`
 	Status       entity.EntityStatus `json:"status" gorm:"status"`
 	RegistrantID uuid.UUID           `json:"hostID" gorm:"column:host_id"` // make as a foreign refer to host's table
@@ -159,13 +159,14 @@ func (c Model) WriteModelDefinition(modelDefPath string) error {
 
 // Registers models into registries table.
 func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
-	err := db.Select("registries.* from registries").Where("registrant_id = ?", regID).Where("type = ?", "model").Where("entity = ?", modelID).Error
+	var count int64
+	err := db.Table("registries").Where("registrant_id = ?", regID).Where("type = ?", "model").Where("entity = ?", modelID).Count(&count).Error
 
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return err
 	}
 
-	if err == gorm.ErrRecordNotFound {
+	if count == 0 {
 		err = db.Exec("INSERT INTO registries (registrant_id, entity, type) VALUES (?,?,?)", regID, modelID, "model").Error
 		if err != nil {
 			return err

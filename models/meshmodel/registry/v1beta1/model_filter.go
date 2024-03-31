@@ -36,14 +36,15 @@ func (mf *ModelFilter) Create(m map[string]interface{}) {
 	mf.Name = m["name"].(string)
 }
 
+// I have removed Regsitry struct here check if filter  by Registrant works.
+type modelWithCategories struct {
+	ModelDB    v1beta1.ModelDB    `gorm:"embedded"`
+	CategoryDB v1beta1.CategoryDB `gorm:"embedded"`
+	Host       v1beta1.Host       `gorm:"embedded"`
+	// registry.Registry
+}
+
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	// I have removed Regsitry struct here check if filter  by Registrant works.
-	type modelWithCategories struct {
-		v1beta1.ModelDB
-		v1beta1.CategoryDB
-		// registry.Registry
-		v1beta1.Host
-	}
 
 	countUniqueModels := func(models []modelWithCategories) int {
 		set := make(map[string]struct{})

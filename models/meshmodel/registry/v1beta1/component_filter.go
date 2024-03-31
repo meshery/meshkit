@@ -25,10 +25,10 @@ type ComponentFilter struct {
 }
 
 type componentDefinitionWithModel struct {
-	v1beta1.ComponentDefinitionDB
-	ModelDB    v1beta1.ModelDB // acoount for overridn fields
-	CategoryDB v1beta1.CategoryDB
-	HostsDB    v1beta1.Host
+	ComponentDefinitionDB v1beta1.ComponentDefinitionDB `gorm:"embedded"`
+	ModelDB               v1beta1.ModelDB               `gorm:"embedded"`
+	CategoryDB            v1beta1.CategoryDB            `gorm:"embedded"`
+	HostsDB               v1beta1.Host                  `gorm:"embedded"`
 }
 
 // Create the filter from map[string]interface{}
@@ -43,7 +43,7 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	countUniqueComponents := func(components []componentDefinitionWithModel) int {
 		set := make(map[string]struct{})
 		for _, compWithModel := range components {
-			key := compWithModel.Component.Kind + "@" + compWithModel.Component.Version + "@" + compWithModel.ModelDB.Name + "@" + compWithModel.ModelDB.Version
+			key := compWithModel.ComponentDefinitionDB.Component.Kind + "@" + compWithModel.ComponentDefinitionDB.Version + "@" + compWithModel.ModelDB.Name + "@" + compWithModel.ModelDB.Version
 			if _, ok := set[key]; !ok {
 				set[key] = struct{}{}
 			}
@@ -52,10 +52,10 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	}
 	var componentDefinitionsWithModel []componentDefinitionWithModel
 	finder := db.Model(&v1beta1.ComponentDefinitionDB{}).
-		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*").
+		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*, hosts.*").
 		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
-		Joins("JOIN hosts ON models.registrant_id = hosts.id")
+		Joins("JOIN hosts ON hosts.id = model_dbs.host_id")
 		//
 
 	if componentFilter.Greedy {
@@ -111,7 +111,7 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	// remove this when compoentdef and componetdefdb struct is consolidated.
 	for _, cm := range componentDefinitionsWithModel {
 		if componentFilter.Trim {
-			cm.Component.Schema = ""
+			cm.ComponentDefinitionDB.Component.Schema = ""
 		}
 		// Ensure correct reg is passed, rn it is dummy for sake of testing.
 		// In the first query above where we do seelection i think there changes will be requrired, an when that two def and defDB structs are consolidated, using association and preload i think we can do.
