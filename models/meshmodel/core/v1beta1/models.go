@@ -62,8 +62,15 @@ func (m *Model) GetEntityDetail() string {
 }
 
 func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
-
-	byt, err := json.Marshal(m)
+	modelIdentifier := Model{
+		Registrant:  m.Registrant,
+		VersionMeta: m.VersionMeta,
+		Name:        m.Name,
+		Model: ModelEntity{
+			Version: m.Model.Version,
+		},
+	}
+	byt, err := json.Marshal(modelIdentifier)
 	if err != nil {
 		return uuid.UUID{}, err
 	}

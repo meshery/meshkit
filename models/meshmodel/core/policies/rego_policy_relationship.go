@@ -3,6 +3,8 @@ package policies
 import (
 	"context"
 	"fmt"
+	"io/fs"
+	"path/filepath"
 
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/layer5io/meshkit/models/meshmodel/registry/v1alpha2"
@@ -54,7 +56,10 @@ func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (int
 	}
 	regoEngine, err := rego.New(
 		rego.Query(regoQueryString),
-		rego.Load([]string{r.policyDir}, nil),
+		rego.Load([]string{r.policyDir}, func(abspath string, info fs.FileInfo, depth int) bool {
+			extension := filepath.Ext(abspath)
+			return extension == "rego" 
+		}),
 		rego.Store(r.store),
 		rego.Transaction(r.transaction),
 	).PrepareForEval(r.ctx)
