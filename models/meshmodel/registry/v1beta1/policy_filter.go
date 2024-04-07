@@ -23,16 +23,11 @@ func (pf *PolicyFilter) Create(m map[string]interface{}) {
 	}
 }
 
-type policyDefinitionWithModel struct {
-	PolicyDB v1beta1.PolicyDefinitionDB `gorm:"embedded"`
-	Model    v1beta1.Model              `gorm:"embedded"`
-}
-
 func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	pl := []entity.Entity{}
-	var componentDefinitionsWithModel []policyDefinitionWithModel
-	finder := db.Model(&v1beta1.PolicyDefinitionDB{}).
-		Select("policy_definition_dbs.*, models_dbs.*").
+	var policyDefinitionWithModel []v1beta1.PolicyDefinition
+	finder := db.Model(&v1beta1.PolicyDefinition{}).
+		Select("policy_definition_dbs.*").
 		Joins("JOIN model_dbs ON model_dbs.id = policy_definition_dbs.model_id")
 	if pf.Kind != "" {
 		finder = finder.Where("policy_definition_dbs.kind = ?", pf.Kind)
@@ -47,13 +42,12 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 	var count int64
 	finder.Count(&count)
 
-	err := finder.Scan(&componentDefinitionsWithModel).Error
+	err := finder.Scan(&policyDefinitionWithModel).Error
 	if err != nil {
 		return pl, 0, 0, err
 	}
-	for _, cm := range componentDefinitionsWithModel {
-		policyDef := cm.PolicyDB.GetPolicyDefinition(cm.Model)
-		pl = append(pl, &policyDef)
+	for _, pm := range policyDefinitionWithModel {
+		pl = append(pl, &pm)
 	}
 	return pl, count, int(count), nil
 }

@@ -5,18 +5,9 @@ import (
 
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"gorm.io/gorm/clause"
 )
-
-type relationshipDefinitionWithModel struct {
-	RelationshipDefinitionDB v1alpha2.RelationshipDefinitionDB `gorm:"embedded"`
-	ModelDB                  v1beta1.ModelDB                   `gorm:"embedded"`
-	// acoount for overridn fields
-	// v1beta1.ModelDB.Version `json:"modelVersion"`
-	CategoryDB v1beta1.CategoryDB `gorm:"embedded"`
-}
 
 // For now, only filtering by Kind and SubType are allowed.
 // In the future, we will add support to query using `selectors` (using CUE)
@@ -42,16 +33,11 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 	rf.Kind = m["kind"].(string)
 }
 func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	// relationshipFilter, err := utils.Cast[RelationshipFilter](f)
-	// if err != nil {
-	// 	return nil, 0, 0, err
-	// }
 
-	var relationshipDefinitionsWithModel []relationshipDefinitionWithModel
-	finder := db.Model(&v1alpha2.RelationshipDefinitionDB{}).
-		Select("relationship_definition_dbs.*, model_dbs.*").
-		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id"). //
-		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")           //
+	var relationshipDefinitionsWithModel []v1alpha2.RelationshipDefinition
+	finder := db.Model(&v1alpha2.RelationshipDefinition{}).Preload("Model").
+		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id").
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
 	if relationshipFilter.Kind != "" {
 		if relationshipFilter.Greedy {
 			finder = finder.Where("relationship_definition_dbs.kind LIKE ?", "%"+relationshipFilter.Kind+"%")
@@ -89,18 +75,14 @@ func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entit
 		finder = finder.Limit(relationshipFilter.Limit)
 	}
 	err := finder.
-		Scan(&relationshipDefinitionsWithModel).Error
+		Find(&relationshipDefinitionsWithModel).Error
 	if err != nil {
 		fmt.Println(err.Error()) //for debugging
 	}
 	defs := make([]entity.Entity, len(relationshipDefinitionsWithModel))
 
 	// remove this when reldef and reldefdb struct is consolidated.
-	for _, cm := range relationshipDefinitionsWithModel {
-		// Ensure correct reg is passed, rn it is dummy for sake of testing.
-		// In the first query above where we do seelection i think there changes will be requrired, an when that two def and defDB structs are consolidated, using association and preload i think we can do.
-		reg := v1beta1.Host{}
-		rd := cm.RelationshipDefinitionDB.GetRelationshipDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db), reg))
+	for _, rd := range relationshipDefinitionsWithModel {
 		defs = append(defs, &rd)
 	}
 	// Should have count unique relationships (by model version, model name, and relationship's kind, type, subtype, version)

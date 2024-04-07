@@ -25,10 +25,10 @@ type ComponentFilter struct {
 }
 
 type componentDefinitionWithModel struct {
-	ComponentDefinitionDB v1beta1.ComponentDefinitionDB `gorm:"embedded"`
-	ModelDB               v1beta1.ModelDB               `gorm:"embedded"`
-	CategoryDB            v1beta1.CategoryDB            `gorm:"embedded"`
-	HostsDB               v1beta1.Host                  `gorm:"embedded"`
+	ComponentDefinitionDB v1beta1.ComponentDefinition `gorm:"embedded"`
+	ModelDB               v1beta1.Model               `gorm:"embedded"`
+	CategoryDB            v1beta1.Category            `gorm:"embedded"`
+	HostsDB               v1beta1.Host                `gorm:"embedded"`
 }
 
 // Create the filter from map[string]interface{}
@@ -39,19 +39,20 @@ func (cf *ComponentFilter) Create(m map[string]interface{}) {
 	cf.Name = m["name"].(string)
 }
 
-func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	countUniqueComponents := func(components []componentDefinitionWithModel) int {
-		set := make(map[string]struct{})
-		for _, compWithModel := range components {
-			key := compWithModel.ComponentDefinitionDB.Component.Kind + "@" + compWithModel.ComponentDefinitionDB.Version + "@" + compWithModel.ModelDB.Name + "@" + compWithModel.ModelDB.Version
-			if _, ok := set[key]; !ok {
-				set[key] = struct{}{}
-			}
+func countUniqueComponents (components []componentDefinitionWithModel) int {
+	set := make(map[string]struct{})
+	for _, compWithModel := range components {
+		key := compWithModel.ComponentDefinitionDB.Component.Kind + "@" + compWithModel.ComponentDefinitionDB.Component.Version + "@" + compWithModel.ModelDB.Name + "@" + compWithModel.ModelDB.Model.Version
+		if _, ok := set[key]; !ok {
+			set[key] = struct{}{}
 		}
-		return len(set)
 	}
+	return len(set)
+}
+
+func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	var componentDefinitionsWithModel []componentDefinitionWithModel
-	finder := db.Model(&v1beta1.ComponentDefinitionDB{}).
+	finder := db.Model(&v1beta1.ComponentDefinition{}).
 		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*, hosts.*").
 		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
@@ -108,19 +109,20 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	}
 
 	defs := make([]entity.Entity, len(componentDefinitionsWithModel))
-	// remove this when compoentdef and componetdefdb struct is consolidated.
+
 	for _, cm := range componentDefinitionsWithModel {
 		if componentFilter.Trim {
 			cm.ComponentDefinitionDB.Component.Schema = ""
 		}
-		// Ensure correct reg is passed, rn it is dummy for sake of testing.
-		// In the first query above where we do seelection i think there changes will be requrired, an when that two def and defDB structs are consolidated, using association and preload i think we can do.
+		
 		reg := cm.HostsDB
-		cd := cm.ComponentDefinitionDB.GetComponentDefinition(cm.ModelDB.GetModel(cm.CategoryDB.GetCategory(db), reg))
+		cd := cm.ComponentDefinitionDB
+		cd.Model = cm.ModelDB
+		cd.Model.Registrant = reg
 		defs = append(defs, &cd)
 	}
 
-	unique := countUniqueComponents(componentDefinitionsWithModel)
+	uniqueCount := countUniqueComponents(componentDefinitionsWithModel)
 
-	return defs, count, unique, nil
+	return defs, count, uniqueCount, nil
 }

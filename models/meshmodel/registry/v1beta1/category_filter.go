@@ -25,9 +25,9 @@ func (cf *CategoryFilter) Create(m map[string]interface{}) {
 }
 
 func (cf *CategoryFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	var catdb []v1beta1.CategoryDB
+	var catdb []v1beta1.Category
 	var cat []entity.Entity
-	finder := db.Model(&catdb)
+	finder := db.Model(&catdb).Debug()
 
 	// total count before pagination
 	var count int64
@@ -60,10 +60,15 @@ func (cf *CategoryFilter) Get(db *database.Handler) ([]entity.Entity, int64, int
 		finder.Count(&count)
 	}
 
-	_ = finder.Find(&catdb).Error
+	err := finder.Find(&catdb).Error
+	if err != nil {
+		return cat, count, int(count), nil
+	}
+
 	for _, c := range catdb {
-		category := c.GetCategory(db)
-		cat = append(cat, &category)
+		// resolve for loop scope
+		_c := c
+		cat = append(cat, &_c)
 	}
 	// duplicate category ?
 	return cat, count, int(count), nil

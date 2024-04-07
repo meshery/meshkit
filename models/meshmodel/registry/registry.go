@@ -53,13 +53,14 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	err := rm.db.AutoMigrate(
 		&Registry{},
 		&v1beta1.Host{},
-		&v1beta1.ComponentDefinitionDB{},
-		&v1alpha2.RelationshipDefinitionDB{},
-		&v1beta1.PolicyDefinitionDB{},
-		&v1beta1.ModelDB{},
-		&v1beta1.CategoryDB{},
+		&v1beta1.ComponentDefinition{},
+		&v1alpha2.RelationshipDefinition{},
+		&v1beta1.PolicyDefinition{},
+		&v1beta1.Model{},
+		&v1beta1.Category{},
 	)
 	if err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 	return &rm, nil
@@ -68,20 +69,22 @@ func (rm *RegistryManager) Cleanup() {
 	_ = rm.db.Migrator().DropTable(
 		&Registry{},
 		&v1beta1.Host{},
-		&v1beta1.ComponentDefinitionDB{},
-		&v1beta1.ModelDB{},
-		&v1beta1.CategoryDB{},
-		&v1alpha2.RelationshipDefinitionDB{},
+		&v1beta1.ComponentDefinition{},
+		&v1beta1.Model{},
+		&v1beta1.Category{},
+		&v1alpha2.RelationshipDefinition{},
 	)
 }
 func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) error {
 	registrantID, err := h.Create(rm.db)
 	if err != nil {
+		fmt.Println("TEST host register : ", err)
 		return err
 	}
 
 	entityID, err := en.Create(rm.db, registrantID)
 	if err != nil {
+		fmt.Println("TEST entity register : ", err)
 		return err
 	}
 

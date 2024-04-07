@@ -1,13 +1,13 @@
 package v1beta1
 
 import (
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/utils"
+	"gorm.io/gorm/clause"
 
 	"github.com/google/uuid"
 )
@@ -37,29 +37,22 @@ type ComponentEntity struct {
 }
 
 // swagger:response ComponentDefinition
-// use NewComponent function for instantiating
 type ComponentDefinition struct {
-	ID uuid.UUID `json:"id,omitempty"`
+	ID uuid.UUID `json:"id"`
 	VersionMeta
 	DisplayName string                 `json:"displayName" gorm:"displayName"`
 	Description string                 `json:"description" gorm:"description"`
 	Format      ComponentFormat        `json:"format" yaml:"format"`
-	Model       Model                  `json:"model"`
-	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
-	// component corresponds to the specifications of underlying entity eg: Pod/Deployment....
-	Component ComponentEntity `json:"component,omitempty" yaml:"component"`
+	ModelID     uuid.UUID              `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:model_id"`
+	Model       Model                  `json:"model" gorm:"foreignKey:ModelID;references:ID"`
+	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata" gorm:"type:bytes;serializer:json"`
+	Component   ComponentEntity        `json:"component,omitempty" yaml:"component" gorm:"type:bytes;serializer:json"`
 }
 
-type ComponentDefinitionDB struct {
-	ID uuid.UUID `json:"id"`
-	VersionMeta
-	DisplayName string          `json:"displayName" gorm:"displayName"`
-	Description string          `json:"description" gorm:"description"`
-	Format      ComponentFormat `json:"format" yaml:"format"`
-	ModelID     uuid.UUID       `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:modelID"`
-	Metadata    []byte          `json:"metadata" yaml:"metadata"`
-	Component   ComponentEntity `json:"component,omitempty" yaml:"component" gorm:"type:bytes;serializer:json"`
+func (c ComponentDefinition) TableName() string {
+	return "component_definition_dbs"
 }
+
 
 func (c ComponentDefinition) Type() entity.EntityType {
 	return entity.ComponentDefinition
@@ -91,9 +84,10 @@ func (c *ComponentDefinition) Create(db *database.Handler, hostID uuid.UUID) (uu
 	if !utils.IsSchemaEmpty(c.Component.Schema) {
 		c.Metadata["hasInvalidSchema"] = true
 	}
-	cdb := c.GetComponentDefinitionDB()
-	cdb.ModelID = mid
-	err = db.Create(&cdb).Error
+
+	c.ModelID = mid
+	err = db.Omit(clause.Associations).Create(&c).Error
+	fmt.Println("ERROR REGISTER COMPONENT", err)
 	return c.ID, err
 }
 
@@ -101,35 +95,8 @@ func (m *ComponentDefinition) UpdateStatus(db *database.Handler, status entity.E
 	return nil
 }
 
-func (c *ComponentDefinition) GetComponentDefinitionDB() (cmd ComponentDefinitionDB) {
-	cmd.ID = c.ID
-	cmd.VersionMeta = c.VersionMeta
-	cmd.DisplayName = c.DisplayName
-	cmd.Description = c.Description
-	cmd.Format = c.Format
-	cmd.ModelID = c.Model.ID
-	cmd.Metadata, _ = json.Marshal(c.Metadata)
-	cmd.Component = c.Component
-	return
-}
-
 func (c ComponentDefinition) WriteComponentDefinition(componentDirPath string) error {
 	componentPath := filepath.Join(componentDirPath, c.Component.Kind+".json")
 	err := utils.WriteJSONToFile[ComponentDefinition](componentPath, c)
 	return err
-}
-
-func (cmd *ComponentDefinitionDB) GetComponentDefinition(model Model) (c ComponentDefinition) {
-	c.ID = cmd.ID
-	c.VersionMeta = cmd.VersionMeta
-	c.DisplayName = cmd.DisplayName
-	c.Description = cmd.Description
-	c.Format = cmd.Format
-	c.Model = model
-	if c.Metadata == nil {
-		c.Metadata = make(map[string]interface{})
-	}
-	_ = json.Unmarshal(cmd.Metadata, &c.Metadata)
-	c.Component = cmd.Component
-	return
 }

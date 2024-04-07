@@ -15,15 +15,13 @@ var categoryCreationLock sync.Mutex //Each model will perform a check and if the
 
 // swagger:response Category
 type Category struct {
-	ID       uuid.UUID              `json:"-" yaml:"-"`
-	Name     string                 `json:"name"`
-	Metadata map[string]interface{} `json:"metadata" yaml:"metadata"`
+	ID       uuid.UUID `json:"-"`
+	Name     string    `json:"name" gorm:"name"`
+	Metadata map[string]interface{} `json:"metadata"  yaml:"metadata" gorm:"type:bytes;serializer:json"`
 }
 
-type CategoryDB struct {
-	ID       uuid.UUID `json:"-"`
-	Name     string    `json:"categoryName" gorm:"categoryName"`
-	Metadata []byte    `json:"categoryMetadata" gorm:"categoryMetadata"`
+func (c Category) TableName() string {
+	return "category_dbs"
 }
 
 // "Uncategorized" is assigned when Category is empty in the component definitions.
@@ -50,7 +48,7 @@ func (cat *Category) Create(db *database.Handler, _ uuid.UUID) (uuid.UUID, error
 		return uuid.UUID{}, err
 	}
 	catID := uuid.NewSHA1(uuid.UUID{}, byt)
-	var category CategoryDB
+	var category Category
 	categoryCreationLock.Lock()
 	defer categoryCreationLock.Unlock()
 	err = db.First(&category, "id = ?", catID).Error
@@ -59,12 +57,11 @@ func (cat *Category) Create(db *database.Handler, _ uuid.UUID) (uuid.UUID, error
 	}
 	if err == gorm.ErrRecordNotFound { //The category is already not present and needs to be inserted
 		cat.ID = catID
-		catdb := cat.GetCategoryDB(db)
-		err = db.Create(&catdb).Error
+		err = db.Create(&cat).Error
 		if err != nil {
 			return uuid.UUID{}, err
 		}
-		return catdb.ID, nil
+		return cat.ID, nil
 	}
 	return category.ID, nil
 }
@@ -73,16 +70,3 @@ func (m *Category) UpdateStatus(db database.Handler, status entity.EntityStatus)
 	return nil
 }
 
-func (c *Category) GetCategoryDB(db *database.Handler) (catdb CategoryDB) {
-	catdb.ID = c.ID
-	catdb.Name = c.Name
-	catdb.Metadata, _ = json.Marshal(c.Metadata)
-	return
-}
-
-func (cdb *CategoryDB) GetCategory(db *database.Handler) (cat Category) {
-	cat.ID = cdb.ID
-	cat.Name = cdb.Name
-	_ = json.Unmarshal(cdb.Metadata, &cat.Metadata)
-	return
-}

@@ -36,30 +36,21 @@ func (mf *ModelFilter) Create(m map[string]interface{}) {
 	mf.Name = m["name"].(string)
 }
 
-// I have removed Regsitry struct here check if filter  by Registrant works.
-type modelWithCategories struct {
-	ModelDB    v1beta1.ModelDB    `gorm:"embedded"`
-	CategoryDB v1beta1.CategoryDB `gorm:"embedded"`
-	Host       v1beta1.Host       `gorm:"embedded"`
-	// registry.Registry
+func countUniqueModels(models []v1beta1.Model) int {
+	set := make(map[string]struct{})
+	for _, model := range models {
+		key := model.Name + "@" + model.Model.Version
+		if _, ok := set[key]; !ok {
+			set[key] = struct{}{}
+		}
+	}
+	return len(set)
 }
-
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 
-	countUniqueModels := func(models []modelWithCategories) int {
-		set := make(map[string]struct{})
-		for _, model := range models {
-			key := model.ModelDB.Name + "@" + model.ModelDB.Version
-			if _, ok := set[key]; !ok {
-				set[key] = struct{}{}
-			}
-		}
-		return len(set)
-	}
+	var modelWithCategories []v1beta1.Model
 
-	var modelWithCategoriess []modelWithCategories
-	finder := db.Model(&v1beta1.ModelDB{}).
-		Select("model_dbs.*, category_dbs.*", "registries.*", "hosts.*").
+	finder := db.Model(&v1beta1.Model{}).Preload("Category").Preload("Registrant").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN registries ON registries.entity = model_dbs.id").
 		Joins("JOIN hosts ON hosts.id = registries.registrant_id")
@@ -132,23 +123,15 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	// includeRelationships = mf.Relationships
 
 	err := finder.
-		Scan(&modelWithCategoriess).Error
+		Find(&modelWithCategories).Error
 	if err != nil {
-		fmt.Println(modelWithCategoriess)
+		fmt.Println(modelWithCategories)
 		fmt.Println(err.Error()) //for debugging
 	}
 
 	defs := []entity.Entity{}
 
-	for _, modelDB := range modelWithCategoriess {
-		// host := rm.GetRegistrant(model)
-		// model.HostID = host.ID
-		// model.HostName = host.Hostname
-		// model.DisplayHostName = host.Hostname
-		// all these above accounted by having registrant as an atribute in the model schema.
-		reg := modelDB.Host
-		model := modelDB.ModelDB.GetModel(modelDB.CategoryDB.GetCategory(db), reg)
-
+	for _, modelDB := range modelWithCategories {
 		// is this required? not used by UI, confirm with Yash once
 		// if includeComponents {
 		// 	var components []v1beta1.ComponentDefinitionDB
@@ -171,7 +154,11 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		// 	}
 		// 	// model.Relationships = relationships
 		// }
-		defs = append(defs, &model)
+		fmt.Println(modelDB.Registrant, modelDB.Category)
+		// resolve for loop scope
+		_modelDB := modelDB
+
+		defs = append(defs, &_modelDB)
 	}
-	return defs, count, countUniqueModels(modelWithCategoriess), nil
+	return defs, count, countUniqueModels(modelWithCategories), nil
 }
