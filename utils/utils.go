@@ -288,17 +288,17 @@ func IsClosed[K any](ch chan K) bool {
 func WriteToFile(path string, content string) error {
 	file, err := os.Create(path)
 	if err != nil {
-		return err
+		return ErrCreateFile(err, path)
 	}
 
 	_, err = file.WriteString(content)
 	if err != nil {
-		return err
+		return ErrWriteFile(err, path)
 	}
 	// Close the file to save the changes.
 	err = file.Close()
 	if err != nil {
-		return err
+		return ErrWriteFile(err, path)
 	}
 	return nil
 }
