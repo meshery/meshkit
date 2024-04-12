@@ -152,6 +152,8 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		} else {
 			finder = finder.Order(f.OrderOn)
 		}
+	} else {
+		finder = finder.Order("display_name")
 	}
 
 	finder.Count(&count)
