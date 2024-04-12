@@ -266,6 +266,15 @@ func (rm *RegistryManager) GetRegistrants(f *v1alpha1.HostFilter) ([]v1alpha1.Me
 	var response []v1alpha1.MeshModelHostsWithEntitySummary
 
 	for _, r := range result {
+		if r.Hostname == "artifacthub" {
+            r.Hostname = "Artifact Hub"
+            err := rm.db.Model(&Host{}).Where("id = ?", r.HostID).Update("hostname", r.Hostname).Error
+            fmt.Println("Checking Updated hostname:", r.Hostname)
+            if err != nil {
+                // Handle the error
+                fmt.Println("Error updating hostname:", err)
+            }
+        }
 		res := v1alpha1.MeshModelHostsWithEntitySummary{
 			ID:       r.HostID,
 			Hostname: HostnameToPascalCase(r.Hostname),
