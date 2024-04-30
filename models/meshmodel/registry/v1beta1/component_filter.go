@@ -4,6 +4,7 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"gorm.io/gorm/clause"
 )
 
 type ComponentFilter struct {
@@ -94,6 +95,15 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		finder = finder.Where("model_dbs.model->>'version' = ?", componentFilter.Version)
 	}
 
+	if componentFilter.OrderOn != "" {
+		if componentFilter.Sort == "desc" {
+			finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: componentFilter.OrderOn}, Desc: true})
+		} else {
+			finder = finder.Order(componentFilter.OrderOn)
+		}
+	} else {
+		finder = finder.Order("display_name")
+	}
 	var count int64
 	finder.Count(&count)
 	finder = finder.Offset(componentFilter.Offset)
