@@ -69,7 +69,6 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 	}
 	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
 	var model Model
-	fmt.Println("TEST MODEL NAME ", m.Name, m)
 	if m.Name == "" {
 		return uuid.UUID{}, fmt.Errorf("empty or invalid model name passed")
 	}
@@ -90,7 +89,6 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 		m.Status = entity.Enabled
 		err = db.Omit(clause.Associations).Create(&m).Error
 		if err != nil {
-			fmt.Println("MODEL REGISTER >>>>>", err)
 			return uuid.UUID{}, err
 		}
 		// register model inside registries table

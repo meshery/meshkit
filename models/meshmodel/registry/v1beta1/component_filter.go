@@ -1,8 +1,6 @@
 package v1beta1
 
 import (
-	"fmt"
-
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
@@ -39,7 +37,7 @@ func (cf *ComponentFilter) Create(m map[string]interface{}) {
 	cf.Name = m["name"].(string)
 }
 
-func countUniqueComponents (components []componentDefinitionWithModel) int {
+func countUniqueComponents(components []componentDefinitionWithModel) int {
 	set := make(map[string]struct{})
 	for _, compWithModel := range components {
 		key := compWithModel.ComponentDefinitionDB.Component.Kind + "@" + compWithModel.ComponentDefinitionDB.Component.Version + "@" + compWithModel.ModelDB.Name + "@" + compWithModel.ModelDB.Model.Version
@@ -93,7 +91,7 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		finder = finder.Where("category_dbs.name = ?", componentFilter.CategoryName)
 	}
 	if componentFilter.Version != "" {
-		finder = finder.Where("model_dbs.version = ?", componentFilter.Version)
+		finder = finder.Where("model_dbs.model->>'version' = ?", componentFilter.Version)
 	}
 
 	var count int64
@@ -105,7 +103,7 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	err := finder.
 		Scan(&componentDefinitionsWithModel).Error
 	if err != nil {
-		fmt.Println(err.Error()) //for debugging
+		return nil, 0, 0, err
 	}
 
 	defs := make([]entity.Entity, len(componentDefinitionsWithModel))
@@ -114,7 +112,7 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		if componentFilter.Trim {
 			cm.ComponentDefinitionDB.Component.Schema = ""
 		}
-		
+
 		reg := cm.HostsDB
 		cd := cm.ComponentDefinitionDB
 		cd.Model = cm.ModelDB

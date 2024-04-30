@@ -60,7 +60,6 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&v1beta1.Category{},
 	)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	return &rm, nil
@@ -78,13 +77,11 @@ func (rm *RegistryManager) Cleanup() {
 func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) error {
 	registrantID, err := h.Create(rm.db)
 	if err != nil {
-		fmt.Println("TEST host register : ", err)
 		return err
 	}
 
 	entityID, err := en.Create(rm.db, registrantID)
 	if err != nil {
-		fmt.Println("TEST entity register : ", err)
 		return err
 	}
 

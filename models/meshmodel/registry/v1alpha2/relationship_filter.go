@@ -1,8 +1,6 @@
 package v1alpha2
 
 import (
-	"fmt"
-
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
@@ -57,7 +55,7 @@ func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entit
 		finder = finder.Where("model_dbs.name = ?", relationshipFilter.ModelName)
 	}
 	if relationshipFilter.Version != "" {
-		finder = finder.Where("model_dbs.version = ?", relationshipFilter.Version)
+		finder = finder.Where("model_dbs.model->>'version' = ?", relationshipFilter.Version)
 	}
 	if relationshipFilter.OrderOn != "" {
 		if relationshipFilter.Sort == "desc" {
@@ -77,13 +75,15 @@ func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entit
 	err := finder.
 		Find(&relationshipDefinitionsWithModel).Error
 	if err != nil {
-		fmt.Println(err.Error()) //for debugging
+		return nil, 0, 0, err
 	}
 	defs := make([]entity.Entity, len(relationshipDefinitionsWithModel))
 
-	// remove this when reldef and reldefdb struct is consolidated.
 	for _, rd := range relationshipDefinitionsWithModel {
-		defs = append(defs, &rd)
+		// resolve for loop scope
+		_rd := rd
+		
+		defs = append(defs, &_rd)
 	}
 	// Should have count unique relationships (by model version, model name, and relationship's kind, type, subtype, version)
 	return defs, count, int(count), nil

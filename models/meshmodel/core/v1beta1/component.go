@@ -87,7 +87,6 @@ func (c *ComponentDefinition) Create(db *database.Handler, hostID uuid.UUID) (uu
 
 	c.ModelID = mid
 	err = db.Omit(clause.Associations).Create(&c).Error
-	fmt.Println("ERROR REGISTER COMPONENT", err)
 	return c.ID, err
 }
 
@@ -96,6 +95,9 @@ func (m *ComponentDefinition) UpdateStatus(db *database.Handler, status entity.E
 }
 
 func (c ComponentDefinition) WriteComponentDefinition(componentDirPath string) error {
+	if c.Component.Kind == "" {
+		return nil
+	}
 	componentPath := filepath.Join(componentDirPath, c.Component.Kind+".json")
 	err := utils.WriteJSONToFile[ComponentDefinition](componentPath, c)
 	return err

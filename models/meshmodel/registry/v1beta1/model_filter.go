@@ -1,8 +1,6 @@
 package v1beta1
 
 import (
-	"fmt"
-
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
@@ -83,7 +81,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
 	}
 	if mf.Version != "" {
-		finder = finder.Where("model_dbs.version = ?", mf.Version)
+		finder = finder.Where("model_dbs.model->>'version' = ?", mf.Version)
 	}
 	if mf.Category != "" {
 		finder = finder.Where("category_dbs.name = ?", mf.Category)
@@ -125,36 +123,12 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	err := finder.
 		Find(&modelWithCategories).Error
 	if err != nil {
-		fmt.Println(modelWithCategories)
-		fmt.Println(err.Error()) //for debugging
+		return nil, 0, 0, err
 	}
 
 	defs := []entity.Entity{}
 
 	for _, modelDB := range modelWithCategories {
-		// is this required? not used by UI, confirm with Yash once
-		// if includeComponents {
-		// 	var components []v1beta1.ComponentDefinitionDB
-		// 	finder := db.Model(&v1beta1.ComponentDefinitionDB{}).
-		// 		Select("component_definition_dbs.id, component_definition_dbs.kind,component_definition_dbs.display_name, component_definition_dbs.api_version, component_definition_dbs.metadata").
-		// 		Where("component_definition_dbs.model_id = ?", model.ID)
-		// 	if err := finder.Scan(&components).Error; err != nil {
-		// 		fmt.Println(err)
-		// 	}
-		// 	// model.Components = components
-		// }
-		// is this required? not used by UI, confirm with Yash once
-		// if includeRelationships {
-		// 	var relationships []v1alpha2.RelationshipDefinitionDB
-		// 	finder := db.Model(&v1alpha2.RelationshipDefinitionDB{}).
-		// 		Select("relationship_definition_dbs.*").
-		// 		Where("relationship_definition_dbs.model_id = ?", model.ID)
-		// 	if err := finder.Scan(&relationships).Error; err != nil {
-		// 		fmt.Println(err)
-		// 	}
-		// 	// model.Relationships = relationships
-		// }
-		fmt.Println(modelDB.Registrant, modelDB.Category)
 		// resolve for loop scope
 		_modelDB := modelDB
 

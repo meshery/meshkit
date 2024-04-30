@@ -12,19 +12,21 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+const SchemaVersion = "core.meshery.io/v1alpha2"
+
 type RelationshipDefinition struct {
 	ID uuid.UUID `json:"id"`
 	v1beta1.VersionMeta
 	Kind string `json:"kind,omitempty" yaml:"kind"`
 	// The property has been named RelationshipType instead of Type to avoid collision from Type() function, which enables support for dynamic type.
 	// Though, the column name and the json representation is "type".
-	RelationshipType string        `json:"type" yaml:"type" gorm:"type"`
-	SubType          string        `json:"subType" yaml:"subType"`
-	EvaluationQuery  string        `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
-	Metadata         []byte        `json:"metadata" yaml:"metadata"`
-	ModelID          uuid.UUID     `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:model_id"`
-	Model            v1beta1.Model `json:"model" gorm:"foreignKey:ModelID;references:ID"`
-	Selectors        []byte        `json:"selectors" yaml:"selectors"`
+	RelationshipType string                 `json:"type" yaml:"type" gorm:"type"`
+	SubType          string                 `json:"subType" yaml:"subType"`
+	EvaluationQuery  string                 `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
+	Metadata         map[string]interface{} `json:"metadata"  yaml:"metadata" gorm:"type:bytes;serializer:json"`
+	ModelID          uuid.UUID              `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:model_id"`
+	Model            v1beta1.Model          `json:"model" gorm:"foreignKey:ModelID;references:ID"`
+	Selectors       []map[string]interface{} `json:"selectors"  yaml:"selectors" gorm:"type:bytes;serializer:json"`
 }
 
 func (r RelationshipDefinition) TableName() string {
