@@ -68,7 +68,7 @@ func (cf *CategoryFilter) Get(db *database.Handler) ([]entity.Entity, int64, int
 	for _, c := range catdb {
 		// resolve for loop scope
 		_c := c
-		
+
 		cat = append(cat, &_c)
 	}
 	// duplicate category ?

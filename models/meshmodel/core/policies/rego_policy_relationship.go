@@ -58,7 +58,7 @@ func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (int
 		rego.Query(regoQueryString),
 		rego.Load([]string{r.policyDir}, func(abspath string, info fs.FileInfo, depth int) bool {
 			extension := filepath.Ext(abspath)
-			return extension == "rego" 
+			return extension == "rego"
 		}),
 		rego.Store(r.store),
 		rego.Transaction(r.transaction),

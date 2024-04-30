@@ -6,6 +6,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
 // To be removed when Design schema is refactored.
 
 // Component is the structure for the core Application Component

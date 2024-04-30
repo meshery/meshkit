@@ -53,7 +53,6 @@ func (c ComponentDefinition) TableName() string {
 	return "component_definition_dbs"
 }
 
-
 func (c ComponentDefinition) Type() entity.EntityType {
 	return entity.ComponentDefinition
 }

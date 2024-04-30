@@ -15,8 +15,8 @@ var categoryCreationLock sync.Mutex //Each model will perform a check and if the
 
 // swagger:response Category
 type Category struct {
-	ID       uuid.UUID `json:"-"`
-	Name     string    `json:"name" gorm:"name"`
+	ID       uuid.UUID              `json:"-"`
+	Name     string                 `json:"name" gorm:"name"`
 	Metadata map[string]interface{} `json:"metadata"  yaml:"metadata" gorm:"type:bytes;serializer:json"`
 }
 
@@ -33,7 +33,6 @@ func (cat Category) Type() entity.EntityType {
 func (cat Category) GetID() uuid.UUID {
 	return cat.ID
 }
-
 
 func (cat *Category) GetEntityDetail() string {
 	return fmt.Sprintf("name: %s", cat.Name)
@@ -69,4 +68,3 @@ func (cat *Category) Create(db *database.Handler, _ uuid.UUID) (uuid.UUID, error
 func (m *Category) UpdateStatus(db database.Handler, status entity.EntityStatus) error {
 	return nil
 }
-

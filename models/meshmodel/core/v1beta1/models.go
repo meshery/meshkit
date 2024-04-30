@@ -33,7 +33,7 @@ type Model struct {
 	RegistrantID uuid.UUID              `json:"hostID" gorm:"column:host_id"` // make as a foreign refer to host's table
 	Registrant   Host                   `json:"registrant" gorm:"foreignKey:RegistrantID;references:ID"`
 	CategoryID   uuid.UUID              `json:"-" gorm:"categoryID"`
-	Category     Category              `json:"category" gorm:"foreignKey:CategoryID;references:ID"`
+	Category     Category               `json:"category" gorm:"foreignKey:CategoryID;references:ID"`
 	SubCategory  string                 `json:"subCategory" gorm:"subCategory"`
 	Metadata     map[string]interface{} `json:"metadata" gorm:"type:bytes;serializer:json"`
 	Model        ModelEntity            `json:"model,omitempty" gorm:"model;type:bytes;serializer:json"`

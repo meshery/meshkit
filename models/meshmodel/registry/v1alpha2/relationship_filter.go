@@ -82,7 +82,7 @@ func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entit
 	for _, rd := range relationshipDefinitionsWithModel {
 		// resolve for loop scope
 		_rd := rd
-		
+
 		defs = append(defs, &_rd)
 	}
 	// Should have count unique relationships (by model version, model name, and relationship's kind, type, subtype, version)
