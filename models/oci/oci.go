@@ -1,6 +1,7 @@
 package oci
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,13 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+
+	oras "oras.land/oras-go/v2"
+	"oras.land/oras-go/v2/content/file"
+	"oras.land/oras-go/v2/registry/remote"
+	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 // LayerType is an enumeration of the supported layer types
@@ -111,4 +119,106 @@ func getLayerMediaType(extension string) types.MediaType {
 		return oci.CanonicalMediaTypePrefix
 	}
 	return types.MediaType(fmt.Sprintf("%s.%s", oci.CanonicalMediaTypePrefix, extension))
+}
+
+// function to pull models from any OCI-compatible repository
+func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, password string) error {
+
+	fs, fileErr := file.New(".")
+	if fileErr != nil {
+		return ErrWriteFile(fileErr)
+	}
+
+	ctx := context.Background()
+
+	mediaType := "application/vnd.test.folder"
+	fileNames := []string{dirPath}
+	fileDescriptors := make([]v1.Descriptor, 0, len(fileNames))
+	for _, name := range fileNames {
+		fileDescriptor, err := fs.Add(ctx, name, mediaType, "")
+		if err != nil {
+			return ErrAddLayer(err)
+		}
+		fileDescriptors = append(fileDescriptors, fileDescriptor)
+	}
+
+	// Pack the folder and tag the packed manifest
+	artifactType := "application/vnd.test.artifact"
+	opts := oras.PackManifestOptions{
+		Layers: fileDescriptors,
+	}
+	manifestDescriptor, packageErr := oras.PackManifest(ctx, fs, oras.PackManifestVersion1_1_RC4, artifactType, opts)
+	if packageErr != nil {
+		return ErrGettingLayer(packageErr)
+	}
+
+	if tagErr := fs.Tag(ctx, manifestDescriptor, imageTag); tagErr != nil {
+		return ErrWriteFile(tagErr)
+	}
+
+	// Connect to a remote repository
+	repo, connectErr := remote.NewRepository(registryAdd + "/" + repositoryAdd)
+	if connectErr != nil {
+		return ErrConnectingToRegistry(connectErr)
+	}
+
+	// Authenticate to the registry
+	authErr := AuthToOCIRegistry(repo, registryAdd, username, password)
+	if authErr != nil {
+		return ErrAuthenticatingToRegistry(authErr)
+	}
+
+	_, pushErr := oras.Copy(ctx, fs, imageTag, repo, imageTag, oras.DefaultCopyOptions)
+	if pushErr != nil {
+		return ErrPushingPackage(pushErr)
+	}
+
+	return nil
+}
+
+// authentification to the public oci registry
+// registryURL example : docker.io
+func AuthToOCIRegistry(repo *remote.Repository, registryURI, username, password string) error {
+	repo.Client = &auth.Client{
+		Client: retry.DefaultClient,
+		Cache:  auth.NewCache(),
+		Credential: auth.StaticCredential(registryURI, auth.Credential{
+			Username: username,
+			Password: password,
+		}),
+	}
+	return nil
+}
+
+// function to pull images from the public oci repository
+func PullFromOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, password string) error {
+	// Create a new file store
+	fs, err := file.New(dirPath)
+	if err != nil {
+		return ErrFileNotFound(err, dirPath)
+	}
+
+	defer fs.Close()
+	ctx := context.Background()
+
+	// Connect to remote registry
+	repo, connectErr := remote.NewRepository(registryAdd + "/" + repositoryAdd)
+	if connectErr != nil {
+		return ErrConnectingToRegistry(connectErr)
+	}
+
+	// Authenticate to the registry
+	if username != "" && password != "" {
+		authErr := AuthToOCIRegistry(repo, registryAdd, username, password)
+		if authErr != nil {
+			return ErrAuthenticatingToRegistry(authErr)
+		}
+	}
+
+	_, pullErr := oras.Copy(ctx, repo, imageTag, fs, imageTag, oras.DefaultCopyOptions)
+	if pullErr != nil {
+		return ErrGettingImage(pullErr)
+	}
+
+	return nil
 }

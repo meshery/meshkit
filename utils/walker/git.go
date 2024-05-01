@@ -145,6 +145,7 @@ func clonewalk(g *Git) error {
 	cloneOptions := &git.CloneOptions{
 		URL:          fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
 		SingleBranch: true,
+		Depth:        1,
 	}
 
 	if g.referenceName != "" {

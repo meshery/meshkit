@@ -87,7 +87,7 @@ func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, uu
 	return c.ID, mid, err
 }
 func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []ComponentDefinition, count int64, unique int) {
-	
+
 	type componentDefinitionWithModel struct {
 		ComponentDefinitionDB
 		ModelDB //nolint
@@ -152,6 +152,8 @@ func GetMeshModelComponents(db *database.Handler, f ComponentFilter) (c []Compon
 		} else {
 			finder = finder.Order(f.OrderOn)
 		}
+	} else {
+		finder = finder.Order("display_name")
 	}
 
 	finder.Count(&count)
