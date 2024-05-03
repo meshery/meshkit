@@ -33,7 +33,7 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 
 	var relationshipDefinitionsWithModel []v1alpha2.RelationshipDefinition
-	finder := db.Model(&v1alpha2.RelationshipDefinition{}).Preload("Model").
+	finder := db.Model(&v1alpha2.RelationshipDefinition{}).Preload("Model").Preload("Model.Category").
 		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
 	if relationshipFilter.Kind != "" {
@@ -77,7 +77,7 @@ func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entit
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	defs := make([]entity.Entity, len(relationshipDefinitionsWithModel))
+	defs := make([]entity.Entity, 0, len(relationshipDefinitionsWithModel))
 
 	for _, rd := range relationshipDefinitionsWithModel {
 		// resolve for loop scope

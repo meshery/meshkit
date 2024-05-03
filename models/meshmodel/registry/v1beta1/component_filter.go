@@ -126,6 +126,7 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		reg := cm.HostsDB
 		cd := cm.ComponentDefinitionDB
 		cd.Model = cm.ModelDB
+		cd.Model.Category = cm.CategoryDB
 		cd.Model.Registrant = reg
 		defs = append(defs, &cd)
 	}
