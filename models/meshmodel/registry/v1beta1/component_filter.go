@@ -116,7 +116,7 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		return nil, 0, 0, err
 	}
 
-	defs := make([]entity.Entity, len(componentDefinitionsWithModel))
+	defs := make([]entity.Entity, 0, len(componentDefinitionsWithModel))
 
 	for _, cm := range componentDefinitionsWithModel {
 		if componentFilter.Trim {
