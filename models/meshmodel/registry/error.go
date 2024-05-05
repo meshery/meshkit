@@ -5,7 +5,8 @@ import (
 )
 
 var (
-	ErrUnknownHostCode = "meshkit-11146"
+	ErrUnknownHostCode    = "meshkit-11146"
+	ErrRegisterEntityCode = ""
 )
 
 func ErrUnknownHost(err error) error {

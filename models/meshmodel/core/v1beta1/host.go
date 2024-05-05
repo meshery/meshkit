@@ -1,4 +1,4 @@
-package registry
+package v1beta1
 
 import (
 	"encoding/json"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
 	"github.com/layer5io/meshkit/utils/kubernetes"
 	"gorm.io/gorm"
 )
@@ -17,15 +16,49 @@ var hostCreationLock sync.Mutex //Each entity will perform a check and if the ho
 
 type Host struct {
 	ID        uuid.UUID `json:"-"`
-	Hostname  string
-	Port      int
-	Metadata  string
+	Hostname  string    `json:"hostname"`
+	Port      int       `json:"port,omitempty"`
+	Metadata  string    `json:"metadata,omitempty"`
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
-	IHost     IHost     `gorm:"-"`
+	IHost     IHost     `json:"-" gorm:"-"`
 }
 
-func createHost(db *database.Handler, h Host) (uuid.UUID, error) {
+type MeshModelHostsWithEntitySummary struct {
+	ID       uuid.UUID     `json:"id"`
+	Hostname string        `json:"hostname"`
+	Port     int           `json:"port"`
+	Summary  EntitySummary `json:"summary"`
+}
+type EntitySummary struct {
+	Models        int64 `json:"models"`
+	Components    int64 `json:"components"`
+	Relationships int64 `json:"relationships"`
+	Policies      int64 `json:"policies"`
+}
+type MesheryHostSummaryDB struct {
+	HostID        uuid.UUID `json:"-" gorm:"id"`
+	Hostname      string    `json:"-" gorm:"hostname"`
+	Port          int       `json:"-" gorm:"port"`
+	Models        int64     `json:"-" gorm:"models"`
+	Components    int64     `json:"-" gorm:"components"`
+	Relationships int64     `json:"-" gorm:"relationships"`
+	Policies      int64     `json:"-" gorm:"policies"`
+}
+
+type HostFilter struct {
+	Name        string
+	Greedy      bool //when set to true - instead of an exact match, name will be prefix matched
+	Trim        bool //when set to true - the schema is not returned
+	DisplayName string
+	Version     string
+	Sort        string //asc or desc. Default behavior is asc
+	OrderOn     string
+	Limit       int //If 0 or  unspecified then all records are returned and limit is not used
+	Offset      int
+}
+
+func (h *Host) Create(db *database.Handler) (uuid.UUID, error) {
 	byt, err := json.Marshal(h)
 	if err != nil {
 		return uuid.UUID{}, err
@@ -68,14 +101,14 @@ func (h *Host) AfterFind(tx *gorm.DB) error {
 // Each host from where meshmodels can be generated needs to implement this interface
 // HandleDependents, contains host specific logic for provisioning required CRDs/operators for corresponding components.
 type IHost interface {
-	HandleDependents(comp v1alpha1.Component, kc *kubernetes.Client, isDeploy bool) (string, error)
+	HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (string, error)
 	String() string
 }
 
 type ArtifactHub struct{}
 
-func (ah ArtifactHub) HandleDependents(comp v1alpha1.Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
-	source_uri := comp.Annotations[fmt.Sprintf("%s.model.source_uri", v1alpha1.MesheryAnnotationPrefix)]
+func (ah ArtifactHub) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
+	source_uri := comp.Annotations[fmt.Sprintf("%s.model.source_uri", MesheryAnnotationPrefix)]
 	act := kubernetes.UNINSTALL
 	if isDeploy {
 		act = kubernetes.INSTALL
@@ -112,7 +145,7 @@ func (ah ArtifactHub) String() string {
 
 type Kubernetes struct{}
 
-func (k Kubernetes) HandleDependents(comp v1alpha1.Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
+func (k Kubernetes) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
 	return summary, err
 }
 

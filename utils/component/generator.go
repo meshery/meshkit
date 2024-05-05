@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"cuelang.org/go/cue"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha1"
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
 )
@@ -46,8 +46,10 @@ var DefaultPathConfig2 = CuePathConfig{
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
-func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
-	component := v1alpha1.ComponentDefinition{}
+func Generate(crd string) (v1beta1.ComponentDefinition, error) {
+	component := v1beta1.ComponentDefinition{}
+	component.SchemaVersion = v1beta1.SchemaVersion
+
 	component.Metadata = make(map[string]interface{})
 	crdCue, err := utils.YamlToCue(crd)
 	if err != nil {
@@ -60,7 +62,7 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 			break
 		}
 	}
-	component.Schema = schema
+	component.Component.Schema = schema
 	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)
 	if err != nil {
 		return component, err
@@ -80,14 +82,14 @@ func Generate(crd string) (v1alpha1.ComponentDefinition, error) {
 	} else if scope == "Namespaced" {
 		component.Metadata["isNamespaced"] = true
 	}
-	component.Kind = name
+	component.Component.Kind = name
 	if group != "" {
-		component.APIVersion = fmt.Sprintf("%s/%s", group, version)
+		component.Component.Version = fmt.Sprintf("%s/%s", group, version)
 	} else {
-		component.APIVersion = version
+		component.Component.Version = version
 	}
 
-	component.Format = v1alpha1.JSON
+	component.Format = v1beta1.JSON
 	component.DisplayName = manifests.FormatToReadableString(name)
 	return component, nil
 }
