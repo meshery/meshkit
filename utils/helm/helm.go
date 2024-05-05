@@ -18,8 +18,7 @@ import (
 func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 	actconfig := new(action.Configuration)
 	act := action.NewInstall(actconfig)
-	act.ReleaseName = "dry-run-release"
-	act.CreateNamespace = true
+	act.ReleaseName = chart.Metadata.Name
 	act.Namespace = "default"
 	act.DryRun = true
 	act.IncludeCRDs = true
