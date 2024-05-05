@@ -26,17 +26,19 @@ type ModelEntity struct {
 type Model struct {
 	ID uuid.UUID `json:"id"`
 	VersionMeta
-	Name         string                 `json:"name" gorm:"modelName"`
-	DisplayName  string                 `json:"displayName"`
-	Description  string                 `json:"description" gorm:"description"`
-	Status       entity.EntityStatus    `json:"status" gorm:"status"`
-	RegistrantID uuid.UUID              `json:"hostID" gorm:"column:host_id"` // make as a foreign refer to host's table
-	Registrant   Host                   `json:"registrant" gorm:"foreignKey:RegistrantID;references:ID"`
-	CategoryID   uuid.UUID              `json:"-" gorm:"categoryID"`
-	Category     Category               `json:"category" gorm:"foreignKey:CategoryID;references:ID"`
-	SubCategory  string                 `json:"subCategory" gorm:"subCategory"`
-	Metadata     map[string]interface{} `json:"metadata" gorm:"type:bytes;serializer:json"`
-	Model        ModelEntity            `json:"model,omitempty" gorm:"model;type:bytes;serializer:json"`
+	Name          string                 `json:"name" gorm:"modelName"`
+	DisplayName   string                 `json:"displayName"`
+	Description   string                 `json:"description" gorm:"description"`
+	Status        entity.EntityStatus    `json:"status" gorm:"status"`
+	RegistrantID  uuid.UUID              `json:"hostID" gorm:"column:host_id"` // make as a foreign refer to host's table
+	Registrant    Host                   `json:"registrant" gorm:"foreignKey:RegistrantID;references:ID"`
+	CategoryID    uuid.UUID              `json:"-" gorm:"categoryID"`
+	Category      Category               `json:"category" gorm:"foreignKey:CategoryID;references:ID"`
+	SubCategory   string                 `json:"subCategory" gorm:"subCategory"`
+	Metadata      map[string]interface{} `json:"metadata" gorm:"type:bytes;serializer:json"`
+	Model         ModelEntity            `json:"model,omitempty" gorm:"model;type:bytes;serializer:json"`
+	Components    []ComponentDefinition  `json:"components" gorm:"-"`
+	Relationships interface{}            `json:"relationships" gorm:"-"`
 }
 
 func (m Model) TableName() string {

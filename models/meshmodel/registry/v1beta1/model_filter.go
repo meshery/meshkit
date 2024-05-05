@@ -2,6 +2,7 @@ package v1beta1
 
 import (
 	"github.com/layer5io/meshkit/database"
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"gorm.io/gorm/clause"
@@ -44,6 +45,7 @@ func countUniqueModels(models []v1beta1.Model) int {
 	}
 	return len(set)
 }
+
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 
 	var modelWithCategories []v1beta1.Model
@@ -57,7 +59,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	var count int64
 
 	// include components and relationships in response body
-	// var includeComponents, includeRelationships bool
+	var includeComponents, includeRelationships bool
 
 	if mf.Greedy {
 		if mf.Name != "" && mf.DisplayName != "" {
@@ -116,9 +118,8 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		finder = finder.Where("model_dbs.status = ?", mf.Status)
 	}
 
-	// is this required? not used by UI, confirm with Yash once
-	// includeComponents = mf.Components
-	// includeRelationships = mf.Relationships
+	includeComponents = mf.Components
+	includeRelationships = mf.Relationships
 
 	err := finder.
 		Find(&modelWithCategories).Error
@@ -131,7 +132,26 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	for _, modelDB := range modelWithCategories {
 		// resolve for loop scope
 		_modelDB := modelDB
-
+		if includeComponents {
+			var components []v1beta1.ComponentDefinition
+			finder := db.Model(&v1beta1.ComponentDefinition{}).
+				Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata").
+				Where("component_definition_dbs.model_id = ?", _modelDB.ID)
+			if err := finder.Scan(&components).Error; err != nil {
+				return nil, 0, 0, err
+			}
+			_modelDB.Components = components
+		}
+		if includeRelationships {
+			var relationships []v1alpha2.RelationshipDefinition
+			finder := db.Model(&v1alpha2.RelationshipDefinition{}).
+				Select("relationship_definition_dbs.*").
+				Where("relationship_definition_dbs.model_id = ?", _modelDB.ID)
+			if err := finder.Scan(&relationships).Error; err != nil {
+				return nil, 0, 0, err
+			}
+			_modelDB.Relationships = relationships
+		}
 		defs = append(defs, &_modelDB)
 	}
 	return defs, count, countUniqueModels(modelWithCategories), nil
