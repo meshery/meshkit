@@ -102,36 +102,38 @@ func (e *Error) ErrorV2(additionalInfo interface{}) ErrorV2 {
 }
 
 func GetCode(err error) string {
-	if obj, ok := err.(*Error); obj != nil && obj.Code != " " && !ok {
-		return obj.Code
+	if obj, ok := err.(*Error); ok {
+		if obj.Code != "" {
+			return obj.Code
+		}
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetSeverity(err error) Severity {
-	if obj, ok := err.(*Error); obj != nil && !ok {
+	if obj, ok := err.(*Error); ok {
 		return obj.Severity
 	}
 	return None
 }
 
 func GetSDescription(err error) string {
-	if obj, ok := err.(*Error); obj != nil && !ok {
-		return strings.Join(err.(*Error).ShortDescription[:], ".")
+	if obj, ok := err.(*Error); ok {
+		return strings.Join(obj.ShortDescription[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetCause(err error) string {
-	if obj, ok := err.(*Error); obj != nil && !ok {
-		return strings.Join(err.(*Error).ProbableCause[:], ".")
+	if obj, ok := err.(*Error); ok {
+		return strings.Join(obj.ProbableCause[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetRemedy(err error) string {
-	if obj, ok := err.(*Error); obj != nil && !ok {
-		return strings.Join(err.(*Error).SuggestedRemediation[:], ".")
+	if obj, ok := err.(*Error); ok {
+		return strings.Join(obj.SuggestedRemediation[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
 }
