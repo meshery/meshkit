@@ -102,35 +102,35 @@ func (e *Error) ErrorV2(additionalInfo interface{}) ErrorV2 {
 }
 
 func GetCode(err error) string {
-	if obj := err.(*Error); obj != nil && obj.Code != " " {
+	if obj, ok := err.(*Error); obj != nil && obj.Code != " " && !ok {
 		return obj.Code
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetSeverity(err error) Severity {
-	if obj := err.(*Error); obj != nil {
+	if obj, ok := err.(*Error); obj != nil && !ok {
 		return obj.Severity
 	}
 	return None
 }
 
 func GetSDescription(err error) string {
-	if obj := err.(*Error); obj != nil {
+	if obj, ok := err.(*Error); obj != nil && !ok {
 		return strings.Join(err.(*Error).ShortDescription[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetCause(err error) string {
-	if obj := err.(*Error); obj != nil {
+	if obj, ok := err.(*Error); obj != nil && !ok {
 		return strings.Join(err.(*Error).ProbableCause[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetRemedy(err error) string {
-	if obj := err.(*Error); obj != nil {
+	if obj, ok := err.(*Error); obj != nil && !ok {
 		return strings.Join(err.(*Error).SuggestedRemediation[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
