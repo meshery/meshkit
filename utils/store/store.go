@@ -28,6 +28,13 @@ func (s *GenerticThreadSafeStore[K]) Get(key string) (K, bool) {
 	return value, ok
 }
 
+func (s *GenerticThreadSafeStore[K]) Delete(key string) {
+	s.mx.Lock()
+	defer s.mx.Unlock()
+	delete(s.data, key)
+}
+
+
 func (s *GenerticThreadSafeStore[K]) GetAllPairs() map[string]K {
 	values := make(map[string]K, 0)
 
