@@ -74,17 +74,16 @@ func (rm *RegistryManager) Cleanup() {
 		&v1alpha2.RelationshipDefinition{},
 	)
 }
-func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) error {
+func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) (bool, bool, error) {
 	registrantID, err := h.Create(rm.db)
 	if err != nil {
-		return err
+		return true, false, err
 	}
 
 	entityID, err := en.Create(rm.db, registrantID)
 	if err != nil {
-		return err
+		return false, true, err
 	}
-
 	entry := Registry{
 		ID:           uuid.New(),
 		RegistrantID: registrantID,
@@ -95,9 +94,9 @@ func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) erro
 	}
 	err = rm.db.Create(&entry).Error
 	if err != nil {
-		return err
+		return false, false, err
 	}
-	return nil
+	return false, false, nil
 }
 
 // UpdateEntityIgnoreStatus updates the ignore status of an entity based on the provided parameters.
