@@ -21,7 +21,7 @@ func ErrUnknownHost(err error) error {
 }
 func ErrUnknownHostInMap() error {
 	return errors.New(
-		ErrUnknownHostInMapCode, errors.Alert, []string{"Host not found in registry logs."}, nil, []string{"The specified host does not have any associated registry logs or is unrecognized.", "Ensure the host name is correct and exists in the registry logs.", "Refer to /server/cmd/registryLogs.txt for more details."}, []string{"Verify the host name used during the registration process.", "Check the registry logs file for potential errors and additional information."})
+		ErrUnknownHostInMapCode, errors.Alert, []string{"Host not found in registry logs."}, nil, []string{"The specified host does not have any associated registry logs or is unrecognized.", "Ensure the host name is correct and exists in the registry logs.", "Refer to .meshery/logs/registryLogs.txt for more details."}, []string{"Verify the host name used during the registration process.", "Check the registry logs file for potential errors and additional information."})
 }
 
 func ErrEmptySchema() error {
