@@ -20,8 +20,10 @@ func ErrUnknownHost(err error) error {
 	return errors.New(ErrUnknownHostCode, errors.Alert, []string{"host is not supported"}, []string{err.Error()}, []string{"The component's host is not supported by the version of server you are running"}, []string{"Try upgrading to latest available version"})
 }
 func ErrUnknownHostInMap() error {
-	return errors.New(ErrUnknownHostCode, errors.Alert, []string{"Registrant has no error or it is not supported or unknown."}, nil, []string{"The host registering the entites has no errors with it's entites or is unknown."}, []string{"Validate the registrant name again or check /server/cmd/registery_attempts.json for futher details"})
+	return errors.New(
+		ErrUnknownHostInMapCode, errors.Alert, []string{"Host not found in registry logs."}, nil, []string{"The specified host does not have any associated registry logs or is unrecognized.", "Ensure the host name is correct and exists in the registry logs.", "Refer to /server/cmd/registryLogs.txt for more details."}, []string{"Verify the host name used during the registration process.", "Check the registry logs file for potential errors and additional information."})
 }
+
 func ErrEmptySchema() error {
 	return errors.New(ErrEmptySchemaCode, errors.Alert, []string{"Empty schema for the component"}, []string{"Empty schema for the component"}, []string{"The schema is empty for the component."}, []string{"For the particular component the schema is empty. Use the docs or discussion forum for more details  "})
 }
