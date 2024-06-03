@@ -36,7 +36,10 @@
 //	 }
 package errors
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Deprecated: NewDefault is deprecated, use New(...) instead.
 func NewDefault(code string, ldescription ...string) *Error {
@@ -102,40 +105,90 @@ func (e *Error) ErrorV2(additionalInfo interface{}) ErrorV2 {
 }
 
 func GetCode(err error) string {
-	if obj, ok := err.(*Error); ok {
-		if obj.Code != "" {
-			return obj.Code
+	var code string
+	defer func() {
+		if r := recover(); r != nil {
+			code = strings.Join(NoneString[:], "")
 		}
+	}()
+	if obj, ok := err.(*Error); ok && obj.Code != "" {
+		code = obj.Code
+	} else if err != nil {
+		code = fmt.Sprintf("%v", err)
 	}
-	return strings.Join(NoneString[:], "")
-}
 
+	return code
+}
 func GetSeverity(err error) Severity {
+	var severity Severity
+	defer func() {
+		if r := recover(); r != nil {
+			severity = None
+			fmt.Println("Recovered from panic:", r)
+		}
+	}()
+
 	if obj, ok := err.(*Error); ok {
-		return obj.Severity
+		severity = obj.Severity
+	} else if err != nil {
+		severity = None
 	}
-	return None
+
+	return severity
 }
 
 func GetSDescription(err error) string {
+	var description string
+	defer func() {
+		if r := recover(); r != nil {
+			description = ""
+			fmt.Println("Recovered from panic:", r)
+		}
+	}()
+
 	if obj, ok := err.(*Error); ok {
-		return strings.Join(obj.ShortDescription[:], ".")
+		description = strings.Join(obj.ShortDescription[:], ".")
+	} else if err != nil {
+		description = ""
 	}
-	return strings.Join(NoneString[:], "")
+
+	return description
 }
 
 func GetCause(err error) string {
+	var cause string
+	defer func() {
+		if r := recover(); r != nil {
+			cause = ""
+			fmt.Println("Recovered from panic:", r)
+		}
+	}()
+
 	if obj, ok := err.(*Error); ok {
-		return strings.Join(obj.ProbableCause[:], ".")
+		cause = strings.Join(obj.ProbableCause[:], ".")
+	} else if err != nil {
+		cause = ""
 	}
-	return strings.Join(NoneString[:], "")
+
+	return cause
 }
 
 func GetRemedy(err error) string {
+	var remedy string
+	defer func() {
+		if r := recover(); r != nil {
+			remedy = ""
+			fmt.Println("Recovered from panic:", r)
+		}
+	}()
+
 	if obj, ok := err.(*Error); ok {
-		return strings.Join(obj.SuggestedRemediation[:], ".")
+		remedy = strings.Join(obj.SuggestedRemediation[:], ".")
+	} else if err != nil {
+		remedy = ""
 	}
-	return strings.Join(NoneString[:], "")
+
+	return remedy
 }
 
 func Is(err error) (*Error, bool) {
