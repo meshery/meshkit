@@ -101,13 +101,13 @@ func (h *Host) AfterFind(tx *gorm.DB) error {
 // Each host from where meshmodels can be generated needs to implement this interface
 // HandleDependents, contains host specific logic for provisioning required CRDs/operators for corresponding components.
 type IHost interface {
-	HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (string, error)
+	HandleDependents(comp Component, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, error)
 	String() string
 }
 
 type ArtifactHub struct{}
 
-func (ah ArtifactHub) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
+func (ah ArtifactHub) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
 	source_uri := comp.Annotations[fmt.Sprintf("%s.model.source_uri", MesheryAnnotationPrefix)]
 	act := kubernetes.UNINSTALL
 	if isDeploy {
@@ -116,11 +116,11 @@ func (ah ArtifactHub) HandleDependents(comp Component, kc *kubernetes.Client, is
 
 	if source_uri != "" {
 		err = kc.ApplyHelmChart(kubernetes.ApplyHelmChartConfig{
-			URL:                    source_uri,
-			Namespace:              comp.Namespace,
-			CreateNamespace:        true,
-			Action:                 act,
-			SkipUpgradeIfInstalled: true,
+			URL:                source_uri,
+			Namespace:          comp.Namespace,
+			CreateNamespace:    true,
+			Action:             act,
+			UpgradeIfInstalled: performUpgrade,
 		})
 		if err != nil {
 			if !isDeploy {
@@ -145,7 +145,7 @@ func (ah ArtifactHub) String() string {
 
 type Kubernetes struct{}
 
-func (k Kubernetes) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy bool) (summary string, err error) {
+func (k Kubernetes) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
 	return summary, err
 }
 
