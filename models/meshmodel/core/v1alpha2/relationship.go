@@ -3,6 +3,7 @@ package v1alpha2
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/database"
@@ -66,4 +67,8 @@ func (c RelationshipDefinition) WriteComponentDefinition(relDirPath string) erro
 	relPath := filepath.Join(relDirPath, c.Kind, string(c.Type())+".json")
 	err := utils.WriteJSONToFile[RelationshipDefinition](relPath, c)
 	return err
+}
+
+func (r *RelationshipDefinition) GetDefaultEvaluationQuery() string {
+	return fmt.Sprintf("%s_%s_relationship", strings.ToLower(r.Kind), strings.ToLower(r.SubType))
 }
