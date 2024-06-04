@@ -12,7 +12,14 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/chartutil"
 )
+
+var KubeVersion = &chartutil.KubeVersion{
+	Version: "v1.25.2",
+	Major:   "1",
+	Minor:   "25",
+}
 
 // DryRun a given helm chart to convert into k8s manifest
 func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
@@ -23,6 +30,7 @@ func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 	act.DryRun = true
 	act.IncludeCRDs = true
 	act.ClientOnly = true
+	act.KubeVersion = KubeVersion
 	rel, err := act.Run(chart, nil)
 	if err != nil {
 		return nil, ErrDryRunHelmChart(err, chart.Name())
@@ -46,7 +54,7 @@ func ConvertToK8sManifest(path string, w io.Writer) error {
 		helmChartPath, _ = strings.CutSuffix(path, filepath.Base(path))
 	}
 	if IsHelmChart(helmChartPath) {
-		err := LoadHelmChart(helmChartPath, w, true)
+		err := LoadHelmChart(helmChartPath, w, false)
 		if err != nil {
 			return err
 		}
