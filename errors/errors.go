@@ -111,29 +111,26 @@ func GetCode(err error) string {
 			code = strings.Join(NoneString[:], "")
 		}
 	}()
-	if obj, ok := err.(*Error); ok && obj.Code != "" {
+	if obj := err.(*Error); obj != nil && obj.Code != " " {
 		code = obj.Code
-	} else if err != nil {
-		code = fmt.Sprintf("%v", err)
+	} else {
+		code = strings.Join(NoneString[:], "")
 	}
-
 	return code
 }
+
 func GetSeverity(err error) Severity {
 	var severity Severity
 	defer func() {
 		if r := recover(); r != nil {
 			severity = None
-			fmt.Println("Recovered from panic:", r)
 		}
 	}()
-
-	if obj, ok := err.(*Error); ok {
+	if obj := err.(*Error); obj != nil {
 		severity = obj.Severity
-	} else if err != nil {
+	} else {
 		severity = None
 	}
-
 	return severity
 }
 
@@ -142,16 +139,13 @@ func GetSDescription(err error) string {
 	defer func() {
 		if r := recover(); r != nil {
 			description = ""
-			fmt.Println("Recovered from panic:", r)
 		}
 	}()
-
-	if obj, ok := err.(*Error); ok {
+	if obj := err.(*Error); obj != nil {
 		description = strings.Join(obj.ShortDescription[:], ".")
-	} else if err != nil {
+	} else {
 		description = ""
 	}
-
 	return description
 }
 
@@ -160,16 +154,13 @@ func GetCause(err error) string {
 	defer func() {
 		if r := recover(); r != nil {
 			cause = ""
-			fmt.Println("Recovered from panic:", r)
 		}
 	}()
-
-	if obj, ok := err.(*Error); ok {
+	if obj := err.(*Error); obj != nil {
 		cause = strings.Join(obj.ProbableCause[:], ".")
-	} else if err != nil {
-		cause = ""
+	} else {
+		cause = fmt.Sprintf("%v", err)
 	}
-
 	return cause
 }
 
@@ -178,16 +169,13 @@ func GetRemedy(err error) string {
 	defer func() {
 		if r := recover(); r != nil {
 			remedy = ""
-			fmt.Println("Recovered from panic:", r)
 		}
 	}()
-
-	if obj, ok := err.(*Error); ok {
+	if obj := err.(*Error); obj != nil {
 		remedy = strings.Join(obj.SuggestedRemediation[:], ".")
 	} else if err != nil {
 		remedy = ""
 	}
-
 	return remedy
 }
 
