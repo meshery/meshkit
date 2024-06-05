@@ -1,6 +1,10 @@
 package manifests
 
-import "github.com/layer5io/meshkit/errors"
+import (
+	"fmt"
+
+	"github.com/layer5io/meshkit/errors"
+)
 
 const (
 	ErrGetCrdNamesCode           = "meshkit-11233"
@@ -11,12 +15,15 @@ const (
 	ErrAbsentFilterCode          = "meshkit-11238"
 	ErrCreatingDirectoryCode     = "meshkit-11239"
 	ErrGetResourceIdentifierCode = "meshkit-11240"
+	ErrUnmarshalSyntaxCode       = "meshkit-11241"
 )
 
 func ErrGetResourceIdentifier(err error) error {
 	return errors.New(ErrGetResourceIdentifierCode, errors.Alert, []string{"Error extracting the resource identifier name"}, []string{err.Error()}, []string{"Could not extract the value with the given filter configuration"}, []string{"Make sure to input a valid manifest", "Make sure to provide the right filter configurations", "Make sure the filters are appropriate for the given manifest"})
 }
-
+func ErrUnmarshalSyntax(err string, packageName string) error {
+	return errors.New(ErrUnmarshalSyntaxCode, errors.Alert, []string{"Unmarshal syntax error."}, []string{fmt.Sprintf("Helm chart of %s has syntax error(s): \n%s", packageName, err)}, []string{"Invalid object format"}, []string{"Make sure to input a valid YAML object"})
+}
 func ErrGetCrdNames(err error) error {
 	return errors.New(ErrGetCrdNamesCode, errors.Alert, []string{"Error getting crd names"}, []string{err.Error()}, []string{"Could not execute kubeopenapi-jsonschema correctly"}, []string{"Make sure the binary is valid and correct", "Make sure the filter passed is correct"})
 }
