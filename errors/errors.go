@@ -37,7 +37,6 @@
 package errors
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -138,13 +137,13 @@ func GetSDescription(err error) string {
 	var description string
 	defer func() {
 		if r := recover(); r != nil {
-			description = ""
+			description = strings.Join(NoneString[:], "")
 		}
 	}()
 	if obj := err.(*Error); obj != nil {
 		description = strings.Join(obj.ShortDescription[:], ".")
 	} else {
-		description = ""
+		description = strings.Join(NoneString[:], "")
 	}
 	return description
 }
@@ -153,13 +152,13 @@ func GetCause(err error) string {
 	var cause string
 	defer func() {
 		if r := recover(); r != nil {
-			cause = ""
+			cause = strings.Join(NoneString[:], "")
 		}
 	}()
 	if obj := err.(*Error); obj != nil {
 		cause = strings.Join(obj.ProbableCause[:], ".")
 	} else {
-		cause = fmt.Sprintf("%v", err)
+		cause = strings.Join(NoneString[:], "")
 	}
 	return cause
 }
@@ -168,13 +167,13 @@ func GetRemedy(err error) string {
 	var remedy string
 	defer func() {
 		if r := recover(); r != nil {
-			remedy = ""
+			remedy = strings.Join(NoneString[:], "")
 		}
 	}()
 	if obj := err.(*Error); obj != nil {
 		remedy = strings.Join(obj.SuggestedRemediation[:], ".")
 	} else if err != nil {
-		remedy = ""
+		remedy = strings.Join(NoneString[:], "")
 	}
 	return remedy
 }
