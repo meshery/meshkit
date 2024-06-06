@@ -16,12 +16,6 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 )
 
-var KubeVersion = &chartutil.KubeVersion{
-	Version: "v1.25.2",
-	Major:   "1",
-	Minor:   "25",
-}
-
 func extractSemVer(versionConstraint string) string {
 	reg := regexp.MustCompile(`v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?$`)
 	match := reg.Find([]byte(versionConstraint))
