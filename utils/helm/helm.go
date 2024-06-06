@@ -65,7 +65,7 @@ func ConvertToK8sManifest(path string, w io.Writer) error {
 		helmChartPath, _ = strings.CutSuffix(path, filepath.Base(path))
 	}
 	if IsHelmChart(helmChartPath) {
-		err := LoadHelmChart(helmChartPath, w, false)
+		err := LoadHelmChart(helmChartPath, w, true)
 		if err != nil {
 			return err
 		}
