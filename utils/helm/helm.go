@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/layer5io/meshkit/utils"
@@ -21,6 +22,15 @@ var KubeVersion = &chartutil.KubeVersion{
 	Minor:   "25",
 }
 
+func extractSemVer(versionConstraint string) string {
+	reg := regexp.MustCompile(`v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?$`)
+	match := reg.Find([]byte(versionConstraint))
+	if match != nil {
+		return string(match)
+	}
+	return ""
+}
+
 // DryRun a given helm chart to convert into k8s manifest
 func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 	actconfig := new(action.Configuration)
@@ -30,7 +40,14 @@ func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 	act.DryRun = true
 	act.IncludeCRDs = true
 	act.ClientOnly = true
-	act.KubeVersion = KubeVersion
+	if chart.Metadata.KubeVersion != "" {
+		version := extractSemVer(chart.Metadata.KubeVersion)
+		if version != "" {
+			act.KubeVersion = &chartutil.KubeVersion{
+				Version: version,
+			}
+		}
+	}
 	rel, err := act.Run(chart, nil)
 	if err != nil {
 		return nil, ErrDryRunHelmChart(err, chart.Name())
