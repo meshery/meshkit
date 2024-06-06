@@ -100,7 +100,7 @@ func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) erro
 	return nil
 }
 
-// UpdateEntityIgnoreStatus updates the ignore status of an entity based on the provided parameters.
+// UpdateEntityStatus updates the ignore status of an entity based on the provided parameters.
 // By default during models generation ignore is set to false
 func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityType string) error {
 	// Convert string UUID to google UUID

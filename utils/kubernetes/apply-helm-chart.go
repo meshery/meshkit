@@ -122,8 +122,8 @@ type ApplyHelmChartConfig struct {
 	// SkipCRDs while installation
 	SkipCRDs bool
 
-	// Skip upgrade, if release is already installed
-	SkipUpgradeIfInstalled bool
+	// Upgrade the release if already installed
+	UpgradeIfInstalled bool
 
 	// URL is the url for charts
 	//
@@ -268,7 +268,7 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 
 	// Before installing a helm chart, check if it already exists in the cluster
 	// this is a workaround make the helm chart installation idempotent
-	if cfg.Action == INSTALL && !cfg.SkipUpgradeIfInstalled {
+	if cfg.Action == INSTALL && cfg.UpgradeIfInstalled {
 		if err := updateActionIfReleaseFound(actionConfig, &cfg, *helmChart); err != nil {
 			return ErrApplyHelmChart(err)
 		}
