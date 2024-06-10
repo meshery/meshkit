@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/layer5io/meshkit/utils/manifests"
 )
@@ -20,18 +21,30 @@ const AhTextSearchQueryFieldName = "ts_query_web"
 
 func GetAhPackagesWithName(name string) ([]AhPackage, error) {
 	pkgs := make([]AhPackage, 0)
-	url := fmt.Sprintf("%s/packages/search?%s=%s&", ArtifactHubAPIEndpint, AhTextSearchQueryFieldName, name)
-	// add params
-	for key, val := range AhApiSearchParams {
-		url = fmt.Sprintf("%s%s=%s&", url, key, val)
+
+	// Construct URL with encoded query parameters
+	baseURL, err := url.Parse(fmt.Sprintf("%s/packages/search", ArtifactHubAPIEndpint))
+	if err != nil {
+		return nil, ErrGetAhPackage(err)
 	}
-	// get packages
-	resp, err := http.Get(url)
+
+	query := url.Values{}
+	query.Add(AhTextSearchQueryFieldName, name)
+
+	for key, val := range AhApiSearchParams {
+		query.Add(key, val)
+	}
+
+	baseURL.RawQuery = query.Encode()
+	finalURL := baseURL.String()
+
+	// Get packages
+	resp, err := http.Get(finalURL)
 	if err != nil {
 		return nil, ErrGetAhPackage(err)
 	}
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("status code %d for %s", resp.StatusCode, url)
+		err = fmt.Errorf("status code %d for %s", resp.StatusCode, finalURL)
 		return nil, ErrGetAhPackage(err)
 	}
 	defer resp.Body.Close()
