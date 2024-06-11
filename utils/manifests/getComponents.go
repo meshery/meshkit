@@ -51,6 +51,7 @@ func GetCrdsFromHelm(url string, pkgName string) ([]string, error) {
 			}
 			errStr := err.Error()
 			// Remove the first line of the error message which contains "yaml unmarshall error:"
+			// This line is redundant as it does not provide any extra information about the specific error.
 			errStr = strings.TrimPrefix(errStr, strings.SplitN(errStr, "\n", 2)[0]+"\n")
 			return nil, ErrYamlUnmarshalSyntax(errStr, pkgName)
 		}
