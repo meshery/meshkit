@@ -26,6 +26,7 @@ type Entity interface {
 	// ComponentDefinitions and PolicyDefinitions are examples of entities
 	Type() EntityType
 	GetEntityDetail() string
+	GenerateID() (uuid.UUID, error)
 	GetID() uuid.UUID
 	Create(db *database.Handler, hostID uuid.UUID) (entityID uuid.UUID, err error)
 }

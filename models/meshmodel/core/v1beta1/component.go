@@ -57,6 +57,10 @@ func (c ComponentDefinition) Type() entity.EntityType {
 	return entity.ComponentDefinition
 }
 
+func (c *ComponentDefinition) GenerateID() (uuid.UUID, error) {
+	return uuid.New(), nil	
+}
+
 func (c ComponentDefinition) GetID() uuid.UUID {
 	return c.ID
 }
@@ -66,7 +70,7 @@ func (c *ComponentDefinition) GetEntityDetail() string {
 }
 
 func (c *ComponentDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
-	c.ID = uuid.New()
+	c.ID, _ = c.GenerateID()
 
 	isAnnotation, _ := c.Metadata["isAnnotation"].(bool)
 

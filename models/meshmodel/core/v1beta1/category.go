@@ -30,6 +30,16 @@ const DefaultCategory = "Uncategorized"
 func (cat Category) Type() entity.EntityType {
 	return entity.Category
 }
+
+func (cat *Category) GenerateID() (uuid.UUID, error) {
+	byt, err := json.Marshal(cat)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	catID := uuid.NewSHA1(uuid.UUID{}, byt)
+	return catID, nil
+}
+
 func (cat Category) GetID() uuid.UUID {
 	return cat.ID
 }
@@ -42,11 +52,11 @@ func (cat *Category) Create(db *database.Handler, _ uuid.UUID) (uuid.UUID, error
 	if cat.Name == "" {
 		cat.Name = DefaultCategory
 	}
-	byt, err := json.Marshal(cat)
+
+	catID, err := cat.GenerateID()
 	if err != nil {
-		return uuid.UUID{}, err
+		return catID, err
 	}
-	catID := uuid.NewSHA1(uuid.UUID{}, byt)
 	var category Category
 	categoryCreationLock.Lock()
 	defer categoryCreationLock.Unlock()

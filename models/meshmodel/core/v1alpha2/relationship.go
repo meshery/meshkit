@@ -37,6 +37,11 @@ func (r RelationshipDefinition) TableName() string {
 func (r RelationshipDefinition) Type() entity.EntityType {
 	return entity.RelationshipDefinition
 }
+
+func (r *RelationshipDefinition) GenerateID() (uuid.UUID, error) {
+	return uuid.New(), nil
+}
+
 func (r RelationshipDefinition) GetID() uuid.UUID {
 	return r.ID
 }
@@ -46,7 +51,7 @@ func (r *RelationshipDefinition) GetEntityDetail() string {
 }
 
 func (r *RelationshipDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
-	r.ID = uuid.New()
+	r.ID, _ = r.GenerateID()
 	mid, err := r.Model.Create(db, hostID)
 	if err != nil {
 		return uuid.UUID{}, err
