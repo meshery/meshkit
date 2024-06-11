@@ -52,7 +52,7 @@ func GetCrdsFromHelm(url string, pkgName string) ([]string, error) {
 			errStr := err.Error()
 			//The first line is "yaml unmarshall error:".
 			errStr = strings.TrimPrefix(errStr, strings.SplitN(errStr, "\n", 2)[0]+"\n")
-			return nil, ErrUnmarshalSyntax(errStr, pkgName)
+			return nil, ErrYamlUnmarshalSyntax(errStr, pkgName)
 		}
 		b, err := json.Marshal(parsedYaml)
 		if err != nil {
