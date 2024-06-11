@@ -14,9 +14,9 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const ArtifactHubAPIEndpint = "https://artifacthub.io/api/v1"
+const ArtifactHubAPIEndpoint = "https://artifacthub.io/api/v1"
 const ArtifactHubChartUrlFieldName = "content_url"
-const AhHelmExporterEndpoint = ArtifactHubAPIEndpint + "/helm-exporter"
+const AhHelmExporterEndpoint = ArtifactHubAPIEndpoint + "/helm-exporter"
 
 // internal representation of artifacthub package
 // it contains information we need to identify a package using ArtifactHub API
