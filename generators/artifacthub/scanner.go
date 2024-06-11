@@ -23,7 +23,7 @@ func GetAhPackagesWithName(name string) ([]AhPackage, error) {
 	pkgs := make([]AhPackage, 0)
 
 	// Construct URL with encoded query parameters
-	baseURL, err := url.Parse(fmt.Sprintf("%s/packages/search", ArtifactHubAPIEndpint))
+	baseURL, err := url.Parse(fmt.Sprintf("%s/packages/search", ArtifactHubAPIEndpoint))
 	if err != nil {
 		return nil, ErrGetAhPackage(err)
 	}
