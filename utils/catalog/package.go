@@ -3,10 +3,10 @@ package catalog
 import (
 	"fmt"
 
-	"github.com/layer5io/meshkit/models/catalog/v1beta1"
+	"github.com/layer5io/meshkit/models/catalog/v1alpha1"
 )
 
-func BuildArtifactHubPkg(name, downloadURL, user, version, createdAt string, catalogData *v1beta1.CatalogData) *ArtifactHubMetadata {
+func BuildArtifactHubPkg(name, downloadURL, user, version, createdAt string, catalogData *v1alpha1.CatalogData) *ArtifactHubMetadata {
 	artifacthubPkg := &ArtifactHubMetadata{
 		Name:        name,
 		Description: catalogData.PatternInfo,
