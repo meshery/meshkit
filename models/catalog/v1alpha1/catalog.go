@@ -71,7 +71,7 @@ func (cd *CatalogData) IsNil() bool {
 type ContentClass string
 
 const (
-	Official  ContentClass = "offcial"
+	Official  ContentClass = "official"
 	Verified  ContentClass = "verified"
 	Project   ContentClass = "project"
 	Community ContentClass = "community"
