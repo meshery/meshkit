@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -136,11 +137,15 @@ func (g *Git) RegisterDirInterceptor(i DirInterceptor) *Git {
 }
 func clonewalk(g *Git) error {
 	if g.maxFileSizeInBytes == 0 {
-		return ErrInvalidSizeFile(errors.New("Max file size passed as 0. Will not read any file"))
+		return ErrInvalidSizeFile(errors.New("max file size passed as 0. Will not read any file"))
 	}
 
 	path := filepath.Join(os.TempDir(), g.repo, strconv.FormatInt(time.Now().UTC().UnixNano(), 10))
-	defer os.RemoveAll(path)
+	var wg sync.WaitGroup
+	defer func() {
+		wg.Wait()
+		os.RemoveAll(path)
+	}()
 	var err error
 	cloneOptions := &git.CloneOptions{
 		URL:          fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
@@ -218,7 +223,9 @@ func clonewalk(g *Git) error {
 		fPath := filepath.Join(path, g.root, f.Name())
 		if f.IsDir() && g.dirInterceptor != nil {
 			name := f.Name()
+			wg.Add(1)
 			go func(name string, path string, filename string) {
+				defer wg.Done()
 				err := g.dirInterceptor(Directory{
 					Name: filename,
 					Path: fPath,

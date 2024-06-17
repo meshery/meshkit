@@ -7,13 +7,15 @@ import (
 )
 
 var (
-	ErrUnknownHostCode                 = "meshkit-11146"
-	ErrEmptySchemaCode                 = "meshkit-11098"
-	ErrMarshalingRegisteryAttemptsCode = "meshkit-11099"
-	ErrWritingRegisteryAttemptsCode    = "meshkit-11100"
-	ErrRegisteringEntityCode           = "meshkit-11101"
-	ErrUnknownHostInMapCode            = "meshkit-11102"
-	ErrCreatingUserDataDirectoryCode   = "meshkit-11103"
+
+	ErrUnknownHostCode                 = "replace_me"
+	ErrEmptySchemaCode                 = "replace_me"
+	ErrMarshalingRegisteryAttemptsCode = "replace_me"
+	ErrWritingRegisteryAttemptsCode    = "replace_me"
+	ErrRegisteringEntityCode           = "replace_me"
+	ErrUnknownHostInMapCode            = "replace_me"
+	ErrCreatingUserDataDirectoryCode   = "replace_me"
+
 )
 
 func ErrUnknownHost(err error) error {

@@ -36,10 +36,11 @@ var (
 	ErrCreateDirCode                 = "meshkit-11182"
 	// ErrDecodeYamlCode represents the error which is generated when yaml
 	// decode process fails
-	ErrDecodeYamlCode   = "meshkit-11183"
-	ErrExtractTarXZCode = "meshkit-11184"
-	ErrExtractZipCode   = "meshkit-11185"
-	ErrReadDirCode      = "meshkit-11186"
+	ErrDecodeYamlCode      = "meshkit-11183"
+	ErrExtractTarXZCode    = "meshkit-11184"
+	ErrExtractZipCode      = "meshkit-11185"
+	ErrReadDirCode         = "meshkit-11186"
+	ErrCompressToTarGZCode = "meshkit-11248"
 )
 
 func ErrCueLookup(err error) error {
@@ -144,6 +145,11 @@ func ErrTypeCast(err error) error {
 // ErrDecodeYaml is the error when the yaml unmarshal fails
 func ErrDecodeYaml(err error) error {
 	return errors.New(ErrDecodeYamlCode, errors.Alert, []string{"Error occurred while decoding YAML"}, []string{err.Error()}, []string{}, []string{})
+}
+
+// ErrCompressTar is the error for zipping a file into targz
+func ErrCompressToTarGZ(err error, path string) error {
+	return errors.New(ErrCompressToTarGZCode, errors.Alert, []string{fmt.Sprintf("Error while compressing file %s", path)}, []string{err.Error()}, []string{"The file might be corrupt", "Insufficient permissions to read the file"}, []string{"Verify sufficient read permissions"})
 }
 
 // ErrExtractTarXVZ is the error for unzipping the targz file
