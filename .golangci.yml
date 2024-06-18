@@ -18,7 +18,7 @@ linters-settings:
       - prealloc
   govet:
     enabled: true
-    check-shadowing: true
+    shadow: true
     tests: true
   golint:
     enabled: true
@@ -53,12 +53,12 @@ linters:
     - scopelint
   exclude-rules:
     - testpackage
-
-run:
-  timeout: 5m
-  enable-cache: true
-  skip-dirs:
+issues: 
+ exclude-dirs: 
     - vendor
     - bundle
     - hack
     - img
+run:
+  timeout: 5m
+  enable-cache: true
