@@ -36,7 +36,9 @@
 //	 }
 package errors
 
-import "strings"
+import (
+	"strings"
+)
 
 // Deprecated: NewDefault is deprecated, use New(...) instead.
 func NewDefault(code string, ldescription ...string) *Error {
@@ -102,38 +104,78 @@ func (e *Error) ErrorV2(additionalInfo interface{}) ErrorV2 {
 }
 
 func GetCode(err error) string {
+	var code string
+	defer func() {
+		if r := recover(); r != nil {
+			code = strings.Join(NoneString[:], "")
+		}
+	}()
 	if obj := err.(*Error); obj != nil && obj.Code != " " {
-		return obj.Code
+		code = obj.Code
+	} else {
+		code = strings.Join(NoneString[:], "")
 	}
-	return strings.Join(NoneString[:], "")
+	return code
 }
 
 func GetSeverity(err error) Severity {
+	var severity Severity
+	defer func() {
+		if r := recover(); r != nil {
+			severity = None
+		}
+	}()
 	if obj := err.(*Error); obj != nil {
-		return obj.Severity
+		severity = obj.Severity
+	} else {
+		severity = None
 	}
-	return None
+	return severity
 }
 
 func GetSDescription(err error) string {
+	var description string
+	defer func() {
+		if r := recover(); r != nil {
+			description = strings.Join(NoneString[:], "")
+		}
+	}()
 	if obj := err.(*Error); obj != nil {
-		return strings.Join(err.(*Error).ShortDescription[:], ".")
+		description = strings.Join(obj.ShortDescription[:], ".")
+	} else {
+		description = strings.Join(NoneString[:], "")
 	}
-	return strings.Join(NoneString[:], "")
+	return description
 }
 
 func GetCause(err error) string {
+	var cause string
+	defer func() {
+		if r := recover(); r != nil {
+			cause = strings.Join(NoneString[:], "")
+		}
+	}()
 	if obj := err.(*Error); obj != nil {
-		return strings.Join(err.(*Error).ProbableCause[:], ".")
+		cause = strings.Join(obj.ProbableCause[:], ".")
+	} else {
+		cause = strings.Join(NoneString[:], "")
 	}
-	return strings.Join(NoneString[:], "")
+	return cause
 }
 
 func GetRemedy(err error) string {
+	var remedy string
+	defer func() {
+		if r := recover(); r != nil {
+			remedy = strings.Join(NoneString[:], "")
+		}
+	}()
 	if obj := err.(*Error); obj != nil {
-		return strings.Join(err.(*Error).SuggestedRemediation[:], ".")
+		remedy = strings.Join(obj.SuggestedRemediation[:], ".")
+	} else if err != nil {
+		remedy = strings.Join(NoneString[:], "")
 	}
-	return strings.Join(NoneString[:], "")
+	return remedy
 }
 
 func Is(err error) (*Error, bool) {

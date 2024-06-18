@@ -1,4 +1,4 @@
-package v1beta1
+package v1alpha1
 
 import (
 	"database/sql/driver"
@@ -9,6 +9,7 @@ import (
 
 // CatalogData defines model for catalog_data.
 type CatalogData struct {
+	ContentClass ContentClass `json:"content_class,omitempty"`
 	//Tracks the specific content version that has been made available in the Catalog
 	PublishedVersion string `json:"published_version"`
 
@@ -63,5 +64,39 @@ func (cd *CatalogData) IsNil() bool {
 	return cd == nil || (len(cd.Compatibility) == 0 &&
 		cd.PatternCaveats == "" &&
 		cd.PatternInfo == "" &&
-		cd.Type == "")
+		cd.Type == "" && 
+		cd.ContentClass.String() != "")
+}
+
+type ContentClass string
+
+const (
+	Official  ContentClass = "official"
+	Verified  ContentClass = "verified"
+	Project   ContentClass = "project"
+	Community ContentClass = "community"
+)
+
+func (c ContentClass) String() string {
+	switch c {
+	case Official:
+		return "official"
+	case Verified:
+		return "verified"
+	case Project:
+		return "Project"
+	case Community:
+		fallthrough
+	default:
+		return "community"
+	}
+}
+
+func GetCatalogClasses() []ContentClass {
+	return []ContentClass{
+		Official,
+		Verified,
+		Project,
+		Community,
+	}
 }
