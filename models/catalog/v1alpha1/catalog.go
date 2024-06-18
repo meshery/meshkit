@@ -31,7 +31,6 @@ type CatalogData struct {
 
 func (cd *CatalogData) Scan(value interface{}) error {
 	if value == nil {
-		cd = &CatalogData{}
 		return nil
 	}
 	data, err := utils.Cast[[]byte](value)
@@ -64,7 +63,7 @@ func (cd *CatalogData) IsNil() bool {
 	return cd == nil || (len(cd.Compatibility) == 0 &&
 		cd.PatternCaveats == "" &&
 		cd.PatternInfo == "" &&
-		cd.Type == "" && 
+		cd.Type == "" &&
 		cd.ContentClass.String() != "")
 }
 

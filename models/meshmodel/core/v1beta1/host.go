@@ -58,12 +58,21 @@ type HostFilter struct {
 	Offset      int
 }
 
-func (h *Host) Create(db *database.Handler) (uuid.UUID, error) {
+func (h *Host) GenerateID() (uuid.UUID, error) {
 	byt, err := json.Marshal(h)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
 	hID := uuid.NewSHA1(uuid.UUID{}, byt)
+	return hID, nil
+}
+
+func (h *Host) Create(db *database.Handler) (uuid.UUID, error) {
+
+	hID, err := h.GenerateID()
+	if err != nil {
+		return uuid.UUID{}, err
+	}
 	var host Host
 	hostCreationLock.Lock()
 	defer hostCreationLock.Unlock()

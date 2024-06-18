@@ -48,15 +48,8 @@ func (m Model) TableName() string {
 func (m Model) Type() entity.EntityType {
 	return entity.Model
 }
-func (m Model) GetID() uuid.UUID {
-	return m.ID
-}
 
-func (m *Model) GetEntityDetail() string {
-	return fmt.Sprintf("type: %s, model: %s, definition version: %s, version: %s", m.Type(), m.Name, m.Version, m.Model.Version)
-}
-
-func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
+func (m *Model) GenerateID() (uuid.UUID, error) {
 	modelIdentifier := Model{
 		Registrant:  m.Registrant,
 		VersionMeta: m.VersionMeta,
@@ -69,7 +62,23 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	modelID := uuid.NewSHA1(uuid.UUID{}, byt)
+	return uuid.NewSHA1(uuid.UUID{}, byt), nil
+}
+
+func (m Model) GetID() uuid.UUID {
+	return m.ID
+}
+
+func (m *Model) GetEntityDetail() string {
+	return fmt.Sprintf("type: %s, model: %s, definition version: %s, version: %s", m.Type(), m.Name, m.Version, m.Model.Version)
+}
+
+func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
+	modelID, err := m.GenerateID()
+	if err != nil {
+		return modelID, err
+	}
+
 	var model Model
 	if m.Name == "" {
 		return uuid.UUID{}, fmt.Errorf("empty or invalid model name passed")
