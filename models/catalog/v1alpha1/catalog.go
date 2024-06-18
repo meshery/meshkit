@@ -63,7 +63,7 @@ func (cd *CatalogData) IsNil() bool {
 	return cd == nil || (len(cd.Compatibility) == 0 &&
 		cd.PatternCaveats == "" &&
 		cd.PatternInfo == "" &&
-		cd.Type == "" && 
+		cd.Type == "" &&
 		cd.ContentClass.String() != "")
 }
 

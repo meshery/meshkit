@@ -34,7 +34,6 @@ func (s *GenerticThreadSafeStore[K]) Delete(key string) {
 	delete(s.data, key)
 }
 
-
 func (s *GenerticThreadSafeStore[K]) GetAllPairs() map[string]K {
 	values := make(map[string]K, 0)
 

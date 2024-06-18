@@ -7,7 +7,6 @@ import (
 )
 
 var (
-
 	ErrUnknownHostCode                 = "replace_me"
 	ErrEmptySchemaCode                 = "replace_me"
 	ErrMarshalingRegisteryAttemptsCode = "replace_me"
@@ -15,7 +14,6 @@ var (
 	ErrRegisteringEntityCode           = "replace_me"
 	ErrUnknownHostInMapCode            = "replace_me"
 	ErrCreatingUserDataDirectoryCode   = "replace_me"
-
 )
 
 func ErrUnknownHost(err error) error {

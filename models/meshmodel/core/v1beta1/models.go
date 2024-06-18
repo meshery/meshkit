@@ -49,7 +49,7 @@ func (m Model) Type() entity.EntityType {
 	return entity.Model
 }
 
-func (m *Model) GenerateID() (uuid.UUID, error)  {
+func (m *Model) GenerateID() (uuid.UUID, error) {
 	modelIdentifier := Model{
 		Registrant:  m.Registrant,
 		VersionMeta: m.VersionMeta,
@@ -78,7 +78,7 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 	if err != nil {
 		return modelID, err
 	}
-	
+
 	var model Model
 	if m.Name == "" {
 		return uuid.UUID{}, fmt.Errorf("empty or invalid model name passed")

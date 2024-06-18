@@ -32,7 +32,10 @@ func (cat Category) Type() entity.EntityType {
 }
 
 func (cat *Category) GenerateID() (uuid.UUID, error) {
-	byt, err := json.Marshal(cat)
+	categoryIdentifier := Category{
+		Name: cat.Name,
+	}
+	byt, err := json.Marshal(categoryIdentifier)
 	if err != nil {
 		return uuid.UUID{}, err
 	}

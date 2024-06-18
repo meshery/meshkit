@@ -43,7 +43,7 @@ func (p *PolicyDefinition) GetEntityDetail() string {
 
 func (p *PolicyDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
 	p.ID, _ = p.GenerateID()
-	
+
 	mid, err := p.Model.Create(db, hostID)
 	if err != nil {
 		return uuid.UUID{}, err
