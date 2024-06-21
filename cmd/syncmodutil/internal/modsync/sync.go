@@ -132,13 +132,10 @@ func getReplacedVersionsFromString(s string) (p [][]Package) {
 		data = strings.TrimSuffix(strings.TrimPrefix(data, "\n"), "\n")
 		packages := strings.Split(data, "\n")
 		for _, pkg := range packages {
-			fmt.Println("PKG ", pkg)
 			pkg = strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(pkg, "\t"), " "), " "), "\t")
-			if pkg != "" {
-				p0 := getPackagesAndVersionsFromPackageVersions(pkg)
-				if len(p0) != 0 {
-					p = append(p, p0)
-				}
+			p0 := getPackagesAndVersionsFromPackageVersions(pkg)
+			if len(p0) != 0 {
+				p = append(p, p0)
 			}
 		}
 	}
@@ -147,7 +144,6 @@ func getReplacedVersionsFromString(s string) (p [][]Package) {
 func getPackagesAndVersionsFromPackageVersions(pkg string) (p []Package) {
 	s := strings.Split(pkg, "=>")
 	if len(s) < 2 {
-		fmt.Println("pkg ", pkg)
 		log.Fatal("invalid go mod")
 	}
 	pkg1, ver1 := getPackageAndVersionFromPackageVersion(s[0])
