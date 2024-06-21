@@ -1,4 +1,4 @@
-package pattern
+package patterns
 
 import (
 	"github.com/Masterminds/semver/v3"

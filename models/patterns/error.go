@@ -1,4 +1,4 @@
-package pattern
+package patterns
 
 import "github.com/layer5io/meshkit/errors"
 
