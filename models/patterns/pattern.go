@@ -8,6 +8,12 @@ import (
 )
 
 func GetNextVersion(p *patterns.PatternFile) (string, error) {
+	// Existing patterns do not have version hence when trying to assign next version for such patterns, it will fail the validation.
+	// Hence, if version is not present, start versioning for those afresh.
+	if p.Version == "" {
+		AssignVersion(p)
+		return p.Version, nil
+	}
 	version, err := semver.NewVersion(p.Version)
 	if err != nil {
 		return "", err
