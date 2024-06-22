@@ -1,6 +1,6 @@
 module github.com/layer5io/meshkit
 
-go 1.21
+go 1.21.10
 
 replace (
 	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.9.3
@@ -14,15 +14,17 @@ replace (
 
 require (
 	cuelang.org/go v0.6.0
+	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/fluxcd/pkg/oci v0.34.0
 	github.com/fluxcd/pkg/tar v0.4.0
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-logr/logr v1.3.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/go-containerregistry v0.17.0
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.5.0
 	github.com/kubernetes/kompose v1.31.1
 	github.com/layer5io/meshery-operator v0.7.0
+	github.com/meshery/schemas v0.7.6
 	github.com/nats-io/nats.go v1.31.0
 	github.com/open-policy-agent/opa v0.57.1
 	github.com/opencontainers/image-spec v1.1.0-rc6
@@ -60,7 +62,6 @@ require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
 	github.com/Masterminds/squirrel v1.5.4 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
@@ -168,7 +169,7 @@ require (
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
@@ -191,6 +192,7 @@ require (
 	github.com/nats-io/nkeys v0.4.6 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/novln/docker-parser v1.0.0 // indirect
+	github.com/oapi-codegen/runtime v1.1.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/runc v1.1.12 // indirect
 	github.com/openshift/api v0.0.0-20200803131051-87466835fcc0 // indirect
