@@ -1,6 +1,6 @@
 module github.com/layer5io/meshkit
 
-go 1.21.10
+go 1.21
 
 replace (
 	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.9.3
