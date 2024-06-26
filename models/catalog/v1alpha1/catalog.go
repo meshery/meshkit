@@ -83,7 +83,7 @@ func (c ContentClass) String() string {
 	case Verified:
 		return "verified"
 	case Project:
-		return "Project"
+		return "project"
 	case Community:
 		fallthrough
 	default:
