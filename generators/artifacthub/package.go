@@ -39,6 +39,10 @@ func (pkg AhPackage) GetVersion() string {
 func (pkg AhPackage) GenerateComponents() ([]v1beta1.ComponentDefinition, error) {
 	components := make([]v1beta1.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
+
+	if pkg.ChartUrl == "" {
+		return components, ErrChartUrlEmpty(pkg.Name)
+	}
 	crds, err := manifests.GetCrdsFromHelm(pkg.ChartUrl)
 	if err != nil {
 		return components, ErrComponentGenerate(err)
