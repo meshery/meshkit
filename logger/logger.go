@@ -14,7 +14,7 @@ import (
 
 type Handler interface {
 	Info(description ...interface{})
-	Infof(foramt string, args ...interface{})
+	Infof(format string, args ...interface{})
 	Debug(description ...interface{})
 	Warn(err error)
 	Warnf(format string, args ...interface{})
