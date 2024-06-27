@@ -2,7 +2,8 @@ package catalog
 
 import (
 	"fmt"
-
+	"regexp"
+	"strings"
 	"github.com/layer5io/meshkit/models/catalog/v1alpha1"
 )
 
