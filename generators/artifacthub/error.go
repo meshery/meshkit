@@ -45,7 +45,7 @@ func ErrNoPackageFound(modelName string, registrantName string) error {
 		ErrNoPackageFoundCode,
 		errors.Alert,
 		[]string{fmt.Sprintf("No package found for the model %s.", modelName)},
-		[]string{fmt.Sprintf("their was no package for %s model.", modelName)},
+		[]string{fmt.Sprintf("there was no package for %s model.", modelName)},
 		[]string{fmt.Sprintf("%s does not have any package for model name %s", registrantName, modelName)},
 		[]string{fmt.Sprintf("Please provide the correct package name for the model %s.", modelName)},
 	)
