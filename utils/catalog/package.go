@@ -8,7 +8,8 @@ import (
 
 func BuildArtifactHubPkg(name, downloadURL, user, version, createdAt string, catalogData *v1alpha1.CatalogData) *ArtifactHubMetadata {
 	artifacthubPkg := &ArtifactHubMetadata{
-		Name:        name,
+		Name:        toKebabCase(name),
+		DisplayName: name,
 		Description: catalogData.PatternInfo,
 		Provider: Provider{
 			Name: user,
@@ -52,4 +53,13 @@ func BuildArtifactHubPkg(name, downloadURL, user, version, createdAt string, cat
 	})
 
 	return artifacthubPkg
+}
+
+func toKebabCase(s string) string {
+	s = strings.ToLower(s)
+	re := regexp.MustCompile(`\s+`)
+	s = re.ReplaceAllString(s, " ")
+	s = strings.ReplaceAll(s, " ", "-")
+
+	return s
 }
