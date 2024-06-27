@@ -41,7 +41,7 @@ func (pkg AhPackage) GenerateComponents() ([]v1beta1.ComponentDefinition, error)
 	// TODO: Move this to the configuration
 
 	if pkg.ChartUrl == "" {
-		return components, ErrChartUrlEmpty(pkg.Name)
+		return components, ErrChartUrlEmpty("Artifacthub", pkg.Name)
 	}
 	crds, err := manifests.GetCrdsFromHelm(pkg.ChartUrl)
 	if err != nil {

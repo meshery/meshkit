@@ -18,7 +18,7 @@ func (ahpm ArtifactHubPackageManager) GetPackage() (models.Package, error) {
 		return nil, err
 	}
 	if len(pkgs) == 0 {
-		return nil, ErrNoPackageFound(ahpm.PackageName)
+		return nil, ErrNoPackageFound("Artifacthub", ahpm.PackageName)
 	}
 	// update package information
 	for i, ap := range pkgs {
