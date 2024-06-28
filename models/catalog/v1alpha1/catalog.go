@@ -69,6 +69,11 @@ func (cd *CatalogData) IsNil() bool {
 
 type ContentClass string
 
+type ContentClassObj struct {
+	Class       ContentClass `json:"class"`
+	Description string       `json:"description"`
+}
+
 const (
 	Official  ContentClass = "official"
 	Verified  ContentClass = "verified"
@@ -91,11 +96,25 @@ func (c ContentClass) String() string {
 	}
 }
 
-func GetCatalogClasses() []ContentClass {
-	return []ContentClass{
-		Official,
-		Verified,
-		// Project,
-		Community,
+// Ref to catalog schema - https://github.com/meshery/schemas/blob/master/schemas/constructs/v1alpha1/catalog_data.json
+func GetCatalogClasses() []ContentClassObj {
+	return []ContentClassObj{
+		{
+			Class:       Official,
+			Description: "Content produced and fully supported by Meshery maintainers. This represents the highest level of support and is considered the most reliable.",
+		},
+		{
+			Class:       Verified,
+			Description: "Content produced by partners and verified by Meshery maintainers. While not directly maintained by Meshery, it has undergone a verification process to ensure quality and compatibility.",
+		},
+		// Uncomment if needed
+		// {
+		// 	Class:       ProjectClass,
+		// 	Description: "Content produced and supported by the respective project or organization responsible for the specific technology. This class offers a level of support from the project maintainers themselves.",
+		// },
+		{
+			Class:       Community,
+			Description: "Content produced and shared by Meshery users. This includes a wide range of content, such as performance profiles, test results, filters, patterns, and applications. Community content may have varying levels of support and reliability.",
+		},
 	}
 }
