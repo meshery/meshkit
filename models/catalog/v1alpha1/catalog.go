@@ -96,7 +96,7 @@ func (c ContentClass) String() string {
 	}
 }
 
-// Ref to catalog schema -
+// Ref to catalog schema - https://github.com/meshery/schemas/blob/master/schemas/constructs/v1alpha1/catalog_data.json
 func GetCatalogClasses() []ContentClassObj {
 	return []ContentClassObj{
 		{
