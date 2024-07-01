@@ -149,7 +149,7 @@ func (ah ArtifactHub) HandleDependents(comp Component, kc *kubernetes.Client, is
 }
 
 func (ah ArtifactHub) String() string {
-	return "artifacthub"
+	return "Artifact Hub"
 }
 
 type Kubernetes struct{}
