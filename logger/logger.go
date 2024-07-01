@@ -16,6 +16,7 @@ type Handler interface {
 	Info(description ...interface{})
 	Infof(format string, args ...interface{})
 	Debug(description ...interface{})
+	Debugf(format string, args ...interface{})
 	Warn(err error)
 	Warnf(format string, args ...interface{})
 	Error(err error)
@@ -127,4 +128,8 @@ func (l *Logger) Infof(format string, args ...interface{}) {
 
 func (l *Logger) Warnf(format string, args ...interface{}) {
 	l.handler.Log(logrus.WarnLevel, fmt.Sprintf(format, args...))
+}
+
+func (l *Logger) Debugf(format string, args ...interface{}) {
+	l.handler.Log(logrus.DebugLevel, fmt.Sprintf(format, args...))
 }
