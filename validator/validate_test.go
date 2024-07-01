@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/layer5io/meshkit/models/catalog/v1alpha1"
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/schemas/models/patterns"
 )
 
@@ -18,9 +19,9 @@ type ValidationCases struct {
 func TestValidator(t *testing.T) {
 	tests := []ValidationCases{
 		{
-			Path:       "design",
-			Resource:   patterns.PatternFile{
-				Name: "test-design",
+			Path: "design",
+			Resource: patterns.PatternFile{
+				Name:     "test-design",
 				Services: make(map[string]*patterns.Service),
 			},
 			ShouldPass: true,
@@ -36,6 +37,25 @@ func TestValidator(t *testing.T) {
 				PatternCaveats: "NA",
 				PatternInfo:    "NA",
 				Type:           v1alpha1.CatalogDataType("Dployment"),
+			},
+			ShouldPass: false,
+		},
+		{
+			Path: "models",
+			Resource: v1beta1.Model{
+				VersionMeta: v1beta1.VersionMeta{
+					SchemaVersion: "v1beta1",
+					Version:       "1.0.0",
+				},
+				Category: v1beta1.Category{
+					Name: "test",
+				},
+				Model: v1beta1.ModelEntity{
+					Version: "1.0.0",
+				},
+				Status:      "",
+				DisplayName: "",
+				Description: "",
 			},
 			ShouldPass: false,
 		},
