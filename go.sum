@@ -607,8 +607,8 @@ github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 h1:jWpvCLoY8Z/e3VKvls
 github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0/go.mod h1:QUyp042oQthUoa9bqDv0ER0wrtXnBruoNd7aNjkbP+k=
 github.com/meshery/kompose v1.0.1 h1:lg8B/pkLh6762jeFsQATD8UJZZwXZf/aviC3/dzw78A=
 github.com/meshery/kompose v1.0.1/go.mod h1:TWhWTEMbJBUzENf4JTEtBmZRFm/r8n0nS6v4/nSD2vA=
-github.com/meshery/schemas v0.7.7 h1:uc35DsjMG9LpESyOxuw0QvSUGxbiE3vobbvZrRHBJIk=
-github.com/meshery/schemas v0.7.7/go.mod h1:ZsfoE5HvlqJvUvBlqS2rHoNQoDJ+eYuly5w5m+qIQSM=
+github.com/meshery/schemas v0.7.8 h1:OZwGhIWsKr+L7C6ZelZoOFx2Rz+Cu7swF1VVy/Dx4ks=
+github.com/meshery/schemas v0.7.8/go.mod h1:ZsfoE5HvlqJvUvBlqS2rHoNQoDJ+eYuly5w5m+qIQSM=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/miekg/dns v1.1.43 h1:JKfpVSCB84vrAmHzyrsxB5NAr5kLoMXZArPSw7Qlgyg=
 github.com/miekg/dns v1.1.43/go.mod h1:+evo5L0630/F6ca/Z9+GAqzhjGyn8/c+TBaOyfEl0V4=
