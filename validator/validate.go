@@ -85,7 +85,7 @@ func Validate(schema cue.Value, resourceValue interface{}) error {
 	if !valid {
 		return errors.New(ErrValidateCode,
 			errors.Alert,
-			[]string{"validaion for the resource failed"},
+			[]string{"validation for the resource failed"},
 			convertCueErrorsToStrings(errs),
 			[]string{}, []string{},
 		)
