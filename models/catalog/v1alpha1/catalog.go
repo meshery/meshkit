@@ -72,7 +72,6 @@ type ContentClass string
 const (
 	Official  ContentClass = "official"
 	Verified  ContentClass = "verified"
-	Project   ContentClass = "project"
 	Community ContentClass = "community"
 )
 
@@ -82,8 +81,6 @@ func (c ContentClass) String() string {
 		return "official"
 	case Verified:
 		return "verified"
-	case Project:
-		return "project"
 	case Community:
 		fallthrough
 	default:
@@ -95,7 +92,6 @@ func GetCatalogClasses() []ContentClass {
 	return []ContentClass{
 		Official,
 		Verified,
-		Project,
 		Community,
 	}
 }

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"io"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -15,20 +16,12 @@ import (
 func Validate(schema cue.Value, value cue.Value) (bool, []errors.Error) {
 	var errs []errors.Error
 	uval := value.Unify(schema)
-	err := uval.Validate()
+	err := uval.Validate(cue.Final())
 	if err != nil {
 		cueErr := errors.Errors(err)
 		errs = append(errs, cueErr...)
 	}
-	// check for required fields
-	schema.Walk(func(v cue.Value) bool {
-		val := value.LookupPath(v.Path())
-		if !(val.Err() == nil && val.IsConcrete()) {
-			cueErr := errors.Errors(errors.New(fmt.Sprintf("%v is a required field", v.Path().String())))
-			errs = append(errs, cueErr...)
-		}
-		return true
-	}, nil)
+	
 	if len(errs) != 0 {
 		return false, errs
 	}
@@ -112,4 +105,18 @@ func Lookup(rootVal cue.Value, path string) (cue.Value, error) {
 	}
 
 	return res.Value(), nil
+}
+
+func ConvertoCue(reader io.Reader) (cue.Value, error) {
+	var result cue.Value
+	cuectx := cuecontext.New()
+	expr, err := yaml.Extract("", reader)
+	if err != nil {
+		return result, ErrYamlToCue(err)
+	}
+	result = cuectx.BuildFile(expr)
+	if result.Err() != nil {
+		return result, ErrYamlToCue(result.Err())
+	}
+	return result, nil
 }
