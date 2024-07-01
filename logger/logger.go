@@ -3,6 +3,7 @@ package logger
 import (
 	"io"
 	"os"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -13,8 +14,10 @@ import (
 
 type Handler interface {
 	Info(description ...interface{})
+	Infof(format string, args ...interface{})
 	Debug(description ...interface{})
 	Warn(err error)
+	Warnf(format string, args ...interface{})
 	Error(err error)
 	SetLevel(level logrus.Level)
 	GetLevel() logrus.Level
@@ -116,4 +119,12 @@ func (l *Logger) GetLevel() logrus.Level {
 
 func (l *Logger) UpdateLogOutput(output io.Writer) {
 	l.handler.Logger.SetOutput(output)
+}
+
+func (l *Logger) Infof(format string, args ...interface{}) {
+	l.handler.Log(logrus.InfoLevel, fmt.Sprintf(format, args...))
+}
+
+func (l *Logger) Warnf(format string, args ...interface{}) {
+	l.handler.Log(logrus.WarnLevel, fmt.Sprintf(format, args...))
 }
