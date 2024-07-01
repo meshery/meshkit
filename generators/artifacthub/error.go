@@ -1,6 +1,8 @@
 package artifacthub
 
 import (
+	"fmt"
+
 	"github.com/layer5io/meshkit/errors"
 )
 
@@ -9,6 +11,8 @@ var (
 	ErrGetAhPackageCode       = "meshkit-11135"
 	ErrComponentGenerateCode  = "meshkit-11136"
 	ErrGetAllHelmPackagesCode = "meshkit-11137"
+	ErrChartUrlEmptyCode      = "replace_me"
+	ErrNoPackageFoundCode     = "replace_me"
 )
 
 func ErrGetAllHelmPackages(err error) error {
@@ -25,4 +29,24 @@ func ErrGetAhPackage(err error) error {
 
 func ErrComponentGenerate(err error) error {
 	return errors.New(ErrComponentGenerateCode, errors.Alert, []string{"failed to generate components for the package"}, []string{err.Error()}, []string{}, []string{"Make sure that the package is compatible"})
+}
+func ErrChartUrlEmpty(modelName string, registrantName string) error {
+	return errors.New(
+		ErrChartUrlEmptyCode,
+		errors.Alert,
+		[]string{fmt.Sprintf("The Chart URL for the %s model is empty.", modelName)},
+		[]string{fmt.Sprintf("provided Chart URL for the model %s is empty.", modelName)},
+		[]string{fmt.Sprintf("%s does not have Chart URL for %s", registrantName, modelName)},
+		[]string{fmt.Sprintf("Please provide the Chart URL for the model %s.", modelName)},
+	)
+}
+func ErrNoPackageFound(modelName string, registrantName string) error {
+	return errors.New(
+		ErrNoPackageFoundCode,
+		errors.Alert,
+		[]string{fmt.Sprintf("No package found for the model %s.", modelName)},
+		[]string{fmt.Sprintf("there was no package for %s model.", modelName)},
+		[]string{fmt.Sprintf("%s does not have any package for model name %s", registrantName, modelName)},
+		[]string{fmt.Sprintf("Please provide the correct package name for the model %s.", modelName)},
+	)
 }
