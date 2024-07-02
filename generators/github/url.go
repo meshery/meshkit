@@ -2,6 +2,7 @@ package github
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 
 	"net/url"
@@ -19,7 +20,7 @@ type URL struct {
 	PackageName string
 }
 
-// < http/https://url/version>
+// < http/https://url/ >
 //close the descriptors
 
 func (u URL) GetContent() (models.Package, error) {
@@ -27,7 +28,13 @@ func (u URL) GetContent() (models.Package, error) {
 	_ = os.MkdirAll(downloadDirPath, 0755)
 
 	url := u.URL.String()
-	version := url[strings.LastIndex(url, "/")+1:]
+	owner, repo, errr := extractDetail(url)
+	versions, errr := utils.GetLatestReleaseTagsSorted(owner, repo)
+	if errr != nil {
+		return nil, ErrInvalidGitHubSourceURL(errr)
+	}
+	version := versions[len(versions)-1]
+
 	url, _ = strings.CutSuffix(url, "/"+version)
 
 	fileName := utils.GetRandomAlphabetsOfDigit(6)
@@ -59,6 +66,18 @@ func (u URL) GetContent() (models.Package, error) {
 		version:   version,
 		SourceURL: u.URL.String(),
 	}, nil
+}
+
+func extractDetail(url string) (owner string, repo string, err error) {
+	parts := strings.SplitN(strings.TrimPrefix(url, "/"), "/", 5)
+	size := len(parts)
+	if size > 4 {
+		owner = parts[3]
+		repo = parts[4]
+	} else {
+		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid", url))
+	}
+	return
 }
 
 func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error {
