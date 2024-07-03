@@ -77,7 +77,6 @@ type ContentClassObj struct {
 const (
 	Official  ContentClass = "official"
 	Verified  ContentClass = "verified"
-	Project   ContentClass = "project"
 	Community ContentClass = "community"
 )
 
@@ -87,8 +86,6 @@ func (c ContentClass) String() string {
 		return "official"
 	case Verified:
 		return "verified"
-	// case Project:
-	// 	return "project"
 	case Community:
 		fallthrough
 	default:
@@ -107,11 +104,6 @@ func GetCatalogClasses() []ContentClassObj {
 			Class:       Verified,
 			Description: "Content produced by partners and verified by Meshery maintainers. While not directly maintained by Meshery, it has undergone a verification process to ensure quality and compatibility.",
 		},
-		// Uncomment if needed
-		// {
-		// 	Class:       ProjectClass,
-		// 	Description: "Content produced and supported by the respective project or organization responsible for the specific technology. This class offers a level of support from the project maintainers themselves.",
-		// },
 		{
 			Class:       Community,
 			Description: "Content produced and shared by Meshery users. This includes a wide range of content, such as performance profiles, test results, filters, patterns, and applications. Community content may have varying levels of support and reliability.",
