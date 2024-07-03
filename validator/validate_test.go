@@ -6,7 +6,7 @@ import (
 
 	"github.com/layer5io/meshkit/models/catalog/v1alpha1"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
-	"github.com/meshery/schemas/models/patterns"
+	"github.com/meshery/schemas/models/v1alpha2"
 )
 
 type ValidationCases struct {
@@ -20,9 +20,9 @@ func TestValidator(t *testing.T) {
 	tests := []ValidationCases{
 		{
 			Path: "design",
-			Resource: patterns.PatternFile{
+			Resource: v1alpha2.PatternFile{
 				Name:     "test-design",
-				Services: make(map[string]*patterns.Service),
+				Services: make(map[string]*v1alpha2.Service),
 			},
 			ShouldPass: true,
 		},
