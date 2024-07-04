@@ -1,6 +1,8 @@
 package describe
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -56,8 +58,16 @@ func DescribeWithMock(client KubeClient, options DescriberOptions, describerFor 
 }
 
 func TestDescribe(t *testing.T) {
+	// Create a temporary directory for test files
+	tempDir, err := os.MkdirTemp("", "test-describe-")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir) // Clean up the temporary directory after the test
+
 	// Creating a mock client
 	client := &MockClient{}
+
 	tests := []struct {
 		name    string
 		options DescriberOptions
@@ -96,6 +106,17 @@ func TestDescribe(t *testing.T) {
 			}
 			if !tt.wantErr && got == "" {
 				t.Errorf("Describe() = %v, want non-empty output", got)
+			}
+
+			// Create a temporary file to simulate test-generated files
+			tempFile := filepath.Join(tempDir, "tempfile.txt")
+			if err := os.WriteFile(tempFile, []byte("temporary content"), 0644); err != nil {
+				t.Fatalf("Failed to write to temporary file: %v", err)
+			}
+
+			// Check if the file exists
+			if _, err := os.Stat(tempFile); os.IsNotExist(err) {
+				t.Fatalf("Temporary file was not created: %v", err)
 			}
 		})
 	}
