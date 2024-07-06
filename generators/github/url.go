@@ -28,7 +28,6 @@ func (u URL) GetContent() (models.Package, error) {
 
 	url := u.URL.String()
 	version := url[strings.LastIndex(url, "/")+1:]
-	url, _ = strings.CutSuffix(url, "/"+version)
 
 	fileName := utils.GetRandomAlphabetsOfDigit(6)
 	downloadfilePath := filepath.Join(downloadDirPath, fileName)
@@ -71,7 +70,6 @@ func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error
 		// If it is not an archive/zip, then the file itself is to be processed.
 		downloadDirPath = downloadfilePath
 	}
-
 	if err != nil {
 		return err
 	}
@@ -79,6 +77,7 @@ func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error
 	err = utils.ProcessContent(downloadDirPath, func(path string) error {
 		err = helm.ConvertToK8sManifest(path, w)
 		if err != nil {
+
 			return err
 		}
 		return nil
