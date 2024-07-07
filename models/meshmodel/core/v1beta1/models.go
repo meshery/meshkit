@@ -120,14 +120,22 @@ func (m *Model) UpdateStatus(db *database.Handler, status entity.EntityStatus) e
 	return nil
 }
 
-func (c Model) WriteModelDefinition(modelDefPath string) error {
+// WriteModelDefinition writes out the model to the given `modelDefPath` in the `outputType` format.
+// `outputType` can be `yaml` or `json`.
+func (c Model) WriteModelDefinition(modelDefPath string, outputType string) error {
 	err := utils.CreateDirectory(modelDefPath)
 	if err != nil {
 		return err
 	}
-
-	modelFilePath := filepath.Join(modelDefPath, "model.json")
+    var modelFilePath string
+    if(outputType == "json"){
+    modelFilePath = filepath.Join(modelDefPath)
 	err = utils.WriteJSONToFile[Model](modelFilePath, c)
+    }
+    if(outputType == "yaml"){
+    modelFilePath = filepath.Join(modelDefPath)
+	err = utils.WriteYamlToFile[Model](modelFilePath, c)
+    }
 	if err != nil {
 		return err
 	}

@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 // transforms the keys of a Map recursively with the given transform function
@@ -343,6 +344,25 @@ func MergeMaps(mergeInto, toMerge map[string]interface{}) map[string]interface{}
 		mergeInto[k] = v
 	}
 	return mergeInto
+}
+
+func WriteYamlToFile[K any](outputPath string, data K) error {
+	byt, err := yaml.Marshal(data)
+	if err != nil {
+        // Use a different error code
+		return ErrMarshal(err)
+	}
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return ErrCreateFile(err, outputPath)
+	}
+
+	_, err = file.Write(byt)
+	if err != nil {
+		return ErrWriteFile(err, outputPath)
+	}
+	return nil
 }
 
 func WriteJSONToFile[K any](outputPath string, data K) error {
