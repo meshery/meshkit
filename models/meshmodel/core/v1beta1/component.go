@@ -28,6 +28,8 @@ const (
 	JSON ComponentFormat = "JSON"
 	YAML ComponentFormat = "YAML"
 	CUE  ComponentFormat = "CUE"
+
+	ComponentSchemaVersion = "components.meshery.io/v1beta1"
 )
 
 // Contains information as extracted from the core underlying component eg: Pod's apiVersion, kind and schema
