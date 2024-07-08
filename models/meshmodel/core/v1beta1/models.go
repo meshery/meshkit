@@ -127,15 +127,15 @@ func (c Model) WriteModelDefinition(modelDefPath string, outputType string) erro
 	if err != nil {
 		return err
 	}
-    var modelFilePath string
-    if(outputType == "json"){
-    modelFilePath = filepath.Join(modelDefPath)
-	err = utils.WriteJSONToFile[Model](modelFilePath, c)
-    }
-    if(outputType == "yaml"){
-    modelFilePath = filepath.Join(modelDefPath)
-	err = utils.WriteYamlToFile[Model](modelFilePath, c)
-    }
+	var modelFilePath string
+	if outputType == "json" {
+		modelFilePath = filepath.Join(modelDefPath, "model.json")
+		err = utils.WriteJSONToFile[Model](modelFilePath, c)
+	}
+	if outputType == "yaml" {
+		modelFilePath = filepath.Join(modelDefPath, "model.yaml")
+		err = utils.WriteYamlToFile[Model](modelFilePath, c)
+	}
 	if err != nil {
 		return err
 	}
