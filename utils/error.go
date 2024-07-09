@@ -36,11 +36,34 @@ var (
 	ErrCreateDirCode                 = "meshkit-11182"
 	// ErrDecodeYamlCode represents the error which is generated when yaml
 	// decode process fails
-	ErrDecodeYamlCode      = "meshkit-11183"
-	ErrExtractTarXZCode    = "meshkit-11184"
-	ErrExtractZipCode      = "meshkit-11185"
-	ErrReadDirCode         = "meshkit-11186"
-	ErrCompressToTarGZCode = "meshkit-11248"
+	ErrDecodeYamlCode           = "meshkit-11183"
+	ErrExtractTarXZCode         = "meshkit-11184"
+	ErrExtractZipCode           = "meshkit-11185"
+	ErrReadDirCode              = "meshkit-11186"
+	ErrInvalidSchemaVersionCode = "replace_me"
+	ErrFileWalkDirCode          = "replace_me"
+	ErrRelPathCode              = "replace_me"
+	ErrCopyFileCode             = "replace_me"
+	ErrCloseFileCode            = "replace_me"
+	ErrCompressToTarGZCode      = "meshkit-11248"
+)
+var (
+	ErrExtractType = errors.New(
+		ErrUnmarshalTypeCode,
+		errors.Alert,
+		[]string{"Invalid extraction type"},
+		[]string{"The file type to be extracted is neither `tar.gz` nor `zip`."},
+		[]string{"Invalid object format. The file is not of type `zip` or `tar.gz`."},
+		[]string{"Make sure to check that the file type is `zip` or `tar.gz`."},
+	)
+	ErrInvalidSchemaVersion = errors.New(
+		ErrInvalidSchemaVersionCode,
+		errors.Alert,
+		[]string{"Invalid schema version"},
+		[]string{"The `schemaVersion` key in the JSON file is either empty or has an incorrect value."},
+		[]string{"The JSON file schema is not of type 'relationship' or 'component'.", "The `schemaVersion` key in the JSON should be either `relationships.meshery.io` or `component.meshery.io`."},
+		[]string{"Verify that the `schemaVersion` key in the JSON has the correct value."},
+	)
 )
 
 func ErrCueLookup(err error) error {
@@ -164,4 +187,46 @@ func ErrExtractZip(err error, path string) error {
 
 func ErrReadDir(err error, dirPath string) error {
 	return errors.New(ErrReadDirCode, errors.Alert, []string{"error reading directory"}, []string{err.Error()}, []string{fmt.Sprintf("Directory does not exist at the location %s", dirPath), "Insufficient permissions"}, []string{"Verify that directory exist at the provided location", "Verify sufficient directory read permission."})
+}
+
+func ErrFileWalkDir(err error, path string) error {
+	return errors.New(
+		ErrFileWalkDirCode,
+		errors.Alert,
+		[]string{"Error while walking through directory"},
+		[]string{err.Error()},
+		[]string{fmt.Sprintf("The directory %s does not exist.", path)},
+		[]string{"Verify that the correct directory path is provided."},
+	)
+}
+func ErrRelPath(err error, path string) error {
+	return errors.New(
+		ErrRelPathCode,
+		errors.Alert,
+		[]string{"Error determining relative path"},
+		[]string{err.Error()},
+		[]string{("The provided directory path is incorrect."), "The user might not have sufficient permission."},
+		[]string{"Verify the provided directory path is correct and if the user has sufficent permission."},
+	)
+}
+func ErrCopyFile(err error) error {
+	return errors.New(
+		ErrCopyFileCode,
+		errors.Alert,
+		[]string{"Error copying file"},
+		[]string{err.Error()},
+		[]string{("The file might not be accessible or the source and destination files are the same."), "The file might be corrupted."},
+		[]string{("Ensure the source and destination files are accessible and try again."), "Verify the integrity of the file and try again."},
+	)
+}
+
+func ErrCloseFile(err error) error {
+	return errors.New(
+		ErrCloseFileCode,
+		errors.Alert,
+		[]string{"Error closing file"},
+		[]string{err.Error()},
+		[]string{("Disk space might be full or the file might be corrupted."), "The user might not have sufficient permission."},
+		[]string{"Check for issues with file permissions or disk space and try again."},
+	)
 }
