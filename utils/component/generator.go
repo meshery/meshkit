@@ -48,7 +48,7 @@ var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
 func Generate(crd string) (v1beta1.ComponentDefinition, error) {
 	component := v1beta1.ComponentDefinition{}
-	component.SchemaVersion = v1beta1.SchemaVersion
+	component.SchemaVersion = v1beta1.ComponentSchemaVersion
 
 	component.Metadata = make(map[string]interface{})
 	crdCue, err := utils.YamlToCue(crd)

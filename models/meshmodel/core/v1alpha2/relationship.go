@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-const SchemaVersion = "core.meshery.io/v1alpha2"
+const RelationshipSchemaVersion = "relationships.meshery.io/v1alpha2"
 
 type RelationshipDefinition struct {
 	ID uuid.UUID `json:"id"`

@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-const SchemaVersion = "core.meshery.io/v1beta1"
+const ModelSchemaVersion = "models.meshery.io/v1beta1"
 
 var modelCreationLock sync.Mutex //Each component/relationship will perform a check and if the model already doesn't exist, it will create a model. This lock will make sure that there are no race conditions.
 
