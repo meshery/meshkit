@@ -436,17 +436,23 @@ func FindEntityType(content []byte) (entity.EntityType, error) {
 	if err := json.Unmarshal(content, &tempMap); err != nil {
 		return "", ErrUnmarshal(err)
 	}
-	if schemaVersion, ok := tempMap["schemaVersion"].(string); ok {
-		lastIndex := strings.LastIndex(schemaVersion, "/")
-		if lastIndex != -1 {
-			schemaVersion = schemaVersion[:lastIndex]
-		}
-		switch schemaVersion {
-		case "relationships.meshery.io":
-			return entity.RelationshipDefinition, nil
-		case "components.meshery.io":
-			return entity.ComponentDefinition, nil
-		}
+	schemaVersion, err := Cast[string](tempMap["schemaVersion"])
+	if err != nil {
+		return "", ErrInvalidSchemaVersion
 	}
-	return "", nil
+	lastIndex := strings.LastIndex(schemaVersion, "/")
+	if lastIndex != -1 {
+		schemaVersion = schemaVersion[:lastIndex]
+	}
+	switch schemaVersion {
+	case "relationships.meshery.io":
+		return entity.RelationshipDefinition, nil
+	case "components.meshery.io":
+		return entity.ComponentDefinition, nil
+	case "models.meshery.io":
+		return entity.Model, nil
+	case "policies.meshery.io":
+		return entity.PolicyDefinition, nil
+	}
+	return "", ErrInvalidSchemaVersion
 }
