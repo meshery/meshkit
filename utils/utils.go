@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
@@ -349,7 +350,7 @@ func MergeMaps(mergeInto, toMerge map[string]interface{}) map[string]interface{}
 func WriteYamlToFile[K any](outputPath string, data K) error {
 	byt, err := yaml.Marshal(data)
 	if err != nil {
-        // Use a different error code
+		// Use a different error code
 		return ErrMarshal(err)
 	}
 
@@ -429,4 +430,23 @@ func IsSchemaEmpty(schema string) (valid bool) {
 	}
 	valid = true
 	return
+}
+func FindEntityType(content []byte) (entity.EntityType, error) {
+	var tempMap map[string]interface{}
+	if err := json.Unmarshal(content, &tempMap); err != nil {
+		return "", ErrUnmarshal(err)
+	}
+	if schemaVersion, ok := tempMap["schemaVersion"].(string); ok {
+		lastIndex := strings.LastIndex(schemaVersion, "/")
+		if lastIndex != -1 {
+			schemaVersion = schemaVersion[:lastIndex]
+		}
+		switch schemaVersion {
+		case "relationships.meshery.io":
+			return entity.RelationshipDefinition, nil
+		case "components.meshery.io":
+			return entity.ComponentDefinition, nil
+		}
+	}
+	return "", nil
 }
