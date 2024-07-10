@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-const SchemaVersion = "core.meshery.io/v1beta1"
+const ModelSchemaVersion = "models.meshery.io/v1beta1"
 
 var modelCreationLock sync.Mutex //Each component/relationship will perform a check and if the model already doesn't exist, it will create a model. This lock will make sure that there are no race conditions.
 
@@ -120,14 +120,20 @@ func (m *Model) UpdateStatus(db *database.Handler, status entity.EntityStatus) e
 	return nil
 }
 
-func (c Model) WriteModelDefinition(modelDefPath string) error {
-	err := utils.CreateDirectory(modelDefPath)
+// WriteModelDefinition writes out the model to the given `modelDefPath` in the `outputType` format.
+// `outputType` can be `yaml` or `json`. 
+// Usage: model.WriteModelDefinition("./modelName/model.yaml", "yaml")
+func (c Model) WriteModelDefinition(modelDefPath string, outputType string) error {
+	err := utils.CreateDirectory(filepath.Dir(modelDefPath))
 	if err != nil {
 		return err
 	}
-
-	modelFilePath := filepath.Join(modelDefPath, "model.json")
-	err = utils.WriteJSONToFile[Model](modelFilePath, c)
+    if(outputType == "json"){
+	err = utils.WriteJSONToFile[Model](modelDefPath, c)
+    }
+    if(outputType == "yaml"){
+	err = utils.WriteYamlToFile[Model](modelDefPath, c)
+    }
 	if err != nil {
 		return err
 	}
