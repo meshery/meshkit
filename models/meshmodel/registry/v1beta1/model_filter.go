@@ -9,6 +9,7 @@ import (
 )
 
 type ModelFilter struct {
+    Id          string
 	Name        string
 	Registrant  string //name of the registrant for a given model
 	DisplayName string //If Name is already passed, avoid passing Display name unless greedy=true, else the filter will translate to an AND returning only the models where name and display name match exactly. Ignore, if this behavior is expected.
@@ -45,6 +46,17 @@ func countUniqueModels(models []v1beta1.Model) int {
 	}
 	return len(set)
 }
+
+func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
+    m := &v1beta1.Model{}
+    err := db.First(m, "id = ?", mf.Id).Error
+
+	if err != nil {
+		return nil, err
+	}
+    return  m, err
+}
+
 
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 

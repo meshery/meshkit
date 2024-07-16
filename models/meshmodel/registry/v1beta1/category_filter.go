@@ -8,6 +8,7 @@ import (
 )
 
 type CategoryFilter struct {
+    Id      string
 	Name    string
 	OrderOn string
 	Greedy  bool
@@ -22,6 +23,15 @@ func (cf *CategoryFilter) Create(m map[string]interface{}) {
 		return
 	}
 	cf.Name = m["name"].(string)
+}
+
+func (cf *CategoryFilter) GetById(db *database.Handler) (entity.Entity, error) {
+    c := &v1beta1.Category{}
+    err := db.First(c, "id = ?", cf.Id).Error
+	if err != nil {
+		return nil, err
+	}
+    return  c, err
 }
 
 func (cf *CategoryFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {

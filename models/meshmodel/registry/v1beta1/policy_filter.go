@@ -7,6 +7,7 @@ import (
 )
 
 type PolicyFilter struct {
+    Id        string
 	Kind      string
 	Greedy    bool
 	SubType   string
@@ -21,6 +22,15 @@ func (pf *PolicyFilter) Create(m map[string]interface{}) {
 	if m == nil {
 		return
 	}
+}
+
+func (pf *PolicyFilter) GetById(db *database.Handler) (entity.Entity, error) {
+    p := &v1beta1.PolicyDefinition{}
+    err := db.First(p, "id = ?", pf.Id).Error
+	if err != nil {
+		return nil, err
+	}
+    return  p, err
 }
 
 func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
