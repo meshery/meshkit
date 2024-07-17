@@ -61,7 +61,7 @@ var (
 		errors.Alert,
 		[]string{"Invalid schema version"},
 		[]string{"The `schemaVersion` key is either empty or has an incorrect value."},
-		[]string{"The JSON file schema is not of type 'relationship', 'component', 'model' , 'policy'."},
+		[]string{"The schema is not of type 'relationship', 'component', 'model' , 'policy'."},
 		[]string{"Verify that `schemaVersion` key should be either `relationships.meshery.io`, `component.meshery.io`, `model.meshery.io` or `policy.meshery.io`."},
 	)
 )
