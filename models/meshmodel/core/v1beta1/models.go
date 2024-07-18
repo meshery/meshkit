@@ -24,21 +24,21 @@ type ModelEntity struct {
 
 // swagger:response Model
 type Model struct {
-	ID uuid.UUID `json:"id"`
-	VersionMeta
-	Name          string                 `json:"name" gorm:"modelName"`
+    ID uuid.UUID                         `json:"id" yaml:"id"` 
+    VersionMeta                          `yaml:",inline"`
+    Name          string                 `json:"name" gorm:"modelName" yaml:"name"`
 	DisplayName   string                 `json:"displayName"`
-	Description   string                 `json:"description" gorm:"description"`
-	Status        entity.EntityStatus    `json:"status" gorm:"status"`
-	RegistrantID  uuid.UUID              `json:"hostID" gorm:"column:host_id"` // make as a foreign refer to host's table
-	Registrant    Host                   `json:"registrant" gorm:"foreignKey:RegistrantID;references:ID"`
-	CategoryID    uuid.UUID              `json:"-" gorm:"categoryID"`
-	Category      Category               `json:"category" gorm:"foreignKey:CategoryID;references:ID"`
-	SubCategory   string                 `json:"subCategory" gorm:"subCategory"`
-	Metadata      map[string]interface{} `json:"metadata" gorm:"type:bytes;serializer:json"`
-	Model         ModelEntity            `json:"model,omitempty" gorm:"model;type:bytes;serializer:json"`
-	Components    []ComponentDefinition  `json:"components" gorm:"-"`
-	Relationships interface{}            `json:"relationships" gorm:"-"`
+    Description   string                 `json:"description" gorm:"description" yaml:"description"`
+    Status        entity.EntityStatus    `json:"status" gorm:"status" yaml:"status"`
+    RegistrantID  uuid.UUID              `json:"hostID" gorm:"column:host_id" yaml:"hostId"` // make as a foreign refer to host's table
+    Registrant    Host                   `json:"registrant" gorm:"foreignKey:RegistrantID;references:ID" yaml:"registrant"`
+    CategoryID    uuid.UUID              `json:"-" gorm:"categoryID" yaml:"-"`
+    Category      Category               `json:"category" gorm:"foreignKey:CategoryID;references:ID" yaml:"category"`
+    SubCategory   string                 `json:"subCategory" gorm:"subCategory" yaml:"subCategory"`
+    Metadata      map[string]interface{} `json:"metadata" gorm:"type:bytes;serializer:json" yaml:"metadata"`
+    Model         ModelEntity            `json:"model,omitempty" gorm:"model;type:bytes;serializer:json" yaml:"model"`
+    Components    []ComponentDefinition  `json:"components" gorm:"-" yaml:"components"`
+    Relationships interface{}            `json:"relationships" gorm:"-" yaml:"relationships"`
 }
 
 func (m Model) TableName() string {
