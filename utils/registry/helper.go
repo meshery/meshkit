@@ -7,7 +7,6 @@ import (
 	"strings"
 	"path/filepath"
 	"google.golang.org/api/sheets/v4"
-	"github.com/layer5io/meshkit/utils/store"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/csv"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
@@ -18,7 +17,6 @@ var (
 	rowIndex = 1
 	shouldRegisterColIndex = -1
 	shouldRegisterMod = "publishToSites"
-	modelToCompGenerateTracker = store.NewGenericThreadSafeStore[CompGenerateTracker]()
 )
 
 var modelMetadataValues = []string{
