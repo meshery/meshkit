@@ -7,21 +7,23 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/logger"
+	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/csv"
 	"github.com/layer5io/meshkit/utils/manifests"
 )
 
 const (
-	SVG_WIDTH  = 20
-	SVG_HEIGHT = 20
+	SVG_WIDTH              = 20
+	SVG_HEIGHT             = 20
+	rowIndex               = 1
+	shouldRegisterColIndex = -1
 )
 
 var (
-	Log                      logger.Handler
-	LogError                 logger.Handler
+	Log      logger.Handler
+	LogError logger.Handler
 )
 
 type ComponentCSV struct {
