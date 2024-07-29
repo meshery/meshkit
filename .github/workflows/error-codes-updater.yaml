@@ -27,6 +27,9 @@ jobs:
         run: |
           go run github.com/layer5io/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
 
+      - name: Pull changes from remote
+        run: git pull origin master
+
       # to update errorutil* files in meshkit repo
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
