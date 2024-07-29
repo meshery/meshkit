@@ -1,9 +1,15 @@
 package oci
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+
+	archiveTar "archive/tar"
 
 	"github.com/fluxcd/pkg/tar"
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -62,4 +68,78 @@ func UnCompressOCIArtifact(source, destination string) error {
 	}
 
 	return nil
+}
+
+// ValidateOCIArtifact validates the OCI artifact tarball using go-containerregistry's validate function
+func ValidateOCIArtifact(tarballPath string) error {
+	img, err := tarball.ImageFromPath(tarballPath, nil)
+	if err != nil {
+		return err
+	}
+
+	return validate.Image(img)
+}
+
+// IsOCIArtifact checks if the tarball is an OCI artifact by looking for manifest.json or index.json
+func IsOCIArtifact(data []byte) bool {
+	reader := bytes.NewReader(data)
+	var tr *archiveTar.Reader
+
+	if gzr, err := gzip.NewReader(reader); err == nil {
+		defer gzr.Close()
+		tr = archiveTar.NewReader(gzr)
+	} else {
+		reader.Seek(0, io.SeekStart)
+		tr = archiveTar.NewReader(reader)
+	}
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return false
+		}
+
+		if header.Name == "manifest.json" || header.Name == "index.json" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ExtractAndValidateManifest(data []byte) error {
+	reader := bytes.NewReader(data)
+	var tr *archiveTar.Reader
+
+	if gzr, err := gzip.NewReader(reader); err == nil {
+		defer gzr.Close()
+		tr = archiveTar.NewReader(gzr)
+	} else {
+		reader.Seek(0, io.SeekStart)
+		tr = archiveTar.NewReader(reader)
+	}
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if header.Name == "manifest.json" {
+			var manifest []map[string]interface{}
+			if err := json.NewDecoder(tr).Decode(&manifest); err != nil {
+				return fmt.Errorf("failed to decode manifest.json: %w", err)
+			}
+			fmt.Println("manifest.json is valid:", manifest)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("manifest.json not found in tarball")
 }
