@@ -29,7 +29,7 @@ func loadSchema() error {
 	if isSchemaLoaded {
 		return nil
 	}
-	
+
 	file, err := schemas.Schemas.Open("schemas/openapi.yml")
 	if err != nil {
 		return utils.ErrReadFile(err, "schemas/openapi.yml")

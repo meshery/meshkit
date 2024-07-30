@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"cuelang.org/go/cue"
-	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/schemas/models/v1beta1"
 )
 
 const ComponentMetaNameKey = "name"
@@ -50,7 +50,7 @@ func Generate(crd string) (v1beta1.ComponentDefinition, error) {
 	component := v1beta1.ComponentDefinition{}
 	component.SchemaVersion = v1beta1.ComponentSchemaVersion
 
-	component.Metadata = &v1beta1.ComponentDefinition_Metadata{}
+	component.Metadata = v1beta1.ComponentDefinition_Metadata{}
 	crdCue, err := utils.YamlToCue(crd)
 	if err != nil {
 		return component, err

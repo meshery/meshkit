@@ -43,7 +43,22 @@ type HostFilter struct {
 	Offset      int
 }
 
-// Each host from where meshmodels can be generated needs to implement this interface
+type DependencyHandler interface {
+	HandleDependents(comp v1beta1.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, error)
+	String() string
+}
+
+func NewDependencyHandler(connectionKind string) (DependencyHandler, error) {
+	switch connectionKind {
+	case "kubernetes":
+		return Kubernetes{}, nil
+	case "artifacthub":
+		return ArtifactHub{}, nil
+	}
+	return nil, ErrUnknownKind(fmt.Errorf("unknown kind %s", connectionKind))
+}
+
+// Each connection from where meshmodels can be generated needs to implement this interface
 // HandleDependents, contains host specific logic for provisioning required CRDs/operators for corresponding components.
 
 type ArtifactHub struct{}
@@ -51,21 +66,19 @@ type ArtifactHub struct{}
 const MesheryAnnotationPrefix = "design.meshmodel.io"
 
 func (ah ArtifactHub) HandleDependents(comp v1beta1.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
-	annotations, err := utils.Cast[map[string]interface{}](comp.Metadata.AdditionalProperties["annotations"])
+	sourceURI, err := utils.Cast[string](comp.Metadata.AdditionalProperties["source_uri"]) // should be part of registrant data(?)
 	if err != nil {
 		return summary, err
 	}
-	
+
 	act := kubernetes.UNINSTALL
 	if isDeploy {
 		act = kubernetes.INSTALL
 	}
 
-	source_uri, ok := annotations[fmt.Sprintf("%s.model.source_uri", MesheryAnnotationPrefix)]
-
-	if ok && source_uri != "" {
+	if sourceURI != "" {
 		err = kc.ApplyHelmChart(kubernetes.ApplyHelmChartConfig{
-			URL:                source_uri.(string),
+			URL:                sourceURI,
 			Namespace:          comp.Configuration["namespace"].(string),
 			CreateNamespace:    true,
 			Action:             act,

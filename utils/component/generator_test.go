@@ -3,8 +3,8 @@ package component
 import (
 	"testing"
 
-	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/schemas/models/v1beta1"
 )
 
 var istioCrd = `

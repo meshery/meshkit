@@ -9,7 +9,6 @@ package v1beta1
 // 	Description *string  `json:"description,omitempty"`
 // }
 
-
 // func GetAPIVersionFromComponent(comp v1beta1.ComponentDefinition) string {
 // 	return comp.Annotations[MesheryAnnotationPrefix+".k8s.APIVersion"]
 // }

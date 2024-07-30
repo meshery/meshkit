@@ -30,7 +30,7 @@ func Validate(schema cue.Value, value cue.Value) (bool, []errors.Error) {
 		}
 		return true
 	}, nil)
-	
+
 	if len(errs) != 0 {
 		return false, errs
 	}
