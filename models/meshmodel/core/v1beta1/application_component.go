@@ -36,7 +36,7 @@ type ComponentParameter struct {
 	Description *string  `json:"description,omitempty"`
 }
 
-const MesheryAnnotationPrefix = "design.meshmodel.io"
+const MesheryAnnotationPrefix = "id.design.meshery.io"
 
 func GetAPIVersionFromComponent(comp Component) string {
 	return comp.Annotations[MesheryAnnotationPrefix+".k8s.APIVersion"]
