@@ -9,16 +9,16 @@ package v1beta1
 // 	Description *string  `json:"description,omitempty"`
 // }
 
-// func GetAPIVersionFromComponent(comp v1beta1.ComponentDefinition) string {
+// func GetAPIVersionFromComponent(comp model.ComponentDefinition) string {
 // 	return comp.Annotations[MesheryAnnotationPrefix+".k8s.APIVersion"]
 // }
 
-// func GetKindFromComponent(comp v1beta1.ComponentDefinition) string {
+// func GetKindFromComponent(comp model.ComponentDefinition) string {
 // 	kind := strings.TrimPrefix(comp.Annotations[MesheryAnnotationPrefix+".k8s.Kind"], "/")
 // 	return kind
 // }
 
-// func GetAnnotationsForWorkload(w v1beta1.ComponentDefinition) map[string]string {
+// func GetAnnotationsForWorkload(w model.ComponentDefinition) map[string]string {
 // 	res := map[string]string{}
 
 // 	for key, val := range w.Metadata {

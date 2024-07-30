@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/layer5io/meshkit/utils/manifests"
-	"github.com/meshery/schemas/models/v1beta1"
+	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 )
 
 var istioCrd = `

@@ -6,7 +6,9 @@ import (
 
 	"github.com/layer5io/meshkit/models/catalog/v1alpha1"
 	"github.com/meshery/schemas/models/v1alpha2"
-	"github.com/meshery/schemas/models/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta1/category"
+
 )
 
 type ValidationCases struct {
@@ -42,15 +44,15 @@ func TestValidator(t *testing.T) {
 		},
 		{
 			Path: "models",
-			Resource: v1beta1.ModelDefinition{
+			Resource: model.ModelDefinition{
 
 				SchemaVersion: "v1beta1",
 				Version:       "1.0.0",
 
-				Category: v1beta1.CategoryDefinition{
+				Category: category.CategoryDefinition{
 					Name: "test",
 				},
-				Model: v1beta1.Model{
+				Model: model.Model{
 					Version: "1.0.0",
 				},
 				Status:      "",

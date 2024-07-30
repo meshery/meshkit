@@ -1,6 +1,6 @@
 package models
 
-import "github.com/meshery/schemas/models/v1beta1"
+import v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 
 // anything that can be validated is a Validator
 type Validator interface {

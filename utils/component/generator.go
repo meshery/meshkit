@@ -9,6 +9,7 @@ import (
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
 const ComponentMetaNameKey = "name"
@@ -46,11 +47,11 @@ var DefaultPathConfig2 = CuePathConfig{
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
-func Generate(crd string) (v1beta1.ComponentDefinition, error) {
-	component := v1beta1.ComponentDefinition{}
+func Generate(crd string) (model.ComponentDefinition, error) {
+	component := model.ComponentDefinition{}
 	component.SchemaVersion = v1beta1.ComponentSchemaVersion
 
-	component.Metadata = v1beta1.ComponentDefinition_Metadata{}
+	component.Metadata = model.ComponentDefinition_Metadata{}
 	crdCue, err := utils.YamlToCue(crd)
 	if err != nil {
 		return component, err
@@ -92,7 +93,7 @@ func Generate(crd string) (v1beta1.ComponentDefinition, error) {
 		component.Component.Version = version
 	}
 
-	component.Format = v1beta1.JSON
+	component.Format = model.JSON
 	component.DisplayName = manifests.FormatToReadableString(name)
 	return component, nil
 }

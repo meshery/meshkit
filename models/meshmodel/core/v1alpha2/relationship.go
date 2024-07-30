@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
-	"github.com/meshery/schemas/models/v1beta1"
+	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/utils"
@@ -28,7 +28,7 @@ type RelationshipDefinition struct {
 	EvaluationQuery  string                   `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
 	Metadata         map[string]interface{}   `json:"metadata"  yaml:"metadata" gorm:"type:bytes;serializer:json"`
 	ModelID          uuid.UUID                `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:model_id"`
-	Model            v1beta1.ModelDefinition  `json:"model" gorm:"foreignKey:ModelID;references:ID"`
+	Model            v1beta1.ModelDefinition  `json:"model" gorm:"foreignKey:ModelID;references:Id"`
 	Selectors        []map[string]interface{} `json:"selectors"  yaml:"selectors" gorm:"type:bytes;serializer:json"`
 }
 

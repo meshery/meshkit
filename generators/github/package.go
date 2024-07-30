@@ -7,7 +7,8 @@ import (
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/component"
 	"github.com/layer5io/meshkit/utils/manifests"
-	"github.com/meshery/schemas/models/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1/category"
+	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
 type GitHubPackage struct {
@@ -23,8 +24,8 @@ func (gp GitHubPackage) GetVersion() string {
 	return gp.version
 }
 
-func (gp GitHubPackage) GenerateComponents() ([]v1beta1.ComponentDefinition, error) {
-	components := make([]v1beta1.ComponentDefinition, 0)
+func (gp GitHubPackage) GenerateComponents() ([]model.ComponentDefinition, error) {
+	components := make([]model.ComponentDefinition, 0)
 
 	data, err := os.ReadFile(gp.filePath)
 	if err != nil {
@@ -46,7 +47,7 @@ func (gp GitHubPackage) GenerateComponents() ([]v1beta1.ComponentDefinition, err
 		comp.Model.Metadata.AdditionalProperties["source_uri"] = gp.SourceURL
 		comp.Model.Version = gp.version
 		comp.Model.Name = gp.Name
-		comp.Model.Category = v1beta1.CategoryDefinition{
+		comp.Model.Category = category.CategoryDefinition{
 			Name: "",
 		}
 		comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)

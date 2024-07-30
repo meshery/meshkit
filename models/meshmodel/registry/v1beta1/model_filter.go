@@ -1,11 +1,12 @@
 package v1beta1
 
 import (
+	"fmt"
+
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
-	"github.com/layer5io/meshkit/models/meshmodel/registry"
-	"github.com/meshery/schemas/models/v1beta1"
+	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 
 	"gorm.io/gorm/clause"
 )
@@ -91,7 +92,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	finder := db.Model(&v1beta1.ModelDefinition{}).Preload("Category").Preload("Registrant").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN registries ON registries.entity = model_dbs.id").
-		Joins("JOIN hosts ON hosts.id = registries.registrant_id")
+		Joins("JOIN connections ON connections.id = registries.registrant_id")
 
 	// total count before pagination
 	var count int64
@@ -99,6 +100,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	// include components and relationships in response body
 	var includeComponents, includeRelationships bool
 
+	fmt.Println("line 65 : -------")
 	if mf.Greedy {
 		if mf.Name != "" && mf.DisplayName != "" {
 			finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", "%"+mf.Name+"%", "%"+mf.DisplayName+"%")
@@ -127,7 +129,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		finder = finder.Where("category_dbs.name = ?", mf.Category)
 	}
 	if mf.Registrant != "" {
-		finder = finder.Where("hosts.hostname = ?", mf.Registrant)
+		finder = finder.Where("connections.kind = ?", mf.Registrant)
 	}
 	if mf.Annotations == "true" {
 		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
@@ -167,6 +169,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	err := finder.
 		Find(&modelWithCategories).Error
 	if err != nil {
+		fmt.Println("line 131 : -------", err)
 		return nil, 0, 0, err
 	}
 

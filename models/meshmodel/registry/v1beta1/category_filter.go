@@ -3,7 +3,7 @@ package v1beta1
 import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
-	"github.com/meshery/schemas/models/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1/category"
 	"gorm.io/gorm/clause"
 )
 
@@ -35,7 +35,7 @@ func (cf *CategoryFilter) GetById(db *database.Handler) (entity.Entity, error) {
 }
 
 func (cf *CategoryFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	var catdb []v1beta1.CategoryDefinition
+	var catdb []category.CategoryDefinition
 	var cat []entity.Entity
 	finder := db.Model(&catdb).Debug()
 

@@ -3,17 +3,15 @@ package v1beta1
 import (
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/kubernetes"
-	"github.com/meshery/schemas/models/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1/connection"
+	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
 type MeshModelHostsWithEntitySummary struct {
-	ID       uuid.UUID     `json:"id"`
-	Hostname string        `json:"hostname"`
-	Port     int           `json:"port"`
-	Summary  EntitySummary `json:"summary"`
+	connection.Connection
+	Summary EntitySummary `json:"summary"`
 }
 type EntitySummary struct {
 	Models        int64 `json:"models"`
@@ -22,13 +20,11 @@ type EntitySummary struct {
 	Policies      int64 `json:"policies"`
 }
 type MesheryHostSummaryDB struct {
-	HostID        uuid.UUID `json:"-" gorm:"id"`
-	Hostname      string    `json:"-" gorm:"hostname"`
-	Port          int       `json:"-" gorm:"port"`
-	Models        int64     `json:"-" gorm:"models"`
-	Components    int64     `json:"-" gorm:"components"`
-	Relationships int64     `json:"-" gorm:"relationships"`
-	Policies      int64     `json:"-" gorm:"policies"`
+	connection.Connection
+	Models        int64 `json:"-" gorm:"models"`
+	Components    int64 `json:"-" gorm:"components"`
+	Relationships int64 `json:"-" gorm:"relationships"`
+	Policies      int64 `json:"-" gorm:"policies"`
 }
 
 type HostFilter struct {
@@ -44,7 +40,7 @@ type HostFilter struct {
 }
 
 type DependencyHandler interface {
-	HandleDependents(comp v1beta1.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, error)
+	HandleDependents(comp model.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, error)
 	String() string
 }
 
@@ -65,7 +61,7 @@ type ArtifactHub struct{}
 
 const MesheryAnnotationPrefix = "design.meshmodel.io"
 
-func (ah ArtifactHub) HandleDependents(comp v1beta1.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
+func (ah ArtifactHub) HandleDependents(comp model.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
 	sourceURI, err := utils.Cast[string](comp.Metadata.AdditionalProperties["source_uri"]) // should be part of registrant data(?)
 	if err != nil {
 		return summary, err
@@ -107,7 +103,7 @@ func (ah ArtifactHub) String() string {
 
 type Kubernetes struct{}
 
-func (k Kubernetes) HandleDependents(_ v1beta1.ComponentDefinition, _ *kubernetes.Client, _, _ bool) (summary string, err error) {
+func (k Kubernetes) HandleDependents(_ model.ComponentDefinition, _ *kubernetes.Client, _, _ bool) (summary string, err error) {
 	return summary, err
 }
 

@@ -8,7 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/utils"
-	"github.com/meshery/schemas/models/v1beta1"
+	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 	"gorm.io/gorm/clause"
 
 	"github.com/layer5io/meshkit/models/meshmodel/entity"

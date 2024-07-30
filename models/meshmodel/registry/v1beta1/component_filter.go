@@ -1,9 +1,15 @@
 package v1beta1
 
 import (
+	"fmt"
+
+	"github.com/MUzairS15/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
-	"github.com/meshery/schemas/models/v1beta1"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1beta1/category"
+	"github.com/meshery/schemas/models/v1beta1/connection"
+	"github.com/meshery/schemas/models/v1beta1/model"
 	"gorm.io/gorm/clause"
 )
 
@@ -26,10 +32,10 @@ type ComponentFilter struct {
 }
 
 type componentDefinitionWithModel struct {
-	ComponentDefinitionDB v1beta1.ComponentDefinition `gorm:"embedded"`
-	ModelDB               v1beta1.ModelDefinition     `gorm:"embedded"`
-	CategoryDB            v1beta1.CategoryDefinition  `gorm:"embedded"`
-	ConnectionDB          v1beta1.Connection          `gorm:"embedded"`
+	ComponentDefinitionDB model.ComponentDefinition   `gorm:"embedded"`
+	ModelDB               model.ModelDefinition       `gorm:"embedded"`
+	CategoryDB            category.CategoryDefinition `gorm:"embedded"`
+	ConnectionDB          connection.Connection       `gorm:"embedded"`
 }
 
 func (cf *ComponentFilter) GetById(db *database.Handler) (entity.Entity, error) {
@@ -62,22 +68,20 @@ func countUniqueComponents(components []componentDefinitionWithModel) int {
 
 func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	var componentDefinitionsWithModel []componentDefinitionWithModel
-	finder := db.Model(&v1beta1.ComponentDefinition{}).
-		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*, hosts.*").
+	finder := db.Model(&model.ComponentDefinition{}).
+		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*, connections.*").
 		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
-		Joins("JOIN hosts ON hosts.id = model_dbs.host_id")
-		//
+		Joins("JOIN connections ON connections.id = model_dbs.host_id")
 
 	// TODO(@MUzairS15): Refactor this once Status is made a first class field in ComponentFilter
 	status := "enabled"
-	
-	if componentFilter.Status != ""  {
+
+	if componentFilter.Status != "" {
 		status = componentFilter.Status
 	}
 
 	finder = finder.Where("model_dbs.status = ?", status)
-
 	if componentFilter.Greedy {
 		if componentFilter.Name != "" && componentFilter.DisplayName != "" {
 			finder = finder.Where("component_definition_dbs.component->>'kind' LIKE ? OR display_name LIKE ?", "%"+componentFilter.Name+"%", componentFilter.DisplayName+"%")
@@ -124,8 +128,11 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	} else {
 		finder = finder.Order("display_name")
 	}
+
 	var count int64
 	finder.Count(&count)
+	fmt.Println("line 114 COUNT : =+++++++++++++++", count)
+
 	finder = finder.Offset(componentFilter.Offset)
 	if componentFilter.Limit != 0 {
 		finder = finder.Limit(componentFilter.Limit)
@@ -133,6 +140,7 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	err := finder.
 		Scan(&componentDefinitionsWithModel).Error
 	if err != nil {
+		fmt.Println("line 123 : =+++++++++++++++", err)
 		return nil, 0, 0, err
 	}
 
