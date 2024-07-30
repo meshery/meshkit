@@ -3,9 +3,10 @@ package v1beta1
 import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1beta1"
+
 	"gorm.io/gorm/clause"
 )
 
@@ -37,7 +38,7 @@ func (mf *ModelFilter) Create(m map[string]interface{}) {
 	mf.Name = m["name"].(string)
 }
 
-func countUniqueModels(models []v1beta1.Model) int {
+func countUniqueModels(models []v1beta1.ModelDefinition) int {
 	set := make(map[string]struct{})
 	for _, model := range models {
 		key := model.Name + "@" + model.Model.Version
@@ -85,9 +86,9 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 }
 
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	var modelWithCategories []v1beta1.Model
+	var modelWithCategories []v1beta1.ModelDefinition
 
-	finder := db.Model(&v1beta1.Model{}).Preload("Category").Preload("Registrant").
+	finder := db.Model(&v1beta1.ModelDefinition{}).Preload("Category").Preload("Registrant").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN registries ON registries.entity = model_dbs.id").
 		Joins("JOIN hosts ON hosts.id = registries.registrant_id")
@@ -188,11 +189,11 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 			var relationships []v1alpha2.RelationshipDefinition
 			finder := db.Model(&v1alpha2.RelationshipDefinition{}).
 				Select("relationship_definition_dbs.*").
-				Where("relationship_definition_dbs.model_id = ?", _modelDB.ID)
+				Where("relationship_definition_dbs.model_id = ?", _modelDB.Id)
 			if err := finder.Scan(&relationships).Error; err != nil {
 				return nil, 0, 0, err
 			}
-			_modelDB.Relationships = relationships
+			// _modelDB.Relationships = relationships FIX THIS
 		}
 		defs = append(defs, &_modelDB)
 	}

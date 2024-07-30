@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/schemas/models/v1beta1"
 	"gorm.io/gorm/clause"
 
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
@@ -15,14 +16,15 @@ import (
 
 // swagger:response PolicyDefinition
 type PolicyDefinition struct {
-	ID uuid.UUID `json:"-"`
-	TypeMeta
-	ModelID    uuid.UUID              `json:"-" gorm:"column:modelID"`
-	Model      Model                  `json:"model"`
-	SubType    string                 `json:"subType" yaml:"subType"`
-	Expression map[string]interface{} `json:"expression" yaml:"expression" gorm:"type:bytes;serializer:json"`
-	CreatedAt  time.Time              `json:"-"`
-	UpdatedAt  time.Time              `json:"-"`
+	ID         uuid.UUID               `json:"-"`
+	Kind       string                  `json:"kind,omitempty" yaml:"kind"`
+	Version    string                  `json:"version,omitempty" yaml:"version"`
+	ModelID    uuid.UUID               `json:"-" gorm:"column:modelID"`
+	Model      v1beta1.ModelDefinition `json:"model"`
+	SubType    string                  `json:"subType" yaml:"subType"`
+	Expression map[string]interface{}  `json:"expression" yaml:"expression" gorm:"type:bytes;serializer:json"`
+	CreatedAt  time.Time               `json:"-"`
+	UpdatedAt  time.Time               `json:"-"`
 }
 
 func (p PolicyDefinition) GetID() uuid.UUID {
@@ -30,7 +32,7 @@ func (p PolicyDefinition) GetID() uuid.UUID {
 }
 
 func (p *PolicyDefinition) GenerateID() (uuid.UUID, error) {
-	return uuid.New(), nil
+	return uuid.NewV4()
 }
 
 func (p PolicyDefinition) Type() entity.EntityType {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"cuelang.org/go/cue"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
 )
@@ -50,7 +50,7 @@ func Generate(crd string) (v1beta1.ComponentDefinition, error) {
 	component := v1beta1.ComponentDefinition{}
 	component.SchemaVersion = v1beta1.ComponentSchemaVersion
 
-	component.Metadata = make(map[string]interface{})
+	component.Metadata = &v1beta1.ComponentDefinition_Metadata{}
 	crdCue, err := utils.YamlToCue(crd)
 	if err != nil {
 		return component, err
@@ -76,11 +76,14 @@ func Generate(crd string) (v1beta1.ComponentDefinition, error) {
 		return component, err
 	}
 	// return component, err Ignore error if scope isn't found
+	if component.Metadata.AdditionalProperties == nil {
+		component.Metadata.AdditionalProperties = make(map[string]interface{})
+	}
 	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
 	if scope == "Cluster" {
-		component.Metadata["isNamespaced"] = false
+		component.Metadata.AdditionalProperties["isNamespaced"] = false
 	} else if scope == "Namespaced" {
-		component.Metadata["isNamespaced"] = true
+		component.Metadata.AdditionalProperties["isNamespaced"] = true
 	}
 	component.Component.Kind = name
 	if group != "" {

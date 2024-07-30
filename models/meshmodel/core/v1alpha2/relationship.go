@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1"
+
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/utils"
 	"gorm.io/gorm/clause"
@@ -16,9 +17,10 @@ import (
 const RelationshipSchemaVersion = "relationships.meshery.io/v1alpha2"
 
 type RelationshipDefinition struct {
-	ID                  uuid.UUID `json:"id"`
-	v1beta1.VersionMeta `json:",inline" yaml:",inline"`
-	Kind                string `json:"kind,omitempty" yaml:"kind"`
+	ID            uuid.UUID `json:"id"`
+	SchemaVersion string    `json:"schemaVersion,omitempty" yaml:"schemaVersion"`
+	Version       string    `json:"version,omitempty" yaml:"version"`
+	Kind          string    `json:"kind,omitempty" yaml:"kind"`
 	// The property has been named RelationshipType instead of Type to avoid collision from Type() function, which enables support for dynamic type.
 	// Though, the column name and the json representation is "type".
 	RelationshipType string                   `json:"type" yaml:"type" gorm:"type"`
@@ -26,7 +28,7 @@ type RelationshipDefinition struct {
 	EvaluationQuery  string                   `json:"evaluationQuery" yaml:"evaluationQuery" gorm:"evaluationQuery"`
 	Metadata         map[string]interface{}   `json:"metadata"  yaml:"metadata" gorm:"type:bytes;serializer:json"`
 	ModelID          uuid.UUID                `json:"-" gorm:"index:idx_relationship_definition_dbs_model_id,column:model_id"`
-	Model            v1beta1.Model            `json:"model" gorm:"foreignKey:ModelID;references:ID"`
+	Model            v1beta1.ModelDefinition  `json:"model" gorm:"foreignKey:ModelID;references:ID"`
 	Selectors        []map[string]interface{} `json:"selectors"  yaml:"selectors" gorm:"type:bytes;serializer:json"`
 }
 
@@ -39,7 +41,7 @@ func (r RelationshipDefinition) Type() entity.EntityType {
 }
 
 func (r *RelationshipDefinition) GenerateID() (uuid.UUID, error) {
-	return uuid.New(), nil
+	return uuid.NewV4()
 }
 
 func (r RelationshipDefinition) GetID() uuid.UUID {

@@ -2,9 +2,8 @@ package v1beta1
 
 import (
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
-	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1beta1"
 	"gorm.io/gorm/clause"
 )
 
@@ -28,9 +27,9 @@ type ComponentFilter struct {
 
 type componentDefinitionWithModel struct {
 	ComponentDefinitionDB v1beta1.ComponentDefinition `gorm:"embedded"`
-	ModelDB               v1beta1.Model               `gorm:"embedded"`
-	CategoryDB            v1beta1.Category            `gorm:"embedded"`
-	HostsDB               v1beta1.Host                `gorm:"embedded"`
+	ModelDB               v1beta1.ModelDefinition     `gorm:"embedded"`
+	CategoryDB            v1beta1.CategoryDefinition  `gorm:"embedded"`
+	ConnectionDB          v1beta1.Connection          `gorm:"embedded"`
 }
 
 func (cf *ComponentFilter) GetById(db *database.Handler) (entity.Entity, error) {
@@ -144,7 +143,7 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 			cm.ComponentDefinitionDB.Component.Schema = ""
 		}
 
-		reg := cm.HostsDB
+		reg := cm.ConnectionDB
 		cd := cm.ComponentDefinitionDB
 		cd.Model = cm.ModelDB
 		cd.Model.Category = cm.CategoryDB

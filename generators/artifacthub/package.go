@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/component"
 	"github.com/layer5io/meshkit/utils/manifests"
@@ -53,15 +53,15 @@ func (pkg AhPackage) GenerateComponents() ([]v1beta1.ComponentDefinition, error)
 			continue
 		}
 		if comp.Metadata == nil {
-			comp.Metadata = make(map[string]interface{})
+			comp.Metadata = &v1beta1.ComponentDefinition_Metadata{}
 		}
-		if comp.Model.Metadata == nil {
-			comp.Model.Metadata = make(map[string]interface{})
+		if comp.Model.Metadata.AdditionalProperties == nil {
+			comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
 		}
-		comp.Model.Metadata["source_uri"] = pkg.ChartUrl
+		comp.Model.Metadata.AdditionalProperties["source_uri"] = pkg.ChartUrl
 		comp.Model.Version = pkg.Version
 		comp.Model.Name = pkg.Name
-		comp.Model.Category = v1beta1.Category{
+		comp.Model.Category = v1beta1.CategoryDefinition{
 			Name: "",
 		}
 		comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)

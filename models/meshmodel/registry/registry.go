@@ -5,10 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
+	"github.com/meshery/schemas/models/v1beta1"
+	model "github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -23,9 +24,9 @@ import (
 // 2. Entity type
 // 3. Entity
 type MeshModelRegistrantData struct {
-	Host       v1beta1.Host      `json:"host"`
-	EntityType entity.EntityType `json:"entityType"`
-	Entity     []byte            `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
+	Connection v1beta1.Connection `json:"connection"`
+	EntityType entity.EntityType  `json:"entityType"`
+	Entity     []byte             `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
 }
 type Registry struct {
 	ID           uuid.UUID
@@ -52,12 +53,12 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	}
 	err := rm.db.AutoMigrate(
 		&Registry{},
-		&v1beta1.Host{},
+		&v1beta1.Connection{},
 		&v1beta1.ComponentDefinition{},
 		&v1alpha2.RelationshipDefinition{},
-		&v1beta1.PolicyDefinition{},
-		&v1beta1.Model{},
-		&v1beta1.Category{},
+		// &v1beta1.PolicyDefinition{},
+		&v1beta1.ModelDefinition{},
+		&v1beta1.CategoryDefinition{},
 	)
 	if err != nil {
 		return nil, err
@@ -67,14 +68,14 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 func (rm *RegistryManager) Cleanup() {
 	_ = rm.db.Migrator().DropTable(
 		&Registry{},
-		&v1beta1.Host{},
+		&v1beta1.Connection{},
 		&v1beta1.ComponentDefinition{},
-		&v1beta1.Model{},
-		&v1beta1.Category{},
+		&v1beta1.ModelDefinition{},
+		&v1beta1.CategoryDefinition{},
 		&v1alpha2.RelationshipDefinition{},
 	)
 }
-func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) (bool, bool, error) {
+func (rm *RegistryManager) RegisterEntity(h v1beta1.Connection, en entity.Entity) (bool, bool, error) {
 	registrantID, err := h.Create(rm.db)
 	if err != nil {
 		return true, false, err
@@ -84,8 +85,9 @@ func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) (boo
 	if err != nil {
 		return false, true, err
 	}
+	id, _ := uuid.NewV4()
 	entry := Registry{
-		ID:           uuid.New(),
+		ID:           id,
 		RegistrantID: registrantID,
 		Entity:       entityID,
 		Type:         en.Type(),
@@ -103,13 +105,13 @@ func (rm *RegistryManager) RegisterEntity(h v1beta1.Host, en entity.Entity) (boo
 // By default during models generation ignore is set to false
 func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityType string) error {
 	// Convert string UUID to google UUID
-	entityID, err := uuid.Parse(ID)
+	entityID, err := uuid.FromString(ID)
 	if err != nil {
 		return err
 	}
 	switch entityType {
 	case "models":
-		model := v1beta1.Model{ID: entityID}
+		model := v1beta1.ModelDefinition{Id: entityID}
 		err := model.UpdateStatus(rm.db, entity.EntityStatus(status))
 		if err != nil {
 			return err
@@ -120,18 +122,18 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityTy
 	}
 }
 
-func (rm *RegistryManager) GetRegistrant(e entity.Entity) v1beta1.Host {
+func (rm *RegistryManager) GetRegistrant(e entity.Entity) v1beta1.Connection {
 	eID := e.GetID()
 	var reg Registry
 	_ = rm.db.Where("entity = ?", eID).Find(&reg).Error
-	var h v1beta1.Host
+	var h v1beta1.Connection
 	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
 	return h
 }
 
 // to be removed
-func (rm *RegistryManager) GetRegistrants(f *v1beta1.HostFilter) ([]v1beta1.MeshModelHostsWithEntitySummary, int64, error) {
-	var result []v1beta1.MesheryHostSummaryDB
+func (rm *RegistryManager) GetRegistrants(f *model.HostFilter) ([]model.MeshModelHostsWithEntitySummary, int64, error) {
+	var result []model.MesheryHostSummaryDB
 	var totalcount int64
 	db := rm.db
 
@@ -170,14 +172,14 @@ func (rm *RegistryManager) GetRegistrants(f *v1beta1.HostFilter) ([]v1beta1.Mesh
 		return nil, 0, err
 	}
 
-	var response []v1beta1.MeshModelHostsWithEntitySummary
+	var response []model.MeshModelHostsWithEntitySummary
 
 	for _, r := range result {
-		res := v1beta1.MeshModelHostsWithEntitySummary{
+		res := model.MeshModelHostsWithEntitySummary{
 			ID:       r.HostID,
 			Hostname: HostnameToPascalCase(r.Hostname),
 			Port:     r.Port,
-			Summary: v1beta1.EntitySummary{
+			Summary: model.EntitySummary{
 				Models:        r.Models,
 				Components:    r.Components,
 				Relationships: r.Relationships,
