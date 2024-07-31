@@ -47,7 +47,7 @@ func ErrWritingRegisteryAttempts(err error) error {
 	return errors.New(ErrWritingRegisteryAttemptsCode, errors.Alert, []string{"Error writing RegisteryAttempts JSON data to file"}, []string{"Error writing RegisteryAttempts JSON data to file:", err.Error()}, []string{}, []string{})
 }
 func ErrRegisteringEntity(failedMsg string, hostName string) error {
-	return errors.New(ErrRegisteringEntityCode, errors.Alert, []string{fmt.Sprintf("The import process for a registrant %s encountered difficulties,due to which %s. Specific issues during the import process resulted in certain entities not being successfully registered in the table.", hostName, failedMsg)}, []string{fmt.Sprintf("For registrant %s %s", hostName, failedMsg)}, []string{"Could be because of empty schema or some issue with the json or yaml file"}, []string{"Check /server/cmd/registery_attempts.json for futher details"})
+	return errors.New(ErrRegisteringEntityCode, errors.Alert, []string{fmt.Sprintf("One or more entities failed to register. The import process for registrant, %s, encountered the following issue: %s.", hostName, failedMsg)}, []string{fmt.Sprintf("Registrant %s encountered %s", hostName, failedMsg)}, []string{"Entity might be missing a required schema or have invalid json / yaml."}, []string{"Check `server/cmd/registery_attempts.json` for further details."})
 }
 func ErrCreatingUserDataDirectory(dir string) error {
 	return errors.New(ErrCreatingUserDataDirectoryCode, errors.Fatal, []string{"Unable to create the directory for storing user data at: ", dir}, []string{"Unable to create the directory for storing user data at: ", dir}, []string{}, []string{})

@@ -11,7 +11,7 @@ import (
 const XMLTAG = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE svg>"
 
 // UpdateSVGString updates the width and height attributes of an SVG file and returns the modified SVG as a string.
-func UpdateSVGString(svgStr string, width, height int) (string, error) {
+func UpdateSVGString(svgStr string, width, height int, skipHeader bool) (string, error) {
 	// Create a reader for the SVG string.
 	r := strings.NewReader(svgStr)
 
@@ -99,8 +99,10 @@ func UpdateSVGString(svgStr string, width, height int) (string, error) {
 		return "", err
 	}
 	var svg string
-	if b.String() != "" {
+	if b.String() != "" && !skipHeader {
 		svg = XMLTAG + b.String()
+	} else {
+		svg = b.String()
 	}
 	return svg, nil
 }
