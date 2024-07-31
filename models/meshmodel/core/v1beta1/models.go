@@ -102,11 +102,6 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 		if err != nil {
 			return uuid.UUID{}, err
 		}
-		// register model inside registries table
-		err = registerModel(db, hostID, modelID)
-		if err != nil {
-			return uuid.UUID{}, err
-		}
 		return m.ID, nil
 	}
 	return model.ID, nil
@@ -140,20 +135,3 @@ func (c Model) WriteModelDefinition(modelDefPath string, outputType string) erro
 	return nil
 }
 
-// Registers models into registries table.
-func registerModel(db *database.Handler, regID, modelID uuid.UUID) error {
-	var count int64
-	err := db.Table("registries").Where("registrant_id = ?", regID).Where("type = ?", "model").Where("entity = ?", modelID).Count(&count).Error
-
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return err
-	}
-
-	if count == 0 {
-		err = db.Exec("INSERT INTO registries (registrant_id, entity, type) VALUES (?,?,?)", regID, modelID, "model").Error
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
