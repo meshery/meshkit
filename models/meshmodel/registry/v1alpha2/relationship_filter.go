@@ -4,6 +4,7 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
@@ -36,7 +37,7 @@ func (rf *RelationshipFilter) GetById(db *database.Handler) (entity.Entity, erro
     r := &v1alpha2.RelationshipDefinition{}
     err := db.First(r, "id = ?", rf.Id).Error
 	if err != nil {
-		return nil, err
+		return nil, registry.ErrGetById(err, rf.Id)
 	}
     return  r, err
 }

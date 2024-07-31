@@ -5,6 +5,7 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
@@ -52,7 +53,7 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
     err := db.First(m, "id = ?", mf.Id).Error
 
 	if err != nil {
-		return nil, err
+		return nil, registry.ErrGetById(err, mf.Id)
 	}
     return  m, err
 }
