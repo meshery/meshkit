@@ -14,7 +14,20 @@ var (
 	ErrRegisteringEntityCode           = "replace_me"
 	ErrUnknownHostInMapCode            = "replace_me"
 	ErrCreatingUserDataDirectoryCode   = "replace_me"
+    ErrGetByIdCode                     = "replace_me"
 )
+
+func ErrGetById(err error, id string) error {
+	return errors.New(
+        ErrUnknownHostCode,
+        errors.Alert,
+        []string{"Failed to get the entity with the given ID: " + id},
+        []string{err.Error()},
+        []string{"Entity with the given ID may not be present in the registry", "Registry might be inaccessible at the moment"},
+        []string{"Check if your ID is correct" , "If the registry is inaccesible, please try again after some time"},
+        )
+
+}
 
 func ErrUnknownHost(err error) error {
 	return errors.New(ErrUnknownHostCode, errors.Alert, []string{"host is not supported"}, []string{err.Error()}, []string{"The component's host is not supported by the version of server you are running"}, []string{"Try upgrading to latest available version"})
@@ -34,7 +47,7 @@ func ErrWritingRegisteryAttempts(err error) error {
 	return errors.New(ErrWritingRegisteryAttemptsCode, errors.Alert, []string{"Error writing RegisteryAttempts JSON data to file"}, []string{"Error writing RegisteryAttempts JSON data to file:", err.Error()}, []string{}, []string{})
 }
 func ErrRegisteringEntity(failedMsg string, hostName string) error {
-	return errors.New(ErrRegisteringEntityCode, errors.Alert, []string{fmt.Sprintf("The import process for a registrant %s encountered difficulties,due to which %s. Specific issues during the import process resulted in certain entities not being successfully registered in the table.", hostName, failedMsg)}, []string{fmt.Sprintf("For registrant %s %s", hostName, failedMsg)}, []string{"Could be because of empty schema or some issue with the json or yaml file"}, []string{"Check /server/cmd/registery_attempts.json for futher details"})
+	return errors.New(ErrRegisteringEntityCode, errors.Alert, []string{fmt.Sprintf("One or more entities failed to register. The import process for registrant, %s, encountered the following issue: %s.", hostName, failedMsg)}, []string{fmt.Sprintf("Registrant %s encountered %s", hostName, failedMsg)}, []string{"Entity might be missing a required schema or have invalid json / yaml."}, []string{"Check `server/cmd/registery_attempts.json` for further details."})
 }
 func ErrCreatingUserDataDirectory(dir string) error {
 	return errors.New(ErrCreatingUserDataDirectoryCode, errors.Fatal, []string{"Unable to create the directory for storing user data at: ", dir}, []string{"Unable to create the directory for storing user data at: ", dir}, []string{}, []string{})
