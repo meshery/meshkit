@@ -9,10 +9,9 @@ import (
 var (
 	ErrGetChartUrlCode        = "meshkit-11134"
 	ErrGetAhPackageCode       = "meshkit-11135"
-	ErrComponentGenerateCode  = "meshkit-11136"
 	ErrGetAllHelmPackagesCode = "meshkit-11137"
-	ErrChartUrlEmptyCode      = "replace_me"
-	ErrNoPackageFoundCode     = "replace_me"
+	ErrChartUrlEmptyCode      = "meshkit-11245"
+	ErrNoPackageFoundCode     = "meshkit-11246"
 )
 
 func ErrGetAllHelmPackages(err error) error {
@@ -27,9 +26,6 @@ func ErrGetAhPackage(err error) error {
 	return errors.New(ErrGetAhPackageCode, errors.Alert, []string{"Could not get the ArtifactHub package with the given name"}, []string{err.Error()}, []string{""}, []string{"make sure that the package exists"})
 }
 
-func ErrComponentGenerate(err error) error {
-	return errors.New(ErrComponentGenerateCode, errors.Alert, []string{"failed to generate components for the package"}, []string{err.Error()}, []string{}, []string{"Make sure that the package is compatible"})
-}
 func ErrChartUrlEmpty(modelName string, registrantName string) error {
 	return errors.New(
 		ErrChartUrlEmptyCode,

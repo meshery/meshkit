@@ -6,32 +6,13 @@ import (
 )
 
 var (
-	ErrAppendToSheetCode      = "mesheryctl-1116"
-	ErrCreateDirCode          = "mesheryctl-1066"
-	ErrGenerateComponentCode  = "mesheryctl-1056"
-	ErrGenerateModelCode      = "mesheryctl-1055"
-	ErrFileReadCode           = "mesheryctl-1095"
-	ErrMarshalStructToCSVCode = "mesheryctl-1115"
+	ErrAppendToSheetCode      = "meshkit-11261"
+	ErrGenerateModelCode      = "meshkit-11262"
+	ErrMarshalStructToCSVCode = "meshkit-11263"
 )
 
 func ErrGenerateModel(err error, modelName string) error {
 	return errors.New(ErrGenerateModelCode, errors.Alert, []string{fmt.Sprintf("error generating model: %s", modelName)}, []string{fmt.Sprintf("Error generating model: %s\n %s", modelName, err.Error())}, []string{"Registrant used for the model is not supported", "Verify the model's source URL.", "Failed to create a local directory in the filesystem for this model."}, []string{"Ensure that each kind of registrant used is a supported kind.", "Ensure correct model source URL is provided and properly formatted.", "Ensure sufficient permissions to allow creation of model directory."})
-}
-
-func ErrCreateDir(err error, obj string) error {
-	return errors.New(ErrCreateDirCode, errors.Alert, []string{"Error creating directory ", obj}, []string{err.Error()}, []string{}, []string{})
-}
-
-func ErrGenerateComponent(err error, modelName, compName string) error {
-	return errors.New(ErrGenerateComponentCode, errors.Alert, []string{"error generating comp %s of model %s", compName, modelName}, []string{err.Error()}, []string{}, []string{})
-}
-
-func ErrFileRead(err error) error {
-	return errors.New(ErrFileReadCode, errors.Alert,
-		[]string{"File read error"},
-		[]string{err.Error()},
-		[]string{"The provided file is not present or has an invalid path."},
-		[]string{"To proceed, provide a valid file path with a valid file."})
 }
 
 func ErrAppendToSheet(err error, id string) error {

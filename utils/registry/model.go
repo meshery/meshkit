@@ -175,7 +175,7 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool) error {
 	})
 
 	if err != nil {
-		return ErrFileRead(err)
+		return utils.ErrReadFile(err, mch.CSVPath)
 	}
 
 	go func() {
@@ -192,7 +192,7 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool) error {
 			mch.Models = append(mch.Models, data)
 			Log.Info(fmt.Sprintf("Reading registrant [%s] model [%s]", data.Registrant, data.Model))
 		case err := <-errorChan:
-			return ErrFileRead(err)
+			return utils.ErrReadFile(err, mch.CSVPath)
 
 		case <-csvReader.Context.Done():
 			return nil

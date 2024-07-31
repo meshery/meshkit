@@ -154,7 +154,7 @@ func (mch *ComponentCSVHelper) ParseComponentsSheet() error {
 	})
 
 	if err != nil {
-		return ErrFileRead(err)
+		return utils.ErrReadFile(err, mch.CSVPath)
 	}
 
 	go func() {
