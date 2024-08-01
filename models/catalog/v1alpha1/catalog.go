@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/layer5io/meshkit/utils"
-	"github.com/meshery/schemas"
 )
 
 // CatalogData defines model for catalog_data.
@@ -71,7 +70,7 @@ func (cd *CatalogData) IsNil() bool {
 type ContentClass string
 
 type ContentClassObj struct {
-	Class       ContentClass `json:"class"`
+	Class       ContentClass  `json:"class"`
 	Description string       `json:"description"`
 }
 
@@ -81,54 +80,49 @@ const (
 	Community ContentClass = "community"
 )
 
-// Load and extract descriptions and enum values from schema
-func loadSchemaDescriptions() (map[string]ContentClassObj, error) {
-	// Load the schema file
-	schema, err := schemas.LoadSchema("schemas/constructs/v1alpha1/catalog_data.json")
+func getClasses() ([]interface{}, error) {
+    schema, err := utils.LoadJSONSchema("schemas/constructs/v1alpha1/catalog_data.json")
+    if err != nil {
+        return nil, utils.ErrUnmarshal(err)
+    }
+ 
+    properties, err := utils.Cast[map[string]interface{}](schema["properties"])
 	if err != nil {
-		return nil, utils.ErrUnmarshal(err)
+		return nil, err
 	}
 
-	properties, propErr := utils.Cast[map[string]interface{}](schema["properties"])
-	if propErr != nil {
-		return nil, propErr
+    classProperty, err := utils.Cast[map[string]interface{}](properties["class"])
+	if err != nil {
+		return nil, err
 	}
 
-	classProperty, classErr := utils.Cast[map[string]interface{}](properties["class"])
-	if classErr != nil {
-		return nil, classErr
+    oneOf, err := utils.Cast[[]interface{}](classProperty["oneOf"])
+	if err != nil {
+		return nil, err
 	}
 
-	enumDescriptions, _ := utils.Cast[[]interface{}](classProperty["enumDescriptions"])
-	enumValues, _ := utils.Cast[[]interface{}](classProperty["enum"])
-
-	descriptions := make(map[string]ContentClassObj)
-	for i, value := range enumValues {
-		if i < len(enumDescriptions) {
-			class := value.(string)
-			description := enumDescriptions[i].(string)
-			descriptions[class] = ContentClassObj{
-				Class:       ContentClass(class),
-				Description: description,
-			}
-		}
-	}
-
-	return descriptions, nil
+    return oneOf, nil
 }
 
-// GetCatalogClasses gets class descriptions from the schema
+// GetCatalogClasses gets class and descriptions from the schema
 func GetCatalogClasses() []ContentClassObj {
-	descriptions, err := loadSchemaDescriptions()
+	oneOf, err := getClasses()
 	if err != nil {
 		utils.ErrGettingClassDescription(err)
 		return nil
 	}
 
-	var classObjects []ContentClassObj
-	for _, obj := range descriptions {
-		classObjects = append(classObjects, obj)
-	}
+    var classObjects []ContentClassObj
+
+    for _, item := range oneOf {
+        itemMap, _ := utils.Cast[map[string]interface{}](item)
+		class, _ := utils.Cast[string](itemMap["const"])
+		description, _ := utils.Cast[string](itemMap["description"])
+		classObjects = append(classObjects, ContentClassObj{
+			Class:       ContentClass(class),
+			Description: description,
+		})
+    }
 
 	return classObjects
 }
