@@ -4,6 +4,7 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
@@ -11,6 +12,7 @@ import (
 // In the future, we will add support to query using `selectors` (using CUE)
 // TODO: Add support for Model
 type RelationshipFilter struct {
+    Id               string
 	Kind             string
 	Greedy           bool //when set to true - instead of an exact match, kind will be prefix matched
 	SubType          string
@@ -30,6 +32,16 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 	}
 	rf.Kind = m["kind"].(string)
 }
+
+func (rf *RelationshipFilter) GetById(db *database.Handler) (entity.Entity, error) {
+    r := &v1alpha2.RelationshipDefinition{}
+    err := db.First(r, "id = ?", rf.Id).Error
+	if err != nil {
+		return nil, registry.ErrGetById(err, rf.Id)
+	}
+    return  r, err
+}
+
 func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 
 	var relationshipDefinitionsWithModel []v1alpha2.RelationshipDefinition

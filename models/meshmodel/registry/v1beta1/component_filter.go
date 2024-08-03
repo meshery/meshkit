@@ -4,10 +4,12 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
 type ComponentFilter struct {
+    Id           string
 	Name         string
 	APIVersion   string
 	Greedy       bool //when set to true - instead of an exact match, name will be matched as a substring
@@ -28,6 +30,15 @@ type componentDefinitionWithModel struct {
 	ModelDB               v1beta1.Model               `gorm:"embedded"`
 	CategoryDB            v1beta1.Category            `gorm:"embedded"`
 	HostsDB               v1beta1.Host                `gorm:"embedded"`
+}
+
+func (cf *ComponentFilter) GetById(db *database.Handler) (entity.Entity, error) {
+    c := &v1beta1.ComponentDefinition{}
+    err := db.First(c, "id = ?", cf.Id).Error
+	if err != nil {
+		return nil, registry.ErrGetById(err, cf.Id)
+	}
+    return  c, err
 }
 
 // Create the filter from map[string]interface{}
