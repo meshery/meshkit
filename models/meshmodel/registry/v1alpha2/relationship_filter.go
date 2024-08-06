@@ -48,6 +48,10 @@ func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entit
 	finder := db.Model(&v1alpha2.RelationshipDefinition{}).Preload("Model").Preload("Model.Category").
 		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
+
+    // TODO(@MUzairS15): Refactor this once Status is made a first class field in RelationshipFilter
+    finder = finder.Where("model_dbs.status = enabled")
+
 	if relationshipFilter.Kind != "" {
 		if relationshipFilter.Greedy {
 			finder = finder.Where("relationship_definition_dbs.kind LIKE ?", "%"+relationshipFilter.Kind+"%")

@@ -69,6 +69,9 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		Joins("JOIN hosts ON hosts.id = model_dbs.host_id")
 		//
 
+    // TODO(@MUzairS15): Refactor this once Status is made a first class field in ComponentFilter
+    finder = finder.Where("model_dbs.status = enabled")
+
 	if componentFilter.Greedy {
 		if componentFilter.Name != "" && componentFilter.DisplayName != "" {
 			finder = finder.Where("component_definition_dbs.component->>'kind' LIKE ? OR display_name LIKE ?", "%"+componentFilter.Name+"%", componentFilter.DisplayName+"%")
