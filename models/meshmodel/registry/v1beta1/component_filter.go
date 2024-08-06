@@ -8,6 +8,7 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1beta1/category"
+	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
 	"gorm.io/gorm/clause"
@@ -32,10 +33,10 @@ type ComponentFilter struct {
 }
 
 type componentDefinitionWithModel struct {
-	ComponentDefinitionDB model.ComponentDefinition   `gorm:"embedded"`
-	ModelDB               model.ModelDefinition       `gorm:"embedded"`
-	CategoryDB            category.CategoryDefinition `gorm:"embedded"`
-	ConnectionDB          connection.Connection       `gorm:"embedded"`
+	ComponentDefinitionDB component.ComponentDefinition `gorm:"embedded"`
+	ModelDB               model.ModelDefinition         `gorm:"embedded"`
+	CategoryDB            category.CategoryDefinition   `gorm:"embedded"`
+	ConnectionDB          connection.Connection         `gorm:"embedded"`
 }
 
 func (cf *ComponentFilter) GetById(db *database.Handler) (entity.Entity, error) {
@@ -68,11 +69,11 @@ func countUniqueComponents(components []componentDefinitionWithModel) int {
 
 func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	var componentDefinitionsWithModel []componentDefinitionWithModel
-	finder := db.Model(&model.ComponentDefinition{}).
+	finder := db.Model(&component.ComponentDefinition{}).
 		Select("component_definition_dbs.*, model_dbs.*,category_dbs.*, connections.*").
 		Joins("JOIN model_dbs ON component_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
-		Joins("JOIN connections ON connections.id = model_dbs.host_id")
+		Joins("JOIN connections ON connections.id = model_dbs.connection_id")
 
 	// TODO(@MUzairS15): Refactor this once Status is made a first class field in ComponentFilter
 	status := "enabled"

@@ -1,6 +1,6 @@
 package models
 
-import v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
+import  "github.com/meshery/schemas/models/v1beta1/component"
 
 // anything that can be validated is a Validator
 type Validator interface {
@@ -11,7 +11,7 @@ type Validator interface {
 // system's capabilities in Meshery
 // A Package should have all the information that we need to generate the components
 type Package interface {
-	GenerateComponents() ([]v1beta1.ComponentDefinition, error)
+	GenerateComponents() ([]component.ComponentDefinition, error)
 	GetVersion() string
 }
 

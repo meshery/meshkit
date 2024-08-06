@@ -9,7 +9,7 @@ import (
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1"
-	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta1/component"
 )
 
 const ComponentMetaNameKey = "name"
@@ -47,14 +47,14 @@ var DefaultPathConfig2 = CuePathConfig{
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
-func Generate(crd string) (model.ComponentDefinition, error) {
-	component := model.ComponentDefinition{}
-	component.SchemaVersion = v1beta1.ComponentSchemaVersion
+func Generate(crd string) (component.ComponentDefinition, error) {
+	cmp := component.ComponentDefinition{}
+	cmp.SchemaVersion = v1beta1.ComponentSchemaVersion
 
-	component.Metadata = model.ComponentDefinition_Metadata{}
+	cmp.Metadata = component.ComponentDefinition_Metadata{}
 	crdCue, err := utils.YamlToCue(crd)
 	if err != nil {
-		return component, err
+		return cmp, err
 	}
 	var schema string
 	for _, cfg := range Configs {
@@ -63,39 +63,39 @@ func Generate(crd string) (model.ComponentDefinition, error) {
 			break
 		}
 	}
-	component.Component.Schema = schema
+	cmp.Component.Schema = schema
 	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)
 	if err != nil {
-		return component, err
+		return cmp, err
 	}
 	version, err := extractCueValueFromPath(crdCue, DefaultPathConfig.VersionPath)
 	if err != nil {
-		return component, err
+		return cmp, err
 	}
 	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
 	if err != nil {
-		return component, err
+		return cmp, err
 	}
 	// return component, err Ignore error if scope isn't found
-	if component.Metadata.AdditionalProperties == nil {
-		component.Metadata.AdditionalProperties = make(map[string]interface{})
+	if cmp.Metadata.AdditionalProperties == nil {
+		cmp.Metadata.AdditionalProperties = make(map[string]interface{})
 	}
 	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
 	if scope == "Cluster" {
-		component.Metadata.AdditionalProperties["isNamespaced"] = false
+		cmp.Metadata.AdditionalProperties["isNamespaced"] = false
 	} else if scope == "Namespaced" {
-		component.Metadata.AdditionalProperties["isNamespaced"] = true
+		cmp.Metadata.AdditionalProperties["isNamespaced"] = true
 	}
-	component.Component.Kind = name
+	cmp.Component.Kind = name
 	if group != "" {
-		component.Component.Version = fmt.Sprintf("%s/%s", group, version)
+		cmp.Component.Version = fmt.Sprintf("%s/%s", group, version)
 	} else {
-		component.Component.Version = version
+		cmp.Component.Version = version
 	}
 
-	component.Format = model.JSON
-	component.DisplayName = manifests.FormatToReadableString(name)
-	return component, nil
+	cmp.Format = component.JSON
+	cmp.DisplayName = manifests.FormatToReadableString(name)
+	return cmp, nil
 }
 
 /*

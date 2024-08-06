@@ -8,7 +8,7 @@ import (
 	"github.com/layer5io/meshkit/utils/component"
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1/category"
-	"github.com/meshery/schemas/models/v1beta1/model"
+	_component "github.com/meshery/schemas/models/v1beta1/component"
 )
 
 type GitHubPackage struct {
@@ -24,8 +24,8 @@ func (gp GitHubPackage) GetVersion() string {
 	return gp.version
 }
 
-func (gp GitHubPackage) GenerateComponents() ([]model.ComponentDefinition, error) {
-	components := make([]model.ComponentDefinition, 0)
+func (gp GitHubPackage) GenerateComponents() ([]_component.ComponentDefinition, error) {
+	components := make([]_component.ComponentDefinition, 0)
 
 	data, err := os.ReadFile(gp.filePath)
 	if err != nil {

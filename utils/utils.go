@@ -411,12 +411,7 @@ func IsInterfaceNil(val interface{}) bool {
 	if val == nil {
 		return true
 	}
-	switch reflect.TypeOf(val).Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
-		return reflect.ValueOf(val).IsNil()
-	}
-	return false
-
+	return reflect.ValueOf(val).IsZero()
 }
 
 func IsSchemaEmpty(schema string) (valid bool) {

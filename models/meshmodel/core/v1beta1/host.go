@@ -6,7 +6,7 @@ import (
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/kubernetes"
 	"github.com/meshery/schemas/models/v1beta1/connection"
-	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta1/component"
 )
 
 type MeshModelHostsWithEntitySummary struct {
@@ -40,7 +40,7 @@ type HostFilter struct {
 }
 
 type DependencyHandler interface {
-	HandleDependents(comp model.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, error)
+	HandleDependents(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, error)
 	String() string
 }
 
@@ -61,7 +61,7 @@ type ArtifactHub struct{}
 
 const MesheryAnnotationPrefix = "design.meshmodel.io"
 
-func (ah ArtifactHub) HandleDependents(comp model.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
+func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
 	sourceURI, err := utils.Cast[string](comp.Metadata.AdditionalProperties["source_uri"]) // should be part of registrant data(?)
 	if err != nil {
 		return summary, err
@@ -103,7 +103,7 @@ func (ah ArtifactHub) String() string {
 
 type Kubernetes struct{}
 
-func (k Kubernetes) HandleDependents(_ model.ComponentDefinition, _ *kubernetes.Client, _, _ bool) (summary string, err error) {
+func (k Kubernetes) HandleDependents(_ component.ComponentDefinition, _ *kubernetes.Client, _, _ bool) (summary string, err error) {
 	return summary, err
 }
 

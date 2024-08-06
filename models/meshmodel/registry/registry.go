@@ -10,9 +10,11 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	models "github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
-	category "github.com/meshery/schemas/models/v1beta1/category"
-	connection "github.com/meshery/schemas/models/v1beta1/connection"
-	model "github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta1/category"
+	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/connection"
+	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm/clause"
@@ -56,7 +58,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	err := rm.db.AutoMigrate(
 		&Registry{},
 		&connection.Connection{},
-		&model.ComponentDefinition{},
+		&component.ComponentDefinition{},
 		&v1alpha2.RelationshipDefinition{},
 		// &models.PolicyDefinition{},
 		&model.ModelDefinition{},
@@ -71,10 +73,10 @@ func (rm *RegistryManager) Cleanup() {
 	_ = rm.db.Migrator().DropTable(
 		&Registry{},
 		&connection.Connection{},
-		&model.ComponentDefinition{},
+		&component.ComponentDefinition{},
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
-		&v1alpha2.RelationshipDefinition{},
+		&relationship.RelationshipDefinition{},
 	)
 }
 func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Entity) (bool, bool, error) {
@@ -178,6 +180,7 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 
 	var response []models.MeshModelHostsWithEntitySummary
 
+	fmt.Println("result--------------------------", result)
 	for _, r := range result {
 		res := models.MeshModelHostsWithEntitySummary{
 			Connection: r.Connection,

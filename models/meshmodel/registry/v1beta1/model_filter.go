@@ -6,6 +6,8 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1beta1/model"
 	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 
 	"gorm.io/gorm/clause"
@@ -87,9 +89,10 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 }
 
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	var modelWithCategories []v1beta1.ModelDefinition
 
-	finder := db.Model(&v1beta1.ModelDefinition{}).Preload("Category").Preload("Registrant").
+	var modelWithCategories []model.ModelDefinition
+
+	finder := db.Model(&model.ModelDefinition{}).Preload("Category").Preload("Registrant").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN registries ON registries.entity = model_dbs.id").
 		Joins("JOIN connections ON connections.id = registries.registrant_id")
@@ -196,7 +199,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 			if err := finder.Scan(&relationships).Error; err != nil {
 				return nil, 0, 0, err
 			}
-			// _modelDB.Relationships = relationships FIX THIS
+			_modelDB.Relationships = relationships
 		}
 		defs = append(defs, &_modelDB)
 	}

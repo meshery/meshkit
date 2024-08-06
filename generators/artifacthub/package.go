@@ -10,7 +10,7 @@ import (
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/component"
 	"github.com/layer5io/meshkit/utils/manifests"
-	"github.com/meshery/schemas/models/v1beta1/model"
+	_component "github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"gopkg.in/yaml.v2"
 )
@@ -37,8 +37,8 @@ func (pkg AhPackage) GetVersion() string {
 	return pkg.Version
 }
 
-func (pkg AhPackage) GenerateComponents() ([]model.ComponentDefinition, error) {
-	components := make([]model.ComponentDefinition, 0)
+func (pkg AhPackage) GenerateComponents() ([]_component.ComponentDefinition, error) {
+	components := make([]_component.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
 
 	if pkg.ChartUrl == "" {

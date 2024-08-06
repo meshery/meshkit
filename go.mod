@@ -39,7 +39,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.5.3
 	gorm.io/driver/sqlite v1.5.4
-	gorm.io/gorm v1.25.5
+	gorm.io/gorm v1.25.11
 	helm.sh/helm/v3 v3.13.2
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
