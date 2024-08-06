@@ -40,12 +40,13 @@ var (
 	ErrExtractTarXZCode         = "meshkit-11184"
 	ErrExtractZipCode           = "meshkit-11185"
 	ErrReadDirCode              = "meshkit-11186"
-	ErrInvalidSchemaVersionCode = "replace_me"
-	ErrFileWalkDirCode          = "replace_me"
-	ErrRelPathCode              = "replace_me"
-	ErrCopyFileCode             = "replace_me"
-	ErrCloseFileCode            = "replace_me"
+	ErrInvalidSchemaVersionCode = "meshkit-11255"
+	ErrFileWalkDirCode          = "meshkit-11256"
+	ErrRelPathCode              = "meshkit-11257"
+	ErrCopyFileCode             = "meshkit-11258"
+	ErrCloseFileCode            = "meshkit-11259"
 	ErrCompressToTarGZCode      = "meshkit-11248"
+	ErrComponentGenerateCode    = "meshkit-11260"
 )
 var (
 	ErrExtractType = errors.New(
@@ -65,6 +66,10 @@ var (
 		[]string{"Verify that the `schemaVersion` key in the JSON has the correct value."},
 	)
 )
+
+func ErrComponentGenerate(err error) error {
+	return errors.New(ErrComponentGenerateCode, errors.Alert, []string{"failed to generate components for the package"}, []string{err.Error()}, []string{}, []string{"Make sure that the package is compatible"})
+}
 
 func ErrCueLookup(err error) error {
 	return errors.New(ErrCueLookupCode, errors.Alert, []string{"Could not lookup the given path in the CUE value"}, []string{err.Error()}, []string{""}, []string{"make sure that the path is a valid cue expression and is correct", "make sure that there exists a field with the given path", "make sure that the given root value is correct"})
