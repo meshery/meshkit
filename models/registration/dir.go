@@ -25,9 +25,11 @@ func NewDir(path string) Dir {
 }
 
 
-/* PkgUnit parses all the files inside the directory and finds out if they are any valid meshery definitions. Valid meshery definitions are added to the packagingUnit struct.
+/* 
+    PkgUnit parses all the files inside the directory and finds out if they are any valid meshery definitions. Valid meshery definitions are added to the packagingUnit struct.
+    Invalid definitions are stored in the regErrStore with error data.
 */
-func (d Dir) PkgUnit() (_ packagingUnit, err error){
+func (d Dir) PkgUnit(regErrStore RegistrationErrorStore) (_ packagingUnit, err error){
 	pkg := packagingUnit{}
 	// check if the given is a directory
 	_, err = os.ReadDir(d.dirpath)
@@ -49,7 +51,7 @@ func (d Dir) PkgUnit() (_ packagingUnit, err error){
 		var e entity.Entity
 		e, err = getEntity(byt)
 		if err != nil {
-			RegLog.AddInvalidDefinition(path, err)
+			regErrStore.AddInvalidDefinition(path, err)
 			return nil
 		}
 		// set it to pkgunit
@@ -61,19 +63,19 @@ func (d Dir) PkgUnit() (_ packagingUnit, err error){
 				}
 				model, err := utils.Cast[*v1beta1.Model](e)
 				if(err != nil){
-					RegLog.AddInvalidDefinition(path, ErrGetEntity(err))
+					regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
 				}
 				pkg.model = *model
 			case entity.ComponentDefinition:
 				comp , err := utils.Cast[*v1beta1.ComponentDefinition](e)
 				if(err != nil){
-					RegLog.AddInvalidDefinition(path, ErrGetEntity(err))
+					regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
 				}
 				pkg.components = append(pkg.components, *comp)
 			case entity.RelationshipDefinition:
 				rel, err := utils.Cast[*v1alpha2.RelationshipDefinition](e)
 				if(err != nil){
-					RegLog.AddInvalidDefinition(path, ErrGetEntity(err))
+					regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
 				}
 				pkg.relationships = append(pkg.relationships, *rel)
 		}
@@ -84,7 +86,7 @@ func (d Dir) PkgUnit() (_ packagingUnit, err error){
 	}
 	if (reflect.ValueOf(pkg.model).IsZero()){
 		err := fmt.Errorf("Model definition not found in imported package. Model definitions often use the filename `model.json`, but are not required to have this filename. One and exactly one entity containing schema: model.core....... ...... must be present, otherwise the model package is considered malformed..")
-		RegLog.invalidDefinitions[d.dirpath] = err
+        regErrStore.AddInvalidDefinition(d.dirpath, err)
 		return pkg, err
 	}
 	return pkg, err
