@@ -127,6 +127,15 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	if mf.Offset != 0 {
 		finder = finder.Offset(mf.Offset)
 	}
+
+	status := "enabled"
+	
+	if mf.Status != ""  {
+		status = mf.Status
+	}
+
+	finder = finder.Where("model_dbs.status = ?", status)
+
 	if mf.Status != "" {
 		finder = finder.Where("model_dbs.status = ?", mf.Status)
 	}
