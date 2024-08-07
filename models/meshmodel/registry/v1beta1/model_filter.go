@@ -136,10 +136,6 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 
 	finder = finder.Where("model_dbs.status = ?", status)
 
-	if mf.Status != "" {
-		finder = finder.Where("model_dbs.status = ?", mf.Status)
-	}
-
 	includeComponents = mf.Components
 	includeRelationships = mf.Relationships
 
