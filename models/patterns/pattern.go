@@ -2,7 +2,9 @@ package patterns
 
 import (
 	"github.com/Masterminds/semver/v3"
+	"github.com/layer5io/meshkit/utils"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
+	"gopkg.in/yaml.v2"
 )
 
 func GetNextVersion(p *pattern.PatternFile) (string, error) {
@@ -24,4 +26,13 @@ func GetNextVersion(p *pattern.PatternFile) (string, error) {
 
 func AssignVersion(p *pattern.PatternFile) {
 	p.Version = semver.New(0, 0, 1, "", "").String()
+}
+func GetPatternFormat(patternFile string) (*pattern.PatternFile, error) {
+	pattern := pattern.PatternFile{}
+	err := yaml.Unmarshal([]byte(patternFile), &pattern)
+	if err != nil {
+		err = utils.ErrDecodeYaml(err)
+		return nil, err
+	}
+	return &pattern, nil
 }

@@ -8,6 +8,7 @@ import (
 	"cuelang.org/go/cue"
 	cueerrors "cuelang.org/go/cue/errors"
 	"github.com/layer5io/meshkit/errors"
+	"github.com/layer5io/meshkit/logger"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/meshery/schemas"
 )
@@ -30,9 +31,9 @@ func loadSchema() error {
 		return nil
 	}
 
-	file, err := schemas.Schemas.Open("schemas/openapi.yml")
+	file, err := schemas.Schemas.Open("schemas/constructs/v1beta1/designs.json")
 	if err != nil {
-		return utils.ErrReadFile(err, "schemas/openapi.yml")
+		return utils.ErrReadFile(err, "schemas/constructs/v1beta1/designs.json")
 	}
 
 	cueschema, err = utils.ConvertoCue(file)
@@ -44,7 +45,7 @@ func loadSchema() error {
 
 func GetSchemaFor(resourceName string) (cue.Value, error) {
 	var schema cue.Value
-	schemaPathForResource := fmt.Sprintf("%s.%s", schemaPath, resourceName)
+	schemaPathForResource := ""
 
 	err := loadSchema()
 	if err != nil {
@@ -61,7 +62,12 @@ func GetSchemaFor(resourceName string) (cue.Value, error) {
 		return schema, utils.ErrMarshal(err)
 	}
 
+
 	schema, err = utils.JsonSchemaToCue(string(byt))
+
+	log, _ := logger.New("test-validate", logger.Options{})
+	log.Error(err)
+	fmt.Println("line 64 ===========================", err)
 	if err != nil {
 		return schema, err
 	}
@@ -83,10 +89,12 @@ func Validate(schema cue.Value, resourceValue interface{}) error {
 
 	valid, errs := utils.Validate(schema, cv)
 	if !valid {
+		errs :=  convertCueErrorsToStrings(errs)
+		// fmt.Println("line 93 ===========================", errs)
 		return errors.New(ErrValidateCode,
 			errors.Alert,
 			[]string{"validation for the resource failed"},
-			convertCueErrorsToStrings(errs),
+			errs,
 			[]string{}, []string{},
 		)
 	}
@@ -96,9 +104,12 @@ func Validate(schema cue.Value, resourceValue interface{}) error {
 func convertCueErrorsToStrings(errs []cueerrors.Error) []string {
 	var res []string
 	for _, err := range errs {
+
 		_ = cueerrors.Sanitize(err)
 	}
 	for _, err2 := range errs {
+		fmt.Println("\n\n[line 1111 ===========================]: ", err2.Error())
+		
 		res = append(res, err2.Error())
 	}
 	return res

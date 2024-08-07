@@ -408,9 +408,11 @@ func ExtractDomainFromURL(location string) string {
 }
 
 func IsInterfaceNil(val interface{}) bool {
+	fmt.Println("TEST 441 : ", val == nil)
 	if val == nil {
 		return true
 	}
+	fmt.Println("TEST 415 : ", reflect.ValueOf(val).IsZero())
 	return reflect.ValueOf(val).IsZero()
 }
 
