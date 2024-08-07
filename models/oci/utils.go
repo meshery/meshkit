@@ -89,7 +89,10 @@ func IsOCIArtifact(data []byte) bool {
 		defer gzr.Close()
 		tr = archiveTar.NewReader(gzr)
 	} else {
-		reader.Seek(0, io.SeekStart)
+		_, err := reader.Seek(0, io.SeekStart)
+		if err != nil {
+			return false
+		}
 		tr = archiveTar.NewReader(reader)
 	}
 
@@ -118,7 +121,10 @@ func ExtractAndValidateManifest(data []byte) error {
 		defer gzr.Close()
 		tr = archiveTar.NewReader(gzr)
 	} else {
-		reader.Seek(0, io.SeekStart)
+		_, err := reader.Seek(0, io.SeekStart)
+		if err != nil {
+			return ErrSeekFailed(err)
+		}
 		tr = archiveTar.NewReader(reader)
 	}
 

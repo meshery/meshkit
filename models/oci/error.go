@@ -22,6 +22,7 @@ var (
 	ErrAddLayerCode                 = "meshkit-11247"
 	ErrTaggingPackageCode           = "meshkit-11248"
 	ErrPushingPackageCode           = "meshkit-11249"
+	ErrSeekFailedCode               = "replace_me"
 )
 
 func ErrAppendingLayer(err error) error {
@@ -82,4 +83,7 @@ func ErrTaggingPackage(err error) error {
 
 func ErrPushingPackage(err error) error {
 	return errors.New(ErrPushingPackageCode, errors.Alert, []string{"pushing package failed"}, []string{err.Error()}, []string{"failed to push the package"}, []string{"Try using a different tag", "check if package is not malformed"})
+}
+func ErrSeekFailed(err error) error {
+	return errors.New(ErrSeekFailedCode, errors.Alert, []string{"Unable to reset the position within the OCI data."}, []string{err.Error()}, []string{"The function attempted to move to the start of the data but failed. This could happen if the data is corrupted or not in the expected format."}, []string{"Ensure the input data is a valid OCI archive and try again. Check if the data is compressed correctly and is not corrupted."})
 }
