@@ -97,7 +97,6 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 		m.ID = modelID
 		m.CategoryID = id
 		m.RegistrantID = hostID
-		m.Status = entity.Enabled
 		err = db.Omit(clause.Associations).Create(&m).Error
 		if err != nil {
 			return uuid.UUID{}, err
