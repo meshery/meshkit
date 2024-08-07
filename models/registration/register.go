@@ -18,10 +18,11 @@ type packagingUnit struct {
 type RegistrationHelper struct {
 	regManager  *meshmodel.RegistryManager
 	regErrStore RegistrationErrorStore
+	svgBaseDir  string
 }
 
-func NewRegistrationHelper(regm *meshmodel.RegistryManager, regErrStore RegistrationErrorStore) RegistrationHelper {
-	return RegistrationHelper{regManager: regm, regErrStore: regErrStore}
+func NewRegistrationHelper(svgBaseDir string, regm *meshmodel.RegistryManager, regErrStore RegistrationErrorStore) RegistrationHelper {
+	return RegistrationHelper{svgBaseDir: svgBaseDir, regManager: regm, regErrStore: regErrStore}
 }
 
 /*
@@ -52,6 +53,7 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) error {
 		rh.regErrStore.InsertEntityRegError(model.Registrant.Hostname, "", entity.Model, model.Name, err)
 		return err
 	}
+	writeAndReplaceSVGWithFileSystemPath(model.Metadata, rh.svgBaseDir, model.Name, model.Name) //Write SVG for models
 	_, _, err := rh.regManager.RegisterEntity(
 		v1beta1.Host{Hostname: model.Registrant.Hostname},
 		&model,
@@ -69,6 +71,7 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) error {
 	// 2. Register components
 	for _, comp := range pkg.components {
 		comp.Model = model
+		writeAndReplaceSVGWithFileSystemPath(comp.Metadata, rh.svgBaseDir, comp.Model.Name, comp.Component.Kind) //Write SVG on components
 		_, _, err := rh.regManager.RegisterEntity(
 			v1beta1.Host{Hostname: hostname},
 			&comp,
