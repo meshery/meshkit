@@ -4,10 +4,12 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
 type ComponentFilter struct {
+	Id           string
 	Name         string
 	APIVersion   string
 	Greedy       bool //when set to true - instead of an exact match, name will be matched as a substring
@@ -21,6 +23,7 @@ type ComponentFilter struct {
 	Limit        int //If 0 or  unspecified then all records are returned and limit is not used
 	Offset       int
 	Annotations  string //When this query parameter is "true", only components with the "isAnnotation" property set to true are returned. When this query parameter is "false", all components except those considered to be annotation components are returned. Any other value of the query parameter results in both annotations as well as non-annotation models being returned.
+	Status       string
 }
 
 type componentDefinitionWithModel struct {
@@ -28,6 +31,15 @@ type componentDefinitionWithModel struct {
 	ModelDB               v1beta1.Model               `gorm:"embedded"`
 	CategoryDB            v1beta1.Category            `gorm:"embedded"`
 	HostsDB               v1beta1.Host                `gorm:"embedded"`
+}
+
+func (cf *ComponentFilter) GetById(db *database.Handler) (entity.Entity, error) {
+	c := &v1beta1.ComponentDefinition{}
+	err := db.First(c, "id = ?", cf.Id).Error
+	if err != nil {
+		return nil, registry.ErrGetById(err, cf.Id)
+	}
+	return c, err
 }
 
 // Create the filter from map[string]interface{}
@@ -57,6 +69,15 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN hosts ON hosts.id = model_dbs.host_id")
 		//
+
+	// TODO(@MUzairS15): Refactor this once Status is made a first class field in ComponentFilter
+	status := "enabled"
+	
+	if componentFilter.Status != ""  {
+		status = componentFilter.Status
+	}
+
+	finder = finder.Where("model_dbs.status = ?", status)
 
 	if componentFilter.Greedy {
 		if componentFilter.Name != "" && componentFilter.DisplayName != "" {

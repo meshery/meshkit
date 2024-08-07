@@ -4,6 +4,7 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"gorm.io/gorm/clause"
 )
 
@@ -11,6 +12,7 @@ import (
 // In the future, we will add support to query using `selectors` (using CUE)
 // TODO: Add support for Model
 type RelationshipFilter struct {
+	Id               string
 	Kind             string
 	Greedy           bool //when set to true - instead of an exact match, kind will be prefix matched
 	SubType          string
@@ -21,6 +23,7 @@ type RelationshipFilter struct {
 	Sort             string //asc or desc. Default behavior is asc
 	Limit            int    //If 0 or  unspecified then all records are returned and limit is not used
 	Offset           int
+	Status           string
 }
 
 // Create the filter from map[string]interface{}
@@ -30,12 +33,32 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 	}
 	rf.Kind = m["kind"].(string)
 }
+
+func (rf *RelationshipFilter) GetById(db *database.Handler) (entity.Entity, error) {
+	r := &v1alpha2.RelationshipDefinition{}
+	err := db.First(r, "id = ?", rf.Id).Error
+	if err != nil {
+		return nil, registry.ErrGetById(err, rf.Id)
+	}
+	return r, err
+}
+
 func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 
 	var relationshipDefinitionsWithModel []v1alpha2.RelationshipDefinition
 	finder := db.Model(&v1alpha2.RelationshipDefinition{}).Preload("Model").Preload("Model.Category").
 		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
+
+		// TODO(@MUzairS15): Refactor this once Status is made a first class field in RelationshipFilter
+	status := "enabled"
+
+	if relationshipFilter.Status != "" {
+		status = relationshipFilter.Status
+	}
+
+	finder = finder.Where("model_dbs.status = ?", status)
+
 	if relationshipFilter.Kind != "" {
 		if relationshipFilter.Greedy {
 			finder = finder.Where("relationship_definition_dbs.kind LIKE ?", "%"+relationshipFilter.Kind+"%")
