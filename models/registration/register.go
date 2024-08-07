@@ -27,23 +27,21 @@ func NewRegistrationHelper(regm *meshmodel.RegistryManager, regErrStore Registra
 /*
 	Register will accept a RegisterableEntity (dir, tar or oci for now).
 */
-func (rh *RegistrationHelper) Register(entity RegisterableEntity) error {
+func (rh *RegistrationHelper) Register(entity RegisterableEntity) {
 	// get the packaging units
 	pu, err := entity.PkgUnit(rh.regErrStore)
 	if(err != nil){
 		// given input is not a valid model, or could not walk the directory
-		return err
+		return
 	}
-	// fmt.Printf("Packaging Unit: Model name: %s, comps: %d, rels: %d\n", pu.model.Name, len(pu.components), len(pu.relationships))
-	return rh.register(pu)
+	rh.register(pu)
 }
-
 
 /*
 	register will return an error if it is not able to register the `model`.
 	If there are errors when registering other entities, they are handled properly but does not stop the registration process.
 */
-func (rh *RegistrationHelper)register(pkg packagingUnit) error {
+func (rh *RegistrationHelper)register(pkg packagingUnit) {
 	// 1. Register the model
 	model := pkg.model
 
@@ -51,7 +49,7 @@ func (rh *RegistrationHelper)register(pkg packagingUnit) error {
 	if(model.Registrant.Hostname == ""){
 		err := ErrMissingRegistrant(model.Name)
 		rh.regErrStore.InsertEntityRegError(model.Registrant.Hostname, "",entity.Model, model.Name, err)
-		return err
+		return
 	}
 	_, _, err := rh.regManager.RegisterEntity(
 		v1beta1.Host{Hostname: model.Registrant.Hostname,},
@@ -62,7 +60,7 @@ func (rh *RegistrationHelper)register(pkg packagingUnit) error {
 	if err != nil {
 		err = ErrRegisterEntity(err, string(model.Type()), model.DisplayName)
 		rh.regErrStore.InsertEntityRegError(model.Registrant.Hostname, "",entity.Model, model.Name, err)
-		return err
+		return
 	}
 
 	hostname := model.Registrant.Hostname
@@ -91,5 +89,4 @@ func (rh *RegistrationHelper)register(pkg packagingUnit) error {
 			rh.regErrStore.InsertEntityRegError(hostname, modelName ,entity.RelationshipDefinition, rel.ID.String(), err)
 		}
 	}
-    return nil
 }
