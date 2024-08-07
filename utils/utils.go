@@ -213,7 +213,7 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 	defer safeClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, ErrGettingLatestReleaseTag(err)
+		return nil, ErrGettingLatestReleaseTag(fmt.Errorf("unable to get latest release tag"))
 	}
 
 	body, err := io.ReadAll(resp.Body)

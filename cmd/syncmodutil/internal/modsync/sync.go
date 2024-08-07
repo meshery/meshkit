@@ -106,7 +106,11 @@ func getRequiredVersionsFromString(s string) (p []Package) {
 		data = strings.TrimSuffix(strings.TrimPrefix(data, "\n"), "\n")
 		packages := strings.Split(data, "\n")
 		for _, pkg := range packages {
-			pkg = strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(pkg, "\t"), " "), " "), "\t")
+			pkg = strings.TrimSpace(pkg)
+			if pkg == "" {
+				continue
+			}
+			
 			pkgName, pkgVersion := getPackageAndVersionFromPackageVersion(pkg)
 			if strings.HasPrefix(pkgName, "//") { //Has been commented out
 				continue
@@ -132,7 +136,10 @@ func getReplacedVersionsFromString(s string) (p [][]Package) {
 		data = strings.TrimSuffix(strings.TrimPrefix(data, "\n"), "\n")
 		packages := strings.Split(data, "\n")
 		for _, pkg := range packages {
-			pkg = strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(pkg, "\t"), " "), " "), "\t")
+			pkg = strings.TrimSpace(pkg)
+			if pkg == "" {
+				continue
+			}
 			p0 := getPackagesAndVersionsFromPackageVersions(pkg)
 			if len(p0) != 0 {
 				p = append(p, p0)

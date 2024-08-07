@@ -19,6 +19,7 @@ const (
 type Filter interface {
 	Create(map[string]interface{})
 	Get(db *database.Handler) (entities []Entity, count int64, unique int, err error)
+	GetById(db *database.Handler) (entity Entity, err error)
 }
 
 type Entity interface {
