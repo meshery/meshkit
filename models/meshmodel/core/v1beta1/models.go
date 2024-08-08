@@ -24,8 +24,9 @@ type ModelEntity struct {
 
 // swagger:response Model
 type Model struct {
-	ID uuid.UUID `json:"id"`
-	VersionMeta
+	ID          uuid.UUID `json:"id"`
+	VersionMeta `yaml:",inline"`
+
 	Name          string                 `json:"name" gorm:"modelName"`
 	DisplayName   string                 `json:"displayName"`
 	Description   string                 `json:"description" gorm:"description"`

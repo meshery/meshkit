@@ -10,7 +10,7 @@ import (
 )
 
 type ModelFilter struct {
-    Id          string
+	Id          string
 	Name        string
 	Registrant  string //name of the registrant for a given model
 	DisplayName string //If Name is already passed, avoid passing Display name unless greedy=true, else the filter will translate to an AND returning only the models where name and display name match exactly. Ignore, if this behavior is expected.
@@ -49,18 +49,42 @@ func countUniqueModels(models []v1beta1.Model) int {
 }
 
 func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
-    m := &v1beta1.Model{}
-    err := db.First(m, "id = ?", mf.Id).Error
+	m := &v1beta1.Model{}
 
+	// Retrieve the model by ID
+	err := db.First(m, "id = ?", mf.Id).Error
 	if err != nil {
 		return nil, registry.ErrGetById(err, mf.Id)
 	}
-    return  m, err
+
+	// Include components if requested
+	if mf.Components {
+		var components []v1beta1.ComponentDefinition
+		componentFinder := db.Model(&v1beta1.ComponentDefinition{}).
+			Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version").
+			Where("component_definition_dbs.model_id = ?", m.ID)
+		if err := componentFinder.Scan(&components).Error; err != nil {
+			return nil, err
+		}
+		m.Components = components
+	}
+
+	// Include relationships if requested
+	if mf.Relationships {
+		var relationships []v1alpha2.RelationshipDefinition
+		relationshipFinder := db.Model(&v1alpha2.RelationshipDefinition{}).
+			Select("relationship_definition_dbs.*").
+			Where("relationship_definition_dbs.model_id = ?", m.ID)
+		if err := relationshipFinder.Scan(&relationships).Error; err != nil {
+			return nil, err
+		}
+		m.Relationships = relationships
+	}
+
+	return m, nil
 }
 
-
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-
 	var modelWithCategories []v1beta1.Model
 
 	finder := db.Model(&v1beta1.Model{}).Preload("Category").Preload("Registrant").
@@ -129,8 +153,8 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	}
 
 	status := "enabled"
-	
-	if mf.Status != ""  {
+
+	if mf.Status != "" {
 		status = mf.Status
 	}
 
@@ -153,7 +177,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		if includeComponents {
 			var components []v1beta1.ComponentDefinition
 			finder := db.Model(&v1beta1.ComponentDefinition{}).
-				Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata").
+				Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version").
 				Where("component_definition_dbs.model_id = ?", _modelDB.ID)
 			if err := finder.Scan(&components).Error; err != nil {
 				return nil, 0, 0, err
