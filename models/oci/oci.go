@@ -64,7 +64,7 @@ func BuildImage(sourcePath string, opts ...BuildOption) (gcrv1.Image, error) {
 
 	layer, err := createLayer(sourcePath, o.layerType, o.layerOpts)
 	if err != nil {
-		return nil, err
+		return nil, ErrCreateLayer(err)
 	}
 
 	if o.meta.Created == "" {

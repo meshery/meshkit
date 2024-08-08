@@ -34,7 +34,7 @@ func SaveOCIArtifact(img gcrv1.Image, artifactPath, name string) error {
 	repoWithTag := fmt.Sprintf("%s:%s", name, "latest") // TODO: Add support to make this dynamic from user input
 	err := crane.Save(img, repoWithTag, artifactPath)
 	if err != nil {
-		return err
+		return ErrSavingImage(err)
 	}
 
 	return nil
