@@ -24,8 +24,9 @@ type ModelEntity struct {
 
 // swagger:response Model
 type Model struct {
-	ID uuid.UUID `json:"id"`
-	VersionMeta
+	ID          uuid.UUID `json:"id"`
+	VersionMeta `yaml:",inline"`
+
 	Name          string                 `json:"name" gorm:"modelName"`
 	DisplayName   string                 `json:"displayName"`
 	Description   string                 `json:"description" gorm:"description"`
@@ -97,7 +98,6 @@ func (m *Model) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error
 		m.ID = modelID
 		m.CategoryID = id
 		m.RegistrantID = hostID
-		m.Status = entity.Enabled
 		err = db.Omit(clause.Associations).Create(&m).Error
 		if err != nil {
 			return uuid.UUID{}, err

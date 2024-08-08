@@ -13,8 +13,8 @@ import (
 )
 
 type VersionMeta struct {
-	SchemaVersion string `json:"schemaVersion,omitempty" yaml:"schemaVersion"`
-	Version       string `json:"version,omitempty" yaml:"version"`
+	SchemaVersion string `json:"schemaVersion,omitempty" yaml:"schemaVersion" gorm:"column:schema_version"`
+	Version       string `json:"version,omitempty" yaml:"version" gorm:"column:version"`
 }
 
 type TypeMeta struct {
@@ -40,10 +40,10 @@ type ComponentEntity struct {
 
 // swagger:response ComponentDefinition
 type ComponentDefinition struct {
-	ID uuid.UUID `json:"id"`
-	VersionMeta
-	DisplayName string                 `json:"displayName" gorm:"displayName"`
-	Description string                 `json:"description" gorm:"description"`
+	ID          uuid.UUID `json:"id"`
+	VersionMeta `json:",inline" yaml:",inline"`
+	DisplayName string                 `json:"displayName" gorm:"column:display_name"`
+	Description string                 `json:"description" gorm:"column:description"`
 	Format      ComponentFormat        `json:"format" yaml:"format"`
 	ModelID     uuid.UUID              `json:"-" gorm:"index:idx_component_definition_dbs_model_id,column:model_id"`
 	Model       Model                  `json:"model" gorm:"foreignKey:ModelID;references:ID"`
