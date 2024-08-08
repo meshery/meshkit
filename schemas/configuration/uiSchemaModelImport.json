@@ -1,0 +1,6 @@
+{
+    "uploadType": {
+      "ui:widget": "radio"
+    },
+    "ui:order" : [ "uploadType", "file", "url"]
+  }
