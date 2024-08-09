@@ -20,7 +20,7 @@ func writeHashCheckSVG(key string, val string) {
 	mx.Unlock()
 }
 
-func writeAndReplaceSVGWithFileSystemPath(metadata map[string]interface{}, baseDir, dirname, filename string) {
+func WriteAndReplaceSVGWithFileSystemPath(metadata map[string]interface{}, baseDir, dirname, filename string) {
 	filename = strings.ToLower(filename)
 	successCreatingDirectory := false
 	defer func() {
