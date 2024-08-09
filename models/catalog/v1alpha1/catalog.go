@@ -10,7 +10,7 @@ import (
 // CatalogData defines model for catalog_data.
 type CatalogData struct {
 	ContentClass ContentClass `json:"content_class,omitempty"`
-	//Tracks the specific content version that has been made available in the Catalog
+	// Tracks the specific content version that has been made available in the Catalog
 	PublishedVersion string `json:"published_version"`
 
 	// Compatibility A list of technologies included in or implicated by this design; a list of relevant technology tags.
@@ -23,7 +23,7 @@ type CatalogData struct {
 	PatternInfo string `json:"pattern_info"`
 
 	// Contains reference to the dark and light mode snapshots of the catalog.
-	SnapshotURL []string `json:"imageURL,omitempty"` // this will require updating exisitng catalog data as well. updated the json tag to match previous key name, so changes will not be required in exisitng catgalogs
+	SnapshotURL []string `json:"imageURL,omitempty"` // this will require updating existing catalog data as well. updated the json tag to match previous key name, so changes will not be required in existing catalogs
 
 	// Type Categorization of the type of design or operational flow depicted in this design.
 	Type CatalogDataType `json:"type"`
@@ -70,7 +70,7 @@ func (cd *CatalogData) IsNil() bool {
 type ContentClass string
 
 type ContentClassObj struct {
-	Class       ContentClass `json:"class"`
+	Class       ContentClass  `json:"class"`
 	Description string       `json:"description"`
 }
 
@@ -80,33 +80,54 @@ const (
 	Community ContentClass = "community"
 )
 
-func (c ContentClass) String() string {
-	switch c {
-	case Official:
-		return "official"
-	case Verified:
-		return "verified"
-	case Community:
-		fallthrough
-	default:
-		return "community"
+func getClasses() ([]interface{}, error) {
+    schema, err := utils.LoadJSONSchema("schemas/constructs/v1alpha1/catalog_data.json")
+    if err != nil {
+        return nil, utils.ErrUnmarshal(err)
+    }
+ 
+    properties, err := utils.Cast[map[string]interface{}](schema["properties"])
+	if err != nil {
+		return nil, err
 	}
+
+    classProperty, err := utils.Cast[map[string]interface{}](properties["class"])
+	if err != nil {
+		return nil, err
+	}
+
+    oneOf, err := utils.Cast[[]interface{}](classProperty["oneOf"])
+	if err != nil {
+		return nil, err
+	}
+
+    return oneOf, nil
 }
 
-// Ref to catalog schema - https://github.com/meshery/schemas/blob/master/schemas/constructs/v1alpha1/catalog_data.json
+// GetCatalogClasses gets class and descriptions from the schema
 func GetCatalogClasses() []ContentClassObj {
-	return []ContentClassObj{
-		{
-			Class:       Official,
-			Description: "Content produced and fully supported by Meshery maintainers. This represents the highest level of support and is considered the most reliable.",
-		},
-		{
-			Class:       Verified,
-			Description: "Content produced by partners and verified by Meshery maintainers. While not directly maintained by Meshery, it has undergone a verification process to ensure quality and compatibility.",
-		},
-		{
-			Class:       Community,
-			Description: "Content produced and shared by Meshery users. This includes a wide range of content, such as performance profiles, test results, filters, patterns, and applications. Community content may have varying levels of support and reliability.",
-		},
+	oneOf, err := getClasses()
+	if err != nil {
+		utils.ErrGettingClassDescription(err)
+		return nil
 	}
+
+    var classObjects []ContentClassObj
+
+    for _, item := range oneOf {
+        itemMap, _ := utils.Cast[map[string]interface{}](item)
+		class, _ := utils.Cast[string](itemMap["const"])
+		description, _ := utils.Cast[string](itemMap["description"])
+		classObjects = append(classObjects, ContentClassObj{
+			Class:       ContentClass(class),
+			Description: description,
+		})
+    }
+
+	return classObjects
+}
+
+// String method for ContentClass
+func (c ContentClass) String() string {
+	return string(c)
 }

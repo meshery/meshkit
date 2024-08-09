@@ -46,6 +46,7 @@ var (
 	ErrCopyFileCode             = "replace_me"
 	ErrCloseFileCode            = "replace_me"
 	ErrCompressToTarGZCode      = "meshkit-11248"
+	ErrGettingClassDescriptionCode  = "meshkit-11249"
 )
 var (
 	ErrExtractType = errors.New(
@@ -228,5 +229,16 @@ func ErrCloseFile(err error) error {
 		[]string{err.Error()},
 		[]string{("Disk space might be full or the file might be corrupted."), "The user might not have sufficient permission."},
 		[]string{"Check for issues with file permissions or disk space and try again."},
+	)
+}
+
+func ErrGettingClassDescription(err error) error {
+	return errors.New(
+		ErrGettingClassDescriptionCode,
+		errors.Alert,
+		[]string{"Error getting class description"},
+		[]string{err.Error()},
+		[]string{"Schema version might have changed.", "Schema location might have change"},
+		[]string{"Make sure ref schema version is correct.", "Make sure location of schema is correct"},
 	)
 }

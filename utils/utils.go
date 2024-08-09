@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/meshery/schemas"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
@@ -455,4 +456,21 @@ func FindEntityType(content []byte) (entity.EntityType, error) {
 		return entity.PolicyDefinition, nil
 	}
 	return "", ErrInvalidSchemaVersion
+}
+
+// Load JSON schema from Schema package
+func LoadJSONSchema(filePath string) (map[string]interface{}, error) {
+	// Read the file from the embedded filesystem
+	data, err := schemas.Schemas.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+
+	// Unmarshal JSON data into a map
+	var schema map[string]interface{}
+	if err := json.Unmarshal(data, &schema); err != nil {
+		return nil, fmt.Errorf("error unmarshalling JSON: %w", err)
+	}
+
+	return schema, nil
 }
