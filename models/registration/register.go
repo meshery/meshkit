@@ -42,17 +42,17 @@ func (rh *RegistrationHelper) Register(entity RegisterableEntity) {
 register will return an error if it is not able to register the `model`.
 If there are errors when registering other entities, they are handled properly but does not stop the registration process.
 */
-func (rh *RegistrationHelper)register(pkg packagingUnit) {
+func (rh *RegistrationHelper) register(pkg packagingUnit) {
 	// 1. Register the model
 	model := pkg.model
 
 	// Dont register anything else if registrant is not there
 	if model.Registrant.Hostname == "" {
 		err := ErrMissingRegistrant(model.Name)
-		rh.regErrStore.InsertEntityRegError(model.Registrant.Hostname, "",entity.Model, model.Name, err)
+		rh.regErrStore.InsertEntityRegError(model.Registrant.Hostname, "", entity.Model, model.Name, err)
 		return
 	}
-	writeAndReplaceSVGWithFileSystemPath(model.Metadata, rh.svgBaseDir, model.Name, model.Name) //Write SVG for models
+	WriteAndReplaceSVGWithFileSystemPath(model.Metadata, rh.svgBaseDir, model.Name, model.Name) //Write SVG for models
 	_, _, err := rh.regManager.RegisterEntity(
 		v1beta1.Host{Hostname: model.Registrant.Hostname},
 		&model,
@@ -61,7 +61,7 @@ func (rh *RegistrationHelper)register(pkg packagingUnit) {
 	// If model cannot be registered, don't register anything else
 	if err != nil {
 		err = ErrRegisterEntity(err, string(model.Type()), model.DisplayName)
-		rh.regErrStore.InsertEntityRegError(model.Registrant.Hostname, "",entity.Model, model.Name, err)
+		rh.regErrStore.InsertEntityRegError(model.Registrant.Hostname, "", entity.Model, model.Name, err)
 		return
 	}
 
@@ -70,7 +70,7 @@ func (rh *RegistrationHelper)register(pkg packagingUnit) {
 	// 2. Register components
 	for _, comp := range pkg.components {
 		comp.Model = model
-		writeAndReplaceSVGWithFileSystemPath(comp.Metadata, rh.svgBaseDir, comp.Model.Name, comp.Component.Kind) //Write SVG on components
+		WriteAndReplaceSVGWithFileSystemPath(comp.Metadata, rh.svgBaseDir, comp.Model.Name, comp.Component.Kind) //Write SVG on components
 		_, _, err := rh.regManager.RegisterEntity(
 			v1beta1.Host{Hostname: hostname},
 			&comp,
