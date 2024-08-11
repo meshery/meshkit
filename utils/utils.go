@@ -15,9 +15,12 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -203,10 +206,14 @@ func ReadLocalFile(location string) (string, error) {
 	return string(data), nil
 }
 
-// Gets the latest stable release tags from github for a given org name and repo name(in that org) in sorted order
 func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
-	var url string = "https://github.com/" + org + "/" + repo + "/releases"
-	resp, err := http.Get(url)
+	type TagInfo struct {
+		TagName     string
+		ReleaseDate time.Time
+	}
+	var url string = "https://github.com/" + org + "/" + repo + "/tags"
+	client := &http.Client{}
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, ErrGettingLatestReleaseTag(err)
 	}
@@ -215,24 +222,45 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, ErrGettingLatestReleaseTag(fmt.Errorf("unable to get latest release tag"))
 	}
-
-	body, err := io.ReadAll(resp.Body)
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		return nil, ErrGettingLatestReleaseTag(err)
 	}
-	re := regexp.MustCompile("/releases/tag/(.*?)\"")
-	releases := re.FindAllString(string(body), -1)
-	if len(releases) == 0 {
+
+	var tags []TagInfo
+
+	// Scrape the tag names and release dates
+	doc.Find(".Box-row").Each(func(i int, s *goquery.Selection) {
+		tagName := s.Find("a.Link--primary").Text()
+		releaseDateStr := s.Find("relative-time").AttrOr("datetime", "")
+
+		// Parse the release date
+		releaseDate, err := time.Parse(time.RFC3339, releaseDateStr)
+		if err != nil {
+			ErrGettingLatestReleaseTag(errors.New("no release date time found in this repository"))
+			return
+		}
+
+		tags = append(tags, TagInfo{
+			TagName:     tagName,
+			ReleaseDate: releaseDate,
+		})
+	})
+	if len(tags) == 0 {
 		return nil, ErrGettingLatestReleaseTag(errors.New("no release found in this repository"))
 	}
-	var versions []string
-	for _, rel := range releases {
-		latest := strings.ReplaceAll(rel, "/releases/tag/", "")
-		latest = strings.ReplaceAll(latest, "\"", "")
-		versions = append(versions, latest)
+	// Sort tags by release date
+	sort.Slice(tags, func(i, j int) bool {
+		return tags[i].ReleaseDate.Before(tags[j].ReleaseDate)
+	})
+
+	// Extract and return the sorted tag names
+	var sortedTagNames []string
+	for _, tag := range tags {
+		sortedTagNames = append(sortedTagNames, tag.TagName)
 	}
-	versions = SortDottedStringsByDigits(versions)
-	return versions, nil
+
+	return sortedTagNames, nil
 }
 
 // SafeClose is a helper function help to close the io
