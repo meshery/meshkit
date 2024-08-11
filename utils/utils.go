@@ -237,7 +237,6 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 		// Parse the release date
 		releaseDate, err := time.Parse(time.RFC3339, releaseDateStr)
 		if err != nil {
-			ErrGettingLatestReleaseTag(errors.New("no release date time found in this repository"))
 			return
 		}
 
