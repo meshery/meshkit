@@ -7,14 +7,13 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	models "github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
-	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm/clause"
@@ -59,8 +58,8 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&Registry{},
 		&connection.Connection{},
 		&component.ComponentDefinition{},
-		&v1alpha2.RelationshipDefinition{},
-		// &models.PolicyDefinition{},
+		&relationship.RelationshipDefinition{},
+		&models.PolicyDefinition{},
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
 	)

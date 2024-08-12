@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
-	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1alpha3/relationship"
+	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
 	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 
@@ -190,8 +190,8 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 			_modelDB.Components = components
 		}
 		if includeRelationships {
-			var relationships []v1alpha2.RelationshipDefinition
-			finder := db.Model(&v1alpha2.RelationshipDefinition{}).
+			var relationships []relationship.RelationshipDefinition
+			finder := db.Model(&relationship.RelationshipDefinition{}).
 				Select("relationship_definition_dbs.*").
 				Where("relationship_definition_dbs.model_id = ?", _modelDB.Id)
 			if err := finder.Scan(&relationships).Error; err != nil {
