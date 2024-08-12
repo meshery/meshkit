@@ -67,7 +67,6 @@ func GetSchemaFor(resourceName string) (cue.Value, error) {
 
 	log, _ := logger.New("test-validate", logger.Options{})
 	log.Error(err)
-	fmt.Println("line 64 ===========================", err)
 	if err != nil {
 		return schema, err
 	}
@@ -90,7 +89,6 @@ func Validate(schema cue.Value, resourceValue interface{}) error {
 	valid, errs := utils.Validate(schema, cv)
 	if !valid {
 		errs :=  convertCueErrorsToStrings(errs)
-		// fmt.Println("line 93 ===========================", errs)
 		return errors.New(ErrValidateCode,
 			errors.Alert,
 			[]string{"validation for the resource failed"},
@@ -108,7 +106,6 @@ func convertCueErrorsToStrings(errs []cueerrors.Error) []string {
 		_ = cueerrors.Sanitize(err)
 	}
 	for _, err2 := range errs {
-		fmt.Println("\n\n[line 1111 ===========================]: ", err2.Error())
 		
 		res = append(res, err2.Error())
 	}

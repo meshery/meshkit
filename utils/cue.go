@@ -92,17 +92,14 @@ func JsonSchemaToCue(value string) (cue.Value, error) {
 	})
 
 	s := errors.Details(err, nil)
-	fmt.Println("line 95 : ==========", s, err)
 	if err != nil {
 		return out, ErrJsonSchemaToCue(err)
 	}
 	src, err := format.Node(extractedSchema)
-	fmt.Println("line 100 : ==========", err)
 	if err != nil {
 		return out, ErrJsonSchemaToCue(err)
 	}
 	out = cueCtx.CompileString(string(src))
-	fmt.Println("line 105 : ==========", err)
 	if out.Err() != nil {
 		return out, ErrJsonSchemaToCue(out.Err())
 	}

@@ -132,7 +132,6 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 
 	var count int64
 	finder.Count(&count)
-	fmt.Println("line 114 COUNT : =+++++++++++++++", count)
 
 	finder = finder.Offset(componentFilter.Offset)
 	if componentFilter.Limit != 0 {

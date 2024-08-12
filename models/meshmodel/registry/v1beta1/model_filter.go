@@ -103,7 +103,6 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	// include components and relationships in response body
 	var includeComponents, includeRelationships bool
 
-	fmt.Println("line 65 : -------")
 	if mf.Greedy {
 		if mf.Name != "" && mf.DisplayName != "" {
 			finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", "%"+mf.Name+"%", "%"+mf.DisplayName+"%")
@@ -172,7 +171,6 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	err := finder.
 		Find(&modelWithCategories).Error
 	if err != nil {
-		fmt.Println("line 131 : -------", err)
 		return nil, 0, 0, err
 	}
 

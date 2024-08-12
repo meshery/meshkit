@@ -28,7 +28,6 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 	ctx := context.Background()
 	registeredRelationships, _, _, err := regManager.GetEntities(&v1alpha2.RelationshipFilter{})
 	if err != nil {
-		fmt.Println(err, ";;s;d;sd")
 		return nil, err
 	}
 

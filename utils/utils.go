@@ -412,7 +412,6 @@ func IsInterfaceNil(val interface{}) bool {
 	if val == nil {
 		return true
 	}
-	fmt.Println("TEST 415 : ", reflect.ValueOf(val).IsZero())
 	return reflect.ValueOf(val).IsZero()
 }
 
