@@ -6,12 +6,12 @@ import (
 
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/layer5io/meshkit/models/meshmodel/registry/v1alpha3"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"github.com/open-policy-agent/opa/rego"
+
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 )
 
 type Rego struct {
@@ -48,7 +48,7 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 }
 
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
-func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (interface{}, error) {
+func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString string, relationshipsToEvalaute ...string) (interface{}, error) {
 	if r == nil {
 		return nil, ErrEval(fmt.Errorf("policy engine is not yet ready"))
 	}
@@ -63,13 +63,7 @@ func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (int
 		return nil, ErrPrepareForEval(err)
 	}
 
-	var input map[string]interface{}
-	err = yaml.Unmarshal((designFile), &input)
-	if err != nil {
-		return nil, utils.ErrUnmarshal(err)
-	}
-
-	eval_result, err := regoEngine.Eval(r.ctx, rego.EvalInput(input))
+	eval_result, err := regoEngine.Eval(r.ctx, rego.EvalInput(designFile))
 	if err != nil {
 		return nil, ErrEval(err)
 	}
