@@ -1,8 +1,9 @@
-package v1alpha2
+package v1alpha3
 
 import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 
 	"gorm.io/gorm/clause"
@@ -35,7 +36,7 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 }
 
 func (rf *RelationshipFilter) GetById(db *database.Handler) (entity.Entity, error) {
-	r := &v1alpha2.RelationshipDefinition{}
+	r := &relationship.RelationshipDefinition{}
 	err := db.First(r, "id = ?", rf.Id).Error
 	if err != nil {
 		return nil, registry.ErrGetById(err, rf.Id)

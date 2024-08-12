@@ -3,7 +3,6 @@ package v1beta1
 import (
 	"fmt"
 
-	"github.com/MUzairS15/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
@@ -40,7 +39,7 @@ type componentDefinitionWithModel struct {
 }
 
 func (cf *ComponentFilter) GetById(db *database.Handler) (entity.Entity, error) {
-	c := &v1beta1.ComponentDefinition{}
+	c := &component.ComponentDefinition{}
 	err := db.First(c, "id = ?", cf.Id).Error
 	if err != nil {
 		return nil, registry.ErrGetById(err, cf.Id)

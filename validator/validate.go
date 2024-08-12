@@ -2,7 +2,6 @@ package validator
 
 import (
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	"cuelang.org/go/cue"
@@ -62,7 +61,6 @@ func GetSchemaFor(resourceName string) (cue.Value, error) {
 		return schema, utils.ErrMarshal(err)
 	}
 
-
 	schema, err = utils.JsonSchemaToCue(string(byt))
 
 	log, _ := logger.New("test-validate", logger.Options{})
@@ -88,7 +86,7 @@ func Validate(schema cue.Value, resourceValue interface{}) error {
 
 	valid, errs := utils.Validate(schema, cv)
 	if !valid {
-		errs :=  convertCueErrorsToStrings(errs)
+		errs := convertCueErrorsToStrings(errs)
 		return errors.New(ErrValidateCode,
 			errors.Alert,
 			[]string{"validation for the resource failed"},
@@ -106,7 +104,7 @@ func convertCueErrorsToStrings(errs []cueerrors.Error) []string {
 		_ = cueerrors.Sanitize(err)
 	}
 	for _, err2 := range errs {
-		
+
 		res = append(res, err2.Error())
 	}
 	return res

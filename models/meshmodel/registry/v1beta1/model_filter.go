@@ -3,10 +3,10 @@ package v1beta1
 import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
-	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 
 	"gorm.io/gorm/clause"
 )
@@ -39,7 +39,7 @@ func (mf *ModelFilter) Create(m map[string]interface{}) {
 	mf.Name = m["name"].(string)
 }
 
-func countUniqueModels(models []v1beta1.ModelDefinition) int {
+func countUniqueModels(models []model.ModelDefinition) int {
 	set := make(map[string]struct{})
 	for _, model := range models {
 		key := model.Name + "@" + model.Model.Version
@@ -51,7 +51,7 @@ func countUniqueModels(models []v1beta1.ModelDefinition) int {
 }
 
 func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
-	m := &v1beta1.Model{}
+	m := &model.ModelDefinition{}
 
 	// Retrieve the model by ID
 	err := db.First(m, "id = ?", mf.Id).Error
@@ -61,10 +61,10 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 
 	// Include components if requested
 	if mf.Components {
-		var components []v1beta1.ComponentDefinition
-		componentFinder := db.Model(&v1beta1.ComponentDefinition{}).
+		var components []component.ComponentDefinition
+		componentFinder := db.Model(&component.ComponentDefinition{}).
 			Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version").
-			Where("component_definition_dbs.model_id = ?", m.ID)
+			Where("component_definition_dbs.model_id = ?", m.Id)
 		if err := componentFinder.Scan(&components).Error; err != nil {
 			return nil, err
 		}
@@ -73,10 +73,10 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 
 	// Include relationships if requested
 	if mf.Relationships {
-		var relationships []v1alpha2.RelationshipDefinition
-		relationshipFinder := db.Model(&v1alpha2.RelationshipDefinition{}).
+		var relationships []relationship.RelationshipDefinition
+		relationshipFinder := db.Model(&relationship.RelationshipDefinition{}).
 			Select("relationship_definition_dbs.*").
-			Where("relationship_definition_dbs.model_id = ?", m.ID)
+			Where("relationship_definition_dbs.model_id = ?", m.Id)
 		if err := relationshipFinder.Scan(&relationships).Error; err != nil {
 			return nil, err
 		}
@@ -178,10 +178,10 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		// resolve for loop scope
 		_modelDB := modelDB
 		if includeComponents {
-			var components []v1beta1.ComponentDefinition
-			finder := db.Model(&v1beta1.ComponentDefinition{}).
+			var components []component.ComponentDefinition
+			finder := db.Model(&component.ComponentDefinition{}).
 				Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version").
-				Where("component_definition_dbs.model_id = ?", _modelDB.ID)
+				Where("component_definition_dbs.model_id = ?", _modelDB.Id)
 			if err := finder.Scan(&components).Error; err != nil {
 				return nil, 0, 0, err
 			}

@@ -91,7 +91,6 @@ func JsonSchemaToCue(value string) (cue.Value, error) {
 		PkgName: "jsonschemeconv",
 	})
 
-	s := errors.Details(err, nil)
 	if err != nil {
 		return out, ErrJsonSchemaToCue(err)
 	}

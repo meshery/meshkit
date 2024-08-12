@@ -1,17 +1,20 @@
 package registration
 
 import (
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	meshmodel "github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1alpha3/relationship"
+	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/connection"
+	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
 // packaingUnit is the representation of the atomic unit that can be registered into the capabilities registry
 type packagingUnit struct {
-	model         v1beta1.Model
-	components    []v1beta1.ComponentDefinition
-	relationships []v1alpha2.RelationshipDefinition
+	model         model.ModelDefinition
+	components    []component.ComponentDefinition
+	relationships []relationship.RelationshipDefinition
 	_             []v1beta1.PolicyDefinition
 }
 
@@ -47,32 +50,54 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 	model := pkg.model
 
 	// Dont register anything else if registrant is not there
-	if model.Registrant.Hostname == "" {
+	if model.Registrant.Kind == "" {
 		err := ErrMissingRegistrant(model.Name)
-		rh.regErrStore.InsertEntityRegError(model.Registrant.Hostname, "", entity.Model, model.Name, err)
+		rh.regErrStore.InsertEntityRegError(model.Registrant.Kind, "", entity.Model, model.Name, err)
 		return
 	}
-	WriteAndReplaceSVGWithFileSystemPath(model.Metadata, rh.svgBaseDir, model.Name, model.Name) //Write SVG for models
+	if model.Metadata != nil {
+		svgComplete := ""
+		if model.Metadata.SvgComplete != nil {
+			svgComplete = *model.Metadata.SvgComplete
+		}
+
+		//Write SVG for models
+		WriteAndReplaceSVGWithFileSystemPath(model.Metadata.SvgColor,
+			model.Metadata.SvgWhite,
+			svgComplete, rh.svgBaseDir,
+			model.Name,
+			model.Name,
+		)
+	}
 	_, _, err := rh.regManager.RegisterEntity(
-		v1beta1.Host{Hostname: model.Registrant.Hostname},
+		connection.Connection{Kind: model.Registrant.Kind},
 		&model,
 	)
 
 	// If model cannot be registered, don't register anything else
 	if err != nil {
 		err = ErrRegisterEntity(err, string(model.Type()), model.DisplayName)
-		rh.regErrStore.InsertEntityRegError(model.Registrant.Hostname, "", entity.Model, model.Name, err)
+		rh.regErrStore.InsertEntityRegError(model.Registrant.Kind, "", entity.Model, model.Name, err)
 		return
 	}
 
-	hostname := model.Registrant.Hostname
+	hostname := model.Registrant.Kind
 	modelName := model.Name
 	// 2. Register components
 	for _, comp := range pkg.components {
 		comp.Model = model
-		WriteAndReplaceSVGWithFileSystemPath(comp.Metadata, rh.svgBaseDir, comp.Model.Name, comp.Component.Kind) //Write SVG on components
+		if comp.Styles != nil {
+			//Write SVG for components
+			WriteAndReplaceSVGWithFileSystemPath(
+				comp.Styles.SvgColor,
+				comp.Styles.SvgWhite,
+				comp.Styles.SvgComplete,
+				rh.svgBaseDir,
+				comp.Model.Name,
+				comp.Component.Kind) //Write SVG on components
+		}
 		_, _, err := rh.regManager.RegisterEntity(
-			v1beta1.Host{Hostname: hostname},
+			connection.Connection{Kind: model.Registrant.Kind},
 			&comp,
 		)
 		if err != nil {
@@ -84,12 +109,10 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 	// 3. Register relationships
 	for _, rel := range pkg.relationships {
 		rel.Model = model
-		_, _, err := rh.regManager.RegisterEntity(v1beta1.Host{
-			Hostname: hostname,
-		}, &rel)
+		_, _, err := rh.regManager.RegisterEntity(connection.Connection{Kind: model.Registrant.Kind}, &rel)
 		if err != nil {
-			err = ErrRegisterEntity(err, string(rel.Type()), rel.Kind)
-			rh.regErrStore.InsertEntityRegError(hostname, modelName, entity.RelationshipDefinition, rel.ID.String(), err)
+			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
+			rh.regErrStore.InsertEntityRegError(hostname, modelName, entity.RelationshipDefinition, rel.Id.String(), err)
 		}
 	}
 }
