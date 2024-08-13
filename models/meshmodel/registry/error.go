@@ -14,18 +14,18 @@ var (
 	ErrRegisteringEntityCode           = "replace_me"
 	ErrUnknownHostInMapCode            = "replace_me"
 	ErrCreatingUserDataDirectoryCode   = "replace_me"
-    ErrGetByIdCode                     = "replace_me"
+	ErrGetByIdCode                     = "replace_me"
 )
 
 func ErrGetById(err error, id string) error {
 	return errors.New(
-        ErrUnknownHostCode,
-        errors.Alert,
-        []string{"Failed to get the entity with the given ID: " + id},
-        []string{err.Error()},
-        []string{"Entity with the given ID may not be present in the registry", "Registry might be inaccessible at the moment"},
-        []string{"Check if your ID is correct" , "If the registry is inaccesible, please try again after some time"},
-        )
+		ErrUnknownHostCode,
+		errors.Alert,
+		[]string{"Failed to get the entity with the given ID: " + id},
+		[]string{err.Error()},
+		[]string{"Entity with the given ID may not be present in the registry", "Registry might be inaccessible at the moment"},
+		[]string{"Check if your ID is correct", "If the registry is inaccesible, please try again after some time"},
+	)
 
 }
 

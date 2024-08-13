@@ -199,7 +199,7 @@ func (rm *RegistryManager) GetEntities(f entity.Filter) ([]entity.Entity, int64,
 	return f.Get(rm.db)
 }
 
-func (rm *RegistryManager) GetEntityById (f entity.Filter) (entity.Entity, error) {
+func (rm *RegistryManager) GetEntityById(f entity.Filter) (entity.Entity, error) {
 	return f.GetById(rm.db)
 }
 
