@@ -146,6 +146,14 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		finder = finder.Order("display_name")
 	}
 
+	status := "enabled"
+
+	if mf.Status != "" {
+		status = mf.Status
+	}
+
+	finder = finder.Where("model_dbs.status = ?", status)
+
 	finder.Count(&count)
 
 	if mf.Limit != 0 {
@@ -154,14 +162,6 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	if mf.Offset != 0 {
 		finder = finder.Offset(mf.Offset)
 	}
-
-	status := "enabled"
-
-	if mf.Status != "" {
-		status = mf.Status
-	}
-
-	finder = finder.Where("model_dbs.status = ?", status)
 
 	includeComponents = mf.Components
 	includeRelationships = mf.Relationships

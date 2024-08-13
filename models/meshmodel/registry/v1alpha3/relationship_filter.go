@@ -51,7 +51,6 @@ func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entit
 		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
 
-		// TODO(@MUzairS15): Refactor this once Status is made a first class field in RelationshipFilter
 	status := "enabled"
 
 	if relationshipFilter.Status != "" {
