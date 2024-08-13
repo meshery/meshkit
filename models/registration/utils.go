@@ -26,12 +26,15 @@ func unmarshal(byt []byte, out interface{}) error {
 
 // TODO: refactor this and use CUE
 func getEntity(byt []byte) (et entity.Entity, _ error) {
-	var schemaVersion string
-	err := unmarshal(byt, &schemaVersion)
-	if err != nil || schemaVersion == "" {
+	type schemaVersion struct {
+		SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
+	}
+	var sv schemaVersion
+	err := unmarshal(byt, &sv)
+	if err != nil || sv.SchemaVersion == "" {
 		return nil, ErrGetEntity(fmt.Errorf("Does not contain versionmeta"))
 	}
-	switch schemaVersion {
+	switch sv.SchemaVersion {
 	case v1beta1.ComponentSchemaVersion:
 		var compDef component.ComponentDefinition
 		err := unmarshal(byt, &compDef)
