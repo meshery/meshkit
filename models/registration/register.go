@@ -55,19 +55,26 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 		rh.regErrStore.InsertEntityRegError(model.Registrant.Kind, "", entity.Model, model.Name, err)
 		return
 	}
+
 	if model.Metadata != nil {
 		svgComplete := ""
 		if model.Metadata.SvgComplete != nil {
 			svgComplete = *model.Metadata.SvgComplete
 		}
 
+		var svgCompletePath string
+
 		//Write SVG for models
-		WriteAndReplaceSVGWithFileSystemPath(model.Metadata.SvgColor,
+		model.Metadata.SvgColor, model.Metadata.SvgWhite, svgCompletePath = WriteAndReplaceSVGWithFileSystemPath(model.Metadata.SvgColor,
 			model.Metadata.SvgWhite,
 			svgComplete, rh.svgBaseDir,
 			model.Name,
 			model.Name,
 		)
+		if svgCompletePath != "" {
+			model.Metadata.SvgComplete = &svgCompletePath
+		}
+
 	}
 	_, _, err := rh.regManager.RegisterEntity(
 		connection.Connection{Kind: model.Registrant.Kind},
@@ -86,16 +93,19 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 	// 2. Register components
 	for _, comp := range pkg.components {
 		comp.Model = model
+
 		if comp.Styles != nil {
 			//Write SVG for components
-			WriteAndReplaceSVGWithFileSystemPath(
+			comp.Styles.SvgColor, comp.Styles.SvgWhite, comp.Styles.SvgComplete = WriteAndReplaceSVGWithFileSystemPath(
 				comp.Styles.SvgColor,
 				comp.Styles.SvgWhite,
 				comp.Styles.SvgComplete,
 				rh.svgBaseDir,
 				comp.Model.Name,
-				comp.Component.Kind) //Write SVG on components
+				comp.Component.Kind,
+			)
 		}
+
 		_, _, err := rh.regManager.RegisterEntity(
 			connection.Connection{Kind: model.Registrant.Kind},
 			&comp,

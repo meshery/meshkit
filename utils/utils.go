@@ -38,7 +38,8 @@ func TransformMapKeys(input map[string]interface{}, transformFunc func(string) s
 	return output
 }
 
-// unmarshal returns parses the JSON config data and stores the value in the reference to result
+// Deprecated: Use Unmarshal from encoding package.
+// TODO: Replace the usages from all projects.
 func Unmarshal(obj string, result interface{}) error {
 	obj = strings.TrimSpace(obj)
 	err := json.Unmarshal([]byte(obj), result)
@@ -408,7 +409,6 @@ func ExtractDomainFromURL(location string) string {
 }
 
 func IsInterfaceNil(val interface{}) bool {
-	fmt.Println("TEST 441 : ", val == nil)
 	if val == nil {
 		return true
 	}
