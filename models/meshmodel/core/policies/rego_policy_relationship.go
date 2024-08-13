@@ -6,6 +6,7 @@ import (
 
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/layer5io/meshkit/models/meshmodel/registry/v1alpha3"
+	"github.com/layer5io/meshkit/utils"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"github.com/open-policy-agent/opa/rego"
 
@@ -67,15 +68,30 @@ func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString
 	if err != nil {
 		return nil, ErrEval(err)
 	}
-	if !eval_result.Allowed() {
-		if len(eval_result) > 0 {
-			if len(eval_result[0].Expressions) > 0 {
-				return eval_result[0].Expressions[0].Value, nil
-			}
-			return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
-		}
+
+	if len(eval_result) == 0 {
 		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
 	}
 
-	return nil, ErrEval(err)
+	if len(eval_result[0].Expressions) == 0 {
+		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
+	}
+
+	result, err := utils.Cast[map[string]interface{}](eval_result[0].Expressions[0].Value)
+	if err != nil {
+		return nil, ErrEval(err)
+	}
+
+	evalResults, ok := result["evaluate"]
+	if !ok {
+		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
+	}
+
+	evaluatedPatternFile, err := utils.MarshalAndUnmarshal[interface{}, pattern.PatternFile](evalResults)
+	if err != nil {
+		return nil, err
+	}
+
+	return evaluatedPatternFile, nil
+
 }
