@@ -110,7 +110,7 @@ func getRequiredVersionsFromString(s string) (p []Package) {
 			if pkg == "" {
 				continue
 			}
-			
+
 			pkgName, pkgVersion := getPackageAndVersionFromPackageVersion(pkg)
 			if strings.HasPrefix(pkgName, "//") { //Has been commented out
 				continue

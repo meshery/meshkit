@@ -5,13 +5,14 @@ import (
 	"fmt"
 
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
-	"github.com/layer5io/meshkit/models/meshmodel/registry/v1alpha2"
+	"github.com/layer5io/meshkit/models/meshmodel/registry/v1alpha3"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"github.com/open-policy-agent/opa/rego"
+
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 )
 
 type Rego struct {
@@ -26,7 +27,7 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 	var store storage.Store
 
 	ctx := context.Background()
-	registeredRelationships, _, _, err := regManager.GetEntities(&v1alpha2.RelationshipFilter{})
+	registeredRelationships, _, _, err := regManager.GetEntities(&v1alpha3.RelationshipFilter{})
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +49,7 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 }
 
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
-func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (interface{}, error) {
+func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString string, relationshipsToEvalaute ...string) (interface{}, error) {
 	if r == nil {
 		return nil, ErrEval(fmt.Errorf("policy engine is not yet ready"))
 	}
@@ -63,25 +64,34 @@ func (r *Rego) RegoPolicyHandler(regoQueryString string, designFile []byte) (int
 		return nil, ErrPrepareForEval(err)
 	}
 
-	var input map[string]interface{}
-	err = yaml.Unmarshal((designFile), &input)
-	if err != nil {
-		return nil, utils.ErrUnmarshal(err)
-	}
-
-	eval_result, err := regoEngine.Eval(r.ctx, rego.EvalInput(input))
+	eval_result, err := regoEngine.Eval(r.ctx, rego.EvalInput(designFile))
 	if err != nil {
 		return nil, ErrEval(err)
 	}
-	if !eval_result.Allowed() {
-		if len(eval_result) > 0 {
-			if len(eval_result[0].Expressions) > 0 {
-				return eval_result[0].Expressions[0].Value, nil
-			}
-			return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
-		}
+
+	if len(eval_result) == 0 {
 		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
 	}
 
-	return nil, ErrEval(err)
+	if len(eval_result[0].Expressions) == 0 {
+		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
+	}
+
+	result, err := utils.Cast[map[string]interface{}](eval_result[0].Expressions[0].Value)
+	if err != nil {
+		return nil, ErrEval(err)
+	}
+
+	evalResults, ok := result["evaluate"]
+	if !ok {
+		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
+	}
+
+	evaluatedPatternFile, err := utils.MarshalAndUnmarshal[interface{}, pattern.PatternFile](evalResults)
+	if err != nil {
+		return nil, err
+	}
+
+	return evaluatedPatternFile, nil
+
 }

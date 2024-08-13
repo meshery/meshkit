@@ -3,8 +3,8 @@ package component
 import (
 	"testing"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/schemas/models/v1beta1/component"
 )
 
 var istioCrd = `
@@ -124,8 +124,8 @@ spec:
       status: {}
 `
 
-func getNewComponent(spec string, name string, version string) v1beta1.ComponentDefinition {
-	comp := v1beta1.ComponentDefinition{}
+func getNewComponent(spec string, name string, version string) component.ComponentDefinition {
+	comp := component.ComponentDefinition{}
 	comp.Component.Schema = spec
 	comp.DisplayName = manifests.FormatToReadableString(name)
 	comp.Component.Version = version
@@ -136,7 +136,7 @@ func getNewComponent(spec string, name string, version string) v1beta1.Component
 func TestGenerate(t *testing.T) {
 	var tests = []struct {
 		crd  string
-		want v1beta1.ComponentDefinition
+		want component.ComponentDefinition
 	}{
 		{istioCrd, getNewComponent("", "WasmPlugin", "extensions.istio.io/v1beta1")},
 	}

@@ -2,9 +2,9 @@ package catalog
 
 import (
 	"fmt"
+	"github.com/layer5io/meshkit/models/catalog/v1alpha1"
 	"regexp"
 	"strings"
-	"github.com/layer5io/meshkit/models/catalog/v1alpha1"
 )
 
 func BuildArtifactHubPkg(name, downloadURL, user, version, createdAt string, catalogData *v1alpha1.CatalogData) *ArtifactHubMetadata {

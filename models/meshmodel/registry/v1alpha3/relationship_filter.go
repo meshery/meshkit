@@ -1,10 +1,11 @@
-package v1alpha2
+package v1alpha3
 
 import (
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1alpha3/relationship"
+
 	"gorm.io/gorm/clause"
 )
 
@@ -35,7 +36,7 @@ func (rf *RelationshipFilter) Create(m map[string]interface{}) {
 }
 
 func (rf *RelationshipFilter) GetById(db *database.Handler) (entity.Entity, error) {
-	r := &v1alpha2.RelationshipDefinition{}
+	r := &relationship.RelationshipDefinition{}
 	err := db.First(r, "id = ?", rf.Id).Error
 	if err != nil {
 		return nil, registry.ErrGetById(err, rf.Id)
@@ -45,12 +46,11 @@ func (rf *RelationshipFilter) GetById(db *database.Handler) (entity.Entity, erro
 
 func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 
-	var relationshipDefinitionsWithModel []v1alpha2.RelationshipDefinition
-	finder := db.Model(&v1alpha2.RelationshipDefinition{}).Preload("Model").Preload("Model.Category").
+	var relationshipDefinitionsWithModel []relationship.RelationshipDefinition
+	finder := db.Model(&relationship.RelationshipDefinition{}).Preload("Model").Preload("Model.Category").
 		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
 
-		// TODO(@MUzairS15): Refactor this once Status is made a first class field in RelationshipFilter
 	status := "enabled"
 
 	if relationshipFilter.Status != "" {
