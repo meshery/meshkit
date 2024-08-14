@@ -76,8 +76,10 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 		}
 
 	}
+	
+	model.Registrant.Status = connection.Registered
 	_, _, err := rh.regManager.RegisterEntity(
-		connection.Connection{Kind: model.Registrant.Kind},
+		model.Registrant,
 		&model,
 	)
 
@@ -107,7 +109,7 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 		}
 
 		_, _, err := rh.regManager.RegisterEntity(
-			connection.Connection{Kind: model.Registrant.Kind},
+			model.Registrant,
 			&comp,
 		)
 		if err != nil {
@@ -119,7 +121,7 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 	// 3. Register relationships
 	for _, rel := range pkg.relationships {
 		rel.Model = model
-		_, _, err := rh.regManager.RegisterEntity(connection.Connection{Kind: model.Registrant.Kind}, &rel)
+		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
 			rh.regErrStore.InsertEntityRegError(hostname, modelName, entity.RelationshipDefinition, rel.Id.String(), err)
