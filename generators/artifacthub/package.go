@@ -12,6 +12,7 @@ import (
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	_component "github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/model"
 	"gopkg.in/yaml.v2"
 )
 
@@ -37,7 +38,7 @@ func (pkg AhPackage) GetVersion() string {
 	return pkg.Version
 }
 
-func (pkg AhPackage) GenerateComponents() ([]_component.ComponentDefinition, error) {
+func (pkg AhPackage) GenerateComponents(model model.ModelDefinition) ([]_component.ComponentDefinition, error) {
 	components := make([]_component.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
 
@@ -53,6 +54,7 @@ func (pkg AhPackage) GenerateComponents() ([]_component.ComponentDefinition, err
 		if err != nil {
 			continue
 		}
+		comp.Model = model
 
 		if comp.Model.Metadata.AdditionalProperties == nil {
 			comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
