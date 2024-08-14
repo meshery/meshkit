@@ -9,6 +9,7 @@ import (
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	_component "github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
 type GitHubPackage struct {
@@ -39,6 +40,9 @@ func (gp GitHubPackage) GenerateComponents() ([]_component.ComponentDefinition, 
 		comp, err := component.Generate(crd)
 		if err != nil {
 			continue
+		}
+		if comp.Model.Metadata == nil {
+			comp.Model.Metadata = &model.ModelDefinition_Metadata{}
 		}
 		if comp.Model.Metadata.AdditionalProperties == nil {
 			comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
