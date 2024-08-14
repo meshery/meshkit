@@ -49,9 +49,10 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 }
 
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
-func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString string, relationshipsToEvalaute ...string) (interface{}, error) {
+func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString string, relationshipsToEvalaute ...string) (pattern.EvaluationResponse, error) {
+	var evaluationResponse pattern.EvaluationResponse
 	if r == nil {
-		return nil, ErrEval(fmt.Errorf("policy engine is not yet ready"))
+		return evaluationResponse, ErrEval(fmt.Errorf("policy engine is not yet ready"))
 	}
 	regoEngine, err := rego.New(
 		rego.Query(regoQueryString),
@@ -61,37 +62,37 @@ func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString
 	).PrepareForEval(r.ctx)
 	if err != nil {
 		logrus.Error("error preparing for evaluation", err)
-		return nil, ErrPrepareForEval(err)
+		return evaluationResponse, ErrPrepareForEval(err)
 	}
 
 	eval_result, err := regoEngine.Eval(r.ctx, rego.EvalInput(designFile))
 	if err != nil {
-		return nil, ErrEval(err)
+		return evaluationResponse, ErrEval(err)
 	}
 
 	if len(eval_result) == 0 {
-		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
+		return evaluationResponse, ErrEval(fmt.Errorf("evaluation results are empty"))
 	}
 
 	if len(eval_result[0].Expressions) == 0 {
-		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
+		return evaluationResponse, ErrEval(fmt.Errorf("evaluation results are empty"))
 	}
 
 	result, err := utils.Cast[map[string]interface{}](eval_result[0].Expressions[0].Value)
 	if err != nil {
-		return nil, ErrEval(err)
+		return evaluationResponse, ErrEval(err)
 	}
 
 	evalResults, ok := result["evaluate"]
 	if !ok {
-		return nil, ErrEval(fmt.Errorf("evaluation results are empty"))
+		return evaluationResponse, ErrEval(fmt.Errorf("evaluation results are empty"))
 	}
 
 	evaluatedPatternFile, err := utils.MarshalAndUnmarshal[interface{}, pattern.PatternFile](evalResults)
 	if err != nil {
-		return nil, err
+		return evaluationResponse, err
 	}
-
-	return evaluatedPatternFile, nil
+	evaluationResponse.Design = evaluatedPatternFile
+	return evaluationResponse, nil
 
 }
