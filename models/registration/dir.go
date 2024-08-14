@@ -54,6 +54,7 @@ func (d Dir) PkgUnit(regErrStore RegistrationErrorStore) (_ packagingUnit, err e
 			regErrStore.AddInvalidDefinition(path, err)
 			return nil
 		}
+
 		// set it to pkgunit
 		switch e.Type() {
 		case entity.Model:

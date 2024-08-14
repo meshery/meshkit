@@ -149,8 +149,8 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 			"COUNT(CASE WHEN r.type = 'model' THEN 1 END) AS models," +
 			"COUNT(CASE WHEN r.type = 'relationship' THEN 1 END) AS relationships, " +
 			"COUNT(CASE WHEN r.type = 'policy' THEN 1 END) AS policies").
-		Joins("LEFT JOIN registries r ON c.id = r.registrant_id")
-		// Group("c.id, c.hostname, h.port") // required
+		Joins("LEFT JOIN registries r ON c.id = r.registrant_id").
+		Group("c.id")
 
 	if f.DisplayName != "" {
 		query = query.Where("kind LIKE ?", "%"+f.DisplayName+"%")

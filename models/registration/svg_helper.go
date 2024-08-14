@@ -55,7 +55,7 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 			return
 		}
 		svgColorPath = getRelativePathForAPI(baseDir, filepath.Join(dirname, "color", filename+"-color.svg")) //Replace the actual SVG with path to SVG
-		writeHashCheckSVG(hashString, svgColor)
+		writeHashCheckSVG(hashString, svgColorPath)
 
 	}
 White:
@@ -86,7 +86,7 @@ White:
 			return
 		}
 		svgWhitePath = getRelativePathForAPI(baseDir, filepath.Join(dirname, "white", filename+"-white.svg")) //Replace the actual SVG with path to SVG
-		writeHashCheckSVG(hashString, svgWhite)
+		writeHashCheckSVG(hashString, svgWhitePath)
 
 	}
 Complete:
@@ -117,7 +117,7 @@ Complete:
 			return
 		}
 		svgCompletePath = getRelativePathForAPI(baseDir, filepath.Join(dirname, "complete", filename+"-complete.svg")) //Replace the actual SVG with path to SVG
-		writeHashCheckSVG(hashString, svgComplete)
+		writeHashCheckSVG(hashString, svgCompletePath)
 
 	}
 	return

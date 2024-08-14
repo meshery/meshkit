@@ -59,7 +59,7 @@ func NewDependencyHandler(connectionKind string) (DependencyHandler, error) {
 
 type ArtifactHub struct{}
 
-const MesheryAnnotationPrefix = "design.meshmodel.io"
+const MesheryAnnotationPrefix = "design.meshery.io"
 
 func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
 	sourceURI, err := utils.Cast[string](comp.Metadata.AdditionalProperties["source_uri"]) // should be part of registrant data(?)
