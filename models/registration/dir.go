@@ -50,7 +50,6 @@ func (d Dir) PkgUnit(regErrStore RegistrationErrorStore) (_ packagingUnit, err e
 
 		var e entity.Entity
 		e, err = getEntity(byt)
-		fmt.Println("\n[GET ENTITY : ", err, path, "]")
 		if err != nil {
 			regErrStore.AddInvalidDefinition(path, err)
 			return nil
@@ -64,7 +63,6 @@ func (d Dir) PkgUnit(regErrStore RegistrationErrorStore) (_ packagingUnit, err e
 				return nil
 			}
 			model, err := utils.Cast[*model.ModelDefinition](e)
-			// fmt.Println("INSIDE model 67 : ", model, err)
 			if err != nil {
 				regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
 			}
@@ -74,14 +72,12 @@ func (d Dir) PkgUnit(regErrStore RegistrationErrorStore) (_ packagingUnit, err e
 			if err != nil {
 				regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
 			}
-			// fmt.Println("INSIDE comp 77 : ", comp.Component.Kind, err)
 			pkg.components = append(pkg.components, *comp)
 		case entity.RelationshipDefinition:
 			rel, err := utils.Cast[*relationship.RelationshipDefinition](e)
 			if err != nil {
 				regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
 			}
-			// fmt.Println("INSIDE rel 84 : ", rel.Kind, rel.RelationshipType, rel.SubType, err)
 			pkg.relationships = append(pkg.relationships, *rel)
 		}
 		return nil
