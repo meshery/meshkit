@@ -3,6 +3,7 @@ package encoding
 import (
 	"encoding/json"
 
+	"github.com/layer5io/meshkit/utils"
 	"gopkg.in/yaml.v2"
 )
 
@@ -48,4 +49,16 @@ func unmarshalJSON(data []byte, result interface{}) error {
 		return ErrUnmarshal(err)
 	}
 	return nil
+}
+
+func Marshal(in interface{}) ([]byte, error) {
+	result, err := json.Marshal(in)
+	if err != nil {
+		result, err = yaml.Marshal(in)
+		if err != nil {
+			return nil, utils.ErrMarshal(err)
+		}
+	}
+
+	return result, nil
 }
