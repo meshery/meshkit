@@ -81,13 +81,11 @@ func (rm *RegistryManager) Cleanup() {
 func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Entity) (bool, bool, error) {
 	registrantID, err := h.Create(rm.db)
 	if err != nil {
-		fmt.Println("REGISTRANT ERROR ")
 		return true, false, err
 	}
 
 	entityID, err := en.Create(rm.db, registrantID)
 	if err != nil {
-		fmt.Println("COMP ERROR ")
 		return false, true, err
 	}
 	id, _ := uuid.NewV4()
