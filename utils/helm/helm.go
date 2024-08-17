@@ -17,7 +17,7 @@ import (
 )
 
 func extractSemVer(versionConstraint string) string {
-	reg := regexp.MustCompile(`v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?$`)
+	reg := regexp.MustCompile(`v?([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?$`)
 	match := reg.Find([]byte(versionConstraint))
 	if match != nil {
 		return string(match)
@@ -34,14 +34,20 @@ func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 	act.DryRun = true
 	act.IncludeCRDs = true
 	act.ClientOnly = true
+
+	version := "v1.29.5" // Default version
+
 	if chart.Metadata.KubeVersion != "" {
-		version := extractSemVer(chart.Metadata.KubeVersion)
-		if version != "" {
-			act.KubeVersion = &chartutil.KubeVersion{
-				Version: version,
-			}
-		}
+		extractedVersion := extractSemVer(chart.Metadata.KubeVersion)
+		if extractedVersion != "" {
+			version = extractedVersion
+		} 
 	}
+
+	act.KubeVersion = &chartutil.KubeVersion{
+		Version: version,
+	}
+	
 	rel, err := act.Run(chart, nil)
 	if err != nil {
 		return nil, ErrDryRunHelmChart(err, chart.Name())
