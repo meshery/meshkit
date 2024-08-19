@@ -3,6 +3,7 @@ package v1beta1
 import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
@@ -47,6 +48,41 @@ func countUniqueModels(models []model.ModelDefinition) int {
 		}
 	}
 	return len(set)
+}
+func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
+	m := &model.ModelDefinition{}
+
+	// Retrieve the model by ID
+	err := db.First(m, "id = ?", mf.Id).Error
+	if err != nil {
+		return nil, registry.ErrGetById(err, mf.Id)
+	}
+
+	// Include components if requested
+	if mf.Components {
+		var components []component.ComponentDefinition
+		componentFinder := db.Model(&component.ComponentDefinition{}).
+			Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version").
+			Where("component_definition_dbs.model_id = ?", m.Id)
+		if err := componentFinder.Scan(&components).Error; err != nil {
+			return nil, err
+		}
+		m.Components = components
+	}
+
+	// Include relationships if requested
+	if mf.Relationships {
+		var relationships []relationship.RelationshipDefinition
+		relationshipFinder := db.Model(&relationship.RelationshipDefinition{}).
+			Select("relationship_definition_dbs.*").
+			Where("relationship_definition_dbs.model_id = ?", m.Id)
+		if err := relationshipFinder.Scan(&relationships).Error; err != nil {
+			return nil, err
+		}
+		m.Relationships = relationships
+	}
+
+	return m, nil
 }
 
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
