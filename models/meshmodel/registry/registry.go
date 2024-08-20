@@ -177,7 +177,6 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 
 	var response []models.MeshModelHostsWithEntitySummary
 
-	fmt.Println("result--------------------------", result)
 	for _, r := range result {
 		res := models.MeshModelHostsWithEntitySummary{
 			Connection: r.Connection,

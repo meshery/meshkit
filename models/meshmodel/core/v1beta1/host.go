@@ -62,8 +62,8 @@ type ArtifactHub struct{}
 const MesheryAnnotationPrefix = "design.meshery.io"
 
 func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
-	sourceURI, err := utils.Cast[string](comp.Metadata.AdditionalProperties["source_uri"]) // should be part of registrant data(?)
-	if err != nil {
+	sourceURI, ok := comp.Model.Metadata.AdditionalProperties["source_uri"] // should be part of registrant data(?)
+	if !ok {
 		return summary, err
 	}
 
@@ -72,9 +72,14 @@ func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *k
 		act = kubernetes.INSTALL
 	}
 
+	_sourceURI, err := utils.Cast[string](sourceURI)
+	if err != nil {
+		return summary, err
+	}
+
 	if sourceURI != "" {
 		err = kc.ApplyHelmChart(kubernetes.ApplyHelmChartConfig{
-			URL:                sourceURI,
+			URL:                _sourceURI,
 			Namespace:          comp.Configuration["namespace"].(string),
 			CreateNamespace:    true,
 			Action:             act,
