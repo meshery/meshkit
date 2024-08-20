@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -95,7 +94,6 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 				return err
 			}
 		} else {
-			fmt.Println("Creating object", object)
 			_, err = createObject(helper, options.Namespace, object, options.Update)
 			if err != nil && !kubeerror.IsAlreadyExists(err) {
 				if recvOptions.IgnoreErrors {
