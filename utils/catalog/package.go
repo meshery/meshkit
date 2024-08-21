@@ -11,7 +11,7 @@ func BuildArtifactHubPkg(name, downloadURL, user, version, createdAt string, cat
 	artifacthubPkg := &ArtifactHubMetadata{
 		Name:        toKebabCase(name),
 		DisplayName: name,
-		Description: catalogData.PatternInfo,
+		Description: valueOrElse(catalogData.PatternInfo, "A Meshery Design"),
 		Provider: Provider{
 			Name: user,
 		},
@@ -26,7 +26,7 @@ func BuildArtifactHubPkg(name, downloadURL, user, version, createdAt string, cat
 			},
 		},
 		HomeURL:   "https://docs.meshery.io/concepts/logical/designs",
-		Version:   version,
+		Version:   valueOrElse(version, "0.0.1"),
 		CreatedAt: createdAt,
 		License:   "Apache-2.0",
 		LogoURL:   "https://raw.githubusercontent.com/meshery/meshery.io/0b8585231c6e2b3251d38f749259360491c9ee6b/assets/images/brand/meshery-logo.svg",
@@ -54,6 +54,14 @@ func BuildArtifactHubPkg(name, downloadURL, user, version, createdAt string, cat
 	})
 
 	return artifacthubPkg
+}
+
+func valueOrElse(s string, fallback string) string {
+	if len(s) == 0 {
+		return fallback
+	} else {
+		return s
+	}
 }
 
 func toKebabCase(s string) string {
