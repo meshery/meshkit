@@ -2,14 +2,14 @@ package v1beta1
 
 import (
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1beta1/category"
 	"gorm.io/gorm/clause"
 )
 
 type CategoryFilter struct {
-    Id      string
+	Id      string
 	Name    string
 	OrderOn string
 	Greedy  bool
@@ -27,16 +27,16 @@ func (cf *CategoryFilter) Create(m map[string]interface{}) {
 }
 
 func (cf *CategoryFilter) GetById(db *database.Handler) (entity.Entity, error) {
-    c := &v1beta1.Category{}
-    err := db.First(c, "id = ?", cf.Id).Error
+	c := &category.CategoryDefinition{}
+	err := db.First(c, "id = ?", cf.Id).Error
 	if err != nil {
 		return nil, registry.ErrGetById(err, cf.Id)
 	}
-    return  c, err
+	return c, err
 }
 
 func (cf *CategoryFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	var catdb []v1beta1.Category
+	var catdb []category.CategoryDefinition
 	var cat []entity.Entity
 	finder := db.Model(&catdb).Debug()
 

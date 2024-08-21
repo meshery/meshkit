@@ -38,7 +38,8 @@ func TransformMapKeys(input map[string]interface{}, transformFunc func(string) s
 	return output
 }
 
-// unmarshal returns parses the JSON config data and stores the value in the reference to result
+// Deprecated: Use Unmarshal from encoding package.
+// TODO: Replace the usages from all projects.
 func Unmarshal(obj string, result interface{}) error {
 	obj = strings.TrimSpace(obj)
 	err := json.Unmarshal([]byte(obj), result)
@@ -411,12 +412,7 @@ func IsInterfaceNil(val interface{}) bool {
 	if val == nil {
 		return true
 	}
-	switch reflect.TypeOf(val).Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
-		return reflect.ValueOf(val).IsNil()
-	}
-	return false
-
+	return reflect.ValueOf(val).IsZero()
 }
 
 func IsSchemaEmpty(schema string) (valid bool) {

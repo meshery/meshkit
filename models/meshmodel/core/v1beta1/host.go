@@ -1,34 +1,17 @@
 package v1beta1
 
 import (
-	"encoding/json"
 	"fmt"
-	"sync"
-	"time"
 
-	"github.com/google/uuid"
-	"github.com/layer5io/meshkit/database"
+	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/kubernetes"
-	"gorm.io/gorm"
+	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/connection"
 )
 
-var hostCreationLock sync.Mutex //Each entity will perform a check and if the host already doesn't exist, it will create a host. This lock will make sure that there are no race conditions.
-
-type Host struct {
-	ID        uuid.UUID `json:"-"`
-	Hostname  string    `json:"hostname"`
-	Port      int       `json:"port,omitempty"`
-	Metadata  string    `json:"metadata,omitempty"`
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
-	IHost     IHost     `json:"-" gorm:"-"`
-}
-
 type MeshModelHostsWithEntitySummary struct {
-	ID       uuid.UUID     `json:"id"`
-	Hostname string        `json:"hostname"`
-	Port     int           `json:"port"`
-	Summary  EntitySummary `json:"summary"`
+	connection.Connection
+	Summary EntitySummary `json:"summary"`
 }
 type EntitySummary struct {
 	Models        int64 `json:"models"`
@@ -37,13 +20,11 @@ type EntitySummary struct {
 	Policies      int64 `json:"policies"`
 }
 type MesheryHostSummaryDB struct {
-	HostID        uuid.UUID `json:"-" gorm:"id"`
-	Hostname      string    `json:"-" gorm:"hostname"`
-	Port          int       `json:"-" gorm:"port"`
-	Models        int64     `json:"-" gorm:"models"`
-	Components    int64     `json:"-" gorm:"components"`
-	Relationships int64     `json:"-" gorm:"relationships"`
-	Policies      int64     `json:"-" gorm:"policies"`
+	connection.Connection
+	Models        int64 `json:"-" gorm:"models"`
+	Components    int64 `json:"-" gorm:"components"`
+	Relationships int64 `json:"-" gorm:"relationships"`
+	Policies      int64 `json:"-" gorm:"policies"`
 }
 
 type HostFilter struct {
@@ -58,90 +39,63 @@ type HostFilter struct {
 	Offset      int
 }
 
-func (h *Host) GenerateID() (uuid.UUID, error) {
-	byt, err := json.Marshal(h)
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-	hID := uuid.NewSHA1(uuid.UUID{}, byt)
-	return hID, nil
-}
-
-func (h *Host) Create(db *database.Handler) (uuid.UUID, error) {
-
-	hID, err := h.GenerateID()
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-	var host Host
-	hostCreationLock.Lock()
-	defer hostCreationLock.Unlock()
-	err = db.First(&host, "id = ?", hID).Error // check if the host already exists
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return uuid.UUID{}, err
-	}
-
-	// if not exists then create a new host and return the id
-	if err == gorm.ErrRecordNotFound {
-		h.ID = hID
-		err = db.Create(&h).Error
-		if err != nil {
-			return uuid.UUID{}, err
-		}
-		return h.ID, nil
-	}
-
-	// else return the id of the existing host
-	return host.ID, nil
-}
-
-func (h *Host) AfterFind(tx *gorm.DB) error {
-	switch h.Hostname {
-	case "artifacthub":
-		h.IHost = ArtifactHub{}
-	case "kubernetes":
-		h.IHost = Kubernetes{}
-	default: // do nothing if the host is not pre-unknown. Currently adapters fall into this case.
-		return nil
-	}
-	return nil
-}
-
-// Each host from where meshmodels can be generated needs to implement this interface
-// HandleDependents, contains host specific logic for provisioning required CRDs/operators for corresponding components.
-type IHost interface {
-	HandleDependents(comp Component, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, error)
+type DependencyHandler interface {
+	HandleDependents(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, error)
 	String() string
 }
 
+func NewDependencyHandler(connectionKind string) (DependencyHandler, error) {
+	switch connectionKind {
+	case "kubernetes":
+		return Kubernetes{}, nil
+	case "artifacthub":
+		return ArtifactHub{}, nil
+	}
+	return nil, ErrUnknownKind(fmt.Errorf("unknown kind %s", connectionKind))
+}
+
+// Each connection from where meshmodels can be generated needs to implement this interface
+// HandleDependents, contains host specific logic for provisioning required CRDs/operators for corresponding components.
+
 type ArtifactHub struct{}
 
-func (ah ArtifactHub) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
-	source_uri := comp.Annotations[fmt.Sprintf("%s.model.source_uri", MesheryAnnotationPrefix)]
+const MesheryAnnotationPrefix = "design.meshery.io"
+
+func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
+	sourceURI, ok := comp.Model.Metadata.AdditionalProperties["source_uri"] // should be part of registrant data(?)
+	if !ok {
+		return summary, err
+	}
+
 	act := kubernetes.UNINSTALL
 	if isDeploy {
 		act = kubernetes.INSTALL
 	}
 
-	if source_uri != "" {
+	_sourceURI, err := utils.Cast[string](sourceURI)
+	if err != nil {
+		return summary, err
+	}
+
+	if sourceURI != "" {
 		err = kc.ApplyHelmChart(kubernetes.ApplyHelmChartConfig{
-			URL:                source_uri,
-			Namespace:          comp.Namespace,
+			URL:                _sourceURI,
+			Namespace:          comp.Configuration["namespace"].(string),
 			CreateNamespace:    true,
 			Action:             act,
 			UpgradeIfInstalled: performUpgrade,
 		})
 		if err != nil {
 			if !isDeploy {
-				summary = fmt.Sprintf("error undeploying dependent helm chart for %s, please proceed with manual uninstall or try again", comp.Name)
+				summary = fmt.Sprintf("error undeploying dependent helm chart for %s, please proceed with manual uninstall or try again", comp.DisplayName)
 			} else {
-				summary = fmt.Sprintf("error deploying dependent helm chart for %s, please procced with manual install or try again", comp.Name)
+				summary = fmt.Sprintf("error deploying dependent helm chart for %s, please procced with manual install or try again", comp.DisplayName)
 			}
 		} else {
 			if !isDeploy {
-				summary = fmt.Sprintf("Undeployed dependent helm chart for %s", comp.Name)
+				summary = fmt.Sprintf("Undeployed dependent helm chart for %s", comp.DisplayName)
 			} else {
-				summary = fmt.Sprintf("Deployed dependent helm chart for %s", comp.Name)
+				summary = fmt.Sprintf("Deployed dependent helm chart for %s", comp.DisplayName)
 			}
 		}
 	}
@@ -154,7 +108,7 @@ func (ah ArtifactHub) String() string {
 
 type Kubernetes struct{}
 
-func (k Kubernetes) HandleDependents(comp Component, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
+func (k Kubernetes) HandleDependents(_ component.ComponentDefinition, _ *kubernetes.Client, _, _ bool) (summary string, err error) {
 	return summary, err
 }
 

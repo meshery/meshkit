@@ -2,10 +2,12 @@ package v1beta1
 
 import (
 	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1alpha2"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1alpha3/relationship"
+	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/model"
+
 	"gorm.io/gorm/clause"
 )
 
@@ -37,7 +39,7 @@ func (mf *ModelFilter) Create(m map[string]interface{}) {
 	mf.Name = m["name"].(string)
 }
 
-func countUniqueModels(models []v1beta1.Model) int {
+func countUniqueModels(models []model.ModelDefinition) int {
 	set := make(map[string]struct{})
 	for _, model := range models {
 		key := model.Name + "@" + model.Model.Version
@@ -47,9 +49,8 @@ func countUniqueModels(models []v1beta1.Model) int {
 	}
 	return len(set)
 }
-
 func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
-	m := &v1beta1.Model{}
+	m := &model.ModelDefinition{}
 
 	// Retrieve the model by ID
 	err := db.First(m, "id = ?", mf.Id).Error
@@ -59,10 +60,10 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 
 	// Include components if requested
 	if mf.Components {
-		var components []v1beta1.ComponentDefinition
-		componentFinder := db.Model(&v1beta1.ComponentDefinition{}).
+		var components []component.ComponentDefinition
+		componentFinder := db.Model(&component.ComponentDefinition{}).
 			Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version").
-			Where("component_definition_dbs.model_id = ?", m.ID)
+			Where("component_definition_dbs.model_id = ?", m.Id)
 		if err := componentFinder.Scan(&components).Error; err != nil {
 			return nil, err
 		}
@@ -71,10 +72,10 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 
 	// Include relationships if requested
 	if mf.Relationships {
-		var relationships []v1alpha2.RelationshipDefinition
-		relationshipFinder := db.Model(&v1alpha2.RelationshipDefinition{}).
+		var relationships []relationship.RelationshipDefinition
+		relationshipFinder := db.Model(&relationship.RelationshipDefinition{}).
 			Select("relationship_definition_dbs.*").
-			Where("relationship_definition_dbs.model_id = ?", m.ID)
+			Where("relationship_definition_dbs.model_id = ?", m.Id)
 		if err := relationshipFinder.Scan(&relationships).Error; err != nil {
 			return nil, err
 		}
@@ -85,12 +86,13 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 }
 
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-	var modelWithCategories []v1beta1.Model
 
-	finder := db.Model(&v1beta1.Model{}).Preload("Category").Preload("Registrant").
+	var modelWithCategories []model.ModelDefinition
+
+	finder := db.Model(&model.ModelDefinition{}).Preload("Category").Preload("Registrant").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN registries ON registries.entity = model_dbs.id").
-		Joins("JOIN hosts ON hosts.id = registries.registrant_id")
+		Joins("JOIN connections ON connections.id = registries.registrant_id")
 
 	// total count before pagination
 	var count int64
@@ -99,6 +101,9 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	var includeComponents, includeRelationships bool
 
 	if mf.Greedy {
+		if mf.Id != "" {
+			finder = finder.First("model_dbs.id = ?", mf.Id)
+		}
 		if mf.Name != "" && mf.DisplayName != "" {
 			finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", "%"+mf.Name+"%", "%"+mf.DisplayName+"%")
 		} else if mf.Name != "" {
@@ -126,7 +131,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		finder = finder.Where("category_dbs.name = ?", mf.Category)
 	}
 	if mf.Registrant != "" {
-		finder = finder.Where("hosts.hostname = ?", mf.Registrant)
+		finder = finder.Where("connections.kind = ?", mf.Registrant)
 	}
 	if mf.Annotations == "true" {
 		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
@@ -143,6 +148,14 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		finder = finder.Order("display_name")
 	}
 
+	status := "enabled"
+
+	if mf.Status != "" {
+		status = mf.Status
+	}
+
+	finder = finder.Where("model_dbs.status = ?", status)
+
 	finder.Count(&count)
 
 	if mf.Limit != 0 {
@@ -151,14 +164,6 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	if mf.Offset != 0 {
 		finder = finder.Offset(mf.Offset)
 	}
-
-	status := "enabled"
-
-	if mf.Status != "" {
-		status = mf.Status
-	}
-
-	finder = finder.Where("model_dbs.status = ?", status)
 
 	includeComponents = mf.Components
 	includeRelationships = mf.Relationships
@@ -175,20 +180,20 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		// resolve for loop scope
 		_modelDB := modelDB
 		if includeComponents {
-			var components []v1beta1.ComponentDefinition
-			finder := db.Model(&v1beta1.ComponentDefinition{}).
-				Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version").
-				Where("component_definition_dbs.model_id = ?", _modelDB.ID)
+			var components []component.ComponentDefinition
+			finder := db.Model(&component.ComponentDefinition{}).
+				Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version,component_definition_dbs.styles").
+				Where("component_definition_dbs.model_id = ?", _modelDB.Id)
 			if err := finder.Scan(&components).Error; err != nil {
 				return nil, 0, 0, err
 			}
 			_modelDB.Components = components
 		}
 		if includeRelationships {
-			var relationships []v1alpha2.RelationshipDefinition
-			finder := db.Model(&v1alpha2.RelationshipDefinition{}).
+			var relationships []relationship.RelationshipDefinition
+			finder := db.Model(&relationship.RelationshipDefinition{}).
 				Select("relationship_definition_dbs.*").
-				Where("relationship_definition_dbs.model_id = ?", _modelDB.ID)
+				Where("relationship_definition_dbs.model_id = ?", _modelDB.Id)
 			if err := finder.Scan(&relationships).Error; err != nil {
 				return nil, 0, 0, err
 			}
