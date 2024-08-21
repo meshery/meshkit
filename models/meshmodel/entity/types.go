@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
 )
 
