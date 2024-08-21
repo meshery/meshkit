@@ -17,7 +17,7 @@ import (
 )
 
 func extractSemVer(versionConstraint string) string {
-	reg := regexp.MustCompile(`v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?$`)
+	reg := regexp.MustCompile(`v?([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?$`)
 	match := reg.Find([]byte(versionConstraint))
 	if match != nil {
 		return string(match)
