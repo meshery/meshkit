@@ -5,7 +5,7 @@ import (
 )
 
 /*
-	RegistrationErrorStore stores all the errors that does not break the registration process, but have to be reported nevertheless.
+RegistrationErrorStore stores all the errors that does not break the registration process, but have to be reported nevertheless.
 */
 type RegistrationErrorStore interface {
 	AddInvalidDefinition(string, error)
