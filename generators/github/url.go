@@ -77,7 +77,7 @@ func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error
 	}
 
 	err = utils.ProcessContent(downloadDirPath, func(path string) error {
-		err = helm.ConvertToK8sManifest(path, w)
+		err = helm.ConvertToK8sManifest(path, "", w)
 		if err != nil {
 			return err
 		}

@@ -23,5 +23,5 @@ func ConvertHelmChartToK8sManifest(cfg ApplyHelmChartConfig) (manifest []byte, e
 		return nil, ErrApplyHelmChart(err)
 	}
 
-	return helm.DryRunHelmChart(helmChart)
+	return helm.DryRunHelmChart(helmChart, cfg.KubernetesVersion)
 }
