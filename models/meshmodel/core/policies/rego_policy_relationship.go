@@ -88,11 +88,11 @@ func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString
 		return evaluationResponse, ErrEval(fmt.Errorf("evaluation results are empty"))
 	}
 
-	evaluatedPatternFile, err := utils.MarshalAndUnmarshal[interface{}, pattern.PatternFile](evalResults)
+	evaluationResponse, err = utils.MarshalAndUnmarshal[interface{}, pattern.EvaluationResponse](evalResults)
 	if err != nil {
 		return evaluationResponse, err
 	}
-	evaluationResponse.Design = evaluatedPatternFile
+
 	return evaluationResponse, nil
 
 }
