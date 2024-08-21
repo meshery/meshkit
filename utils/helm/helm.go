@@ -26,7 +26,7 @@ func extractSemVer(versionConstraint string) string {
 }
 
 // DryRun a given helm chart to convert into k8s manifest
-func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
+func DryRunHelmChart(chart *chart.Chart, kubernetesVersion string) ([]byte, error) {
 	actconfig := new(action.Configuration)
 	act := action.NewInstall(actconfig)
 	act.ReleaseName = chart.Metadata.Name
@@ -34,14 +34,22 @@ func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 	act.DryRun = true
 	act.IncludeCRDs = true
 	act.ClientOnly = true
+
+	kubeVersion := kubernetesVersion
 	if chart.Metadata.KubeVersion != "" {
-		version := extractSemVer(chart.Metadata.KubeVersion)
-		if version != "" {
-			act.KubeVersion = &chartutil.KubeVersion{
-				Version: version,
-			}
+		extractedVersion := extractSemVer(chart.Metadata.KubeVersion)
+
+		if extractedVersion != "" {
+			kubeVersion = extractedVersion
 		}
 	}
+
+	if kubeVersion != "" {
+		act.KubeVersion = &chartutil.KubeVersion{
+			Version: kubeVersion,
+		}
+	}
+
 	rel, err := act.Run(chart, nil)
 	if err != nil {
 		return nil, ErrDryRunHelmChart(err, chart.Name())
@@ -55,7 +63,7 @@ func DryRunHelmChart(chart *chart.Chart) ([]byte, error) {
 }
 
 // Takes in the directory and converts HelmCharts/multiple manifests into a single K8s manifest
-func ConvertToK8sManifest(path string, w io.Writer) error {
+func ConvertToK8sManifest(path, kubeVersion string, w io.Writer) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return utils.ErrReadDir(err, path)
@@ -65,7 +73,7 @@ func ConvertToK8sManifest(path string, w io.Writer) error {
 		helmChartPath, _ = strings.CutSuffix(path, filepath.Base(path))
 	}
 	if IsHelmChart(helmChartPath) {
-		err := LoadHelmChart(helmChartPath, w, true)
+		err := LoadHelmChart(helmChartPath, w, true, kubeVersion)
 		if err != nil {
 			return err
 		}
@@ -124,7 +132,7 @@ func IsHelmChart(dirPath string) bool {
 	return true
 }
 
-func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool) error {
+func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool, kubeVersion string) error {
 	var errs []error
 	chart, err := loader.Load(path)
 	if err != nil {
@@ -145,7 +153,7 @@ func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool) error {
 			_, _ = w.Write([]byte("\n---\n"))
 		}
 	} else {
-		manifests, err := DryRunHelmChart(chart)
+		manifests, err := DryRunHelmChart(chart, kubeVersion)
 		if err != nil {
 			return ErrLoadHelmChart(err, path)
 		}
