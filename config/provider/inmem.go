@@ -16,7 +16,7 @@ package provider
 
 import (
 	"sync"
-
+	"encoding/json"
 	"github.com/layer5io/meshkit/config"
 	"github.com/layer5io/meshkit/utils"
 )
@@ -54,7 +54,8 @@ func (l *InMem) GetKey(key string) string {
 func (l *InMem) GetObject(key string, result interface{}) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	return utils.Unmarshal(l.store[key], result)
+	//return utils.Unmarshal(l.store[key], result)
+	return json.Unmarshal([]byte(l.store[key]), result)
 }
 
 // SetObject sets an object value for the key
