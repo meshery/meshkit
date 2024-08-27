@@ -7,6 +7,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/layer5io/meshkit/utils/kubernetes"
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
@@ -47,32 +48,43 @@ var DefaultPathConfig2 = CuePathConfig{
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
-func Generate(crd string) (component.ComponentDefinition, error) {
+func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp := component.ComponentDefinition{}
 	cmp.SchemaVersion = v1beta1.ComponentSchemaVersion
 
 	cmp.Metadata = component.ComponentDefinition_Metadata{}
-	crdCue, err := utils.YamlToCue(crd)
+	isCRD := kubernetes.IsCRD(resource)
+
+	cueValue, err := cueValueFromResource(resource, isCRD)
 	if err != nil {
 		return cmp, err
 	}
+
+	var specPath string
+	if isCRD {
+		specPath = DefaultPathConfig.SpecPath
+	} else {
+		specPath = "components.schemas"
+	}
+
 	var schema string
 	for _, cfg := range Configs {
-		schema, err = getSchema(crdCue, cfg)
+		cfg.SpecPath = specPath
+		schema, err = getSchema(cueValue, cfg)
 		if err == nil {
 			break
 		}
 	}
 	cmp.Component.Schema = schema
-	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)
+	name, err := extractCueValueFromPath(cueValue, DefaultPathConfig.NamePath)
 	if err != nil {
 		return cmp, err
 	}
-	version, err := extractCueValueFromPath(crdCue, DefaultPathConfig.VersionPath)
+	version, err := extractCueValueFromPath(cueValue, DefaultPathConfig.VersionPath)
 	if err != nil {
 		return cmp, err
 	}
-	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
+	group, err := extractCueValueFromPath(cueValue, DefaultPathConfig.GroupPath)
 	if err != nil {
 		return cmp, err
 	}
@@ -80,7 +92,7 @@ func Generate(crd string) (component.ComponentDefinition, error) {
 	if cmp.Metadata.AdditionalProperties == nil {
 		cmp.Metadata.AdditionalProperties = make(map[string]interface{})
 	}
-	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
+	scope, _ := extractCueValueFromPath(cueValue, DefaultPathConfig.ScopePath)
 	if scope == "Cluster" {
 		cmp.Metadata.AdditionalProperties["isNamespaced"] = false
 	} else if scope == "Namespaced" {
@@ -96,6 +108,14 @@ func Generate(crd string) (component.ComponentDefinition, error) {
 	cmp.Format = component.JSON
 	cmp.DisplayName = manifests.FormatToReadableString(name)
 	return cmp, nil
+}
+
+func cueValueFromResource(resource string, isCRD bool) (cue.Value, error) {
+	if isCRD {
+		return utils.YamlToCue(resource)
+	} else {
+		return utils.JsonToCue([]byte(resource))
+	}
 }
 
 /*
