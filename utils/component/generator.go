@@ -65,16 +65,16 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp.Metadata = component.ComponentDefinition_Metadata{}
 	isCRD := kubernetes.IsCRD(resource)
 
+	cueValue, err := cueValueFromResource(resource, isCRD)
+	if err != nil {
+		return cmp, err
+	}
+
 	var specPath string
 	if isCRD {
 		specPath = DefaultPathConfig.SpecPath
 	} else {
 		specPath = "components.schemas"
-	}
-
-	cueValue, err := cueValueFromResource(resource, isCRD)
-	if err != nil {
-		return cmp, err
 	}
 
 	var schema string
