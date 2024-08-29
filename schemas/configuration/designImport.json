@@ -41,7 +41,7 @@
               "URL Import"
             ],
             "default": "URL Import",
-            "x-rjsf-grid-area": "12",
+            "x-rjsf-grid-area": "3",
             "description": "Choose the method you prefer to upload your design file. Select 'File Upload' if you have the file on your local system, or 'URL Import' if you have the file hosted online."
           }
         },
