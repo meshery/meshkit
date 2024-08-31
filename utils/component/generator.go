@@ -46,6 +46,16 @@ var DefaultPathConfig2 = CuePathConfig{
 	SpecPath:       "spec.validation.openAPIV3Schema",
 }
 
+var OpenAPISpecPathConfig = CuePathConfig{
+	NamePath:       `x-kubernetes-group-version-kind"[0].kind`,
+	IdentifierPath: "spec.names.kind",
+	VersionPath:    `"x-kubernetes-group-version-kind"[0].version`,
+	GroupPath:      `"x-kubernetes-group-version-kind"[0].group`,
+	ScopePath:      "spec.scope",
+	SpecPath:       "spec.versions[0].schema.openAPIV3Schema",
+	PropertiesPath: "properties",
+}
+
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
 func Generate(resource string) (component.ComponentDefinition, error) {
@@ -55,16 +65,17 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp.Metadata = component.ComponentDefinition_Metadata{}
 	isCRD := kubernetes.IsCRD(resource)
 
-	cueValue, err := cueValueFromResource(resource, isCRD)
-	if err != nil {
-		return cmp, err
-	}
-
 	var specPath string
 	if isCRD {
 		specPath = DefaultPathConfig.SpecPath
 	} else {
 		specPath = "components.schemas"
+	}
+
+	fmt.Println("SPEC PATH ", specPath)
+	cueValue, err := cueValueFromResource(resource, isCRD)
+	if err != nil {
+		return cmp, err
 	}
 
 	var schema string
