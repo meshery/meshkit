@@ -7,25 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
+
+	"github.com/layer5io/meshkit/utils/store"
 )
 
-var hashCheckSVG = make(map[string]string)
-var mx sync.RWMutex // Changed to RWMutex
+var hashCheckSVG = store.NewGenericThreadSafeStore[string]() // Using the generic store
 var UISVGPaths = make([]string, 1)
-
-func writeHashCheckSVG(key string, val string) {
-	mx.Lock() // Lock for writing
-	hashCheckSVG[key] = val
-	mx.Unlock()
-}
-
-func readHashCheckSVG(key string) (val string, ok bool) {
-	mx.RLock() // Lock for reading
-	val, ok = hashCheckSVG[key]
-	mx.RUnlock()
-	return
-}
 
 func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string, baseDir, dirname, filename string) (svgColorPath, svgWhitePath, svgCompletePath string) {
 	filename = strings.ToLower(filename)
@@ -46,7 +33,7 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 
 		hash := md5.Sum([]byte(svgColor))
 		hashString := hex.EncodeToString(hash[:])
-		if pathsvg, exists := readHashCheckSVG(hashString); exists { // the image has already been loaded, point the component to that path
+		if pathsvg, exists := hashCheckSVG.Get(hashString); exists { // the image has already been loaded, point the component to that path
 			svgColorPath = pathsvg
 			goto White
 		}
@@ -61,7 +48,7 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 			return
 		}
 		svgColorPath = getRelativePathForAPI(baseDir, filepath.Join(dirname, "color", filename+"-color.svg"))
-		writeHashCheckSVG(hashString, svgColorPath)
+		hashCheckSVG.Set(hashString, svgColorPath)
 	}
 White:
 	if svgWhite != "" {
@@ -75,7 +62,7 @@ White:
 
 		hash := md5.Sum([]byte(svgWhite))
 		hashString := hex.EncodeToString(hash[:])
-		if pathsvg, exists := readHashCheckSVG(hashString); exists { // the image has already been loaded, point the component to that path
+		if pathsvg, exists := hashCheckSVG.Get(hashString); exists { // the image has already been loaded, point the component to that path
 			svgWhitePath = pathsvg
 			goto Complete
 		}
@@ -90,7 +77,7 @@ White:
 			return
 		}
 		svgWhitePath = getRelativePathForAPI(baseDir, filepath.Join(dirname, "white", filename+"-white.svg"))
-		writeHashCheckSVG(hashString, svgWhitePath)
+		hashCheckSVG.Set(hashString, svgWhitePath)
 	}
 Complete:
 	if svgComplete != "" {
@@ -104,7 +91,7 @@ Complete:
 
 		hash := md5.Sum([]byte(svgComplete))
 		hashString := hex.EncodeToString(hash[:])
-		if pathsvg, exists := readHashCheckSVG(hashString); exists { // the image has already been loaded, point the component to that path
+		if pathsvg, exists := hashCheckSVG.Get(hashString); exists { // the image has already been loaded, point the component to that path
 			svgCompletePath = pathsvg
 			return
 		}
@@ -119,7 +106,7 @@ Complete:
 			return
 		}
 		svgCompletePath = getRelativePathForAPI(baseDir, filepath.Join(dirname, "complete", filename+"-complete.svg"))
-		writeHashCheckSVG(hashString, svgCompletePath)
+		hashCheckSVG.Set(hashString, svgCompletePath)
 	}
 	return
 }

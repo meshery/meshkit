@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	log "github.com/sirupsen/logrus"
@@ -494,4 +495,36 @@ func ConvertMapInterfaceMapString(v interface{}) interface{} {
 	}
 
 	return v
+}
+
+func WorkerPool[T any](tasks []T, workerFunc func(T), maxWorkers int) {
+	numWorkers := maxWorkers
+	if len(tasks) < numWorkers {
+		numWorkers = len(tasks)
+	}
+
+	if numWorkers == 0 {
+		return
+	}
+
+	taskChan := make(chan T)
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for task := range taskChan {
+				workerFunc(task)
+			}
+		}(i)
+	}
+
+	for _, task := range tasks {
+		taskChan <- task
+	}
+
+	close(taskChan)
+
+	wg.Wait()
 }
