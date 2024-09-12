@@ -32,40 +32,63 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	// Look for kubeconfig from the path mentioned in $KUBECONFIG
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig != "" {
-		if config, err = clientcmd.BuildConfigFromFlags("", kubeconfig); err == nil {
+		cfgFile, err := processConfigFromFileLocation(kubeconfig)
+		if err != nil {
+			return nil, err
+		}
+		if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
 			return config, err
 		}
 	}
 
 	// Look for kubeconfig at the default path
 	path := filepath.Join(utils.GetHome(), ".kube", "config")
-	if config, err = clientcmd.BuildConfigFromFlags("", path); err == nil {
+	cfgFile, err := processConfigFromFileLocation(path)
+	if err != nil {
+		return nil, err
+	}
+	if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
 		return config, err
 	}
 
 	return
 }
 
+// processConfigInternal performs the common processing steps on the kubeconfig.
+func processConfigInternal(cfg *clientcmdapi.Config) ([]byte, error) {
+	// Minify the kubeconfig
+	if err := clientcmdapi.MinifyConfig(cfg); err != nil {
+		return nil, ErrValidateConfig(err)
+	}
+
+	// Flatten the kubeconfig
+	if err := clientcmdapi.FlattenConfig(cfg); err != nil {
+		return nil, ErrValidateConfig(err)
+	}
+
+	// Validate the kubeconfig
+	if err := clientcmd.Validate(*cfg); err != nil {
+		return nil, ErrValidateConfig(err)
+	}
+
+	// Write the processed kubeconfig to a byte slice
+	return clientcmd.Write(*cfg)
+}
+
+// processConfigFromFileLocation processes the kubeconfig from a file location.
+func processConfigFromFileLocation(filename string) ([]byte, error) {
+	cfg, err := clientcmd.LoadFromFile(filename)
+	if err != nil {
+		return nil, ErrLoadConfig(err)
+	}
+	return processConfigInternal(cfg)
+}
+
+// processConfig processes the kubeconfig provided as a byte slice.
 func processConfig(configFile []byte) ([]byte, error) {
 	cfg, err := clientcmd.Load(configFile)
 	if err != nil {
 		return nil, ErrLoadConfig(err)
 	}
-
-	err = clientcmdapi.MinifyConfig(cfg)
-	if err != nil {
-		return nil, ErrValidateConfig(err)
-	}
-
-	err = clientcmdapi.FlattenConfig(cfg)
-	if err != nil {
-		return nil, ErrValidateConfig(err)
-	}
-
-	err = clientcmd.Validate(*cfg)
-	if err != nil {
-		return nil, ErrValidateConfig(err)
-	}
-
-	return clientcmd.Write(*cfg)
+	return processConfigInternal(cfg)
 }
