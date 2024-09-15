@@ -14,7 +14,8 @@ import (
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	if len(configfile) > 0 {
 		var cfgFile []byte
-		cfgFile, err = processConfig(configfile)
+
+		_, cfgFile, err = ProcessConfig(configfile, "")
 		if err != nil {
 			return nil, err
 		}
@@ -32,7 +33,7 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	// Look for kubeconfig from the path mentioned in $KUBECONFIG
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig != "" {
-		cfgFile, err := processConfigFromFileLocation(kubeconfig)
+		_, cfgFile, err := ProcessConfig(kubeconfig, "")
 		if err != nil {
 			return nil, err
 		}
@@ -43,8 +44,8 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 
 	// Look for kubeconfig at the default path
 	path := filepath.Join(utils.GetHome(), ".kube", "config")
-	cfgFile, err := processConfigFromFileLocation(path)
-	if err != nil {
+	_, cfgFile, err := ProcessConfig(path, "")
+	if err != nil{
 		return nil, err
 	}
 	if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
@@ -54,41 +55,49 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	return
 }
 
-// processConfigInternal performs the common processing steps on the kubeconfig.
-func processConfigInternal(cfg *clientcmdapi.Config) ([]byte, error) {
-	// Minify the kubeconfig
-	if err := clientcmdapi.MinifyConfig(cfg); err != nil {
-		return nil, ErrValidateConfig(err)
+// ProcessConfig handles loading, validating, and optionally saving or returning a kubeconfig
+func ProcessConfig(kubeConfig interface{}, outputPath string) (*clientcmdapi.Config, []byte, error) {
+	var config *clientcmdapi.Config
+	var err error
+
+	// Load the Kubeconfig 
+	switch v := kubeConfig.(type) {
+	case string:
+		config, err = clientcmd.LoadFromFile(v)
+	case []byte:
+		config, err = clientcmd.Load(v)
+	default:
+		return nil, nil, ErrLoadConfig(err)
 	}
-
-	// Flatten the kubeconfig
-	if err := clientcmdapi.FlattenConfig(cfg); err != nil {
-		return nil, ErrValidateConfig(err)
-	}
-
-	// Validate the kubeconfig
-	if err := clientcmd.Validate(*cfg); err != nil {
-		return nil, ErrValidateConfig(err)
-	}
-
-	// Write the processed kubeconfig to a byte slice
-	return clientcmd.Write(*cfg)
-}
-
-// processConfigFromFileLocation processes the kubeconfig from a file location.
-func processConfigFromFileLocation(filename string) ([]byte, error) {
-	cfg, err := clientcmd.LoadFromFile(filename)
 	if err != nil {
-		return nil, ErrLoadConfig(err)
+		return nil, nil, err
 	}
-	return processConfigInternal(cfg)
-}
 
-// processConfig processes the kubeconfig provided as a byte slice.
-func processConfig(configFile []byte) ([]byte, error) {
-	cfg, err := clientcmd.Load(configFile)
-	if err != nil {
-		return nil, ErrLoadConfig(err)
+	// Validate and Process the Config 
+	if err := clientcmdapi.MinifyConfig(config); err != nil {
+		return nil, nil, ErrValidateConfig(err)
 	}
-	return processConfigInternal(cfg)
+
+	if err := clientcmdapi.FlattenConfig(config); err != nil {
+		return nil, nil, ErrValidateConfig(err)
+	}
+
+	if err := clientcmd.Validate(*config); err != nil {
+		return nil, nil, ErrValidateConfig(err)
+	}
+
+	// Convert the config to []byte
+	configBytes, err := clientcmd.Write(*config)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	//Save the Processed config to a file 
+	if outputPath != ""{
+		if err := clientcmd.WriteToFile(*config, outputPath); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return config, configBytes, nil
 }
