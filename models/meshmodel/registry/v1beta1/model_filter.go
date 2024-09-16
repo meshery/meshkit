@@ -102,7 +102,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 
 	if mf.Greedy {
 		if mf.Id != "" {
-			finder = finder.First("model_dbs.id = ?", mf.Id)
+			finder = finder.Where("model_dbs.id = ?", mf.Id)
 		}
 		if mf.Name != "" && mf.DisplayName != "" {
 			finder = finder.Where("model_dbs.name LIKE ? OR model_dbs.display_name LIKE ?", "%"+mf.Name+"%", "%"+mf.DisplayName+"%")
