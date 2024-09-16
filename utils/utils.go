@@ -533,3 +533,13 @@ func ExtractFile(filePath string, destDir string) error {
 	}
 	return ErrExtractType
 }
+
+// Convert path to svg Data
+func ReadSVGData(baseDir, path string) (string, error) {
+	fullPath := baseDir + path
+	svgData, err := os.ReadFile(fullPath)
+	if err != nil {
+		return "", err
+	}
+	return string(svgData), nil
+}
