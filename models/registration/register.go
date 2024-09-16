@@ -10,11 +10,11 @@ import (
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
-// packaingUnit is the representation of the atomic unit that can be registered into the capabilities registry
-type packagingUnit struct {
-	model         model.ModelDefinition
-	components    []component.ComponentDefinition
-	relationships []relationship.RelationshipDefinition
+// PackagingUnit is the representation of the atomic unit that can be registered into the capabilities registry
+type PackagingUnit struct {
+	Model         model.ModelDefinition
+	Components    []component.ComponentDefinition
+	Relationships []relationship.RelationshipDefinition
 	_             []v1beta1.PolicyDefinition
 }
 
@@ -22,10 +22,11 @@ type RegistrationHelper struct {
 	regManager  *meshmodel.RegistryManager
 	regErrStore RegistrationErrorStore
 	svgBaseDir  string
+	PkgUnits    []PackagingUnit // Store successfully registered packagingUnits
 }
 
 func NewRegistrationHelper(svgBaseDir string, regm *meshmodel.RegistryManager, regErrStore RegistrationErrorStore) RegistrationHelper {
-	return RegistrationHelper{svgBaseDir: svgBaseDir, regManager: regm, regErrStore: regErrStore}
+	return RegistrationHelper{svgBaseDir: svgBaseDir, regManager: regm, regErrStore: regErrStore, PkgUnits: []PackagingUnit{}}
 }
 
 /*
@@ -45,11 +46,11 @@ func (rh *RegistrationHelper) Register(entity RegisterableEntity) {
 register will return an error if it is not able to register the `model`.
 If there are errors when registering other entities, they are handled properly but does not stop the registration process.
 */
-func (rh *RegistrationHelper) register(pkg packagingUnit) {
+func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	// 1. Register the model
-	model := pkg.model
+	model := pkg.Model
 
-	// Dont register anything else if registrant is not there
+	// Don't register anything else if registrant is not there
 	if model.Registrant.Kind == "" {
 		err := ErrMissingRegistrant(model.Name)
 		rh.regErrStore.InsertEntityRegError(model.Registrant.Kind, "", entity.Model, model.Name, err)
@@ -64,24 +65,22 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 
 		var svgCompletePath string
 
-		//Write SVG for models
-		model.Metadata.SvgColor, model.Metadata.SvgWhite, svgCompletePath = WriteAndReplaceSVGWithFileSystemPath(model.Metadata.SvgColor,
+		// Write SVG for models
+		model.Metadata.SvgColor, model.Metadata.SvgWhite, svgCompletePath = WriteAndReplaceSVGWithFileSystemPath(
+			model.Metadata.SvgColor,
 			model.Metadata.SvgWhite,
-			svgComplete, rh.svgBaseDir,
+			svgComplete,
+			rh.svgBaseDir,
 			model.Name,
 			model.Name,
 		)
 		if svgCompletePath != "" {
 			model.Metadata.SvgComplete = &svgCompletePath
 		}
-
 	}
 
 	model.Registrant.Status = connection.Registered
-	_, _, err := rh.regManager.RegisterEntity(
-		model.Registrant,
-		&model,
-	)
+	_, _, err := rh.regManager.RegisterEntity(model.Registrant, &model)
 
 	// If model cannot be registered, don't register anything else
 	if err != nil {
@@ -91,13 +90,16 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 	}
 
 	hostname := model.Registrant.Kind
-	modelName := model.Name
+
+	// Prepare slices to hold successfully registered components and relationships
+	var registeredComponents []component.ComponentDefinition
+	var registeredRelationships []relationship.RelationshipDefinition
 	// 2. Register components
-	for _, comp := range pkg.components {
+	for _, comp := range pkg.Components {
 		comp.Model = model
 
 		if comp.Styles != nil {
-			//Write SVG for components
+			// Write SVG for components
 			comp.Styles.SvgColor, comp.Styles.SvgWhite, comp.Styles.SvgComplete = WriteAndReplaceSVGWithFileSystemPath(
 				comp.Styles.SvgColor,
 				comp.Styles.SvgWhite,
@@ -108,23 +110,33 @@ func (rh *RegistrationHelper) register(pkg packagingUnit) {
 			)
 		}
 
-		_, _, err := rh.regManager.RegisterEntity(
-			model.Registrant,
-			&comp,
-		)
+		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &comp)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(comp.Type()), comp.DisplayName)
-			rh.regErrStore.InsertEntityRegError(hostname, modelName, entity.ComponentDefinition, comp.DisplayName, err)
+			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ComponentDefinition, comp.DisplayName, err)
+		} else {
+			// Successful registration, add to successfulComponents
+			registeredComponents = append(registeredComponents, comp)
 		}
 	}
 
 	// 3. Register relationships
-	for _, rel := range pkg.relationships {
+	for _, rel := range pkg.Relationships {
 		rel.Model = model
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
-			rh.regErrStore.InsertEntityRegError(hostname, modelName, entity.RelationshipDefinition, rel.Id.String(), err)
+			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.RelationshipDefinition, rel.Id.String(), err)
+		} else {
+			// Successful registration, add to successfulRelationships
+			registeredRelationships = append(registeredRelationships, rel)
 		}
 	}
+
+	// Update pkg with only successfully registered components and relationships
+	pkg.Components = registeredComponents
+	pkg.Relationships = registeredRelationships
+	pkg.Model = model
+	// Store the successfully registered PackagingUnit
+	rh.PkgUnits = append(rh.PkgUnits, pkg)
 }

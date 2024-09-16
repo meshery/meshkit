@@ -495,3 +495,41 @@ func ConvertMapInterfaceMapString(v interface{}) interface{} {
 
 	return v
 }
+func ConvertToJSONCompatible(data interface{}) interface{} {
+	switch v := data.(type) {
+	case map[interface{}]interface{}:
+		m := make(map[string]interface{})
+		for key, value := range v {
+			m[key.(string)] = ConvertToJSONCompatible(value)
+		}
+		return m
+	case []interface{}:
+		for i, item := range v {
+			v[i] = ConvertToJSONCompatible(item)
+		}
+	}
+	return data
+}
+func YAMLToJSON(content []byte) ([]byte, error) {
+	var jsonData interface{}
+	if err := yaml.Unmarshal(content, &jsonData); err == nil {
+		jsonData = ConvertToJSONCompatible(jsonData)
+		convertedContent, err := json.Marshal(jsonData)
+		if err == nil {
+			content = convertedContent
+		} else {
+			return nil, ErrUnmarshal(err)
+		}
+	} else {
+		return nil, ErrUnmarshal(err)
+	}
+	return content, nil
+}
+func ExtractFile(filePath string, destDir string) error {
+	if IsTarGz(filePath) {
+		return ExtractTarGz(destDir, filePath)
+	} else if IsZip(filePath) {
+		return ExtractZip(destDir, filePath)
+	}
+	return ErrExtractType
+}
