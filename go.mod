@@ -24,7 +24,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.31.1
 	github.com/layer5io/meshery-operator v0.7.0
-	github.com/meshery/schemas v0.7.20
+	github.com/meshery/schemas v0.7.31
 	github.com/nats-io/nats.go v1.31.0
 	github.com/open-policy-agent/opa v0.67.1
 	github.com/opencontainers/image-spec v1.1.0
@@ -193,7 +193,7 @@ require (
 	github.com/novln/docker-parser v1.0.0 // indirect
 	github.com/oapi-codegen/runtime v1.1.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/runc v1.1.12 // indirect
+	github.com/opencontainers/runc v1.1.14 // indirect
 	github.com/openshift/api v0.0.0-20200803131051-87466835fcc0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -233,7 +233,7 @@ require (
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
+	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
