@@ -3,10 +3,7 @@
   "properties": {
     "uploadType": {
       "title": "Upload method",
-      "enum": [
-        "File Upload",
-        "URL Import"
-      ],
+      "enum": ["File Upload", "URL Import"],
       "default": "Select the Upload Method",
       "x-rjsf-grid-area": "12",
       "description": "Choose the method you prefer to upload your model file. Select 'File Upload' if you have the file on your local system or 'URL Import' if you have the file hosted online."
@@ -30,9 +27,7 @@
             "x-rjsf-grid-area": "12"
           }
         },
-        "required": [
-          "file"
-        ]
+        "required": ["file"]
       }
     },
     {
@@ -51,15 +46,75 @@
             "title": "URL",
             "description": "Provide the URL of the design file you want to import. This should be a direct URL to the file, for example: https://raw.github.com/your-design-file.yaml",
             "x-rjsf-grid-area": "12"
+          },
+          "model": {
+            "type": "object",
+            "description": "Provide the details of the model you are uploading incase you are trying to generate a new model",
+            "properties": {
+              "modelDisplayName": {
+                "type": "string"
+              },
+              "registrant": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              },
+              "subCategory": {
+                "type": "string"
+              },
+              "shape": {
+                "type": "string"
+              },
+              "primaryColor": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              "secondaryColor": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              "svgColor": {
+                "type": "string"
+              },
+              "svgWhite": {
+                "type": "string"
+              },
+              "svgComplete": {
+                "type": "string"
+              },
+              "isAnnotation": {
+                "type": "string",
+                "enum": ["TRUE", "FALSE"]
+              },
+              "publishToRegistry": {
+                "type": "string",
+                "enum": ["TRUE", "FALSE"]
+              }
+            },
+            "required": [
+              "modelDisplayName",
+              "registrant",
+              "model",
+              "category",
+              "subCategory",
+              "shape",
+              "primaryColor",
+              "secondaryColor",
+              "svgColor",
+              "svgWhite",
+              "svgComplete",
+              "isAnnotation",
+              "publishToRegistry"
+            ]
           }
         },
-        "required": [
-          "url"
-        ]
+        "required": ["url"]
       }
     }
   ],
-  "required": [
-    "uploadType"
-  ]
+  "required": ["uploadType"]
 }
