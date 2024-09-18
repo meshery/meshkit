@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -542,4 +544,45 @@ func ReadSVGData(baseDir, path string) (string, error) {
 		return "", err
 	}
 	return string(svgData), nil
+}
+func Compress(src string, buf io.Writer) error {
+	zr := gzip.NewWriter(buf)
+	defer zr.Close()
+	tw := tar.NewWriter(zr)
+	defer tw.Close()
+
+	return filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		header, err := tar.FileInfoHeader(fi, file)
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, file)
+		if err != nil {
+			return err
+		}
+		header.Name = filepath.ToSlash(relPath)
+
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+
+		if !fi.IsDir() {
+			data, err := os.Open(file)
+			if err != nil {
+				return err
+			}
+			defer data.Close()
+
+			_, err = io.Copy(tw, data)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
