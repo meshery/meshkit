@@ -14,7 +14,7 @@ import (
 
 var (
 	ErrValidateCode = ""
-	schemaPath      = "components.schemas"
+	_      = "components.schemas"
 	cueschema       cue.Value
 	mx              sync.Mutex
 	isSchemaLoaded  bool
