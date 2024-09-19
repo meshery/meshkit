@@ -55,19 +55,109 @@
                 "type": "string"
               },
               "registrant": {
-                "type": "string"
+                "type": "string",
+                "enum": ["github", "artifacthub"]
               },
               "model": {
                 "type": "string"
               },
               "category": {
-                "type": "string"
+              "type": "string",
+              "enum": [
+                "Analytics",
+                "App Definition and Development",
+                "Cloud Native Network",
+                "Cloud Native Storage",
+                "Database",
+                "Machine Learning",
+                "Observability and Analysis",
+                "Orchestration & Management",
+                "Platform",
+                "Provisioning",
+                "Runtime",
+                "Security & Compliance",
+                "Serverless",
+                "Tools",
+                "Uncategorized"
+              ]     
               },
               "subCategory": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "Academic",
+                  "API Gateway",
+                  "Application Definition & Image Build",
+                  "Automation & Configuration",
+                  "Certified CNFs",
+                  "Certified Kubernetes - Distribution",
+                  "Certified Kubernetes - Hosted",
+                  "Certified Kubernetes - Installer",
+                  "Chaos Engineering",
+                  "Cloud Native Network",
+                  "Cloud Native Storage",
+                  "Container Registry",
+                  "Container Runtime",
+                  "Continuous Integration & Delivery",
+                  "Continuous Optimization",
+                  "Coordination & Service Discovery",
+                  "Database",
+                  "Debugging and Observability",
+                  "End User Supporter",
+                  "Framework",
+                  "Gold",
+                  "Hosted Platform",
+                  "Installable Platform",
+                  "Key Management",
+                  "Kubernetes Certified Service Provider",
+                  "Kubernetes Training Partner",
+                  "Logging",
+                  "Metrics",
+                  "Monitoring",
+                  "Nonprofit",
+                  "Packaging, Registries & Application Delivery",
+                  "PaaS/Container Service",
+                  "Platinum",
+                  "Remote Procedure Call",
+                  "Runtime",
+                  "Scheduling & Orchestration",
+                  "Security",
+                  "Security & Compliance",
+                  "Service Mesh",
+                  "Service Proxy",
+                  "Silver",
+                  "Specifications",
+                  "Streaming & Messaging",
+                  "Toolchain",
+                  "Tools",
+                  "Tracing"
+                ]
               },
               "shape": {
-                "type": "string"
+                "type": "string",
+                "enum":[
+                  "rectangle",
+                  "round-rectangle",
+                  "bottom-round-rectangle",
+                  "cut-rectangle",
+                  "shape",
+                  "circle",
+                  "diamond",
+                  "round-rectang",
+                  "hexagon",
+                  "rhomboid",
+                  "triangle",
+                  "cilinder",
+                  "round-triangle",
+                  "round-pentagon",
+                  "sheild",
+                  "vee",
+                  "cylinder",
+                  "round-heptagon",
+                  "concave-hexagon",
+                  "right-rhomboid",
+                  "barrel",
+                  "round-diamond"
+                ]
               },
               "primaryColor": {
                 "type": "string",
@@ -78,7 +168,8 @@
                 "pattern": "^#[0-9A-Fa-f]{6}$"
               },
               "svgColor": {
-                "type": "string"
+                "type": "string",
+                "default": ""
               },
               "svgWhite": {
                 "type": "string"
@@ -87,28 +178,24 @@
                 "type": "string"
               },
               "isAnnotation": {
-                "type": "string",
-                "enum": ["TRUE", "FALSE"]
+                "type": "boolean",
+                "title": "Is Annotation",
+                "description": "Indicate whether this model is an annotation",
+                "x-rjsf-grid-area": "6"
               },
               "publishToRegistry": {
-                "type": "string",
-                "enum": ["TRUE", "FALSE"]
+                "type": "boolean",
+                "title": "Publish to Registry",
+                "default": true,
+                "description": "Indicate whether to publish this model to the registry",
+                "x-rjsf-grid-area": "6"
               }
             },
             "required": [
               "modelDisplayName",
               "registrant",
               "model",
-              "category",
-              "subCategory",
-              "shape",
-              "primaryColor",
-              "secondaryColor",
-              "svgColor",
-              "svgWhite",
-              "svgComplete",
-              "isAnnotation",
-              "publishToRegistry"
+              "isAnnotation"
             ]
           }
         },
