@@ -24,7 +24,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.31.1
 	github.com/layer5io/meshery-operator v0.7.0
-	github.com/meshery/schemas v0.7.30
+	github.com/meshery/schemas v0.7.31
 	github.com/nats-io/nats.go v1.31.0
 	github.com/open-policy-agent/opa v0.67.1
 	github.com/opencontainers/image-spec v1.1.0
@@ -193,7 +193,7 @@ require (
 	github.com/novln/docker-parser v1.0.0 // indirect
 	github.com/oapi-codegen/runtime v1.1.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/runc v1.1.12 // indirect
+	github.com/opencontainers/runc v1.1.14 // indirect
 	github.com/openshift/api v0.0.0-20200803131051-87466835fcc0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect

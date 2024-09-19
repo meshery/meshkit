@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
+	"errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -164,8 +164,7 @@ func (g *Github) walker(path string, isFile bool) error {
 			if !ok {
 				return fmt.Errorf("[GithubWalker]: GithubAPI responded with: forbidden")
 			}
-
-			return fmt.Errorf(message)
+			return errors.New(message)
 		}
 		return fmt.Errorf("file not found")
 	}
