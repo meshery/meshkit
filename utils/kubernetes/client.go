@@ -70,7 +70,7 @@ func ProcessConfig(kubeConfig interface{}, outputPath string) (*clientcmdapi.Con
 		return nil, nil, ErrLoadConfig(err)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, ErrLoadConfig(err)
 	}
 
 	// Validate and Process the Config 
@@ -89,13 +89,13 @@ func ProcessConfig(kubeConfig interface{}, outputPath string) (*clientcmdapi.Con
 	// Convert the config to []byte
 	configBytes, err := clientcmd.Write(*config)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, utils.ErrConvertToByte(err)
 	}
 
 	//Save the Processed config to a file 
 	if outputPath != ""{
 		if err := clientcmd.WriteToFile(*config, outputPath); err != nil {
-			return nil, nil, err
+			return nil, nil, utils.ErrWriteFile(err, outputPath)
 		}
 	}
 
