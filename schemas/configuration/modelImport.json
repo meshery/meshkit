@@ -44,7 +44,7 @@
             "type": "string",
             "format": "uri",
             "title": "URL",
-            "description": "Provide the URL of the design file you want to import. This should be a direct URL to the file, for example: https://raw.github.com/your-design-file.yaml",
+            "description": "Provide the URL of the design file you want to import.",
             "x-rjsf-grid-area": "12"
           },
           "model": {
@@ -52,6 +52,7 @@
             "description": "Provide the details of the model you are uploading incase you are trying to generate a new model",
             "properties": {
               "modelDisplayName": {
+                "description":"The model name that would be showed on kanvas and everywhere else mostly of type 'Model Name'",
                 "type": "string"
               },
               "registrant": {
@@ -59,27 +60,29 @@
                 "enum": ["github", "artifacthub"]
               },
               "model": {
+                "description":"This name is of the type 'model-name'",
                 "type": "string"
               },
               "category": {
-              "type": "string",
-              "enum": [
-                "Analytics",
-                "App Definition and Development",
-                "Cloud Native Network",
-                "Cloud Native Storage",
-                "Database",
-                "Machine Learning",
-                "Observability and Analysis",
-                "Orchestration & Management",
-                "Platform",
-                "Provisioning",
-                "Runtime",
-                "Security & Compliance",
-                "Serverless",
-                "Tools",
-                "Uncategorized"
-              ]     
+                "description":"The category of the model. The model will be located under the specific category on kanvas.",
+                "type": "string",
+                "enum": [
+                  "Analytics",
+                  "App Definition and Development",
+                  "Cloud Native Network",
+                  "Cloud Native Storage",
+                  "Database",
+                  "Machine Learning",
+                  "Observability and Analysis",
+                  "Orchestration & Management",
+                  "Platform",
+                  "Provisioning",
+                  "Runtime",
+                  "Security & Compliance",
+                  "Serverless",
+                  "Tools",
+                  "Uncategorized"
+                ]
               },
               "subCategory": {
                 "type": "string",
@@ -133,6 +136,7 @@
                 ]
               },
               "shape": {
+                "description":"The shape of the model. The model will be displayed in the specific shape on kanvas.",
                 "type": "string",
                 "enum":[
                   "rectangle",
@@ -160,6 +164,7 @@
                 ]
               },
               "primaryColor": {
+                "description":"The primary color of the model. This will be the color of the background if the image has one.",
                 "type": "string",
                 "pattern": "^#[0-9A-Fa-f]{6}$"
               },
@@ -180,22 +185,22 @@
               "isAnnotation": {
                 "type": "boolean",
                 "title": "Is Annotation",
-                "description": "Indicate whether this model is an annotation",
+                "default": false,
+                "description": "Indicate whether this model is an annotation. Annotation means that this model is not a real model but an svg image",
                 "x-rjsf-grid-area": "6"
               },
               "publishToRegistry": {
                 "type": "boolean",
                 "title": "Publish to Registry",
                 "default": true,
-                "description": "Indicate whether to publish this model to the registry",
+                "description": "Indicate whether to publish this model to the registry. If marked as false then the model won't be registered in the registry",
                 "x-rjsf-grid-area": "6"
               }
             },
-            "required": [
-              "modelDisplayName",
+            "required": [    
               "registrant",
-              "model",
-              "isAnnotation"
+              "modelDisplayName",
+              "model"
             ]
           }
         },

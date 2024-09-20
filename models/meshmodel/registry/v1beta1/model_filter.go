@@ -182,7 +182,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		if includeComponents {
 			var components []component.ComponentDefinition
 			finder := db.Model(&component.ComponentDefinition{}).
-				Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version,component_definition_dbs.styles").
+				Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version,component_definition_dbs.styles,component_definition_dbs.capabilities").
 				Where("component_definition_dbs.model_id = ?", _modelDB.Id)
 			if err := finder.Scan(&components).Error; err != nil {
 				return nil, 0, 0, err
