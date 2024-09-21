@@ -47,6 +47,10 @@ register will return an error if it is not able to register the `model`.
 If there are errors when registering other entities, they are handled properly but does not stop the registration process.
 */
 func (rh *RegistrationHelper) register(pkg PackagingUnit) {
+	if len(pkg.Components) == 0 && len(pkg.Relationships) == 0 {
+		//silently exit if the model does not conatin any components or relationships
+		return
+	}
 	// 1. Register the model
 	model := pkg.Model
 
