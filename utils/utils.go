@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -494,4 +496,93 @@ func ConvertMapInterfaceMapString(v interface{}) interface{} {
 	}
 
 	return v
+}
+func ConvertToJSONCompatible(data interface{}) interface{} {
+	switch v := data.(type) {
+	case map[interface{}]interface{}:
+		m := make(map[string]interface{})
+		for key, value := range v {
+			m[key.(string)] = ConvertToJSONCompatible(value)
+		}
+		return m
+	case []interface{}:
+		for i, item := range v {
+			v[i] = ConvertToJSONCompatible(item)
+		}
+	}
+	return data
+}
+func YAMLToJSON(content []byte) ([]byte, error) {
+	var jsonData interface{}
+	if err := yaml.Unmarshal(content, &jsonData); err == nil {
+		jsonData = ConvertToJSONCompatible(jsonData)
+		convertedContent, err := json.Marshal(jsonData)
+		if err == nil {
+			content = convertedContent
+		} else {
+			return nil, ErrUnmarshal(err)
+		}
+	} else {
+		return nil, ErrUnmarshal(err)
+	}
+	return content, nil
+}
+func ExtractFile(filePath string, destDir string) error {
+	if IsTarGz(filePath) {
+		return ExtractTarGz(destDir, filePath)
+	} else if IsZip(filePath) {
+		return ExtractZip(destDir, filePath)
+	}
+	return ErrExtractType
+}
+
+// Convert path to svg Data
+func ReadSVGData(baseDir, path string) (string, error) {
+	fullPath := baseDir + path
+	svgData, err := os.ReadFile(fullPath)
+	if err != nil {
+		return "", err
+	}
+	return string(svgData), nil
+}
+func Compress(src string, buf io.Writer) error {
+	zr := gzip.NewWriter(buf)
+	defer zr.Close()
+	tw := tar.NewWriter(zr)
+	defer tw.Close()
+
+	return filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		header, err := tar.FileInfoHeader(fi, file)
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, file)
+		if err != nil {
+			return err
+		}
+		header.Name = filepath.ToSlash(relPath)
+
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+
+		if !fi.IsDir() {
+			data, err := os.Open(file)
+			if err != nil {
+				return err
+			}
+			defer data.Close()
+
+			_, err = io.Copy(tw, data)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
