@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -451,4 +453,136 @@ func FindEntityType(content []byte) (entity.EntityType, error) {
 		return entity.PolicyDefinition, nil
 	}
 	return "", ErrInvalidSchemaVersion
+}
+
+// RecursiveCastMapStringInterfaceToMapStringInterface will convert a
+// map[string]interface{} recursively => map[string]interface{}
+func RecursiveCastMapStringInterfaceToMapStringInterface(in map[string]interface{}) map[string]interface{} {
+	res := ConvertMapInterfaceMapString(in)
+	out, ok := res.(map[string]interface{})
+	if !ok {
+		fmt.Println("failed to cast")
+	}
+
+	return out
+}
+
+// ConvertMapInterfaceMapString converts map[interface{}]interface{} => map[string]interface{}
+//
+// It will also convert []interface{} => []string
+func ConvertMapInterfaceMapString(v interface{}) interface{} {
+	switch x := v.(type) {
+	case map[interface{}]interface{}:
+		m := map[string]interface{}{}
+		for k, v2 := range x {
+			switch k2 := k.(type) {
+			case string:
+				m[k2] = ConvertMapInterfaceMapString(v2)
+			default:
+				m[fmt.Sprint(k)] = ConvertMapInterfaceMapString(v2)
+			}
+		}
+		v = m
+
+	case []interface{}:
+		for i, v2 := range x {
+			x[i] = ConvertMapInterfaceMapString(v2)
+		}
+
+	case map[string]interface{}:
+		for k, v2 := range x {
+			x[k] = ConvertMapInterfaceMapString(v2)
+		}
+	}
+
+	return v
+}
+func ConvertToJSONCompatible(data interface{}) interface{} {
+	switch v := data.(type) {
+	case map[interface{}]interface{}:
+		m := make(map[string]interface{})
+		for key, value := range v {
+			m[key.(string)] = ConvertToJSONCompatible(value)
+		}
+		return m
+	case []interface{}:
+		for i, item := range v {
+			v[i] = ConvertToJSONCompatible(item)
+		}
+	}
+	return data
+}
+func YAMLToJSON(content []byte) ([]byte, error) {
+	var jsonData interface{}
+	if err := yaml.Unmarshal(content, &jsonData); err == nil {
+		jsonData = ConvertToJSONCompatible(jsonData)
+		convertedContent, err := json.Marshal(jsonData)
+		if err == nil {
+			content = convertedContent
+		} else {
+			return nil, ErrUnmarshal(err)
+		}
+	} else {
+		return nil, ErrUnmarshal(err)
+	}
+	return content, nil
+}
+func ExtractFile(filePath string, destDir string) error {
+	if IsTarGz(filePath) {
+		return ExtractTarGz(destDir, filePath)
+	} else if IsZip(filePath) {
+		return ExtractZip(destDir, filePath)
+	}
+	return ErrExtractType
+}
+
+// Convert path to svg Data
+func ReadSVGData(baseDir, path string) (string, error) {
+	fullPath := baseDir + path
+	svgData, err := os.ReadFile(fullPath)
+	if err != nil {
+		return "", err
+	}
+	return string(svgData), nil
+}
+func Compress(src string, buf io.Writer) error {
+	zr := gzip.NewWriter(buf)
+	defer zr.Close()
+	tw := tar.NewWriter(zr)
+	defer tw.Close()
+
+	return filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		header, err := tar.FileInfoHeader(fi, file)
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, file)
+		if err != nil {
+			return err
+		}
+		header.Name = filepath.ToSlash(relPath)
+
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+
+		if !fi.IsDir() {
+			data, err := os.Open(file)
+			if err != nil {
+				return err
+			}
+			defer data.Close()
+
+			_, err = io.Copy(tw, data)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

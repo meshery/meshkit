@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"context"
 	"encoding/json"
-
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 )
@@ -35,7 +34,6 @@ func GetAllCustomResourcesInCluster(ctx context.Context, client rest.Interface) 
 	}
 	var xcrd CRD
 	gvks := []*schema.GroupVersionResource{}
-	//err = utils.Unmarshal(string(crdresult), &xcrd)
 	err = json.Unmarshal(crdresult, &xcrd)
 	if err != nil {
 		return nil, err
