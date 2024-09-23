@@ -17,6 +17,8 @@ func (k *K8sConverter) Convert(patternFile string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	patterns.ProcessAnnotations(pattern)
 	return NewK8sManifestsFromPatternfile(pattern)
 }
 

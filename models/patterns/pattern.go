@@ -4,6 +4,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/layer5io/meshkit/encoding"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 )
 
@@ -35,4 +36,14 @@ func GetPatternFormat(patternFile string) (*pattern.PatternFile, error) {
 		return nil, err
 	}
 	return &pattern, nil
+}
+
+func ProcessAnnotations(pattern *pattern.PatternFile) {
+	components := []*component.ComponentDefinition{}
+	for _, component := range pattern.Components {
+		if !component.Metadata.IsAnnotation {
+			components = append(components, component)
+		}
+	}
+	pattern.Components = components
 }
