@@ -2,7 +2,6 @@ package helm
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -96,7 +95,6 @@ func ConvertToK8sManifest(path, kubeVersion string, w io.Writer) error {
 			}
 		} else {
 			err := writeToFile(w, path)
-			fmt.Println("line 98: inside helm.go writeToFile")
 			if err != nil {
 				return err
 			}

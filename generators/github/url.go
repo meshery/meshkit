@@ -2,7 +2,6 @@ package github
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 
 	"net/url"
@@ -75,13 +74,10 @@ func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error
 
 	if err != nil {
 		return err
-	}	
-
-	fmt.Println("TEST 80 inside github url.go")
+	}
 
 	err = utils.ProcessContent(downloadDirPath, func(path string) error {
 		err = helm.ConvertToK8sManifest(path, "", w)
-		fmt.Println("TEST 84 inside github url.go")
 		if err != nil {
 			return err
 		}

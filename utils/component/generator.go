@@ -72,7 +72,6 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 		specPath = "components.schemas"
 	}
 
-	fmt.Println("SPEC PATH ", specPath)
 	cueValue, err := cueValueFromResource(resource, isCRD)
 	if err != nil {
 		return cmp, err

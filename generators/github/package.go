@@ -2,12 +2,15 @@ package github
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/component"
+	"github.com/layer5io/meshkit/utils/kubernetes"
+	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/schemas/models/v1beta1/category"
 	_component "github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
 type GitHubPackage struct {
@@ -32,34 +35,41 @@ func (gp GitHubPackage) GenerateComponents() ([]_component.ComponentDefinition, 
 	}
 
 	manifestBytes := bytes.Split(data, []byte("\n---\n"))
-	crds, errs := component.FilterCRDs(manifestBytes)
-	for _, crd := range crds {
-		comps, err := component.GenerateFromOpenAPI(crd)
-		if err != nil {
-			fmt.Println("ERR line 42 : ", err)
-		}
-		components = append(components, comps...)
-	}
-	// 	comp, err := component.Generate(crd)
-	// 	if err != nil {
-	// 		continue
-	// 	}
-	// 	if comp.Model.Metadata == nil {
-	// 		comp.Model.Metadata = &model.ModelDefinition_Metadata{}
-	// 	}
-	// 	if comp.Model.Metadata.AdditionalProperties == nil {
-	// 		comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
-	// 	}
+	errs := []error{}
 
-	// 	comp.Model.Metadata.AdditionalProperties["source_uri"] = gp.SourceURL
-	// 	comp.Model.Version = gp.version
-	// 	comp.Model.Name = gp.Name
-	// 	comp.Model.Category = category.CategoryDefinition{
-	// 		Name: "",
-	// 	}
-	// 	comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)
-	// 	components = append(components, comp)
-	// }
+	for _, crd := range manifestBytes {
+		isCrd := kubernetes.IsCRD(string(crd))
+		if !isCrd {
+
+			comps, err := component.GenerateFromOpenAPI(string(crd), gp.SourceURL)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			components = append(components, comps...)
+		} else {
+			comp, err := component.Generate(string(crd))
+			if err != nil {
+				continue
+			}
+			if comp.Model.Metadata == nil {
+				comp.Model.Metadata = &model.ModelDefinition_Metadata{}
+			}
+			if comp.Model.Metadata.AdditionalProperties == nil {
+				comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
+			}
+
+			comp.Model.Metadata.AdditionalProperties["source_uri"] = gp.SourceURL
+			comp.Model.Version = gp.version
+			comp.Model.Name = gp.Name
+			comp.Model.Category = category.CategoryDefinition{
+				Name: "",
+			}
+			comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)
+			components = append(components, comp)
+		}
+
+	}
 
 	return components, utils.CombineErrors(errs, "\n")
 }

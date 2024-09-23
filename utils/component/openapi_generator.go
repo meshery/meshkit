@@ -7,37 +7,33 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
-	"cuelang.org/go/encoding/yaml"
+	cueJson "cuelang.org/go/encoding/json"
+	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
+
+	"gopkg.in/yaml.v3"
+
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
-func GenerateFromOpenAPI(resource string) ([]component.ComponentDefinition, error) {
-	cuectx := cuecontext.New()
-	fmt.Println("resource -----------: ", resource)
-	cueParsedManExpr, err := yaml.Extract("", []byte(resource))
-	parsedManifest := cuectx.BuildFile(cueParsedManExpr)
-
-	definitions := parsedManifest.LookupPath(cue.ParsePath("components.schemas"))
-	if err != nil {
+func GenerateFromOpenAPI(resource, sourceURL string) ([]component.ComponentDefinition, error) {
+	if resource == "" {
 		return nil, nil
 	}
-
-	resol := manifests.ResolveOpenApiRefs{}
-	cache := make(map[string][]byte)
-	resolved, err := resol.ResolveReferences([]byte(resource), definitions, cache)
+	resource, err := getResolvedManifest(resource)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("resource -----------: ", string(resolved))
-	cueParsedManExpr, err = yaml.Extract("", []byte(resolved))
-	parsedManifest = cuectx.BuildFile(cueParsedManExpr)
-	definitions = parsedManifest.LookupPath(cue.ParsePath("components.schemas"))
+	cuectx := cuecontext.New()
+	cueParsedManExpr, err := cueJson.Extract("", []byte(resource))
+	parsedManifest := cuectx.BuildExpr(cueParsedManExpr)
+	definitions := parsedManifest.LookupPath(cue.ParsePath("components.schemas"))
+
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	fields, err := definitions.Fields()
@@ -114,10 +110,46 @@ func GenerateFromOpenAPI(resource string) ([]component.ComponentDefinition, erro
 				Category: category.CategoryDefinition{
 					Name: "Orchestration & Management",
 				},
+				Metadata: &model.ModelDefinition_Metadata{
+					AdditionalProperties: map[string]interface{}{
+						"source_uri": sourceURL,
+					},
+				},
 			},
 		}
+
 		components = append(components, c)
 	}
 	return components, nil
 
+}
+
+func getResolvedManifest(manifest string) (string, error) {
+	var m map[string]interface{}
+
+	err := yaml.Unmarshal([]byte(manifest), &m)
+	if err != nil {
+		return "", utils.ErrDecodeYaml(err)
+	}
+
+	byt, err := json.Marshal(m)
+	if err != nil {
+		return "", utils.ErrMarshal(err)
+	}
+
+	cuectx := cuecontext.New()
+	cueParsedManExpr, err := cueJson.Extract("", byt)
+	parsedManifest := cuectx.BuildExpr(cueParsedManExpr)
+	definitions := parsedManifest.LookupPath(cue.ParsePath("components.schemas"))
+	if err != nil {
+		return "", err
+	}
+	resol := manifests.ResolveOpenApiRefs{}
+	cache := make(map[string][]byte)
+	resolved, err := resol.ResolveReferences(byt, definitions, cache)
+	if err != nil {
+		return "", err
+	}
+	manifest = string(resolved)
+	return manifest, nil
 }

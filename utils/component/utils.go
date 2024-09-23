@@ -2,10 +2,10 @@ package component
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/layer5io/meshkit/utils/kubernetes"
 	"github.com/layer5io/meshkit/utils/manifests"
 )
 
@@ -80,12 +80,10 @@ func FilterCRDs(manifests [][]byte) ([]string, []error) {
 	var errs []error
 	var filteredManifests []string
 	for _, m := range manifests {
-		fmt.Println("TEST 84 : utils.go: ")
-		// isCrd := kubernetes.IsCRD(string(m))
-		// if !isCrd {
-
-		// }
-		filteredManifests = append(filteredManifests, string(m))
+		isCrd := kubernetes.IsCRD(string(m))
+		if isCrd {
+			filteredManifests = append(filteredManifests, string(m))
+		}
 	}
 	return filteredManifests, errs
 }
