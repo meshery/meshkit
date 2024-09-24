@@ -454,7 +454,7 @@ func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig
 	case UNINSTALL:
 		return func(c *chart.Chart) error {
 			act := action.NewUninstall(actionConfig)
-			
+
 			act.DryRun = cfg.DryRun
 			if _, err := act.Run(cfg.ReleaseName); err != nil {
 				return ErrApplyHelmChart(err)
