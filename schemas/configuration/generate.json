@@ -1,0 +1,223 @@
+{
+    "type": "object",
+    "properties": {
+      "uploadType": {
+        "title": "Upload method",
+        "enum": ["URL Import", "CSV Import"],
+        "default": "Select the Upload Method",
+        "x-rjsf-grid-area": "6", 
+        "description": "Choose the method you prefer to upload your model file. Select 'File Upload' if you have the file on your local system or 'URL Import' if you have the file hosted online."
+      },
+      "register": {
+        "type": "boolean",
+        "title": "Register",
+        "default": true,
+        "description": "Indicate whether to register this model.",
+        "x-rjsf-grid-area": "6"
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "uploadType": {
+              "const": "CSV Import"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "model_csv": {
+              "type": "string",
+              "format": "file",
+              "description": "Provide the model CSV here. Example template can be seen on [docs.meshery.io](https://docs.meshery.io)",
+              "x-rjsf-grid-area": "6"
+            },
+            "component_csv": {
+              "type": "string",
+              "format": "file",
+              "description": "Browse the filter file from your file system",
+              "x-rjsf-grid-area": "6"
+            },
+            "relationship": {
+              "type": "string",
+              "format": "file",
+              "description": "Browse the filter file from your file system",
+              "x-rjsf-grid-area": "6"
+            }
+          },
+          "required": ["model_csv", "component_csv"]
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "uploadType": {
+              "const": "URL Import"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "title": "URL",
+              "description": "Provide the URL of the design file you want to import.",
+                "x-rjsf-grid-area": "12"
+            },
+            "model": {
+              "type": "object",
+              "description": "Provide the details of the model you are uploading incase you are trying to generate a new model",
+              "properties": {
+                "modelDisplayName": {
+                  "description": "The model name that would be showed on kanvas and everywhere else mostly of type 'Model Name'",
+                  "type": "string"
+                },
+                "registrant": {
+                  "title": "Source",
+                  "type": "string",
+                  "enum": ["github", "artifacthub"]
+                },
+                "model": {
+                  "description": "This name is of the type 'model-name'",
+                  "type": "string"
+                },
+                "category": {
+                  "description": "The category of the model. The model will be located under the specific category on kanvas.",
+                  "type": "string",
+                  "enum": [
+                    "Analytics",
+                    "App Definition and Development",
+                    "Cloud Native Network",
+                    "Cloud Native Storage",
+                    "Database",
+                    "Machine Learning",
+                    "Observability and Analysis",
+                    "Orchestration & Management",
+                    "Platform",
+                    "Provisioning",
+                    "Runtime",
+                    "Security & Compliance",
+                    "Serverless",
+                    "Tools",
+                    "Uncategorized"
+                  ]
+                },
+                "subCategory": {
+                  "type": "string",
+                  "enum": [
+                    "Academic",
+                    "API Gateway",
+                    "Application Definition & Image Build",
+                    "Automation & Configuration",
+                    "Certified CNFs",
+                    "Certified Kubernetes - Distribution",
+                    "Certified Kubernetes - Hosted",
+                    "Certified Kubernetes - Installer",
+                    "Chaos Engineering",
+                    "Cloud Native Network",
+                    "Cloud Native Storage",
+                    "Container Registry",
+                    "Container Runtime",
+                    "Continuous Integration & Delivery",
+                    "Continuous Optimization",
+                    "Coordination & Service Discovery",
+                    "Database",
+                    "Debugging and Observability",
+                    "End User Supporter",
+                    "Framework",
+                    "Gold",
+                    "Hosted Platform",
+                    "Installable Platform",
+                    "Key Management",
+                    "Kubernetes Certified Service Provider",
+                    "Kubernetes Training Partner",
+                    "Logging",
+                    "Metrics",
+                    "Monitoring",
+                    "Nonprofit",
+                    "Packaging, Registries & Application Delivery",
+                    "PaaS/Container Service",
+                    "Platinum",
+                    "Remote Procedure Call",
+                    "Runtime",
+                    "Scheduling & Orchestration",
+                    "Security",
+                    "Security & Compliance",
+                    "Service Mesh",
+                    "Service Proxy",
+                    "Silver",
+                    "Specifications",
+                    "Streaming & Messaging",
+                    "Toolchain",
+                    "Tools",
+                    "Tracing"
+                  ]
+                },
+                "shape": {
+                  "description": "The shape of the model. The model will be displayed in the specific shape on kanvas.",
+                  "type": "string",
+                  "enum": [
+                    "rectangle",
+                    "round-rectangle",
+                    "bottom-round-rectangle",
+                    "cut-rectangle",
+                    "shape",
+                    "circle",
+                    "diamond",
+                    "round-rectang",
+                    "hexagon",
+                    "rhomboid",
+                    "triangle",
+                    "cilinder",
+                    "round-triangle",
+                    "round-pentagon",
+                    "sheild",
+                    "vee",
+                    "cylinder",
+                    "round-heptagon",
+                    "concave-hexagon",
+                    "right-rhomboid",
+                    "barrel",
+                    "round-diamond"
+                  ]
+                },
+                "primaryColor": {
+                  "description": "The primary color of the model. This will be the color of the background if the image has one.",
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "secondaryColor": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "svgColor": {
+                  "type": "string",
+                  "default": ""
+                },
+                "svgWhite": {
+                  "type": "string"
+                },
+                "isAnnotation": {
+                  "type": "boolean",
+                  "title": "Visual Annotation",
+                  "default": false,
+                  "description": "Indicate whether this model is an annotation. Annotation means that this model is not a real model but an svg image",
+                  "x-rjsf-grid-area": "6"
+                }
+              },
+              "required": [
+                "registrant",
+                "modelDisplayName",
+                "model"
+              ]
+            }
+          },
+          "required": ["url"]
+        }
+      }
+    ],
+    "required": ["uploadType", "register"]
+  }
+  
