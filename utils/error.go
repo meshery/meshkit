@@ -46,7 +46,11 @@ var (
 	ErrCopyFileCode             = "replace_me"
 	ErrCloseFileCode            = "replace_me"
 	ErrCompressToTarGZCode      = "meshkit-11248"
+
 	ErrConvertToByteCode        = "meshkit-11187"
+
+	ErrOpenFileCode             = "replace_me"
+
 )
 var (
 	ErrExtractType = errors.New(
@@ -234,4 +238,7 @@ func ErrCloseFile(err error) error {
 		[]string{("Disk space might be full or the file might be corrupted."), "The user might not have sufficient permission."},
 		[]string{"Check for issues with file permissions or disk space and try again."},
 	)
+}
+func ErrOpenFile(file string) error {
+	return errors.New(ErrOpenFileCode, errors.Alert, []string{"unable to open file: ", file}, []string{}, []string{"The file does not exist in the location"}, []string{"Make sure to upload the correct file"})
 }
