@@ -26,6 +26,14 @@ func (gp GitHubPackage) GetVersion() string {
 	return gp.version
 }
 
+func (gp GitHubPackage) GetSourceURL() string {
+	return gp.SourceURL
+}
+
+func (gp GitHubPackage) GetName() string {
+	return gp.Name
+}
+
 func (gp GitHubPackage) GenerateComponents() ([]_component.ComponentDefinition, error) {
 	components := make([]_component.ComponentDefinition, 0)
 
@@ -41,7 +49,7 @@ func (gp GitHubPackage) GenerateComponents() ([]_component.ComponentDefinition, 
 		isCrd := kubernetes.IsCRD(string(crd))
 		if !isCrd {
 
-			comps, err := component.GenerateFromOpenAPI(string(crd), gp.SourceURL)
+			comps, err := component.GenerateFromOpenAPI(string(crd), gp)
 			if err != nil {
 				errs = append(errs, err)
 				continue

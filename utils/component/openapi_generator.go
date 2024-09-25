@@ -8,6 +8,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cueJson "cuelang.org/go/encoding/json"
+	"github.com/layer5io/meshkit/generators/models"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
-func GenerateFromOpenAPI(resource, sourceURL string) ([]component.ComponentDefinition, error) {
+func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.ComponentDefinition, error) {
 	if resource == "" {
 		return nil, nil
 	}
@@ -103,16 +104,16 @@ func GenerateFromOpenAPI(resource, sourceURL string) ([]component.ComponentDefin
 				Version:       "v1.0.0",
 
 				Model: model.Model{
-					Version: "version",
+					Version: pkg.GetVersion(),
 				},
-				Name:        "kubernetes",
-				DisplayName: "Kubernetes",
+				Name:        pkg.GetName(),
+				DisplayName: manifests.FormatToReadableString(pkg.GetName()),
 				Category: category.CategoryDefinition{
 					Name: "Orchestration & Management",
 				},
 				Metadata: &model.ModelDefinition_Metadata{
 					AdditionalProperties: map[string]interface{}{
-						"source_uri": sourceURL,
+						"source_uri": pkg.GetSourceURL(),
 					},
 				},
 			},
