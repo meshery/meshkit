@@ -14,58 +14,90 @@ import (
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	if len(configfile) > 0 {
 		var cfgFile []byte
-		cfgFile, err = processConfig(configfile)
+
+		_, cfgFile, err = ProcessConfig(configfile, "")
 		if err != nil {
 			return nil, err
 		}
 
 		if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-			return config, err
+			return config, ErrRestConfigFromKubeConfig(err)
 		}
 	}
 
 	// If deployed within the cluster
 	if config, err = rest.InClusterConfig(); err == nil {
-		return config, err
+		return config, ErrRestConfigFromKubeConfig(err)
 	}
 
 	// Look for kubeconfig from the path mentioned in $KUBECONFIG
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig != "" {
-		if config, err = clientcmd.BuildConfigFromFlags("", kubeconfig); err == nil {
-			return config, err
+		_, cfgFile, err := ProcessConfig(kubeconfig, "")
+		if err != nil {
+			return nil, err
+		}
+		if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
+			return config, ErrRestConfigFromKubeConfig(err)
 		}
 	}
 
 	// Look for kubeconfig at the default path
 	path := filepath.Join(utils.GetHome(), ".kube", "config")
-	if config, err = clientcmd.BuildConfigFromFlags("", path); err == nil {
-		return config, err
+	_, cfgFile, err := ProcessConfig(path, "")
+	if err != nil {
+		return nil, err
+	}
+	if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
+		return config, ErrRestConfigFromKubeConfig(err)
 	}
 
 	return
 }
 
-func processConfig(configFile []byte) ([]byte, error) {
-	cfg, err := clientcmd.Load(configFile)
+// ProcessConfig handles loading, validating, and optionally saving or returning a kubeconfig
+func ProcessConfig(kubeConfig interface{}, outputPath string) (*clientcmdapi.Config, []byte, error) {
+	var config *clientcmdapi.Config
+	var err error
+
+	// Load the Kubeconfig
+	switch v := kubeConfig.(type) {
+	case string:
+		config, err = clientcmd.LoadFromFile(v)
+	case []byte:
+		config, err = clientcmd.Load(v)
+	default:
+		return nil, nil, ErrLoadConfig(err)
+	}
 	if err != nil {
-		return nil, ErrLoadConfig(err)
+		return nil, nil, ErrLoadConfig(err)
 	}
 
-	err = clientcmdapi.MinifyConfig(cfg)
-	if err != nil {
-		return nil, ErrValidateConfig(err)
+	// Validate and Process the Config
+	if err := clientcmdapi.MinifyConfig(config); err != nil {
+		return nil, nil, ErrValidateConfig(err)
 	}
 
-	err = clientcmdapi.FlattenConfig(cfg)
-	if err != nil {
-		return nil, ErrValidateConfig(err)
+	if err := clientcmdapi.FlattenConfig(config); err != nil {
+		return nil, nil, ErrValidateConfig(err)
 	}
 
-	err = clientcmd.Validate(*cfg)
-	if err != nil {
-		return nil, ErrValidateConfig(err)
+	if err := clientcmd.Validate(*config); err != nil {
+		return nil, nil, ErrValidateConfig(err)
 	}
 
-	return clientcmd.Write(*cfg)
+	// Convert the config to []byte
+	configBytes, err := clientcmd.Write(*config)
+	if err != nil {
+		return nil, nil, utils.ErrConvertToByte(err)
+	}
+
+	//Save the Processed config to a file
+	if outputPath != "" {
+		if err := clientcmd.WriteToFile(*config, outputPath); err != nil {
+			return nil, nil, utils.ErrWriteFile(err, outputPath)
+		}
+	}
+
+	return config, configBytes, nil
 }
