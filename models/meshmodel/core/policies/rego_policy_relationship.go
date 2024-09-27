@@ -3,6 +3,7 @@ package policies
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/layer5io/meshkit/models/meshmodel/registry/v1alpha3"
@@ -14,6 +15,8 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/sirupsen/logrus"
 )
+
+var SyncRelationship sync.Mutex
 
 type Rego struct {
 	store       storage.Store

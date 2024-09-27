@@ -2,37 +2,5 @@
   "uploadType": {
     "ui:widget": "radio"
   },
-  "model": {
-    "ui:options": {
-      "expand": true
-    },
-    "styles": {
-      "padding": 0,
-      "margin": 0
-    },
-
-    "primaryColor": {
-      "ui:widget": "color"
-    },
-    "secondaryColor": {
-      "ui:widget": "color"
-    },
-
-    "ui:order": [
-      "modelDisplayName",
-      "registrant",
-      "category",
-      "subCategory",
-      "model",
-      "primaryColor",
-      "secondaryColor",
-      "shape",
-      "svgColor",
-      "svgComplete",
-      "svgWhite",
-      "isAnnotation",
-      "publishToRegistry"
-    ]
-  },
   "ui:order": ["uploadType", "file", "url"]
 }
