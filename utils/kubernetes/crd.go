@@ -2,8 +2,7 @@ package kubernetes
 
 import (
 	"context"
-
-	"github.com/layer5io/meshkit/encoding"
+	"encoding/json"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 )
@@ -35,7 +34,7 @@ func GetAllCustomResourcesInCluster(ctx context.Context, client rest.Interface) 
 	}
 	var xcrd CRD
 	gvks := []*schema.GroupVersionResource{}
-	err = encoding.Unmarshal(crdresult, &xcrd)
+	err = json.Unmarshal(crdresult, &xcrd)
 	if err != nil {
 		return nil, err
 	}
