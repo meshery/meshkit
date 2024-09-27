@@ -21,13 +21,13 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 		}
 
 		if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-			return config, ErrRestConfigFromKubeConfig(err)
+			return config, nil
 		}
 	}
 
 	// If deployed within the cluster
 	if config, err = rest.InClusterConfig(); err == nil {
-		return config, ErrRestConfigFromKubeConfig(err)
+		return config, nil
 	}
 
 	// Look for kubeconfig from the path mentioned in $KUBECONFIG
@@ -38,7 +38,7 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 			return nil, err
 		}
 		if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-			return config, ErrRestConfigFromKubeConfig(err)
+			return config, nil
 		}
 	}
 
@@ -49,10 +49,10 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 		return nil, err
 	}
 	if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-		return config, ErrRestConfigFromKubeConfig(err)
+		return config, nil
 	}
 
-	return
+	return nil, ErrRestConfigFromKubeConfig(err)
 }
 
 // ProcessConfig handles loading, validating, and optionally saving or returning a kubeconfig
