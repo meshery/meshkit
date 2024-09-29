@@ -1,10 +1,10 @@
 package registration
 
 type Tar struct {
-    _ string
+	_ string
 }
 
-func (t Tar) PkgUnit(regErrStore RegistrationErrorStore) (packagingUnit, error){
-	pkg := packagingUnit{}
+func (t Tar) PkgUnit(regErrStore RegistrationErrorStore) (PackagingUnit, error) {
+	pkg := PackagingUnit{}
 	return pkg, nil
 }

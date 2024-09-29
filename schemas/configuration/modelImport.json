@@ -3,10 +3,7 @@
   "properties": {
     "uploadType": {
       "title": "Upload method",
-      "enum": [
-        "File Upload",
-        "URL Import"
-      ],
+      "enum": ["File Import", "URL Import"],
       "default": "Select the Upload Method",
       "x-rjsf-grid-area": "12",
       "description": "Choose the method you prefer to upload your model file. Select 'File Upload' if you have the file on your local system or 'URL Import' if you have the file hosted online."
@@ -17,7 +14,7 @@
       "if": {
         "properties": {
           "uploadType": {
-            "const": "File Upload"
+            "const": "File Import"
           }
         }
       },
@@ -30,9 +27,7 @@
             "x-rjsf-grid-area": "12"
           }
         },
-        "required": [
-          "file"
-        ]
+        "required": ["file"]
       }
     },
     {
@@ -49,17 +44,13 @@
             "type": "string",
             "format": "uri",
             "title": "URL",
-            "description": "Provide the URL of the design file you want to import. This should be a direct URL to the file, for example: https://raw.github.com/your-design-file.yaml",
-            "x-rjsf-grid-area": "12"
+            "description": "This feature is upcoming and currently unavailable.",
+            "x-rjsf-grid-area": "12",
+            "disabled": true
           }
-        },
-        "required": [
-          "url"
-        ]
+        }
       }
     }
   ],
-  "required": [
-    "uploadType"
-  ]
+  "required": ["uploadType"]
 }

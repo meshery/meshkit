@@ -10,8 +10,9 @@ import (
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/component"
 	"github.com/layer5io/meshkit/utils/manifests"
-	_component "github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/category"
+	_component "github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/model"
 	"gopkg.in/yaml.v2"
 )
 
@@ -53,7 +54,10 @@ func (pkg AhPackage) GenerateComponents() ([]_component.ComponentDefinition, err
 		if err != nil {
 			continue
 		}
-		
+		if comp.Model.Metadata == nil {
+			comp.Model.Metadata = &model.ModelDefinition_Metadata{}
+		}
+
 		if comp.Model.Metadata.AdditionalProperties == nil {
 			comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
 		}

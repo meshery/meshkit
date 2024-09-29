@@ -1,8 +1,6 @@
 package v1beta1
 
 import (
-	"fmt"
-
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
@@ -139,7 +137,6 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	err := finder.
 		Scan(&componentDefinitionsWithModel).Error
 	if err != nil {
-		fmt.Println("line 123 : =+++++++++++++++", err)
 		return nil, 0, 0, err
 	}
 

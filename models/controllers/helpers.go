@@ -81,6 +81,8 @@ func applyOperatorHelmChart(chartRepo string, client mesherykube.Client, meshery
 		Action:          act,
 		// Setting override values
 		OverrideValues: overrides,
+
+		UpgradeIfInstalled: true,
 	})
 	if err != nil {
 		return err

@@ -82,9 +82,9 @@ func Generate(crd string) (component.ComponentDefinition, error) {
 	}
 	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
 	if scope == "Cluster" {
-		cmp.Metadata.AdditionalProperties["isNamespaced"] = false
+		cmp.Metadata.IsNamespaced = false
 	} else if scope == "Namespaced" {
-		cmp.Metadata.AdditionalProperties["isNamespaced"] = true
+		cmp.Metadata.IsNamespaced = true
 	}
 	cmp.Component.Kind = name
 	if group != "" {

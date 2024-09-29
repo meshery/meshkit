@@ -81,13 +81,11 @@ func (rm *RegistryManager) Cleanup() {
 func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Entity) (bool, bool, error) {
 	registrantID, err := h.Create(rm.db)
 	if err != nil {
-		fmt.Println("REGISTRANT ERROR ")
 		return true, false, err
 	}
 
 	entityID, err := en.Create(rm.db, registrantID)
 	if err != nil {
-		fmt.Println("COMP ERROR ")
 		return false, true, err
 	}
 	id, _ := uuid.NewV4()
@@ -149,8 +147,8 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 			"COUNT(CASE WHEN r.type = 'model' THEN 1 END) AS models," +
 			"COUNT(CASE WHEN r.type = 'relationship' THEN 1 END) AS relationships, " +
 			"COUNT(CASE WHEN r.type = 'policy' THEN 1 END) AS policies").
-		Joins("LEFT JOIN registries r ON c.id = r.registrant_id")
-		// Group("c.id, c.hostname, h.port") // required
+		Joins("LEFT JOIN registries r ON c.id = r.registrant_id").
+		Group("c.id")
 
 	if f.DisplayName != "" {
 		query = query.Where("kind LIKE ?", "%"+f.DisplayName+"%")
@@ -179,7 +177,6 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 
 	var response []models.MeshModelHostsWithEntitySummary
 
-	fmt.Println("result--------------------------", result)
 	for _, r := range result {
 		res := models.MeshModelHostsWithEntitySummary{
 			Connection: r.Connection,
@@ -197,10 +194,6 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 
 func (rm *RegistryManager) GetEntities(f entity.Filter) ([]entity.Entity, int64, int, error) {
 	return f.Get(rm.db)
-}
-
-func (rm *RegistryManager) GetEntityById (f entity.Filter) (entity.Entity, error) {
-	return f.GetById(rm.db)
 }
 
 func HostnameToPascalCase(input string) string {
