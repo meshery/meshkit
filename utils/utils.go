@@ -17,8 +17,10 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	log "github.com/sirupsen/logrus"
@@ -585,4 +587,130 @@ func Compress(src string, buf io.Writer) error {
 		}
 		return nil
 	})
+}
+
+// Check if a string is purely numeric
+func isNumeric(s string) bool {
+	for _, r := range s {
+		if !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
+}
+
+// Split version into components (numeric and non-numeric) using both '.' and '-'
+func splitVersion(version string) []string {
+	version = strings.ReplaceAll(version, "-", ".")
+	return strings.Split(version, ".")
+}
+
+// Compare two version strings
+func compareVersions(v1, v2 string) int {
+	v1Components := splitVersion(v1)
+	v2Components := splitVersion(v2)
+
+	maxLen := len(v1Components)
+	if len(v2Components) > maxLen {
+		maxLen = len(v2Components)
+	}
+
+	for i := 0; i < maxLen; i++ {
+		var part1, part2 string
+		if i < len(v1Components) {
+			part1 = v1Components[i]
+		}
+		if i < len(v2Components) {
+			part2 = v2Components[i]
+		}
+
+		if isNumeric(part1) && isNumeric(part2) {
+			num1, _ := strconv.Atoi(part1)
+			num2, _ := strconv.Atoi(part2)
+			if num1 != num2 {
+				return num1 - num2
+			}
+		} else if isNumeric(part1) && !isNumeric(part2) {
+			return -1
+		} else if !isNumeric(part1) && isNumeric(part2) {
+			return 1
+		} else {
+			if part1 != part2 {
+				return strings.Compare(part1, part2)
+			}
+		}
+	}
+
+	return 0
+}
+
+// Function to get all version directories sorted in descending order
+func GetAllVersionDirsSortedDesc(modelVersionsDirPath string) ([]string, error) {
+	type versionInfo struct {
+		original string
+		dirPath  string
+	}
+	entries, err := os.ReadDir(modelVersionsDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read versions directory '%s': %w", modelVersionsDirPath, err)
+	}
+
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("no version directories found in '%s'", modelVersionsDirPath)
+	}
+
+	versions := []versionInfo{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		versionDirPath := filepath.Join(modelVersionsDirPath, entry.Name())
+		versionStr := entry.Name()
+
+		// Optionally remove leading 'v'
+		versionStr = strings.TrimPrefix(versionStr, "v")
+
+		if versionStr == "" {
+			continue
+		}
+
+		versions = append(versions, versionInfo{
+			original: versionStr,
+			dirPath:  versionDirPath,
+		})
+	}
+
+	if len(versions) == 0 {
+		return nil, fmt.Errorf("no valid version directories found in '%s'", modelVersionsDirPath)
+	}
+
+	sort.Slice(versions, func(i, j int) bool {
+		return compareVersions(versions[i].original, versions[j].original) > 0
+	})
+
+	sortedDirPaths := make([]string, len(versions))
+	for i, v := range versions {
+		sortedDirPaths[i] = v.dirPath
+	}
+
+	return sortedDirPaths, nil
+}
+
+// isDirectoryNonEmpty checks if a directory exists and is non-empty
+func IsDirectoryNonEmpty(dirPath string) bool {
+	fi, err := os.Stat(dirPath)
+	if err != nil {
+		return false
+	}
+	if !fi.IsDir() {
+		return false
+	}
+
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return false
+	}
+
+	return len(entries) > 0
 }
