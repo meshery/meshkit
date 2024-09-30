@@ -7,7 +7,6 @@ import (
 
 	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/utils"
-	"github.com/layer5io/meshkit/utils/kubernetes"
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
@@ -63,38 +62,28 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp.SchemaVersion = v1beta1.ComponentSchemaVersion
 
 	cmp.Metadata = component.ComponentDefinition_Metadata{}
-	isCRD := kubernetes.IsCRD(resource)
-
-	cueValue, err := cueValueFromResource(resource, isCRD)
+	crdCue, err := utils.YamlToCue(resource)
 	if err != nil {
 		return cmp, err
 	}
 
-	var specPath string
-	if isCRD {
-		specPath = DefaultPathConfig.SpecPath
-	} else {
-		specPath = "components.schemas"
-	}
-
 	var schema string
 	for _, cfg := range Configs {
-		cfg.SpecPath = specPath
-		schema, err = getSchema(cueValue, cfg)
+		schema, err = getSchema(crdCue, cfg)
 		if err == nil {
 			break
 		}
 	}
 	cmp.Component.Schema = schema
-	name, err := extractCueValueFromPath(cueValue, DefaultPathConfig.NamePath)
+	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)
 	if err != nil {
 		return cmp, err
 	}
-	version, err := extractCueValueFromPath(cueValue, DefaultPathConfig.VersionPath)
+	version, err := extractCueValueFromPath(crdCue, DefaultPathConfig.VersionPath)
 	if err != nil {
 		return cmp, err
 	}
-	group, err := extractCueValueFromPath(cueValue, DefaultPathConfig.GroupPath)
+	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
 	if err != nil {
 		return cmp, err
 	}
@@ -102,7 +91,7 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 	if cmp.Metadata.AdditionalProperties == nil {
 		cmp.Metadata.AdditionalProperties = make(map[string]interface{})
 	}
-	scope, _ := extractCueValueFromPath(cueValue, DefaultPathConfig.ScopePath)
+	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
 	if scope == "Cluster" {
 		cmp.Metadata.IsNamespaced = false
 	} else if scope == "Namespaced" {
@@ -118,14 +107,6 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp.Format = component.JSON
 	cmp.DisplayName = manifests.FormatToReadableString(name)
 	return cmp, nil
-}
-
-func cueValueFromResource(resource string, isCRD bool) (cue.Value, error) {
-	if isCRD {
-		return utils.YamlToCue(resource)
-	} else {
-		return utils.JsonToCue([]byte(resource))
-	}
 }
 
 /*
