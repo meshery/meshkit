@@ -30,8 +30,12 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 	}
 	cuectx := cuecontext.New()
 	cueParsedManExpr, err := cueJson.Extract("", []byte(resource))
+	if err != nil {
+		return nil, err
+	}
+
 	parsedManifest := cuectx.BuildExpr(cueParsedManExpr)
-	definitions := parsedManifest.LookupPath(cue.ParsePath("components.schemas"))
+	definitions, err := utils.Lookup(parsedManifest, "components.schemas")
 
 	if err != nil {
 		return nil, err
@@ -46,8 +50,8 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 
 	for fields.Next() {
 		fieldVal := fields.Value()
-		kindCue := fieldVal.LookupPath(cue.ParsePath(`"x-kubernetes-group-version-kind"[0].kind`))
-		if kindCue.Err() != nil {
+		kindCue, err := utils.Lookup(fieldVal, `"x-kubernetes-group-version-kind"[0].kind`)
+		if err != nil {
 			continue
 		}
 		kind, err := kindCue.String()
@@ -62,8 +66,16 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 			fmt.Printf("%v", err)
 			continue
 		}
-		versionCue := fieldVal.LookupPath(cue.ParsePath(`"x-kubernetes-group-version-kind"[0].version`))
-		groupCue := fieldVal.LookupPath(cue.ParsePath(`"x-kubernetes-group-version-kind"[0].group`))
+		versionCue, err := utils.Lookup(fieldVal, `"x-kubernetes-group-version-kind"[0].version`)
+		if err != nil {
+			continue
+		}
+
+		groupCue, err := utils.Lookup(fieldVal, `"x-kubernetes-group-version-kind"[0].group`)
+		if err != nil {
+			continue
+		}
+
 		apiVersion, _ := versionCue.String()
 		if g, _ := groupCue.String(); g != "" {
 			apiVersion = g + "/" + apiVersion
@@ -140,8 +152,12 @@ func getResolvedManifest(manifest string) (string, error) {
 
 	cuectx := cuecontext.New()
 	cueParsedManExpr, err := cueJson.Extract("", byt)
+	if err != nil {
+		return "", ErrGetSchema(err)
+	}
+
 	parsedManifest := cuectx.BuildExpr(cueParsedManExpr)
-	definitions := parsedManifest.LookupPath(cue.ParsePath("components.schemas"))
+	definitions, err := utils.Lookup(parsedManifest, "components.schemas")
 	if err != nil {
 		return "", err
 	}

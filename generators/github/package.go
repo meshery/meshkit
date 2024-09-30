@@ -51,7 +51,7 @@ func (gp GitHubPackage) GenerateComponents() ([]_component.ComponentDefinition, 
 
 			comps, err := component.GenerateFromOpenAPI(string(crd), gp)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, component.ErrGetSchema(err))
 				continue
 			}
 			components = append(components, comps...)
