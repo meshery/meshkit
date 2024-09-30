@@ -13,8 +13,6 @@ type Validator interface {
 type Package interface {
 	GenerateComponents() ([]component.ComponentDefinition, error)
 	GetVersion() string
-	GetSourceURL() string
-	GetName() string
 }
 
 // Supports pulling packages from Artifact Hub and other sources like Docker Hub.
