@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
-	"github.com/layer5io/meshkit/encoding"
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
 )
 
@@ -255,7 +254,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 		cache = make(map[string][]byte)
 	}
 	var val map[string]interface{}
-	err := encoding.Unmarshal(manifest, &val)
+	err := json.Unmarshal(manifest, &val)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +266,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 			if ro.isInsideJsonSchemaProps && (ref == JsonSchemaPropsRef) {
 				// hack so that the UI doesn't crash
 				val["$ref"] = "string"
-				marVal, errJson := encoding.Marshal(val)
+				marVal, errJson := json.Marshal(val)
 				if errJson != nil {
 					return manifest, nil
 				}
@@ -283,13 +282,13 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 					newval = append(newval, v0)
 					continue
 				}
-				byt, _ := encoding.Marshal(v0)
+				byt, _ := json.Marshal(v0)
 				byt, err = ro.ResolveReferences(byt, definitions, cache)
 				if err != nil {
 					return nil, err
 				}
 				var newvalmap map[string]interface{}
-				_ = encoding.Unmarshal(byt, &newvalmap)
+				_ = json.Unmarshal(byt, &newvalmap)
 				newval = append(newval, newvalmap)
 			}
 			val[k] = newval
@@ -334,7 +333,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 		if reflect.ValueOf(v).Kind() == reflect.Map {
 			var marVal []byte
 			var def []byte
-			marVal, err = encoding.Marshal(v)
+			marVal, err = json.Marshal(v)
 			if err != nil {
 				return nil, err
 			}
@@ -350,7 +349,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 			}
 		}
 	}
-	res, err := encoding.Marshal(val)
+	res, err := json.Marshal(val)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +358,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 
 func replaceRefWithVal(def []byte, val map[string]interface{}, k string) error {
 	var defVal map[string]interface{}
-	err := encoding.Unmarshal([]byte(def), &defVal)
+	err := json.Unmarshal([]byte(def), &defVal)
 	if err != nil {
 		return err
 	}
