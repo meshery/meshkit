@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/layer5io/meshkit/encoding"
 	"github.com/layer5io/meshkit/utils"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -109,13 +108,7 @@ func writeToFile(w io.Writer, path string) error {
 	if err != nil {
 		return utils.ErrReadFile(err, path)
 	}
-
-	byt, err := encoding.ToYaml(data)
-	if err != nil {
-		return utils.ErrWriteFile(err, path)
-	}
-
-	_, err = w.Write(byt)
+	_, err = w.Write(data)
 	if err != nil {
 		return utils.ErrWriteFile(err, path)
 	}

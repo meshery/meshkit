@@ -38,14 +38,6 @@ func (pkg AhPackage) GetVersion() string {
 	return pkg.Version
 }
 
-func (pkg AhPackage) GetSourceURL() string {
-	return pkg.ChartUrl
-}
-
-func (pkg AhPackage) GetName() string {
-	return pkg.Name
-}
-
 func (pkg AhPackage) GenerateComponents() ([]_component.ComponentDefinition, error) {
 	components := make([]_component.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
