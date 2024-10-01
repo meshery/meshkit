@@ -4,6 +4,8 @@ import (
 	"testing"
 )
 
+// TestNewUUID tests the NewUUID function to ensure that it returns
+// a valid UUID string of the expected length and format
 func TestNewUUID(t *testing.T) {
 	uuidStr, err := NewUUID()
 	if err != nil {
@@ -20,6 +22,8 @@ func TestNewUUID(t *testing.T) {
 	}
 }
 
+// matchesFormat checks whether the given UUID string
+// matches the expected format
 func matchesFormat(uuidStr, format string) bool {
 	if len(uuidStr) != len(format) {
 		return false
@@ -34,6 +38,7 @@ func matchesFormat(uuidStr, format string) bool {
 	return true
 }
 
+// isHex checks whether the given character is hexadecimal or not
 func isHex(char byte) bool {
 	return (char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')
 }
