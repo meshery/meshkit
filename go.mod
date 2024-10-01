@@ -15,6 +15,7 @@ replace (
 require (
 	cuelang.org/go v0.6.0
 	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/PuerkitoBio/goquery v1.9.2
 	github.com/fluxcd/pkg/oci v0.34.0
 	github.com/fluxcd/pkg/tar v0.4.0
 	github.com/go-git/go-git/v5 v5.11.0
@@ -67,6 +68,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
+	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.24.0 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.26.1 // indirect
