@@ -45,17 +45,28 @@ var DefaultPathConfig2 = CuePathConfig{
 	SpecPath:       "spec.validation.openAPIV3Schema",
 }
 
+var OpenAPISpecPathConfig = CuePathConfig{
+	NamePath:       `x-kubernetes-group-version-kind"[0].kind`,
+	IdentifierPath: "spec.names.kind",
+	VersionPath:    `"x-kubernetes-group-version-kind"[0].version`,
+	GroupPath:      `"x-kubernetes-group-version-kind"[0].group`,
+	ScopePath:      "spec.scope",
+	SpecPath:       "spec.versions[0].schema.openAPIV3Schema",
+	PropertiesPath: "properties",
+}
+
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
-func Generate(crd string) (component.ComponentDefinition, error) {
+func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp := component.ComponentDefinition{}
 	cmp.SchemaVersion = v1beta1.ComponentSchemaVersion
 
 	cmp.Metadata = component.ComponentDefinition_Metadata{}
-	crdCue, err := utils.YamlToCue(crd)
+	crdCue, err := utils.YamlToCue(resource)
 	if err != nil {
 		return cmp, err
 	}
+
 	var schema string
 	for _, cfg := range Configs {
 		schema, err = getSchema(crdCue, cfg)
