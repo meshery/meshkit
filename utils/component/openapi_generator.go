@@ -2,6 +2,7 @@ package component
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -15,7 +16,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/meshery/schemas/models/v1beta1"
-	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
@@ -25,6 +25,9 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 		return nil, nil
 	}
 	resource, err := getResolvedManifest(resource)
+	if err != nil && errors.Is(err, ErrNoSchemasFound) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +39,7 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 
 	parsedManifest := cuectx.BuildExpr(cueParsedManExpr)
 	definitions, err := utils.Lookup(parsedManifest, "components.schemas")
-
+	
 	if err != nil {
 		return nil, err
 	}
@@ -101,28 +104,20 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 
 		c := component.ComponentDefinition{
 			SchemaVersion: v1beta1.ComponentSchemaVersion,
-			Version:       "v1.0.0",
-
-			Format: component.JSON,
+			Format:        component.JSON,
 			Component: component.Component{
 				Kind:    kind,
 				Version: apiVersion,
 				Schema:  string(crd),
 			},
-			// Metadata:    compMetadata,
 			DisplayName: manifests.FormatToReadableString(kind),
 			Model: model.ModelDefinition{
 				SchemaVersion: v1beta1.ModelSchemaVersion,
-				Version:       "v1.0.0",
-
 				Model: model.Model{
 					Version: pkg.GetVersion(),
 				},
 				Name:        pkg.GetName(),
 				DisplayName: manifests.FormatToReadableString(pkg.GetName()),
-				Category: category.CategoryDefinition{
-					Name: "Orchestration & Management",
-				},
 				Metadata: &model.ModelDefinition_Metadata{
 					AdditionalProperties: map[string]interface{}{
 						"source_uri": pkg.GetSourceURL(),
@@ -159,7 +154,7 @@ func getResolvedManifest(manifest string) (string, error) {
 	parsedManifest := cuectx.BuildExpr(cueParsedManExpr)
 	definitions, err := utils.Lookup(parsedManifest, "components.schemas")
 	if err != nil {
-		return "", err
+		return "", ErrNoSchemasFound
 	}
 	resol := manifests.ResolveOpenApiRefs{}
 	cache := make(map[string][]byte)

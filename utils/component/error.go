@@ -9,6 +9,8 @@ const (
 	ErrUpdateSchemaCode = "meshkit-11158"
 )
 
+var ErrNoSchemasFound = errors.New(ErrGetSchemaCode, errors.Alert, []string{"Could not get schema for the given openapi spec"}, []string{"The OpenAPI spec doesn't include \"components.schemas\" path"}, []string{"The spec doesn't have include any schema"}, []string{"Verify the spec has valid schema."})
+
 // No reference usage found. Also check in adapters before deleting
 func ErrCrdGenerate(err error) error {
 	return errors.New(ErrCrdGenerateCode, errors.Alert, []string{"Could not generate component with the given CRD"}, []string{err.Error()}, []string{""}, []string{"Verify CRD has valid schema."})
