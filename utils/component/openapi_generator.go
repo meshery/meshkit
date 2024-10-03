@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -39,7 +38,7 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 
 	parsedManifest := cuectx.BuildExpr(cueParsedManExpr)
 	definitions, err := utils.Lookup(parsedManifest, "components.schemas")
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +57,6 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 			continue
 		}
 		kind, err := kindCue.String()
-		kind = strings.ToLower(kind)
 		if err != nil {
 			fmt.Printf("%v", err)
 			continue
