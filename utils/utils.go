@@ -402,7 +402,9 @@ func CreateDirectory(path string) error {
 func ReplaceSpacesAndConvertToLowercase(s string) string {
 	return strings.ToLower(strings.ReplaceAll(s, " ", ""))
 }
-
+func ReplaceSpacesWithHyphenAndConvertToLowercase(s string) string {
+	return strings.ToLower(strings.ReplaceAll(s, " ", "-"))
+}
 func ExtractDomainFromURL(location string) string {
 	parsedURL, err := url.Parse(location)
 	// If unable to extract domain return the location as is.

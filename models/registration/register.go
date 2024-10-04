@@ -51,9 +51,13 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 		//silently exit if the model does not conatin any components or relationships
 		return
 	}
+	ignored := model.ModelDefinitionStatusIgnored
 	// 1. Register the model
 	model := pkg.Model
-
+	modelstatus := model.Status
+	if modelstatus == ignored {
+		return
+	}
 	// Don't register anything else if registrant is not there
 	if model.Registrant.Kind == "" {
 		err := ErrMissingRegistrant(model.Name)
@@ -100,6 +104,11 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	var registeredRelationships []relationship.RelationshipDefinition
 	// 2. Register components
 	for _, comp := range pkg.Components {
+		status := *comp.Status
+		if status == component.Ignored {
+			continue
+		}
+
 		comp.Model = model
 
 		if comp.Styles != nil {
