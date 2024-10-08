@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -100,6 +101,26 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 			continue
 		}
 
+		// Determine if the resource is namespaced
+		var isNamespaced bool
+
+		scopeCue, err := utils.Lookup(fieldVal, `"x-kubernetes-resource".scope`)
+		if err == nil {
+			scope, err := scopeCue.String()
+			if err == nil {
+				if scope == "Namespaced" {
+					isNamespaced = true
+				} else if scope == "Cluster" {
+					isNamespaced = false
+				}
+			}
+		} else {
+			isNamespaced, err = getResourceScope(resource, kind)
+			if err != nil {
+				isNamespaced = false
+			}
+		}
+
 		c := component.ComponentDefinition{
 			SchemaVersion: v1beta1.ComponentSchemaVersion,
 			Format:        component.JSON,
@@ -109,6 +130,9 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 				Schema:  string(crd),
 			},
 			DisplayName: manifests.FormatToReadableString(kind),
+			Metadata: component.ComponentDefinition_Metadata{
+				IsNamespaced: isNamespaced,
+			},
 			Model: model.ModelDefinition{
 				SchemaVersion: v1beta1.ModelSchemaVersion,
 				Model: model.Model{
@@ -127,7 +151,27 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 		components = append(components, c)
 	}
 	return components, nil
+}
+func getResourceScope(manifest string, kind string) (bool, error) {
+	var m map[string]interface{}
 
+	err := yaml.Unmarshal([]byte(manifest), &m)
+	if err != nil {
+		return false, utils.ErrDecodeYaml(err)
+	}
+
+	paths, ok := m["paths"].(map[string]interface{})
+	if !ok {
+		return false, fmt.Errorf("paths not found in manifest")
+	}
+
+	for path := range paths {
+		if strings.Contains(path, "/namespaces/{namespace}/") && strings.Contains(path, strings.ToLower(kind)) {
+			return true, nil // Resource is namespaced
+		}
+	}
+
+	return false, nil // Resource is cluster-scoped
 }
 
 func getResolvedManifest(manifest string) (string, error) {
