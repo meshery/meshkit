@@ -138,6 +138,9 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	} else if mf.Annotations == "false" {
 		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
 	}
+	if mf.Id != "" {
+		finder = finder.Where("model_dbs.id = ?", mf.Id)
+	}
 	if mf.OrderOn != "" {
 		if mf.Sort == "desc" {
 			finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: mf.OrderOn}, Desc: true})

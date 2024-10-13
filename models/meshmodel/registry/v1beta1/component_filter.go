@@ -116,7 +116,9 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	if componentFilter.Version != "" {
 		finder = finder.Where("model_dbs.model->>'version' = ?", componentFilter.Version)
 	}
-
+	if componentFilter.Id != "" {
+		finder = finder.Where("component_definition_dbs.id = ?", componentFilter.Id)
+	}
 	if componentFilter.OrderOn != "" {
 		if componentFilter.Sort == "desc" {
 			finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: componentFilter.OrderOn}, Desc: true})
