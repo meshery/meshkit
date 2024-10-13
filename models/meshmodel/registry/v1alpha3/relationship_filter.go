@@ -74,6 +74,9 @@ func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entit
 	if relationshipFilter.SubType != "" {
 		finder = finder.Where("relationship_definition_dbs.sub_type = ?", relationshipFilter.SubType)
 	}
+	if relationshipFilter.Id != "" {
+		finder = finder.Where("relationship_definition_dbs.id = ?", relationshipFilter.Id)
+	}
 	if relationshipFilter.ModelName != "" {
 		finder = finder.Where("model_dbs.name = ?", relationshipFilter.ModelName)
 	}

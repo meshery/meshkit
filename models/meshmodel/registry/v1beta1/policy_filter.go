@@ -49,7 +49,9 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 	if pf.ModelName != "" {
 		finder = finder.Where("model_dbs.name = ?", pf.ModelName)
 	}
-
+	if pf.Id != "" {
+		finder = finder.Where("policy_definition_dbs.id = ?", pf.Id)
+	}
 	var count int64
 	finder.Count(&count)
 
