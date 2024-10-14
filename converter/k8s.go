@@ -39,6 +39,7 @@ func NewK8sManifestsFromPatternfile(patternFile *pattern.PatternFile) (string, e
 func CreateK8sResourceStructure(comp *component.ComponentDefinition) map[string]interface{} {
 	annotations := map[string]interface{}{}
 	labels := map[string]interface{}{}
+	namespace := "default"
 
 	_confMetadata, ok := comp.Configuration["metadata"]
 	if ok {
@@ -51,9 +52,13 @@ func CreateK8sResourceStructure(comp *component.ComponentDefinition) map[string]
 			}
 
 			_label, ok := confMetadata["labels"]
-
 			if ok {
 				labels, _ = utils.Cast[map[string]interface{}](_label)
+			}
+
+			_ns, ok := confMetadata["namespace"]
+			if ok {
+				namespace, _ = utils.Cast[string](_ns)
 			}
 		}
 	}
@@ -65,11 +70,12 @@ func CreateK8sResourceStructure(comp *component.ComponentDefinition) map[string]
 			"name":        comp.DisplayName,
 			"annotations": annotations,
 			"labels":      labels,
+			"namespace":   namespace,
 		},
 	}
 
 	for k, v := range comp.Configuration {
-		if k == "apiVersion" || k == "kind" || k == "metadata" {
+		if k == "apiVersion" || k == "kind" || k == "metadata" || k == "namespace" {
 			continue
 		}
 
