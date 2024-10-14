@@ -50,6 +50,9 @@ func (cf *CategoryFilter) Get(db *database.Handler) ([]entity.Entity, int64, int
 			finder = finder.Where("name = ?", cf.Name)
 		}
 	}
+	if cf.Id != "" {
+		finder = finder.Where("id = ?", cf.Id)
+	}
 	if cf.OrderOn != "" {
 		if cf.Sort == "desc" {
 			finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: cf.OrderOn}, Desc: true})
