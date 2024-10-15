@@ -20,7 +20,7 @@ func writeHashCheckSVG(key string, val string) {
 	mx.Unlock()
 }
 
-func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string, baseDir, dirname, filename string) (svgColorPath, svgWhitePath, svgCompletePath string) {
+func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string, baseDir, dirname, filename string, isModel bool) (svgColorPath, svgWhitePath, svgCompletePath string) {
 	filename = strings.ToLower(filename)
 	successCreatingDirectory := false
 	defer func() {
@@ -40,7 +40,7 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 		hash := md5.Sum([]byte(svgColor))
 		hashString := hex.EncodeToString(hash[:])
 		pathsvg := hashCheckSVG[hashString]
-		if pathsvg != "" { // the image has already been loaded, point the component to that path
+		if pathsvg != "" && !isModel { // the image has already been loaded, point the component to that path
 			svgColorPath = pathsvg
 			goto White
 		}
@@ -59,7 +59,7 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 
 	}
 White:
-	if svgWhite != "" {
+	if svgWhite != "" && !isModel {
 		path := filepath.Join(baseDir, dirname, "white")
 		err := os.MkdirAll(path, 0777)
 		if err != nil {
@@ -90,7 +90,7 @@ White:
 
 	}
 Complete:
-	if svgComplete != "" {
+	if svgComplete != "" && !isModel {
 		path := filepath.Join(baseDir, dirname, "complete")
 		err := os.MkdirAll(path, 0777)
 		if err != nil {
@@ -122,8 +122,6 @@ Complete:
 	}
 	return
 }
-
-// func WriteAndReplaceSVGWithFileSystemPath(metadata map[string]interface{}, baseDir, dirname, filename string) {
 
 func getRelativePathForAPI(baseDir, path string) string {
 	ui := strings.TrimPrefix(baseDir, "../../")

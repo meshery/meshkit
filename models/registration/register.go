@@ -81,6 +81,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 			rh.svgBaseDir,
 			model.Name,
 			model.Name,
+			true,
 		)
 		if svgCompletePath != "" {
 			model.Metadata.SvgComplete = &svgCompletePath
@@ -120,6 +121,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 				rh.svgBaseDir,
 				comp.Model.Name,
 				comp.Component.Kind,
+				false,
 			)
 		}
 
