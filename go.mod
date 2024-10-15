@@ -24,7 +24,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.31.1
 	github.com/layer5io/meshery-operator v0.7.0
-	github.com/meshery/schemas v0.7.31
+	github.com/meshery/schemas v0.7.36
 	github.com/nats-io/nats.go v1.31.0
 	github.com/open-policy-agent/opa v0.67.1
 	github.com/opencontainers/image-spec v1.1.0
@@ -39,7 +39,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.5.3
 	gorm.io/driver/sqlite v1.5.4
-	gorm.io/gorm v1.25.11
+	gorm.io/gorm v1.25.12
 	helm.sh/helm/v3 v3.13.2
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
