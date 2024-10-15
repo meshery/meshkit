@@ -29,6 +29,9 @@ type ModelFilter struct {
 	Components    bool
 	Relationships bool
 	Status        string
+	// When Trim is true it will only send necessary models data
+	// like: component count, relationship count, id and name of model
+	Trim bool
 }
 
 // Create the filter from map[string]interface{}
@@ -182,27 +185,48 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	for _, modelDB := range modelWithCategories {
 		// resolve for loop scope
 		_modelDB := modelDB
-		if includeComponents {
-			var components []component.ComponentDefinition
-			finder := db.Model(&component.ComponentDefinition{}).
-				Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version,component_definition_dbs.styles,component_definition_dbs.capabilities").
-				Where("component_definition_dbs.model_id = ?", _modelDB.Id)
-			if err := finder.Scan(&components).Error; err != nil {
-				return nil, 0, 0, err
+		var componentCount int64
+		db.Model(&component.ComponentDefinition{}).Where("component_definition_dbs.model_id = ?", _modelDB.Id).Count(&componentCount)
+		var relationshipCount int64
+		db.Model(&relationship.RelationshipDefinition{}).Where("relationship_definition_dbs.model_id = ?", _modelDB.Id).Count(&relationshipCount)
+		_modelDB.ComponentsCount = int(componentCount)
+		_modelDB.RelationshipsCount = int(relationshipCount)
+
+		// If Trim is true, only include the id, name, counts and metadata
+		if mf.Trim {
+			trimmedModel := &model.ModelDefinition{
+				Id:                 _modelDB.Id,
+				Name:               _modelDB.Name,
+				DisplayName:        _modelDB.DisplayName,
+				Metadata:           _modelDB.Metadata,
+				ComponentsCount:    int(componentCount),
+				RelationshipsCount: int(relationshipCount),
 			}
-			_modelDB.Components = components
-		}
-		if includeRelationships {
-			var relationships []relationship.RelationshipDefinition
-			finder := db.Model(&relationship.RelationshipDefinition{}).
-				Select("relationship_definition_dbs.*").
-				Where("relationship_definition_dbs.model_id = ?", _modelDB.Id)
-			if err := finder.Scan(&relationships).Error; err != nil {
-				return nil, 0, 0, err
+			defs = append(defs, trimmedModel)
+
+		} else {
+			if includeComponents {
+				var components []component.ComponentDefinition
+				finder := db.Model(&component.ComponentDefinition{}).
+					Select("component_definition_dbs.*").
+					Where("component_definition_dbs.model_id = ?", _modelDB.Id)
+				if err := finder.Scan(&components).Error; err != nil {
+					return nil, 0, 0, err
+				}
+				_modelDB.Components = components
 			}
-			_modelDB.Relationships = relationships
+			if includeRelationships {
+				var relationships []relationship.RelationshipDefinition
+				finder := db.Model(&relationship.RelationshipDefinition{}).
+					Select("relationship_definition_dbs.*").
+					Where("relationship_definition_dbs.model_id = ?", _modelDB.Id)
+				if err := finder.Scan(&relationships).Error; err != nil {
+					return nil, 0, 0, err
+				}
+				_modelDB.Relationships = relationships
+			}
+			defs = append(defs, &_modelDB)
 		}
-		defs = append(defs, &_modelDB)
 	}
 	return defs, count, countUniqueModels(modelWithCategories), nil
 }
