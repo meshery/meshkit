@@ -59,7 +59,7 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 
 	}
 White:
-	if svgWhite != "" && !isModel {
+	if svgWhite != "" {
 		path := filepath.Join(baseDir, dirname, "white")
 		err := os.MkdirAll(path, 0777)
 		if err != nil {
@@ -71,7 +71,7 @@ White:
 		hash := md5.Sum([]byte(svgWhite))
 		hashString := hex.EncodeToString(hash[:])
 		pathsvg := hashCheckSVG[hashString]
-		if pathsvg != "" { // the image has already been loaded, point the component to that path
+		if pathsvg != "" && !isModel { // the image has already been loaded, point the component to that path
 			svgWhitePath = pathsvg
 			goto Complete
 		}
@@ -90,7 +90,7 @@ White:
 
 	}
 Complete:
-	if svgComplete != "" && !isModel {
+	if svgComplete != "" {
 		path := filepath.Join(baseDir, dirname, "complete")
 		err := os.MkdirAll(path, 0777)
 		if err != nil {
@@ -102,7 +102,7 @@ Complete:
 		hash := md5.Sum([]byte(svgComplete))
 		hashString := hex.EncodeToString(hash[:])
 		pathsvg := hashCheckSVG[hashString]
-		if pathsvg != "" { // the image has already been loaded, point the component to that path
+		if pathsvg != "" && !isModel { // the image has already been loaded, point the component to that path
 			svgCompletePath = pathsvg
 			return
 		}
