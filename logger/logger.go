@@ -1,9 +1,9 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"os"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"

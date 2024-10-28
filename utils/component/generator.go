@@ -6,9 +6,10 @@ import (
 	"fmt"
 
 	"cuelang.org/go/cue"
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/schemas/models/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1/component"
 )
 
 const ComponentMetaNameKey = "name"
@@ -44,17 +45,28 @@ var DefaultPathConfig2 = CuePathConfig{
 	SpecPath:       "spec.validation.openAPIV3Schema",
 }
 
+var OpenAPISpecPathConfig = CuePathConfig{
+	NamePath:       `x-kubernetes-group-version-kind"[0].kind`,
+	IdentifierPath: "spec.names.kind",
+	VersionPath:    `"x-kubernetes-group-version-kind"[0].version`,
+	GroupPath:      `"x-kubernetes-group-version-kind"[0].group`,
+	ScopePath:      "spec.scope",
+	SpecPath:       "spec.versions[0].schema.openAPIV3Schema",
+	PropertiesPath: "properties",
+}
+
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
-func Generate(crd string) (v1beta1.ComponentDefinition, error) {
-	component := v1beta1.ComponentDefinition{}
-	component.SchemaVersion = v1beta1.ComponentSchemaVersion
+func Generate(resource string) (component.ComponentDefinition, error) {
+	cmp := component.ComponentDefinition{}
+	cmp.SchemaVersion = v1beta1.ComponentSchemaVersion
 
-	component.Metadata = make(map[string]interface{})
-	crdCue, err := utils.YamlToCue(crd)
+	cmp.Metadata = component.ComponentDefinition_Metadata{}
+	crdCue, err := utils.YamlToCue(resource)
 	if err != nil {
-		return component, err
+		return cmp, err
 	}
+
 	var schema string
 	for _, cfg := range Configs {
 		schema, err = getSchema(crdCue, cfg)
@@ -62,36 +74,39 @@ func Generate(crd string) (v1beta1.ComponentDefinition, error) {
 			break
 		}
 	}
-	component.Component.Schema = schema
+	cmp.Component.Schema = schema
 	name, err := extractCueValueFromPath(crdCue, DefaultPathConfig.NamePath)
 	if err != nil {
-		return component, err
+		return cmp, err
 	}
 	version, err := extractCueValueFromPath(crdCue, DefaultPathConfig.VersionPath)
 	if err != nil {
-		return component, err
+		return cmp, err
 	}
 	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
 	if err != nil {
-		return component, err
+		return cmp, err
 	}
 	// return component, err Ignore error if scope isn't found
+	if cmp.Metadata.AdditionalProperties == nil {
+		cmp.Metadata.AdditionalProperties = make(map[string]interface{})
+	}
 	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
 	if scope == "Cluster" {
-		component.Metadata["isNamespaced"] = false
+		cmp.Metadata.IsNamespaced = false
 	} else if scope == "Namespaced" {
-		component.Metadata["isNamespaced"] = true
+		cmp.Metadata.IsNamespaced = true
 	}
-	component.Component.Kind = name
+	cmp.Component.Kind = name
 	if group != "" {
-		component.Component.Version = fmt.Sprintf("%s/%s", group, version)
+		cmp.Component.Version = fmt.Sprintf("%s/%s", group, version)
 	} else {
-		component.Component.Version = version
+		cmp.Component.Version = version
 	}
 
-	component.Format = v1beta1.JSON
-	component.DisplayName = manifests.FormatToReadableString(name)
-	return component, nil
+	cmp.Format = component.JSON
+	cmp.DisplayName = manifests.FormatToReadableString(name)
+	return cmp, nil
 }
 
 /*

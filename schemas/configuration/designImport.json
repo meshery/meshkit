@@ -3,7 +3,7 @@
   "properties": {
     "name": {
       "type": "string",
-      "title": "Design file name",
+      "title": "Design filename",
       "default": "Untitled Design",
       "x-rjsf-grid-area": "6",
       "description": "Provide a name for your design file. This name will help you identify the file more easily. You can also change the name of your design after importing it."
@@ -16,7 +16,6 @@
         "Docker Compose",
         "Meshery Design"
       ],
-      "default": "Meshery Design",
       "x-rjsf-grid-area": "6",
       "description": "Select the type of design you are uploading. The 'Design Type' determines the format, structure, and content of the file you are uploading. Choose the appropriate design type that matches the nature of your file. Checkout https://docs.meshery.io/guides/meshery-design to learn more about designs"
     }

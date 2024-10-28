@@ -1,0 +1,38 @@
+{
+    "uploadType": {
+      "ui:widget": "radio"
+    },
+    "model": {
+      "ui:options": {
+        "expand": true
+      },
+      "styles": {
+        "padding": 0,
+        "margin": 0
+      },
+  
+      "primaryColor": {
+        "ui:widget": "color"
+      },
+      "secondaryColor": {
+        "ui:widget": "color"
+      },
+  
+      "ui:order": [
+        "modelDisplayName",
+        "model",
+        "registrant",
+        "shape",
+        "category",
+        "subCategory",
+        "primaryColor",
+        "secondaryColor",
+        "svgColor",
+        "svgWhite",
+        "isAnnotation",
+        "publishToRegistry"
+      ]
+    },
+    "ui:order": ["uploadType","register","url"]
+  }
+  

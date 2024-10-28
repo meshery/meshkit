@@ -50,22 +50,6 @@ Or you may configure your IDE, for example, Visual Studio Code to automatically 
 
 <a href="https://user-images.githubusercontent.com/7570704/64490167-98906400-d25a-11e9-8b8a-5f465b854d49.png" ><img src="https://user-images.githubusercontent.com/7570704/64490167-98906400-d25a-11e9-8b8a-5f465b854d49.png" width="50%"><a>
 
-## <a name="contributing-docs">Documentation Contribution Flow</a>
-Please contribute! Layer5 documentation uses Jekyll and GitHub Pages to host docs sites. Learn more about [Layer5's documentation framework](https://docs.google.com/document/d/17guuaxb0xsfutBCzyj2CT6OZiFnMu9w4PzoILXhRXSo/edit?usp=sharing). The process of contributing follows this flow:
-
-1. Create a fork, if you have not already, by following the steps described [here](./CONTRIBUTING-gitflow.md)
-1. In the local copy of your fork, navigate to the docs folder.
-`cd docs`
-1. Create and checkout a new branch to make changes within
-`git checkout -b <my-changes>`
-1. Edit/add documentation.
-`vi <specific page>.md`
-1. Run site locally to preview changes.
-`make site`
-1. Commit, [sign-off](#commit-signing), and push changes to your remote branch.
-`git push origin <my-changes>`
-1. Open a pull request (in your web browser) against the repo.
-
 
 #### Tests
 Users can now test their code on their local machine against the CI checks implemented using `make run-tests`.
@@ -92,7 +76,7 @@ All contributors are invited to review pull requests. See this short video on [h
 Resources: https://lab.github.com and https://try.github.com/
 
 
-# FQA
+# FAQs
 
 ### Instructions for making custom dictionary entries
 

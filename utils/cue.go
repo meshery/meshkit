@@ -30,7 +30,7 @@ func Validate(schema cue.Value, value cue.Value) (bool, []errors.Error) {
 		}
 		return true
 	}, nil)
-	
+
 	if len(errs) != 0 {
 		return false, errs
 	}
@@ -90,6 +90,7 @@ func JsonSchemaToCue(value string) (cue.Value, error) {
 	extractedSchema, err := jsonschema.Extract(cueJsonSchemaExpr, &jsonschema.Config{
 		PkgName: "jsonschemeconv",
 	})
+
 	if err != nil {
 		return out, ErrJsonSchemaToCue(err)
 	}

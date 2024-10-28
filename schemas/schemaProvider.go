@@ -13,6 +13,8 @@ func getSchemaMap() map[string]string {
 		"helmRepo":    "connections/helmConnection/helmRepoConnection.json",
 		"environment": "configuration/environment.json",
 		"workspace":   "configuration/workspace.json",
+		"model":       "configuration/modelImport.json",
+		"generate":    "configuration/generate.json",
 	}
 }
 
@@ -25,6 +27,8 @@ func getUiSchemaMap() map[string]string {
 		"helmRepo":    "connections/helmConnection/uiHelmRepoConnection.json",
 		"environment": "configuration/uiSchemaEnvironment.json",
 		"workspace":   "configuration/uiSchemaWorkspace.json",
+		"model":       "configuration/uiSchemaModelImport.json",
+		"generate":    "configuration/uiSchemaGenerate.json",
 	}
 }
 

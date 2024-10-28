@@ -35,6 +35,7 @@ var (
 	ErrEntryWithChartVersionNotExistsCode = "meshkit-11204"
 	ErrEndpointNotFound                   = errors.New(ErrEndpointNotFoundCode, errors.Alert, []string{"Unable to discover an endpoint"}, []string{}, []string{}, []string{})
 	ErrInvalidAPIServer                   = errors.New(ErrInvalidAPIServerCode, errors.Alert, []string{"Invalid API Server URL"}, []string{}, []string{}, []string{})
+	ErrRestConfigFromKubeConfigCode       = "meshkit-11205"
 )
 
 func ErrApplyManifest(err error) error {
@@ -51,22 +52,22 @@ func ErrApplyHelmChart(err error) error {
 	return errors.New(ErrApplyHelmChartCode, errors.Alert, []string{"Error applying helm chart"}, []string{err.Error()}, []string{"Chart could be invalid"}, []string{"Make sure to apply valid chart"})
 }
 
-// ErrApplyHelmChart is the error which occurs in the process of applying helm chart
+// ErrNewKubeClient is the error which occurs when creating a new Kubernetes clientset
 func ErrNewKubeClient(err error) error {
 	return errors.New(ErrNewKubeClientCode, errors.Alert, []string{"Error creating kubernetes clientset"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
 }
 
-// ErrApplyHelmChart is the error which occurs in the process of applying helm chart
+// ErrNewDynClient is the error which occurs when creating a new dynamic client
 func ErrNewDynClient(err error) error {
 	return errors.New(ErrNewDynClientCode, errors.Alert, []string{"Error creating dynamic client"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
 }
 
-// ErrApplyHelmChart is the error which occurs in the process of applying helm chart
+// ErrNewDiscovery is the error which occurs when creating a new discovery client
 func ErrNewDiscovery(err error) error {
 	return errors.New(ErrNewDiscoveryCode, errors.Alert, []string{"Error creating discovery client"}, []string{err.Error()}, []string{"Discovery resource is invalid or doesnt exist"}, []string{"Makes sure the you input valid resource for discovery"})
 }
 
-// ErrApplyHelmChart is the error which occurs in the process of applying helm chart
+// ErrNewInformer is the error which occurs when creating a new informer
 func ErrNewInformer(err error) error {
 	return errors.New(ErrNewInformerCode, errors.Alert, []string{"Error creating informer client"}, []string{err.Error()}, []string{"Informer is invalid or doesnt exist"}, []string{"Makes sure the you input valid resource for the informer"})
 }
@@ -99,4 +100,20 @@ func ErrEntryWithChartVersionNotExists(entry, appVersion string) error {
 // ErrHelmRepositoryNotFound is the error when no valid remote helm repository is found
 func ErrHelmRepositoryNotFound(repo string, err error) error {
 	return errors.New(ErrHelmRepositoryNotFoundCode, errors.Alert, []string{"Helm repo not found"}, []string{fmt.Sprintf("either the repo %s does not exists or is corrupt: %v", repo, err)}, []string{}, []string{})
+}
+
+// ErrRestConfigFromKubeConfig returns an error when failing to create a REST config from a kubeconfig file.
+func ErrRestConfigFromKubeConfig(err error) error {
+	return errors.New(ErrRestConfigFromKubeConfigCode,
+		errors.Alert,
+		[]string{"Failed to create REST config from kubeconfig."},
+		[]string{fmt.Sprintf("Error occured while creating REST config from kubeconfig: %s", err.Error())},
+		[]string{
+			"The provided kubeconfig data might be invalid or corrupted.",
+			"The kubeconfig might be incomplete or missing required fields."},
+		[]string{
+			"Verify that the kubeconfig data is valid.",
+			"Ensure the kubeconfig contains all necessary cluster, user, and context information.",
+			"Check if the kubeconfig data was properly read and passed to the function."},
+	)
 }

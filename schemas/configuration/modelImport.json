@@ -1,0 +1,56 @@
+{
+  "type": "object",
+  "properties": {
+    "uploadType": {
+      "title": "Upload method",
+      "enum": ["File Import", "URL Import"],
+      "default": "Select the Upload Method",
+      "x-rjsf-grid-area": "12",
+      "description": "Choose the method you prefer to upload your model file. Select 'File Upload' if you have the file on your local system or 'URL Import' if you have the file hosted online."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "uploadType": {
+            "const": "File Import"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "file",
+            "description": "Browse the filter file from your file system",
+            "x-rjsf-grid-area": "12"
+          }
+        },
+        "required": ["file"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "uploadType": {
+            "const": "URL Import"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "title": "URL",
+            "description": "This feature is upcoming and currently unavailable.",
+            "x-rjsf-grid-area": "12",
+            "disabled": true
+          }
+        }
+      }
+    }
+  ],
+  "required": ["uploadType"]
+}
