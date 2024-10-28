@@ -78,3 +78,52 @@ func TestTransformMapKeys(t *testing.T) {
 		})
 	}
 }
+
+func TestGetReleaseTagCommitSHAInvalid(t *testing.T) {
+	cases := []struct{
+        description string
+        org string
+        repo string
+        tag string
+        expectedErr string
+    }{
+        {
+            description: "Test cases negative empty tag",
+            org:  "layer5labs",
+            repo: "meshery-extensions-packages",
+			tag: "",
+            expectedErr: "empty release tags",
+        },
+		{
+            description: "Test cases negative old tag",
+            org:  "layer5labs",
+            repo: "meshery-extensions-packages",
+			tag: "v1.0.0",
+            expectedErr: "release tags not found",
+        },
+    }
+    for _, tt := range cases {
+        t.Run(tt.description, func(t *testing.T){
+            commitSHA, err := GetReleaseTagCommitSHA(tt.org, tt.repo, tt.tag)
+			if err.Error() != tt.expectedErr {
+				t.Errorf("expected error %s, but got error %s", err, err.Error())
+			}
+          
+			if commitSHA != "" {
+				t.Errorf("expected commitSHA string empty, but got %s", commitSHA)
+			}
+        })
+    }
+}
+
+func TestGetReleaseTagCommitSHA(t *testing.T)  {
+	commitSHA, err := GetReleaseTagCommitSHA("kelseyhightower", "nocode", "1.0.0")
+	if err != nil {
+		t.Errorf("expected no error, but got error %s", err)
+	}
+
+	expectedSHA := "ed6c73fc16578ec53ea374585df2b965ce9f4a31"
+	if commitSHA != "ed6c73fc16578ec53ea374585df2b965ce9f4a31" {
+		t.Errorf("expected commitSHA %s, but got %s", commitSHA, expectedSHA)
+	}
+}

@@ -235,6 +235,54 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 	return versions, nil
 }
 
+type Commit struct {
+	SHA string `json:"sha"`
+	URL string `json:"url"`
+}
+
+type ReleaseTags struct {
+	Name string `json:"name"`
+	Commit Commit `json:"commit"`
+	TarballURL string `json:"tarball_url"`
+	ZipballURL string `json:"zipball_url"`
+	NodeID string `json:"node_id"`
+}
+
+// Gets release tag from github for a given org name, repo name(in that org) and tag 
+func GetReleaseTagCommitSHA(org string, repo string, tag string) (string, error) {
+    url := fmt.Sprintf("https://api.github.com/repos/%s/%s/tags", org, repo)
+
+	if len(tag) == 0 {
+		return "", errors.New("empty release tags")
+    }
+
+    resp, err := http.Get(url)
+    if err != nil {
+        return "", errors.New("cannot get list of tags from Github API")
+    }
+    defer safeClose(resp.Body)
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return "", errors.New("cannot parse response body from github api")
+    }
+
+    var releaseTags []ReleaseTags
+ 
+    err = json.Unmarshal(body, &releaseTags)
+    if err != nil {
+        return "", ErrUnmarshal(err)
+    }
+
+	for _, value := range releaseTags {
+		if value.Name == tag {
+			return value.Commit.SHA, nil
+		}
+	}
+
+	return "", errors.New("release tags not found")
+}
+
 // SafeClose is a helper function help to close the io
 func safeClose(co io.Closer) {
 	if cerr := co.Close(); cerr != nil {
