@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/component"
 	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/schemas/models/v1beta1/category"
+	_component "github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/model"
 	"gopkg.in/yaml.v2"
 )
 
@@ -36,8 +38,16 @@ func (pkg AhPackage) GetVersion() string {
 	return pkg.Version
 }
 
-func (pkg AhPackage) GenerateComponents() ([]v1beta1.ComponentDefinition, error) {
-	components := make([]v1beta1.ComponentDefinition, 0)
+func (pkg AhPackage) GetSourceURL() string {
+	return pkg.ChartUrl
+}
+
+func (pkg AhPackage) GetName() string {
+	return pkg.Name
+}
+
+func (pkg AhPackage) GenerateComponents() ([]_component.ComponentDefinition, error) {
+	components := make([]_component.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
 
 	if pkg.ChartUrl == "" {
@@ -52,16 +62,17 @@ func (pkg AhPackage) GenerateComponents() ([]v1beta1.ComponentDefinition, error)
 		if err != nil {
 			continue
 		}
-		if comp.Metadata == nil {
-			comp.Metadata = make(map[string]interface{})
-		}
 		if comp.Model.Metadata == nil {
-			comp.Model.Metadata = make(map[string]interface{})
+			comp.Model.Metadata = &model.ModelDefinition_Metadata{}
 		}
-		comp.Model.Metadata["source_uri"] = pkg.ChartUrl
+
+		if comp.Model.Metadata.AdditionalProperties == nil {
+			comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
+		}
+		comp.Model.Metadata.AdditionalProperties["source_uri"] = pkg.ChartUrl
 		comp.Model.Version = pkg.Version
 		comp.Model.Name = pkg.Name
-		comp.Model.Category = v1beta1.Category{
+		comp.Model.Category = category.CategoryDefinition{
 			Name: "",
 		}
 		comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)

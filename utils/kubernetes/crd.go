@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 
+	"github.com/layer5io/meshkit/encoding"
 	"github.com/layer5io/meshkit/utils"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
@@ -35,7 +36,7 @@ func GetAllCustomResourcesInCluster(ctx context.Context, client rest.Interface) 
 	}
 	var xcrd CRD
 	gvks := []*schema.GroupVersionResource{}
-	err = utils.Unmarshal(string(crdresult), &xcrd)
+	err = encoding.Unmarshal(crdresult, &xcrd)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,19 @@ func GetGVRForCustomResources(crd *CRDItem) *schema.GroupVersionResource {
 	}
 }
 
-func IsCRD(manifest map[string]interface{}) bool {
-	kind, ok := manifest["kind"].(string)
-	return ok && kind == "CustomResourceDefinition"
+func IsCRD(manifest string) bool {
+	cueValue, err := utils.YamlToCue(manifest)
+	if err != nil {
+		return false
+	}
+	kind, err := utils.Lookup(cueValue, "kind")
+	if err != nil {
+		return false
+	}
+	kindStr, err := kind.String()
+	if err != nil {
+		return false
+	}
+
+	return kindStr == "CustomResourceDefinition"
 }

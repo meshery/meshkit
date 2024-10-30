@@ -105,7 +105,7 @@ func fileInterceptor(br *bufio.Writer) walker.FileInterceptor {
 // Add more calrifying commment and entry inside docs.
 func dirInterceptor(br *bufio.Writer) walker.DirInterceptor {
 	return func(d walker.Directory) error {
-		err := helm.ConvertToK8sManifest(d.Path, br)
+		err := helm.ConvertToK8sManifest(d.Path, "", br)
 		if err != nil {
 			return err
 		}
