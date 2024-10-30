@@ -249,38 +249,36 @@ type ReleaseTags struct {
 }
 
 // Gets release tag from github for a given org name, repo name(in that org) and tag 
-func GetReleaseTagCommitSHA(org string, repo string, tag string) (string, error) {
-    url := fmt.Sprintf("https://api.github.com/repos/%s/%s/tags", org, repo)
-
-	if len(tag) == 0 {
-		return "", errors.New("empty release tags")
-    }
+func GetLatestReleaseTagCommitSHA(org string, repo string) (string, error) {
+    url := fmt.Sprintf("https://github.com/%s/%s/tags", org, repo)
 
     resp, err := http.Get(url)
     if err != nil {
-        return "", errors.New("cannot get list of tags from Github API")
+        return "", errors.New("cannot get list of tags from Github")
     }
     defer safeClose(resp.Body)
 
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return "", errors.New("cannot parse response body from github api")
-    }
-
-    var releaseTags []ReleaseTags
- 
-    err = json.Unmarshal(body, &releaseTags)
-    if err != nil {
-        return "", ErrUnmarshal(err)
-    }
-
-	for _, value := range releaseTags {
-		if value.Name == tag {
-			return value.Commit.SHA, nil
-		}
+	if (resp.StatusCode == 404) {
+		return "", errors.New("repository is not found")
+	}
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	re := regexp.MustCompile("/commit/(.*?)\"")
+	releases := re.FindAllString(string(body), -1)
+	if len(releases) == 0 {
+		return "", errors.New("no commit found in this repository")
+	}
+	var commits []string
+	for _, rel := range releases {
+		latest := strings.ReplaceAll(rel, "/commit/", "")
+		latest = strings.ReplaceAll(latest, "\"", "")
+		commits = append(commits, latest)
 	}
 
-	return "", errors.New("release tags not found")
+	return commits[0], nil
 }
 
 // SafeClose is a helper function help to close the io
