@@ -240,19 +240,6 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 	return versions, nil
 }
 
-type Commit struct {
-	SHA string `json:"sha"`
-	URL string `json:"url"`
-}
-
-type ReleaseTags struct {
-	Name string `json:"name"`
-	Commit Commit `json:"commit"`
-	TarballURL string `json:"tarball_url"`
-	ZipballURL string `json:"zipball_url"`
-	NodeID string `json:"node_id"`
-}
-
 // Gets release tag from github for a given org name, repo name(in that org) and tag 
 func GetLatestReleaseTagCommitSHA(org string, repo string) (string, error) {
     url := fmt.Sprintf("https://github.com/%s/%s/tags", org, repo)
