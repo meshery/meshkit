@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"io"
 	"regexp"
 	"strings"
@@ -31,12 +32,39 @@ func IdentifyInputType(data []byte) (string, error) {
 
 // Check if the input is a Meshery design
 func isMesheryDesign(data []byte) bool {
-	var mesheryPattern map[string]interface{}
-	if err := yaml.Unmarshal(data, &mesheryPattern); err != nil {
+	var tempMap map[string]interface{}
+
+	// Try unmarshaling as JSON; if it fails, try YAML
+	if err := json.Unmarshal(data, &tempMap); err != nil {
+		var yamlMap map[string]interface{}
+		if yaml.Unmarshal(data, &yamlMap) != nil {
+			return false
+		}
+
+		// Convert YAML to JSON format
+		yamlToJSON, err := json.Marshal(yamlMap)
+		if err != nil {
+			return false
+		}
+
+		// Unmarshal JSON back into tempMap
+		if json.Unmarshal(yamlToJSON, &tempMap) != nil {
+			return false
+		}
+	}
+
+	// Check for schemaVersion key
+	schemaVersion, exists := tempMap["schemaVersion"].(string)
+	if !exists {
 		return false
 	}
-	_, exists := mesheryPattern["services"]
-	return exists
+
+	// Validate schemaVersion for Meshery Design
+	if strings.HasPrefix(schemaVersion, "designs.meshery.io") {
+		return true
+	}
+
+	return false
 }
 
 // Check if the input is a Docker Compose file
