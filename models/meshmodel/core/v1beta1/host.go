@@ -50,6 +50,8 @@ func NewDependencyHandler(connectionKind string) (DependencyHandler, error) {
 		return Kubernetes{}, nil
 	case "artifacthub":
 		return ArtifactHub{}, nil
+	case "github":
+		return GitHub{}, nil
 	}
 	return nil, ErrUnknownKind(fmt.Errorf("unknown kind %s", connectionKind))
 }
@@ -114,4 +116,14 @@ func (k Kubernetes) HandleDependents(_ component.ComponentDefinition, _ *kuberne
 
 func (k Kubernetes) String() string {
 	return "kubernetes"
+}
+
+type GitHub struct{}
+
+func(gh GitHub) HandleDependents(_ component.ComponentDefinition, _ *kubernetes.Client, _, _ bool) (summary string, err error) {
+	return summary, err
+}
+
+func(gh GitHub) String() string {
+	return "github"
 }
