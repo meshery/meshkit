@@ -78,3 +78,49 @@ func TestTransformMapKeys(t *testing.T) {
 		})
 	}
 }
+
+func TestGetLatestReleaseTagCommitSHAInvalid(t *testing.T) {
+	cases := []struct{
+        description string
+        org string
+        repo string
+        expectedErr string
+    }{
+		{
+            description: "Test cases negative not existed repository",
+            org:  "layer5labs",
+            repo: "meshery-extensions-package",
+            expectedErr: "repository is not found",
+        },
+		{
+            description: "Test cases negative not existed repository",
+            org:  "layer5io",
+            repo: "docs",
+            expectedErr: "no commit found in this repository",
+        },
+    }
+    for _, tt := range cases {
+        t.Run(tt.description, func(t *testing.T){
+            commitSHA, err := GetLatestReleaseTagCommitSHA(tt.org, tt.repo)
+			if err.Error() != tt.expectedErr {
+				t.Errorf("expected error %s, but got error %s", err, err.Error())
+			}
+          
+			if commitSHA != "" {
+				t.Errorf("expected commitSHA string empty, but got %s", commitSHA)
+			}
+        })
+    }
+}
+
+func TestGetLatestReleaseTagCommitSHA(t *testing.T)  {
+	commitSHA, err := GetLatestReleaseTagCommitSHA("kelseyhightower", "nocode")
+	if err != nil {
+		t.Errorf("expected no error, but got error %s", err)
+	}
+
+	expectedSHA := "ed6c73fc16578ec53ea374585df2b965ce9f4a31"
+	if commitSHA != "ed6c73fc16578ec53ea374585df2b965ce9f4a31" {
+		t.Errorf("expected commitSHA %s, but got %s", commitSHA, expectedSHA)
+	}
+}
