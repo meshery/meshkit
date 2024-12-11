@@ -6,6 +6,7 @@ import (
 	"github.com/gofrs/uuid"
 )
 
+// Defines value for events.
 const (
 	// Categories
 	CategoryPattern = "pattern"
