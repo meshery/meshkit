@@ -418,10 +418,42 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	}
 	cafilename := cafile.Name()
 
+	// Create temp files for client cert and key if they exist
+	var certfile, keyfile *os.File
+  var certfilename, keyfilename string
+
+	if len(c.RestConfig.TLSClientConfig.CertData) > 0 {
+		certfile, err = setDataAndReturnFileHandler(c.RestConfig.TLSClientConfig.CertData)
+		if err != nil {
+				return nil, err
+		}
+		certfilename = certfile.Name()
+	}
+
+	if len(c.RestConfig.TLSClientConfig.KeyData) > 0 {
+			keyfile, err = setDataAndReturnFileHandler(c.RestConfig.TLSClientConfig.KeyData)
+			if err != nil {
+					return nil, err
+			}
+			keyfilename = keyfile.Name()
+	}
+
 	kubeConfig := genericclioptions.NewConfigFlags(false)
 	kubeConfig.APIServer = &c.RestConfig.Host
 	kubeConfig.CAFile = &cafilename
-	kubeConfig.BearerToken = &c.RestConfig.BearerToken
+
+	// Set client cert and key if they exist
+	if certfilename != "" {
+		kubeConfig.CertFile = &certfilename
+	}
+	if keyfilename != "" {
+			kubeConfig.KeyFile = &keyfilename
+	}
+
+	// Only set bearer token if client certs aren't being used
+	if certfilename == "" && len(c.RestConfig.BearerToken) > 0 {
+			kubeConfig.BearerToken = &c.RestConfig.BearerToken
+	}
 
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
