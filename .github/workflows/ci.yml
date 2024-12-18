@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@master
       - uses: actions/setup-go@master
         with:
-          go-version: '1.21'
+          go-version: '1.23'
           cache: true
           cache-dependency-path: go.sum
       - name: golangci-lint
@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@master
       - uses: actions/setup-go@master
         with:
-          go-version: '1.21'
+          go-version: '1.23'
           cache: true
           cache-dependency-path: go.sum
       - name: go mod tidy
@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@master
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.23'
           cache: true
           cache-dependency-path: go.sum
       - name: test
