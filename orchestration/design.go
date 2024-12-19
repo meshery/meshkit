@@ -3,15 +3,15 @@ package orchestration
 import "github.com/meshery/schemas/models/v1beta1/component"
 
 const (
-	ResourceSourceDesignIdLabelKey    = "design.meshery.io/id"
-	ResourceSourceDesignNameLabelKey  = "design.meshery.io/name"
-	ResourceSourceComponentIdLabelKey = "component.meshery.io/id"
+	ResourceSourceDesignIdLabelKey      = "design.meshery.io/id"
+	ResourceSourceDesignVersionLabelKey = "design.meshery.io/version"
+	ResourceSourceComponentIdLabelKey   = "component.meshery.io/id"
 )
 
 // Enriches the component with additional labels and annotations related to the design and component
 // This is useful for tracking the source of the component and design in the cluster
 // for allowing orchestration through Meshery
-func EnrichComponentWithMesheryMetadata(comp *component.ComponentDefinition, designId string, designName string) error {
+func EnrichComponentWithMesheryMetadata(comp *component.ComponentDefinition, designId string, designVersion string) error {
 
 	// Initialize Configuration if nil
 	if comp.Configuration == nil {
@@ -44,7 +44,7 @@ func EnrichComponentWithMesheryMetadata(comp *component.ComponentDefinition, des
 
 	// Assign the new label
 	labels[ResourceSourceDesignIdLabelKey] = designId
-	annotations[ResourceSourceDesignNameLabelKey] = designName
+	annotations[ResourceSourceDesignVersionLabelKey] = designVersion
 	annotations[ResourceSourceComponentIdLabelKey] = comp.Id.String()
 
 	return nil
