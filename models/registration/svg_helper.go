@@ -8,10 +8,13 @@ import (
 	"sync"
 )
 
+//nolint:unused
 var hashCheckSVG = make(map[string]string)
+//nolint:unused
 var mx sync.Mutex
 var UISVGPaths = make([]string, 1)
 
+//nolint:unused
 func writeHashCheckSVG(key string, val string) {
 	mx.Lock()
 	hashCheckSVG[key] = val
