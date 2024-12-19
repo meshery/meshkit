@@ -5,18 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
-var hashCheckSVG = make(map[string]string)
-var mx sync.Mutex
 var UISVGPaths = make([]string, 1)
-
-func writeHashCheckSVG(key string, val string) {
-	mx.Lock()
-	hashCheckSVG[key] = val
-	mx.Unlock()
-}
 
 func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string, baseDir, dirname, filename string, isModel bool) (svgColorPath, svgWhitePath, svgCompletePath string) {
 	filename = strings.ToLower(filename)
@@ -34,7 +25,6 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 			return
 		}
 		successCreatingDirectory = true
-
 
 		f, err := os.Create(filepath.Join(path, filename+"-color.svg"))
 		if err != nil {
@@ -57,7 +47,6 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 			return
 		}
 		successCreatingDirectory = true
-
 
 		f, err := os.Create(filepath.Join(path, filename+"-white.svg"))
 		if err != nil {
