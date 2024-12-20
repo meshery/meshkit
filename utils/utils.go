@@ -240,6 +240,39 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 	return versions, nil
 }
 
+// Gets release tag from github for a given org name, repo name(in that org) and tag 
+func GetLatestReleaseTagCommitSHA(org string, repo string) (string, error) {
+    url := fmt.Sprintf("https://github.com/%s/%s/tags", org, repo)
+
+    resp, err := http.Get(url)
+    if err != nil {
+        return "", errors.New("cannot get list of tags from Github")
+    }
+    defer safeClose(resp.Body)
+
+	if (resp.StatusCode == 404) {
+		return "", errors.New("repository is not found")
+	}
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	re := regexp.MustCompile("/commit/(.*?)\"")
+	releases := re.FindAllString(string(body), -1)
+	if len(releases) == 0 {
+		return "", errors.New("no commit found in this repository")
+	}
+	var commits []string
+	for _, rel := range releases {
+		latest := strings.ReplaceAll(rel, "/commit/", "")
+		latest = strings.ReplaceAll(latest, "\"", "")
+		commits = append(commits, latest)
+	}
+
+	return commits[0], nil
+}
+
 // SafeClose is a helper function help to close the io
 func safeClose(co io.Closer) {
 	if cerr := co.Close(); cerr != nil {
