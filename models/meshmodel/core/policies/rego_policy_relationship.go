@@ -10,9 +10,9 @@ import (
 	"github.com/layer5io/meshkit/utils"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"github.com/open-policy-agent/opa/rego"
-
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/sirupsen/logrus"
 )
 
@@ -51,17 +51,36 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 	}, nil
 }
 
+// CustomPrintHook implements the print.Hook interface
+type CustomPrintHook struct {
+	Messages []string
+}
+
+// Print captures print messages from policy evaluation
+// Implements print.Hook interface
+func (h *CustomPrintHook) Print(ctx print.Context, s string) error {
+	h.Messages = append(h.Messages, s)
+	logrus.Info("[OPA] ", s)
+	return nil
+}
+
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
 func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString string, relationshipsToEvalaute ...string) (pattern.EvaluationResponse, error) {
 	var evaluationResponse pattern.EvaluationResponse
 	if r == nil {
 		return evaluationResponse, ErrEval(fmt.Errorf("policy engine is not yet ready"))
 	}
+	// Create custom print hook
+	printHook := &CustomPrintHook{
+		Messages: make([]string, 0),
+	}
 	regoEngine, err := rego.New(
+		rego.PrintHook(printHook),
+		rego.EnablePrintStatements(true), // Explicitly enable print statements
+		rego.Transaction(r.transaction),
 		rego.Query(regoQueryString),
 		rego.Load([]string{r.policyDir}, nil),
 		rego.Store(r.store),
-		rego.Transaction(r.transaction),
 	).PrepareForEval(r.ctx)
 	if err != nil {
 		logrus.Error("error preparing for evaluation", err)
@@ -69,6 +88,7 @@ func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString
 	}
 
 	eval_result, err := regoEngine.Eval(r.ctx, rego.EvalInput(designFile))
+
 	if err != nil {
 		return evaluationResponse, ErrEval(err)
 	}
