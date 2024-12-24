@@ -25,7 +25,7 @@ type Rego struct {
 	policyDir   string
 }
 
-func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*Rego, error) {
+func NewRegoInstance(policyDir string, regManager *registry.RegistryManager, logPrintStatements bool) (*Rego, error) {
 	var txn storage.Transaction
 	var store storage.Store
 
