@@ -26,7 +26,7 @@ jobs:
 
       - name: Run utility
         run: |
-          go run github.com/meshery/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
+          go run github.com/layer5io/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
 
       - name: Pull changes from remote
         run: git pull origin master
