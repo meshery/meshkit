@@ -7,12 +7,12 @@ import (
 )
 
 const (
-	ErrDirPkgUnitParseFailCode = "replace_me"
-	ErrGetEntityCode           = "replace_me"
-	ErrRegisterEntityCode      = "replace_me"
-	ErrImportFailureCode       = "replace_me"
-	ErrMissingRegistrantCode   = "replace_me"
-	ErrSeedingComponentsCode   = "replace-me"
+	ErrDirPkgUnitParseFailCode = "meshkit-11267"
+	ErrGetEntityCode           = "meshkit-11268"
+	ErrRegisterEntityCode      = "meshkit-11269"
+	ErrImportFailureCode       = "meshkit-11270"
+	ErrMissingRegistrantCode   = "meshkit-11271"
+	ErrSeedingComponentsCode   = "meshkit-11272"
 )
 
 func ErrSeedingComponents(err error) error {
