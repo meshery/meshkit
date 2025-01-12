@@ -3,7 +3,7 @@ package v1beta1
 import "github.com/layer5io/meshkit/errors"
 
 const (
-	ErrUnknownKindCode = ""
+	ErrUnknownKindCode = "meshkit-11254"
 )
 
 func ErrUnknownKind(err error) error {

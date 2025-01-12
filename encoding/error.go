@@ -8,13 +8,13 @@ import (
 )
 
 const (
-	ErrDecodeYamlCode                = ""
-	ErrUnmarshalCode                 = ""
-	ErrUnmarshalInvalidCode          = ""
-	ErrUnmarshalSyntaxCode           = ""
-	ErrUnmarshalTypeCode             = ""
-	ErrUnmarshalUnsupportedTypeCode  = ""
-	ErrUnmarshalUnsupportedValueCode = ""
+	ErrDecodeYamlCode                = "meshkit-11245"
+	ErrUnmarshalCode                 = "meshkit-11246"
+	ErrUnmarshalInvalidCode          = "meshkit-11247"
+	ErrUnmarshalSyntaxCode           = "meshkit-11248"
+	ErrUnmarshalTypeCode             = "meshkit-11249"
+	ErrUnmarshalUnsupportedTypeCode  = "meshkit-11250"
+	ErrUnmarshalUnsupportedValueCode = "meshkit-11251"
 )
 
 // ErrDecodeYaml is the error when the yaml unmarshal fails

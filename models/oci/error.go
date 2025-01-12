@@ -22,9 +22,9 @@ var (
 	ErrAddLayerCode                 = "meshkit-11247"
 	ErrTaggingPackageCode           = "meshkit-11248"
 	ErrPushingPackageCode           = "meshkit-11249"
-	ErrSeekFailedCode               = "replace_me"
-	ErrCreateLayerCode              = "replace_me"
-	ErrSavingImageCode              = "replace_me"
+	ErrSeekFailedCode               = "meshkit-11263"
+	ErrCreateLayerCode              = "meshkit-11264"
+	ErrSavingImageCode              = "meshkit-11265"
 )
 
 func ErrAppendingLayer(err error) error {
