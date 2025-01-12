@@ -1,5 +1,6 @@
 name: Meshkit Error Codes Utility Runner
 on:
+  workflow_dispatch:
   push:
     branches:
       - "master"
