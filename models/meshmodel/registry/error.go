@@ -19,7 +19,7 @@ var (
 
 func ErrGetById(err error, id string) error {
 	return errors.New(
-		ErrUnknownHostCode,
+		ErrGetByIdCode,
 		errors.Alert,
 		[]string{"Failed to get the entity with the given ID: " + id},
 		[]string{err.Error()},

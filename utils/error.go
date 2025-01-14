@@ -45,9 +45,9 @@ var (
 	ErrRelPathCode              = "meshkit-11275"
 	ErrCopyFileCode             = "meshkit-11276"
 	ErrCloseFileCode            = "meshkit-11277"
-	ErrCompressToTarGZCode      = "meshkit-11248"
+	ErrCompressToTarGZCode      = "meshkit-11287"
 
-	ErrConvertToByteCode = "meshkit-11187"
+	ErrConvertToByteCode = "meshkit-11288"
 
 	ErrOpenFileCode = "meshkit-11278"
 )

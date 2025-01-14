@@ -35,7 +35,7 @@ var (
 	ErrEntryWithChartVersionNotExistsCode = "meshkit-11204"
 	ErrEndpointNotFound                   = errors.New(ErrEndpointNotFoundCode, errors.Alert, []string{"Unable to discover an endpoint"}, []string{}, []string{}, []string{})
 	ErrInvalidAPIServer                   = errors.New(ErrInvalidAPIServerCode, errors.Alert, []string{"Invalid API Server URL"}, []string{}, []string{}, []string{})
-	ErrRestConfigFromKubeConfigCode       = "meshkit-11205"
+	ErrRestConfigFromKubeConfigCode       = "meshkit-11289"
 )
 
 func ErrApplyManifest(err error) error {
