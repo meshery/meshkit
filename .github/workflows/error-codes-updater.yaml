@@ -11,7 +11,7 @@ jobs:
   Update-error-codes:
     name: Error codes utility
     if: github.repository == 'meshery/meshkit'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@master
         # token here with write access to meshkit repo
