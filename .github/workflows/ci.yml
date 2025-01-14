@@ -10,7 +10,7 @@ jobs:
   golangci:
     name: lint
     needs: [tidy]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-go@master
@@ -27,7 +27,7 @@ jobs:
         run: make check
   tidy:
     name: tidy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-go@master
@@ -40,7 +40,7 @@ jobs:
   codecov:
     name: codecov
     needs: [ tidy ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-go@v5
