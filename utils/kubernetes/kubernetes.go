@@ -20,6 +20,11 @@ func New(kubeconfig []byte) (*Client, error) {
 	restConfig.QPS = float32(50)
 	restConfig.Burst = int(100)
 
+	// if insecure variable is kept true, allow that
+	if restConfig.TLSClientConfig.Insecure {
+		restConfig.TLSClientConfig.Insecure = true
+	}
+
 	// Configure kubeclient
 	kclient, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
