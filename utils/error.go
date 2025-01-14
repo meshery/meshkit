@@ -40,17 +40,16 @@ var (
 	ErrExtractTarXZCode         = "meshkit-11184"
 	ErrExtractZipCode           = "meshkit-11185"
 	ErrReadDirCode              = "meshkit-11186"
-	ErrInvalidSchemaVersionCode = "replace_me"
-	ErrFileWalkDirCode          = "replace_me"
-	ErrRelPathCode              = "replace_me"
-	ErrCopyFileCode             = "replace_me"
-	ErrCloseFileCode            = "replace_me"
+	ErrInvalidSchemaVersionCode = "meshkit-11273"
+	ErrFileWalkDirCode          = "meshkit-11274"
+	ErrRelPathCode              = "meshkit-11275"
+	ErrCopyFileCode             = "meshkit-11276"
+	ErrCloseFileCode            = "meshkit-11277"
 	ErrCompressToTarGZCode      = "meshkit-11248"
 
-	ErrConvertToByteCode        = "meshkit-11187"
+	ErrConvertToByteCode = "meshkit-11187"
 
-	ErrOpenFileCode             = "replace_me"
-
+	ErrOpenFileCode = "meshkit-11278"
 )
 var (
 	ErrExtractType = errors.New(
