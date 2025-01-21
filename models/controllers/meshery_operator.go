@@ -67,35 +67,9 @@ func (mo *mesheryOperator) GetStatus() MesheryControllerStatus {
 
 	// Check if deployment is ready and running
  	if done {
-		// Get status
-		status, found, err := unstructured.NestedMap(deployment.Object, "status")
-		if err != nil || !found {
-			mo.setStatus(Unknown)
-			return mo.status
-		}
-
-		// Get readyReplicas
-		readyReplicas, found, err := unstructured.NestedInt64(deployment.Object, "readyReplicas")
-		if err != nil || !found {
-			mo.setStatus(Unknown)
-			return mo.status
-		}
-
-		// Get replicas
-		replicas, found, err := unstructured.NestedInt64(status, "replicas")
-        if err != nil || !found {
-            mo.setStatus(Unknown)
-            return mo.status
-        }
-
-		// check if all replicas are ready
-		if readyReplicas > 0 && readyReplicas == replicas {
-			mo.setStatus(Connected)
-		} else {
-			mo.setStatus(Deployed)
-		}
+		mo.setStatus(Connected)
 	} else {
-		mo.setStatus(Deploying)
+		mo.setStatus(Deployed)
 	}
 	return mo.status
 }
