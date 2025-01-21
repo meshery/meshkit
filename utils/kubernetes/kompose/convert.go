@@ -2,6 +2,7 @@ package kompose
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/kubernetes/kompose/client"
@@ -30,8 +31,18 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
 // converts a given docker-compose file into kubernetes manifests
 // expects a validated docker-compose file
 func Convert(dockerCompose DockerComposeFile) (string, error) {
-	err := utils.CreateFile(dockerCompose, "temp.data", "./")
+	// Get user's home directory
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
+		return "", ErrCvrtKompose(err)
+	}
+
+	// Construct path to .meshery directory
+	mesheryDir := filepath.Join(homeDir, ".meshery")
+	tempFilePath := filepath.Join(mesheryDir, "temp.data")
+	resultFilePath := filepath.Join(mesheryDir, "result.yaml")
+
+	if err := utils.CreateFile(dockerCompose, "temp.data", mesheryDir); err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
@@ -52,8 +63,8 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	}
 
 	ConvertOpt := client.ConvertOptions{
-		InputFiles:              []string{"temp.data"},
-		OutFile:                 "result.yaml",
+		InputFiles:              []string{tempFilePath},
+		OutFile:                 resultFilePath,
 		GenerateNetworkPolicies: true,
 	}
 
