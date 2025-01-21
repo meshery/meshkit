@@ -8,6 +8,7 @@ import (
 	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 )
@@ -63,8 +64,36 @@ func (mo *mesheryOperator) GetStatus() MesheryControllerStatus {
 		mo.setStatus(Unknown)
 		return mo.status
 	}
-	if done {
-		mo.setStatus(Deployed)
+
+	// Check if deployment is ready and running
+ 	if done {
+		// Get status
+		status, found, err := unstructured.NestedMap(deployment.Object, "status")
+		if err != nil || !found {
+			mo.setStatus(Unknown)
+			return mo.status
+		}
+
+		// Get readyReplicas
+		readyReplicas, found, err := unstructured.NestedInt64(deployment.Object, "readyReplicas")
+		if err != nil || !found {
+			mo.setStatus(Unknown)
+			return mo.status
+		}
+
+		// Get replicas
+		replicas, found, err := unstructured.NestedInt64(status, "replicas")
+        if err != nil || !found {
+            mo.setStatus(Unknown)
+            return mo.status
+        }
+
+		// check if all replicas are ready
+		if readyReplicas > 0 && readyReplicas == replicas {
+			mo.setStatus(Connected)
+		} else {
+			mo.setStatus(Deployed)
+		}
 	} else {
 		mo.setStatus(Deploying)
 	}
