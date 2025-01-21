@@ -47,8 +47,8 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	}
 
 	defer func() {
-		os.Remove("temp.data")
-		os.Remove("result.yaml")
+		os.Remove(tempFilePath)
+		os.Remove(resultFilePath)
 	}()
 
 	formatComposeFile(&dockerCompose)
@@ -73,7 +73,7 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 		return "", ErrCvrtKompose(err)
 	}
 
-	result, err := os.ReadFile("result.yaml")
+	result, err := os.ReadFile(resultFilePath)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
