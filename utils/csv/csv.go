@@ -88,7 +88,7 @@ func (c *CSV[E]) Parse(ch chan E, errorChan chan error) error {
 					}
 
 					// To keep uniform formatting. This avoids formatting changes to be pushed in commits
-					if attribute == "svgwhite" || attribute == "svgcolor" {
+					if attribute == "svgwhite" || attribute == "svgcolor" || attribute == "svgcomplete" {
 						value = strings.ReplaceAll(value, "\n", "")
 					}
 					
