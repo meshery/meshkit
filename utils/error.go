@@ -50,6 +50,10 @@ var (
 	ErrConvertToByteCode = "meshkit-11187"
 
 	ErrOpenFileCode = "meshkit-11278"
+
+	// Google Sheets Service Errors
+	ErrGoogleJwtInvalidCode = "meshkit-11279"
+	ErrGoogleSheetSRVCode   = "meshkit-11280"
 )
 var (
 	ErrExtractType = errors.New(
@@ -240,4 +244,12 @@ func ErrCloseFile(err error) error {
 }
 func ErrOpenFile(file string) error {
 	return errors.New(ErrOpenFileCode, errors.Alert, []string{"unable to open file: ", file}, []string{}, []string{"The file does not exist in the location"}, []string{"Make sure to upload the correct file"})
+}
+
+func ErrGoogleJwtInvalid(err error) error {
+	return errors.New(ErrGoogleJwtInvalidCode, errors.Alert, []string{"Invalid JWT credentials"}, []string{err.Error()}, []string{"Invalid JWT credentials"}, []string{"Make sure to provide valid JWT credentials"})
+}
+
+func ErrGoogleSheetSRV(err error) error {
+	return errors.New(ErrGoogleSheetSRVCode, errors.Alert, []string{"Error while creating Google Sheets Service"}, []string{err.Error()}, []string{"Issue happened with Google Sheets Service"}, []string{"Make you provide valid JWT credentials and Spreadsheet ID"})
 }
