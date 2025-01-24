@@ -39,14 +39,18 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	dirPath := filepath.Join(os.TempDir(), owner, repo, branch)
 	_ = os.MkdirAll(dirPath, 0755)
 	filePath := filepath.Join(dirPath, utils.GetRandomAlphabetsOfDigit(5))
-	fd, err := os.Create(filePath) // perform cleanup
+	fd, err := os.Create(filePath)
 	if err != nil {
+		os.RemoveAll(dirPath)
 		return nil, utils.ErrCreateFile(err, filePath)
 	}
 	br := bufio.NewWriter(fd)
 
 	defer func() {
-		_ = br.Flush()
+		br.Flush()
+		fd.Close()
+		os.Remove(filePath)
+		os.RemoveAll(dirPath)
 	}()
 	gw := gitWalker.
 		Owner(owner).
