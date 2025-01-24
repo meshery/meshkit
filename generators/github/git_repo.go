@@ -49,8 +49,6 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	defer func() {
 		br.Flush()
 		fd.Close()
-		os.Remove(filePath)
-		os.RemoveAll(dirPath)
 	}()
 	gw := gitWalker.
 		Owner(owner).
