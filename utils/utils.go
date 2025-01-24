@@ -841,33 +841,27 @@ func ParseKubeStatusErr(err *kubeerror.StatusError) (shortDescription, longDescr
 
 	status := err.Status()
 
-	// Create base description including status code
-	baseDesc := fmt.Sprintf("[Status Code: %d] %s", status.Code, status.Reason)
-	if status.Details != nil {
-		baseDesc = fmt.Sprintf("%s: %s '%s'", baseDesc, status.Details.Kind, status.Details.Name)
-	}
-	shortDescription = append(shortDescription, baseDesc)
+	// Add the high-level error message with status code to longDescription
+	longDescription = append(longDescription, fmt.Sprintf("[Status Code: %d] %s", status.Code, status.Message))
 
-	// Add the main error message
-	longDescription = append(longDescription, status.Message)
-
-	// Add reason-based guidance
 	pc, rem := handleStatusReason(status.Reason)
 	probableCause = append(probableCause, pc)
 	remedy = append(remedy, rem)
 
-	// Process detailed causes if available
+	// Add specific field validation errors
 	if status.Details != nil && len(status.Details.Causes) > 0 {
 		for _, cause := range status.Details.Causes {
-			// Add detailed cause description
-			longDescription = append(longDescription,
-				fmt.Sprintf("Field '%s': %s", cause.Field, cause.Message))
+			longDescription = append(longDescription, fmt.Sprintf("Field '%s': %s", cause.Field, cause.Message))
 
-			// Get cause-specific messages
 			pc, rem := handleStatusCause(cause, status.Details.Kind)
 			probableCause = append(probableCause, pc)
 			remedy = append(remedy, rem)
 		}
+	} else {
+		// If no specific causes are provided, add the general reason-based guidance
+		pc, rem := handleStatusReason(status.Reason)
+		probableCause = append(probableCause, pc)
+		remedy = append(remedy, rem)
 	}
 
 	return
