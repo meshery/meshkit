@@ -6,6 +6,17 @@ import (
 	"github.com/gofrs/uuid"
 )
 
+// Defines value for events.
+const (
+	// Categories
+	CategoryPattern = "pattern"
+	CategorySystem  = "system"
+
+	// Actions
+	ActionCreate = "create"
+	ActionDelete = "delete"
+)
+
 type EventBuilder struct {
 	event Event
 }
