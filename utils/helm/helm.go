@@ -145,29 +145,147 @@ func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool, kubeVersion s
 	if err != nil {
 		return ErrLoadHelmChart(err, path)
 	}
-	if extractOnlyCrds {
-		crds := chart.CRDObjects()
-		size := len(crds)
-		for index, crd := range crds {
-			_, err := w.Write(crd.File.Data)
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			if index == size-1 {
-				break
-			}
-			_, _ = w.Write([]byte("\n---\n"))
-		}
-	} else {
+
+	if !extractOnlyCrds {
 		manifests, err := DryRunHelmChart(chart, kubeVersion)
 		if err != nil {
 			return ErrLoadHelmChart(err, path)
 		}
 		_, err = w.Write(manifests)
+		return err
+	}
+
+	// Look for all the yaml file in the helm dir that is a CRD
+	err = filepath.WalkDir(path, func(filePath string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return ErrLoadHelmChart(err, path)
 		}
+		if !d.IsDir() && (strings.HasSuffix(filePath, ".yaml") || strings.HasSuffix(filePath, ".yml")) {
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				return err
+			}
+
+			if isCRDFile(data) {
+				data = RemoveHelmPlaceholders(data)
+				if err := writeToWriter(w, data); err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		errs = append(errs, err)
 	}
+
 	return utils.CombineErrors(errs, "\n")
+}
+
+func writeToWriter(w io.Writer, data []byte) error {
+	trimmedData := bytes.TrimSpace(data)
+
+	if len(trimmedData) == 0 {
+		return nil
+	}
+
+	// Check if the document already starts with separators
+	startsWithSeparator := bytes.HasPrefix(trimmedData, []byte("---"))
+
+	// If it doesn't start with ---, add one
+	if !startsWithSeparator {
+		if _, err := w.Write([]byte("---\n")); err != nil {
+			return err
+		}
+	}
+
+	if _, err := w.Write(trimmedData); err != nil {
+		return err
+	}
+
+	_, err := w.Write([]byte("\n"))
+	return err
+}
+
+// checks if the content is a CRD
+// NOTE: kubernetes.IsCRD(manifest string) already exists however using that leads to cyclic dependency
+func isCRDFile(content []byte) bool {
+	str := string(content)
+	return strings.Contains(str, "kind: CustomResourceDefinition")
+}
+
+// RemoveHelmPlaceholders - replaces helm templates placeholder with YAML compatible empty value
+// since these templates cause YAML parsing error
+// NOTE: this is a quick fix
+func RemoveHelmPlaceholders(data []byte) []byte {
+	content := string(data)
+
+	// Regular expressions to match different Helm template patterns
+	// Match multiline template blocks that start with {{- and end with }}
+	multilineRegex := regexp.MustCompile(`(?s){{-?\s*.*?\s*}}`)
+
+	// Match single line template expressions
+	singleLineRegex := regexp.MustCompile(`{{-?\s*[^}]*}}`)
+
+	// Process the content line by line to maintain YAML structure
+	lines := strings.Split(content, "\n")
+	var processedLines []string
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" {
+			processedLines = append(processedLines, line)
+			continue
+		}
+
+		// Handle multiline template blocks first
+		if multilineRegex.MatchString(line) {
+			// If line starts with indentation + list marker
+			if listMatch := regexp.MustCompile(`^(\s*)- `).FindStringSubmatch(line); listMatch != nil {
+				// Convert list item to empty map to maintain structure
+				processedLines = append(processedLines, listMatch[1]+"- {}")
+				continue
+			}
+
+			// If it's a value assignment with multiline template
+			if valueMatch := regexp.MustCompile(`^(\s*)(\w+):\s*{{`).FindStringSubmatch(line); valueMatch != nil {
+				// Preserve the key with empty map value
+				processedLines = append(processedLines, valueMatch[1]+valueMatch[2]+": {}")
+				continue
+			}
+
+			// For other multiline templates, replace with empty line
+			processedLines = append(processedLines, "")
+			continue
+		}
+
+		// Handle single line template expressions
+		if singleLineRegex.MatchString(line) {
+			// If line contains a key-value pair
+			if keyMatch := regexp.MustCompile(`^(\s*)(\w+):\s*{{`).FindStringSubmatch(line); keyMatch != nil {
+				// Preserve the key with empty string value
+				processedLines = append(processedLines, keyMatch[1]+keyMatch[2]+": ")
+				continue
+			}
+
+			// If line is a list item
+			if listMatch := regexp.MustCompile(`^(\s*)- `).FindStringSubmatch(line); listMatch != nil {
+				// Convert to empty map to maintain list structure
+				processedLines = append(processedLines, listMatch[1]+"- {}")
+				continue
+			}
+
+			// For standalone template expressions, remove them (includes, control statements)
+			line = singleLineRegex.ReplaceAllString(line, "")
+			if strings.TrimSpace(line) != "" {
+				processedLines = append(processedLines, line)
+			}
+			continue
+		}
+
+		processedLines = append(processedLines, line)
+	}
+
+	return []byte(strings.Join(processedLines, "\n"))
 }
