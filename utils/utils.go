@@ -824,7 +824,7 @@ func handleStatusCause(cause v1.StatusCause, kind string) (probableCause, remedy
 
 	default:
 		return fmt.Sprintf("Issue with field '%s': %s", cause.Field, cause.Message),
-			fmt.Sprint("Review and correct the specified field according to the error message")
+			"Review and correct the specified field according to the error message."
 	}
 }
 
