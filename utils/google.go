@@ -19,14 +19,14 @@ func NewSheetSRV(cred string) (*sheets.Service, error) {
 	// authenticate and get configuration
 	config, err := google.JWTConfigFromJSON(byt, "https://www.googleapis.com/auth/spreadsheets")
 	if err != nil {
-		return nil, err
+		return nil, ErrGoogleJwtInvalid(err)
 	}
 	// create client with config and context
 	client := config.Client(ctx)
 	// create new service using client
 	srv, err := sheets.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		return nil, err
+		return nil, ErrGoogleSheetSRV(err)
 	}
 	return srv, nil
 }

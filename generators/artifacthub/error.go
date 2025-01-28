@@ -11,8 +11,8 @@ var (
 	ErrGetAhPackageCode       = "meshkit-11135"
 	ErrComponentGenerateCode  = "meshkit-11136"
 	ErrGetAllHelmPackagesCode = "meshkit-11137"
-	ErrChartUrlEmptyCode      = "replace_me"
-	ErrNoPackageFoundCode     = "replace_me"
+	ErrChartUrlEmptyCode      = "meshkit-11252"
+	ErrNoPackageFoundCode     = "meshkit-11253"
 )
 
 func ErrGetAllHelmPackages(err error) error {

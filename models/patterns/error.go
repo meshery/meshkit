@@ -3,7 +3,7 @@ package patterns
 import "github.com/layer5io/meshkit/errors"
 
 const (
-	ErrInvalidVersionCode = ""
+	ErrInvalidVersionCode = "meshkit-11266"
 )
 
 func ErrInvalidVersion(err error) error {
