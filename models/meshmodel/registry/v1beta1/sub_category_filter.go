@@ -4,7 +4,8 @@ import (
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
-	"github.com/meshery/schemas/models/v1beta1/subCategory"
+	// "github.com/meshery/schemas/models/v1beta1/subCategory"
+	"github.com/octocamocoder47/schemas/models/v1beta1/subCategory"
 	"gorm.io/gorm/clause"
 )
 
