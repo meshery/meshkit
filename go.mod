@@ -13,6 +13,7 @@ replace (
 require (
 	cuelang.org/go v0.11.2
 	github.com/Masterminds/semver/v3 v3.3.1
+	github.com/compose-spec/compose-go v1.20.2
 	github.com/fluxcd/pkg/oci v0.43.1
 	github.com/fluxcd/pkg/tar v0.10.0
 	github.com/go-git/go-git/v5 v5.13.2
@@ -150,6 +151,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
+	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

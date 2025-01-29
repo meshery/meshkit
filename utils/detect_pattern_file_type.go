@@ -1,19 +1,17 @@
 package utils
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
-	"encoding/json"
-	"io"
-	"regexp"
+	"errors"
 	"strings"
 
-	"cuelang.org/go/cue/errors"
+	composeLoader "github.com/compose-spec/compose-go/loader"
+	"github.com/compose-spec/compose-go/schema"
+
 	"gopkg.in/yaml.v3"
+	"helm.sh/helm/v3/pkg/chart/loader"
 )
 
-// Function to identify the type of input
 func IdentifyInputType(data []byte) (string, error) {
 	if isMesheryDesign(data) {
 		return "Meshery Design", nil
@@ -30,81 +28,44 @@ func IdentifyInputType(data []byte) (string, error) {
 	return "", errors.New("unknown type")
 }
 
-// Check if the input is a Meshery design
 func isMesheryDesign(data []byte) bool {
-	var tempMap map[string]interface{}
-
-	// Try unmarshaling as JSON; if it fails, try YAML
-	if err := json.Unmarshal(data, &tempMap); err != nil {
-		var yamlMap map[string]interface{}
-		if yaml.Unmarshal(data, &yamlMap) != nil {
-			return false
-		}
-
-		// Convert YAML to JSON format
-		yamlToJSON, err := json.Marshal(yamlMap)
-		if err != nil {
-			return false
-		}
-
-		// Unmarshal JSON back into tempMap
-		if json.Unmarshal(yamlToJSON, &tempMap) != nil {
-			return false
-		}
+	var mesheryPattern struct {
+		SchemaVersion string        `yaml:"schemaVersion"`
+		Name          string        `yaml:"name"`
+		Components    []interface{} `yaml:"components"`
 	}
 
-	// Check for schemaVersion key
-	schemaVersion, exists := tempMap["schemaVersion"].(string)
-	if !exists {
-		return false
-	}
-
-	// Validate schemaVersion for Meshery Design
-	if strings.HasPrefix(schemaVersion, "designs.meshery.io") {
-		return true
-	}
-
-	return false
+	err := yaml.Unmarshal(data, &mesheryPattern)
+	return err == nil &&
+		strings.HasPrefix(mesheryPattern.SchemaVersion, "designs.meshery.io") &&
+		mesheryPattern.Name != "" &&
+		len(mesheryPattern.Components) > 0
 }
 
-// Check if the input is a Docker Compose file
-func isDockerCompose(data []byte) bool {
-	dockerComposeKeys := []string{"version", "services"}
-	content := string(data)
-	for _, key := range dockerComposeKeys {
-		if !strings.Contains(content, key+":") {
-			return false
-		}
+func isDockerCompose(yamlData []byte) bool {
+	dict, err := composeLoader.ParseYAML(yamlData)
+	if err != nil {
+		return false
+	}
+	if err := schema.Validate(dict); err != nil {
+		return false
+	}
+	if _, ok := dict["services"]; !ok {
+		return false
 	}
 	return true
 }
 
-// Check if the input is a Helm chart (.tgz file)
 func isHelmChart(data []byte) bool {
-	gzReader, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return false
-	}
-	defer gzReader.Close()
-
-	tarReader := tar.NewReader(gzReader)
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return false
-		}
-		if strings.HasSuffix(header.Name, "Chart.yaml") {
-			return true
-		}
-	}
-	return false
+	chart, err := loader.LoadArchive(bytes.NewReader(data))
+	return err == nil && chart.Metadata != nil && chart.Metadata.Name != ""
 }
 
-// Check if the input is a Kubernetes manifest
 func isK8sManifest(data []byte) bool {
-	k8sRegex := regexp.MustCompile(`(?m)^kind:\s+\w+`)
-	return k8sRegex.Match(data)
+	var manifest struct {
+		APIVersion string `yaml:"apiVersion"`
+		Kind       string `yaml:"kind"`
+	}
+	err := yaml.Unmarshal(data, &manifest)
+	return err == nil && manifest.Kind != "" && manifest.APIVersion != ""
 }
