@@ -56,6 +56,11 @@ func TestSanitizeFile(t *testing.T) {
 			expectedExt: ".gz",
 		},
 		{
+			name:        "Valid Nested Tar",
+			filePath:    "./samples/nested.tar.gz",
+			expectedExt: ".gz",
+		},
+		{
 			name:        "Empty file",
 			filePath:    "./samples/empty.json",
 			expectError: true,

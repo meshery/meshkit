@@ -76,7 +76,7 @@ func SanitizeFile(data []byte, fileName string, tempDir string) (SanitizedFile, 
 
 	}
 
-	return SanitizedFile{}, fmt.Errorf("Unsupported file format")
+	return SanitizedFile{}, fmt.Errorf("Unsupported file extension %s", ext)
 
 }
 
@@ -109,34 +109,44 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 			return SanitizedFile{}, fmt.Errorf("failed to read tar entry: %w", err)
 		}
 
-		// Skip unsupported file types
-		ext := filepath.Ext(header.Name)
-		if ext != ".json" && ext != ".yaml" && ext != ".yml" {
-			continue
-		}
+		switch header.Typeflag {
 
-		// read the complete content of the file h.Name into the bs []byte
-		fileBytes, _ := io.ReadAll(tarReader) // Validate the extracted file
+		case tar.TypeDir: // If it's a directory, create it
 
-		if _, err := SanitizeFile(fileBytes, header.Name, tempDir); err != nil {
-			fmt.Printf("Skipping invalid file: %s\n", header.Name)
-			continue
-		}
+			target := filepath.Join(extractDir, header.Name)
+			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
+				return SanitizedFile{}, err
+			}
 
-		// Create a temporary file for the extracted content
-		tempFilePath := filepath.Join(extractDir, header.Name)
-		tempFile, err := os.Create(tempFilePath)
+		case tar.TypeReg:
+			ext := filepath.Ext(header.Name)
+			if ext != ".json" && ext != ".yaml" && ext != ".yml" {
+				continue
+			}
 
-		// fail forward and continue
-		if err != nil {
-			fmt.Println("failed to create temp file: %w", err)
-			continue
-		}
-		defer tempFile.Close()
+			// read the complete content of the file h.Name into the bs []byte
+			fileBytes, _ := io.ReadAll(tarReader) // Validate the extracted file
 
-		// Write the extracted content to the temp file
-		if _, err := io.Copy(tempFile, tarReader); err != nil {
-			fmt.Println("failed to write to temp file: %w", err)
+			if _, err := SanitizeFile(fileBytes, header.Name, tempDir); err != nil {
+				fmt.Printf("Skipping invalid file: %s\n", header.Name)
+				continue
+			}
+
+			// Create a temporary file for the extracted content
+			tempFilePath := filepath.Join(extractDir, header.Name)
+			tempFile, err := os.Create(tempFilePath)
+
+			// fail forward and continue
+			if err != nil {
+				fmt.Println("failed to create temp file: %w", err)
+				continue
+			}
+			defer tempFile.Close()
+
+			// Write the extracted content to the temp file
+			if _, err := io.Copy(tempFile, tarReader); err != nil {
+				fmt.Println("failed to write to temp file: %w", err)
+			}
 		}
 
 	}
