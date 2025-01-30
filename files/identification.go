@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
+	// "github.com/fluxcd/pkg/oci/client"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"gopkg.in/yaml.v3"
+	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/chart/loader"
 	k8sYaml "k8s.io/apimachinery/pkg/util/yaml"
 
 	// appsv1 "k8s.io/api/apps/v1"
@@ -27,7 +31,7 @@ const MESHERY_VIEW = "View"
 
 type IdentifiedFile struct {
 	Type string
-	// pattern.PatternFile,helm_loader,etc
+	// pattern.PatternFile,[]runtime.Object ,*chart.Chart,etc
 	ParsedFile interface{}
 }
 
@@ -45,6 +49,13 @@ func IdentifyFile(sanitizedFile SanitizedFile) (IdentifiedFile, error) {
 	if parsed, err = ParseFileAsKubernetesManifest(sanitizedFile); err == nil {
 		return IdentifiedFile{
 			Type:       KUBERNETES_MANIFEST,
+			ParsedFile: parsed,
+		}, nil
+	}
+
+	if parsed, err = ParseFileAsHelmChart(sanitizedFile); err == nil {
+		return IdentifiedFile{
+			Type:       HELM_CHART,
 			ParsedFile: parsed,
 		}, nil
 	}
@@ -124,4 +135,47 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 	}
 
 	return objects, nil
+}
+
+// findChartDir uses filepath.Glob to locate Chart.yaml in nested directories
+func FindChartDir(root string) (string, error) {
+	matches, err := filepath.Glob(filepath.Join(root, "**/Chart.yaml"))
+	if err != nil {
+		return "", err
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no valid Helm chart found in %s", root)
+	}
+
+	// Extract directory path where Chart.yaml is found
+	return filepath.Dir(matches[0]), nil
+}
+
+var ValidHelmChartFileExtensions = map[string]bool{
+	".tar":    true,
+	".tgz":    true,
+	".gz":     true,
+	".tar.gz": true,
+}
+
+// ParseFileAsHelmChart loads a Helm chart from the extracted directory.
+func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
+
+	if !ValidHelmChartFileExtensions[file.FileExt] {
+		return nil, fmt.Errorf("Invalid file extension %s", file.FileExt)
+	}
+
+	// Use Helm's loader.LoadDir to load the chart
+	// This function automatically handles nested directories and locates Chart.yaml
+	chart, err := loader.LoadArchive(bytes.NewReader(file.RawData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to load Helm chart  %v", err)
+	}
+
+	// Validate the chart (optional but recommended)
+	if err := chart.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid Helm chart: %v", err)
+	}
+
+	return chart, nil
 }

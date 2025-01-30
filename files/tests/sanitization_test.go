@@ -76,8 +76,20 @@ func TestSanitizeFile(t *testing.T) {
 			name:         "Can Identify Kubernetes Manifest",
 			filePath:     "./samples/valid_manifest.yml",
 			expectedExt:  ".yml",
-			expectedType: files.KUBERNETES_MANIFEST},
+			expectedType: files.KUBERNETES_MANIFEST,
+		},
+
+		{
+			name:         "Can Identify HelmChart",
+			filePath:     "./samples/valid-helm.tgz",
+			expectedExt:  ".tgz",
+			expectedType: files.HELM_CHART,
+		},
 	}
+
+	tempDir, _ := os.MkdirTemp(" ", "temp-tests")
+	defer os.RemoveAll(tempDir)
+	// tempDir := "./temp"
 
 	for _, tc := range testCases {
 
@@ -90,7 +102,7 @@ func TestSanitizeFile(t *testing.T) {
 		}
 
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := files.SanitizeFile(data, filename, "./temp")
+			result, err := files.SanitizeFile(data, filename, tempDir)
 
 			if tc.expectError {
 				if err == nil {
