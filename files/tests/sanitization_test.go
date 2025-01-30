@@ -72,6 +72,11 @@ func TestSanitizeFile(t *testing.T) {
 			expectedExt:  ".yml",
 			expectedType: files.MESHERY_DESIGN,
 		},
+		{
+			name:         "Can Identify Kubernetes Manifest",
+			filePath:     "./samples/valid_manifest.yml",
+			expectedExt:  ".yml",
+			expectedType: files.KUBERNETES_MANIFEST},
 	}
 
 	for _, tc := range testCases {
@@ -108,7 +113,7 @@ func TestSanitizeFile(t *testing.T) {
 				identified_file, err := files.IdentifyFile(result)
 
 				if (err != nil || identified_file.Type != tc.expectedType) && !tc.expectError {
-					t.Errorf("Failed To Identify File as %s , got %s", tc.expectedType, identified_file.Type)
+					t.Errorf("Failed To Identify File as %s , got %s, errors %s", tc.expectedType, identified_file.Type, err)
 				}
 
 			}
