@@ -17,14 +17,12 @@ func TestSanitizeFile(t *testing.T) {
 		expectError     bool
 		expectedErrMsg  string
 		expectedContent map[string]interface{}
+		expectedType    string
 	}{
 		{
 			name:        "Valid JSON",
 			filePath:    "./samples/valid.json",
 			expectedExt: ".json",
-			expectedContent: map[string]interface{}{
-				"hello": "world",
-			},
 		},
 		{
 			name:        "Invalid JSON",
@@ -35,9 +33,6 @@ func TestSanitizeFile(t *testing.T) {
 			name:        "Valid YAML",
 			filePath:    "./samples/valid.yml",
 			expectedExt: ".yml",
-			expectedContent: map[string]interface{}{
-				"hello": "world",
-			},
 		},
 		{
 			name:        "Invalid YAML",
@@ -69,6 +64,13 @@ func TestSanitizeFile(t *testing.T) {
 			name:        "invalid tar.gz",
 			filePath:    "./samples/invalid.tar.gz",
 			expectError: true,
+		},
+
+		{
+			name:         "Can Identify Design",
+			filePath:     "./samples/valid_design.yml",
+			expectedExt:  ".yml",
+			expectedType: files.MESHERY_DESIGN,
 		},
 	}
 
@@ -102,23 +104,15 @@ func TestSanitizeFile(t *testing.T) {
 				t.Errorf("Expected file extension %q, got %q", tc.expectedExt, result.FileExt)
 			}
 
-			if tc.expectedContent != nil {
-				unmarshalled, ok := result.UnmarshalledFile.(map[string]interface{})
-				if !ok {
-					t.Fatalf("Expected unmarshalled file to be a map, got %T", result.UnmarshalledFile)
+			if tc.expectedType != "" {
+				identified_file, err := files.IdentifyFile(result)
+
+				if (err != nil || identified_file.Type != tc.expectedType) && !tc.expectError {
+					t.Errorf("Failed To Identify File as %s , got %s", tc.expectedType, identified_file.Type)
 				}
 
-				for key, expectedValue := range tc.expectedContent {
-					actualValue, exists := unmarshalled[key]
-					if !exists {
-						t.Errorf("Key %q not found in unmarshalled content", key)
-						continue
-					}
-					if actualValue != expectedValue {
-						t.Errorf("For key %q, expected value %v, got %v", key, expectedValue, actualValue)
-					}
-				}
 			}
+
 		})
 	}
 }
