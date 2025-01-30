@@ -18,8 +18,9 @@ import (
 )
 
 type SanitizedFile struct {
-	FileExt          string
-	UnmarshalledFile interface{}
+	FileExt string
+	RawData []byte
+	// incase of bundle like tar
 	ExtractedContent *os.File
 }
 
@@ -45,29 +46,26 @@ func SanitizeFile(data []byte, fileName string, tempDir string) (SanitizedFile, 
 	switch ext {
 
 	case ".yml", ".yaml":
-		var unMarshalled interface{}
-		err := yaml.Unmarshal(data, &unMarshalled)
-
+		err := IsValidYaml(data)
 		if err != nil {
-			return SanitizedFile{}, err
+			return SanitizedFile{}, fmt.Errorf("File is not valid yaml: %w", err)
 		}
 
 		return SanitizedFile{
-			UnmarshalledFile: unMarshalled,
-			FileExt:          ext,
+			FileExt: ext,
+			RawData: data,
 		}, nil
 
 	case ".json":
-		var unMarshalled interface{}
-		err := json.Unmarshal(data, &unMarshalled)
 
+		err := IsValidJson(data)
 		if err != nil {
-			return SanitizedFile{}, err
+			return SanitizedFile{}, fmt.Errorf("File is not valid json: %w", err)
 		}
 
 		return SanitizedFile{
-			UnmarshalledFile: unMarshalled,
-			FileExt:          ext,
+			FileExt: ext,
+			RawData: data,
 		}, nil
 
 	case ".tar", ".tar.gz", ".zip", ".gz":
@@ -97,6 +95,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 		tarReader = tar.NewReader(input)
 	}
 
+	// cleaning up is resposibility of the tempDir owner
 	extractDir, _ := os.MkdirTemp(tempDir, fileName)
 
 	// Extract and validate files in the bundle
@@ -157,10 +156,20 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	if err == nil {
 		return SanitizedFile{
 			FileExt:          ext,
-			UnmarshalledFile: nil,
+			RawData:          data,
 			ExtractedContent: extractedContent,
 		}, nil
 	}
 
 	return SanitizedFile{}, fmt.Errorf("Failed to open extracted dir %w", err)
+}
+
+func IsValidYaml(data []byte) error {
+	var unMarshalled interface{}
+	return yaml.Unmarshal(data, &unMarshalled)
+}
+
+func IsValidJson(data []byte) error {
+	var unMarshalled interface{}
+	return json.Unmarshal(data, &unMarshalled)
 }
