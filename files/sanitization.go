@@ -24,23 +24,13 @@ type SanitizedFile struct {
 	ExtractedContentPath string
 }
 
-func SanitizeFile(data []byte, fileName string, tempDir string) (SanitizedFile, error) {
-
-	validExts := map[string]bool{
-		".json":   true,
-		".yml":    true,
-		".yaml":   true,
-		".tar":    true,
-		".tar.gz": true,
-		".tgz":    true,
-		".zip":    true,
-	}
+func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[string]bool) (SanitizedFile, error) {
 
 	ext := filepath.Ext(fileName)
 
 	// 1. Check if file has supported  extension
 	if !validExts[ext] && !validExts[filepath.Ext(strings.TrimSuffix(fileName, ".gz"))] {
-		return SanitizedFile{}, fmt.Errorf("unsupported file extension: %s", ext)
+		return SanitizedFile{}, ErrUnsupportedExtension(fileName, ext, validExts)
 	}
 
 	switch ext {
@@ -48,7 +38,7 @@ func SanitizeFile(data []byte, fileName string, tempDir string) (SanitizedFile, 
 	case ".yml", ".yaml":
 		err := IsValidYaml(data)
 		if err != nil {
-			return SanitizedFile{}, fmt.Errorf("File is not valid yaml: %w", err)
+			return SanitizedFile{}, ErrInvalidYaml(fileName, err)
 		}
 
 		return SanitizedFile{
@@ -60,7 +50,7 @@ func SanitizeFile(data []byte, fileName string, tempDir string) (SanitizedFile, 
 
 		err := IsValidJson(data)
 		if err != nil {
-			return SanitizedFile{}, fmt.Errorf("File is not valid json: %w", err)
+			return SanitizedFile{}, ErrInvalidJson(fileName, err)
 		}
 
 		return SanitizedFile{
@@ -74,7 +64,7 @@ func SanitizeFile(data []byte, fileName string, tempDir string) (SanitizedFile, 
 
 	}
 
-	return SanitizedFile{}, fmt.Errorf("Unsupported file extension %s", ext)
+	return SanitizedFile{}, ErrUnsupportedExtension(fileName, ext, validExts)
 
 }
 
@@ -86,7 +76,7 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 	if strings.HasSuffix(archiveFile, ".gz") || strings.HasSuffix(archiveFile, ".tgz") {
 		gzipReader, err := gzip.NewReader(reader)
 		if err != nil {
-			return fmt.Errorf("failed to create gzip reader: %v", err)
+			return err
 		}
 		defer gzipReader.Close()
 		reader = gzipReader
@@ -103,7 +93,7 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 			break // End of archive
 		}
 		if err != nil {
-			return fmt.Errorf("failed to read tar archive: %v", err)
+			return err
 		}
 
 		// Construct the full path for the file/directory
@@ -211,7 +201,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	outputDir, err := os.MkdirTemp(tempDir, fileName)
 
 	if err != nil {
-		return SanitizedFile{}, fmt.Errorf("Failed to create extraction directory %w", err)
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("Failed to create extraction directory %w", err))
 	}
 
 	switch ext {
@@ -221,7 +211,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	case ".zip":
 		err = ExtractZipFromBytes(data, outputDir)
 	default:
-		return SanitizedFile{}, fmt.Errorf("Unsupported compression extension %s", ext)
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("Unsupported compression extension %s", ext))
 	}
 
 	if err != nil {
@@ -232,11 +222,15 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 
 	extractedPath, err := GetFirstTopLevelDir(outputDir)
 
+	if err != nil {
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, err)
+	}
+
 	return SanitizedFile{
 		FileExt:              ext,
 		ExtractedContentPath: extractedPath,
 		RawData:              data,
-	}, err
+	}, nil
 
 }
 

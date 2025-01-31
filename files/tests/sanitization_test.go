@@ -1,11 +1,11 @@
 package files_test
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/layer5io/meshkit/errors"
 	"github.com/layer5io/meshkit/files"
 )
 
@@ -15,7 +15,7 @@ func TestSanitizeFile(t *testing.T) {
 		filePath        string
 		expectedExt     string
 		expectError     bool
-		expectedErrMsg  string
+		expectedErrCode string
 		expectedContent map[string]interface{}
 		expectedType    string
 	}{
@@ -40,10 +40,10 @@ func TestSanitizeFile(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:           "Unsupported extension",
-			filePath:       "./samples/valid.txt",
-			expectError:    true,
-			expectedErrMsg: fmt.Sprintf("unsupported file extension: %s", ".txt"),
+			name:            "Unsupported extension",
+			filePath:        "./samples/valid.txt",
+			expectError:     true,
+			expectedErrCode: files.ErrUnsupportedExtensionCode,
 		},
 		{
 			name:        "Valid compressed extension",
@@ -105,6 +105,16 @@ func TestSanitizeFile(t *testing.T) {
 		},
 	}
 
+	validExts := map[string]bool{
+		".json":   true,
+		".yml":    true,
+		".yaml":   true,
+		".tar":    true,
+		".tar.gz": true,
+		".tgz":    true,
+		".zip":    true,
+	}
+
 	tempDir, _ := os.MkdirTemp(" ", "temp-tests")
 	defer os.RemoveAll(tempDir)
 	// tempDir := "./temp"
@@ -120,13 +130,13 @@ func TestSanitizeFile(t *testing.T) {
 		}
 
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := files.SanitizeFile(data, filename, tempDir)
+			result, err := files.SanitizeFile(data, filename, tempDir, validExts)
 
 			if tc.expectError {
 				if err == nil {
 					t.Error("Expected error, got nil")
-				} else if tc.expectedErrMsg != "" && err.Error() != tc.expectedErrMsg {
-					t.Errorf("Expected error message %q, got %q", tc.expectedErrMsg, err.Error())
+				} else if tc.expectedErrCode != "" && errors.GetCode(err) != tc.expectedErrCode {
+					t.Errorf("Expected error message %q, got %q", tc.expectedErrCode, err.Error())
 				}
 				return
 			}
