@@ -85,6 +85,12 @@ func TestSanitizeFile(t *testing.T) {
 			expectedExt:  ".tgz",
 			expectedType: files.HELM_CHART,
 		},
+		{
+			name:         "Can Identify Kustomize archive",
+			filePath:     "./samples/wordpress-kustomize.tar.gz",
+			expectedExt:  ".gz",
+			expectedType: files.KUSTOMIZATION,
+		},
 	}
 
 	tempDir, _ := os.MkdirTemp(" ", "temp-tests")
