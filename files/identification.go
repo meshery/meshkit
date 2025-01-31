@@ -5,15 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
-	// "github.com/fluxcd/pkg/oci/client"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	k8sYaml "k8s.io/apimachinery/pkg/util/yaml"
+	"sigs.k8s.io/kustomize/api/krusty"
+	"sigs.k8s.io/kustomize/api/resmap"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 
 	// appsv1 "k8s.io/api/apps/v1"
 	// corev1 "k8s.io/api/core/v1"
@@ -31,13 +34,22 @@ const MESHERY_VIEW = "View"
 
 type IdentifiedFile struct {
 	Type string
-	// pattern.PatternFile,[]runtime.Object ,*chart.Chart,etc
+	// pattern.PatternFile,[]runtime.Object ,*chart.Chart,resmap etc
 	ParsedFile interface{}
 }
 
 func IdentifyFile(sanitizedFile SanitizedFile) (IdentifiedFile, error) {
 	var err error
 	var parsed interface{}
+
+	if parsed, err = ParseFileAsKustomization(sanitizedFile); err == nil {
+		return IdentifiedFile{
+			Type:       KUSTOMIZATION,
+			ParsedFile: parsed,
+		}, nil
+	}
+
+	fmt.Println(fmt.Errorf("Identify Kustomize errors %w", err))
 
 	if parsed, err = ParseFileAsMesheryDesign(sanitizedFile); err == nil {
 		return IdentifiedFile{
@@ -158,6 +170,15 @@ var ValidHelmChartFileExtensions = map[string]bool{
 	".tar.gz": true,
 }
 
+var ValidKustomizeFileExtensions = map[string]bool{
+	".yml":    true, // single kustomization.yml file
+	".yaml":   true,
+	".tar":    true,
+	".tgz":    true,
+	".gz":     true,
+	".tar.gz": true,
+}
+
 // ParseFileAsHelmChart loads a Helm chart from the extracted directory.
 func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
 
@@ -178,4 +199,51 @@ func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
 	}
 
 	return chart, nil
+}
+
+// ParseFileAsKustomization processes a sanitized file and returns a Kustomize ResMap
+func ParseFileAsKustomization(file SanitizedFile) (resmap.ResMap, error) {
+	// Validate file extension
+
+	if !ValidKustomizeFileExtensions[file.FileExt] {
+		return nil, fmt.Errorf("invalid file extension %s", file.FileExt)
+	}
+
+	var fs filesys.FileSystem
+	var path string
+
+	if file.ExtractedContent != nil {
+		// Check if ExtractedContent is a directory
+		// If it's a directory, use it directly with MakeFsOnDisk
+		fs = filesys.MakeFsOnDisk()
+		path = file.ExtractedContent.Name()
+
+		// Ensure the path points to the directory containing kustomization.yaml
+		kustomizationPath := filepath.Join(path, "kustomization.yaml")
+		if _, err := os.Stat(kustomizationPath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("kustomization.yaml not found in extracted directory")
+		}
+
+	} else {
+		// ExtractedContent is nil → Read from file.RawData (single-file case)
+		if len(file.RawData) == 0 {
+			return nil, fmt.Errorf("file is empty or not extracted")
+		}
+
+		fs = filesys.MakeFsInMemory()
+		path = "/kustomization.yaml"
+		err := fs.WriteFile(path, file.RawData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write raw data to in-memory filesystem: %v", err)
+		}
+	}
+
+	// Use krusty to build the Kustomize resources
+	k := krusty.MakeKustomizer(krusty.MakeDefaultOptions())
+	resMap, err := k.Run(fs, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build Kustomize resources: %v", err)
+	}
+
+	return resMap, nil
 }

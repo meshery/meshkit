@@ -104,10 +104,12 @@ func ExtractTar(reader io.Reader, archiveFile string, parentTempDir string) (*os
 	// Create a tar reader
 	tarReader := tar.NewReader(reader)
 
+	// Track the top-level directory in the archive
+	var topLevelDir string
 	// Iterate through the tar archive
 	for {
 		header, err := tarReader.Next()
-		// fmt.Println("Header name %s", header.Name)
+
 		if err == io.EOF {
 			break // End of archive
 		}
@@ -117,6 +119,11 @@ func ExtractTar(reader io.Reader, archiveFile string, parentTempDir string) (*os
 
 		// Construct the full path for the file/directory
 		targetPath := filepath.Join(tempDir, header.Name)
+
+		// If this is the first entry, determine the top-level directory
+		if topLevelDir == "" {
+			topLevelDir = filepath.Dir(header.Name)
+		}
 
 		// Ensure the parent directory exists
 		parentDir := filepath.Dir(targetPath)
@@ -145,7 +152,17 @@ func ExtractTar(reader io.Reader, archiveFile string, parentTempDir string) (*os
 		}
 	}
 
-	// Return the temporary directory as an *os.File
+	// If the archive contains a top-level directory, return its path
+	if topLevelDir != "" {
+		topLevelPath := filepath.Join(tempDir, topLevelDir)
+		extractedDir, err := os.Open(topLevelPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open extracted directory: %v", err)
+		}
+		return extractedDir, nil
+	}
+
+	// If no top-level directory is found, return the root tempDir
 	extractedDir, err := os.Open(tempDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open extracted directory: %v", err)
@@ -164,99 +181,6 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 		RawData:          data,
 	}, err
 }
-
-// // will skip nested dirs right now
-// func SanitizeBundle_(data []byte, fileName string, ext string, tempDir string) (SanitizedFile, error) {
-
-// 	var tarReader *tar.Reader
-// 	input := bytes.NewReader(data)
-
-// 	if strings.HasSuffix(fileName, ".gz") || strings.HasSuffix(fileName, ".tgz") {
-// 		gzReader, err := gzip.NewReader(input)
-// 		if err != nil {
-// 			return SanitizedFile{}, fmt.Errorf("failed to create gzip reader: %w", err)
-// 		}
-// 		defer gzReader.Close()
-// 		tarReader = tar.NewReader(gzReader)
-// 	} else {
-// 		tarReader = tar.NewReader(input)
-// 	}
-
-// 	// cleaning up is resposibility of the tempDir owner
-// 	extractDir, _ := os.MkdirTemp(tempDir, fileName)
-
-// 	// Extract and validate files in the bundle
-// 	for {
-// 		header, err := tarReader.Next()
-// 		if err == io.EOF {
-// 			break
-// 		}
-// 		if err != nil {
-// 			return SanitizedFile{}, fmt.Errorf("failed to read tar entry: %w", err)
-// 		}
-
-// 		target := filepath.Join(extractDir, header.Name)
-// 		// Handle directories
-// 		if header.FileInfo().IsDir() {
-// 			if err := os.MkdirAll(target, os.ModePerm); err != nil {
-// 				return SanitizedFile{}, fmt.Errorf("failed to create directory: %v", err)
-// 			}
-// 			continue
-// 		}
-
-// 		switch header.Typeflag {
-
-// 		case tar.TypeDir: // If it's a directory, create it
-
-// 			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
-// 				return SanitizedFile{}, err
-// 			}
-
-// 		case tar.TypeReg:
-// 			ext := filepath.Ext(header.Name)
-// 			if ext != ".json" && ext != ".yaml" && ext != ".yml" {
-// 				continue
-// 			}
-
-// 			// read the complete content of the file h.Name into the bs []byte
-// 			// fileBytes, _ := io.ReadAll(tarReader) // Validate the extracted file
-
-// 			// if _, err := SanitizeFile(fileBytes, header.Name, tempDir); err != nil {
-// 			// 	fmt.Printf("Skipping invalid file: %s\n", header.Name)
-// 			// 	continue
-// 			// }
-
-// 			// Create a temporary file for the extracted content
-// 			tempFile, err := os.Create(target)
-
-// 			// fail forward and continue
-// 			if err != nil {
-// 				fmt.Println("failed to create temp file: %w", err)
-// 				continue
-// 			}
-// 			defer tempFile.Close()
-
-// 			// Write the extracted content to the temp file
-// 			if _, err := io.Copy(tempFile, tarReader); err != nil {
-// 				fmt.Println("failed to write to temp file: %w", err)
-// 			}
-// 		}
-
-// 	}
-
-// 	// Return a handle to the temp directory (or a specific file if needed)
-// 	extractedContent, err := os.Open(tempDir)
-
-// 	if err == nil {
-// 		return SanitizedFile{
-// 			FileExt:          ext,
-// 			RawData:          data,
-// 			ExtractedContent: extractedContent,
-// 		}, nil
-// 	}
-
-// 	return SanitizedFile{}, fmt.Errorf("Failed to open extracted dir %w", err)
-// }
 
 func IsValidYaml(data []byte) error {
 	var unMarshalled interface{}
