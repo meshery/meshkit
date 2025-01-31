@@ -20,9 +20,10 @@ func TestSanitizeFile(t *testing.T) {
 		expectedType    string
 	}{
 		{
-			name:        "Valid JSON",
-			filePath:    "./samples/valid.json",
-			expectedExt: ".json",
+			name:         "Valid JSON",
+			filePath:     "./samples/valid.json",
+			expectedExt:  ".json",
+			expectedType: "",
 		},
 		{
 			name:        "Invalid JSON",
@@ -35,9 +36,10 @@ func TestSanitizeFile(t *testing.T) {
 			expectedExt: ".yml",
 		},
 		{
-			name:        "Invalid YAML",
-			filePath:    "./samples/invalid.yml",
-			expectError: true,
+			name:         "Invalid YAML",
+			filePath:     "./samples/invalid.yml",
+			expectError:  true,
+			expectedType: "",
 		},
 		{
 			name:            "Unsupported extension",
