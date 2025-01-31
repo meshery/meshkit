@@ -18,8 +18,9 @@ import (
 )
 
 type SanitizedFile struct {
-	FileExt string
-	RawData []byte
+	FileExt  string
+	FileName string
+	RawData  []byte
 	// incase of bundle like tar
 	ExtractedContentPath string
 }
@@ -42,8 +43,9 @@ func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[st
 		}
 
 		return SanitizedFile{
-			FileExt: ext,
-			RawData: data,
+			FileExt:  ext,
+			FileName: fileName,
+			RawData:  data,
 		}, nil
 
 	case ".json":
@@ -54,8 +56,9 @@ func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[st
 		}
 
 		return SanitizedFile{
-			FileExt: ext,
-			RawData: data,
+			FileExt:  ext,
+			RawData:  data,
+			FileName: fileName,
 		}, nil
 
 	case ".tar", ".tar.gz", ".zip", ".gz", ".tgz":
@@ -228,6 +231,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 
 	return SanitizedFile{
 		FileExt:              ext,
+		FileName:             fileName,
 		ExtractedContentPath: extractedPath,
 		RawData:              data,
 	}, nil

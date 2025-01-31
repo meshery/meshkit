@@ -50,44 +50,57 @@ func IdentifyFile(sanitizedFile SanitizedFile) (IdentifiedFile, error) {
 	var err error
 	var parsed interface{}
 
+	// Map to store identification errors for each file type
+	identificationErrorsTrace := map[string]error{}
+
+	// Attempt to parse the file as a Meshery design
 	if parsed, err = ParseFileAsMesheryDesign(sanitizedFile); err == nil {
 		return IdentifiedFile{
 			Type:       MESHERY_DESIGN,
 			ParsedFile: parsed,
 		}, nil
 	}
+	identificationErrorsTrace[MESHERY_DESIGN] = err
 
+	// Attempt to parse the file as a Kubernetes manifest
 	if parsed, err = ParseFileAsKubernetesManifest(sanitizedFile); err == nil {
 		return IdentifiedFile{
 			Type:       KUBERNETES_MANIFEST,
 			ParsedFile: parsed,
 		}, nil
 	}
+	identificationErrorsTrace[KUBERNETES_MANIFEST] = err
 
+	// Attempt to parse the file as a Helm chart
 	if parsed, err = ParseFileAsHelmChart(sanitizedFile); err == nil {
 		return IdentifiedFile{
 			Type:       HELM_CHART,
 			ParsedFile: parsed,
 		}, nil
 	}
+	identificationErrorsTrace[HELM_CHART] = err
 
+	// Attempt to parse the file as a Docker Compose file
 	if parsed, err = ParseFileAsDockerCompose(sanitizedFile); err == nil {
 		return IdentifiedFile{
 			Type:       DOCKER_COMPOSE,
 			ParsedFile: parsed,
 		}, nil
 	}
+	identificationErrorsTrace[DOCKER_COMPOSE] = err
 
+	// Attempt to parse the file as a Kustomization file
 	if parsed, err = ParseFileAsKustomization(sanitizedFile); err == nil {
 		return IdentifiedFile{
 			Type:       KUSTOMIZATION,
 			ParsedFile: parsed,
 		}, nil
 	}
+	identificationErrorsTrace[KUSTOMIZATION] = err
 
-	return IdentifiedFile{}, fmt.Errorf("Unsupported FileType %w", err)
+	// If no file type matched, return a detailed error with the identification trace
+	return IdentifiedFile{}, ErrFailedToIdentifyFile(sanitizedFile.FileName, sanitizedFile.FileExt, identificationErrorsTrace)
 }
-
 func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 
 	var parsed pattern.PatternFile
