@@ -2,17 +2,15 @@ package files
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	// "path"
+	"path"
 
-	// "errors"
 	"fmt"
 	"io"
 
-	// "io/ioutil"
-	// "mime/multipart"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +22,7 @@ type SanitizedFile struct {
 	FileExt string
 	RawData []byte
 	// incase of bundle like tar
-	ExtractedContent *os.File
+	ExtractedContentPath string
 }
 
 func SanitizeFile(data []byte, fileName string, tempDir string) (SanitizedFile, error) {
@@ -82,30 +80,22 @@ func SanitizeFile(data []byte, fileName string, tempDir string) (SanitizedFile, 
 }
 
 // ExtractTar extracts a .tar, .tar.gz, or .tgz file into a temporary directory and returns the directory.
-func ExtractTar(reader io.Reader, archiveFile string, parentTempDir string) (*os.File, error) {
+func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 	// Open the archive file
 
 	// Determine if the file is compressed (gzip)
 	if strings.HasSuffix(archiveFile, ".gz") || strings.HasSuffix(archiveFile, ".tgz") {
 		gzipReader, err := gzip.NewReader(reader)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create gzip reader: %v", err)
+			return fmt.Errorf("failed to create gzip reader: %v", err)
 		}
 		defer gzipReader.Close()
 		reader = gzipReader
 	}
 
-	// Create a temporary directory to extract the files
-	tempDir, err := os.MkdirTemp(parentTempDir, archiveFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary directory: %v", err)
-	}
-
 	// Create a tar reader
 	tarReader := tar.NewReader(reader)
 
-	// Track the top-level directory in the archive
-	var topLevelDir string
 	// Iterate through the tar archive
 	for {
 		header, err := tarReader.Next()
@@ -114,27 +104,22 @@ func ExtractTar(reader io.Reader, archiveFile string, parentTempDir string) (*os
 			break // End of archive
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to read tar archive: %v", err)
+			return fmt.Errorf("failed to read tar archive: %v", err)
 		}
 
 		// Construct the full path for the file/directory
-		targetPath := filepath.Join(tempDir, header.Name)
-
-		// If this is the first entry, determine the top-level directory
-		if topLevelDir == "" {
-			topLevelDir = filepath.Dir(header.Name)
-		}
+		targetPath := filepath.Join(outputDir, header.Name)
 
 		// Ensure the parent directory exists
 		parentDir := filepath.Dir(targetPath)
 		if err := os.MkdirAll(parentDir, os.ModePerm); err != nil {
-			return nil, fmt.Errorf("failed to create parent directory: %v", err)
+			return fmt.Errorf("failed to create parent directory: %v", err)
 		}
 
 		// Handle directories
 		if header.FileInfo().IsDir() {
 			if err := os.MkdirAll(targetPath, os.ModePerm); err != nil {
-				return nil, fmt.Errorf("failed to create directory: %v", err)
+				return fmt.Errorf("failed to create directory: %v", err)
 			}
 			continue
 		}
@@ -142,44 +127,124 @@ func ExtractTar(reader io.Reader, archiveFile string, parentTempDir string) (*os
 		// Handle regular files
 		file, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 		if err != nil {
-			return nil, fmt.Errorf("failed to create file: %v", err)
+			return fmt.Errorf("failed to create file: %v", err)
 		}
 		defer file.Close()
 
 		// Copy file contents
 		if _, err := io.Copy(file, tarReader); err != nil {
-			return nil, fmt.Errorf("failed to copy file contents: %v", err)
+			return fmt.Errorf("failed to copy file contents: %v", err)
 		}
 	}
 
-	// If the archive contains a top-level directory, return its path
-	if topLevelDir != "" {
-		topLevelPath := filepath.Join(tempDir, topLevelDir)
-		extractedDir, err := os.Open(topLevelPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open extracted directory: %v", err)
-		}
-		return extractedDir, nil
-	}
+	return nil
+}
 
-	// If no top-level directory is found, return the root tempDir
-	extractedDir, err := os.Open(tempDir)
+// ExtractZipFromBytes takes a []byte representing a ZIP file and extracts it to the specified output directory.
+func ExtractZipFromBytes(data []byte, outputDir string) error {
+	// Create a bytes.Reader from the input byte slice
+	reader := bytes.NewReader(data)
+
+	// Open the ZIP archive from the reader
+	zipReader, err := zip.NewReader(reader, int64(len(data)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to open extracted directory: %v", err)
+		return fmt.Errorf("failed to open zip reader: %w", err)
 	}
 
-	return extractedDir, nil
+	// Iterate through the files in the ZIP archive
+	for _, file := range zipReader.File {
+		// Construct the output file path
+		filePath := filepath.Join(outputDir, file.Name)
+
+		// Check if the file is a directory
+		if file.FileInfo().IsDir() {
+			// Create the directory
+			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+				return fmt.Errorf("failed to create directory: %w", err)
+			}
+			continue
+		}
+
+		// Create the parent directories if they don't exist
+		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+			return fmt.Errorf("failed to create parent directories: %w", err)
+		}
+
+		// Open the file in the ZIP archive
+		zipFile, err := file.Open()
+		if err != nil {
+			return fmt.Errorf("failed to open file in zip: %w", err)
+		}
+		defer zipFile.Close()
+
+		// Create the output file
+		outFile, err := os.Create(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %w", err)
+		}
+		defer outFile.Close()
+
+		// Copy the contents of the file from the ZIP archive to the output file
+		if _, err := io.Copy(outFile, zipFile); err != nil {
+			return fmt.Errorf("failed to copy file contents: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// get the root dir from the extractedPath
+// if multiple entries are found in the extractedPath then treat extractedPath as root
+func GetFirstTopLevelDir(extractedPath string) (string, error) {
+	entries, err := os.ReadDir(extractedPath)
+	fmt.Println("entries %v", entries)
+	if err != nil {
+		return "", fmt.Errorf("failed to read extracted directory: %v", err)
+	}
+
+	if len(entries) == 1 && entries[0].IsDir() {
+		return filepath.Join(extractedPath, entries[0].Name()), nil
+	}
+	return extractedPath, nil
 }
 
 func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (SanitizedFile, error) {
 	// fmt.Println("temp", tempDir)
-	extracted, err := ExtractTar(bytes.NewReader(data), fileName, tempDir)
+	outputDir := path.Join(tempDir, fileName)
+
+	// outputDir, err := os.MkdirTemp(tempDir, fileName)
+	var err error
+
+	// if err != nil {
+	// 	return SanitizedFile{}, fmt.Errorf("Failed to create extraction directory %w", err)
+	// }
+
+	switch ext {
+
+	case ".tar", ".tar.gz", ".tgz", ".gz":
+		err = ExtractTar(bytes.NewReader(data), fileName, tempDir)
+	case ".zip":
+		target := path.Join(tempDir, fileName)
+		err = ExtractZipFromBytes(data, target)
+	default:
+		return SanitizedFile{}, fmt.Errorf("Unsupported compression extension %s", ext)
+	}
+
+	if err != nil {
+		return SanitizedFile{}, err
+	}
+
+	// jump directly into the extracted dirs toplevel dir (which is the case if a single folder is archived the extracted dir preserves that structure)
+
+	extractedPath, err := GetFirstTopLevelDir(outputDir)
+	fmt.Println("extracted path %s %s", outputDir, extractedPath)
 
 	return SanitizedFile{
-		FileExt:          ext,
-		ExtractedContent: extracted,
-		RawData:          data,
+		FileExt:              ext,
+		ExtractedContentPath: extractedPath,
+		RawData:              data,
 	}, err
+
 }
 
 func IsValidYaml(data []byte) error {

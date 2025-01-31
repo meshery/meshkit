@@ -86,10 +86,22 @@ func TestSanitizeFile(t *testing.T) {
 			expectedType: files.HELM_CHART,
 		},
 		{
-			name:         "Can Identify Kustomize archive",
+			name:         "Can Identify Kustomize archive (tar.gz)",
 			filePath:     "./samples/wordpress-kustomize.tar.gz",
 			expectedExt:  ".gz",
 			expectedType: files.KUSTOMIZATION,
+		},
+		{
+			name:         "Can Identify Kustomize archive (zip)",
+			filePath:     "./samples/wordpress-kustomize.zip",
+			expectedExt:  ".zip",
+			expectedType: files.KUSTOMIZATION,
+		},
+		{
+			name:         "Can Identify Docker Compose",
+			filePath:     "./samples/valid-docker-compose.yml",
+			expectedExt:  ".yml",
+			expectedType: files.DOCKER_COMPOSE,
 		},
 	}
 

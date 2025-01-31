@@ -23,6 +23,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
+
+	dockerLoader "github.com/docker/cli/cli/compose/loader"
+	dockerTypes "github.com/docker/cli/cli/compose/types"
 )
 
 const MESHERY_DESIGN = "Design"
@@ -34,22 +37,18 @@ const MESHERY_VIEW = "View"
 
 type IdentifiedFile struct {
 	Type string
-	// pattern.PatternFile,[]runtime.Object ,*chart.Chart,resmap etc
+
+	// pattern.PatternFile (meshery-design),
+	// []runtime.Object (k8s manifest) ,
+	// *chart.Chart (helm-chart),
+	// resmap.ResMap (kustomize),
+	// dockerTypes.Config (docker-compose) etc
 	ParsedFile interface{}
 }
 
 func IdentifyFile(sanitizedFile SanitizedFile) (IdentifiedFile, error) {
 	var err error
 	var parsed interface{}
-
-	if parsed, err = ParseFileAsKustomization(sanitizedFile); err == nil {
-		return IdentifiedFile{
-			Type:       KUSTOMIZATION,
-			ParsedFile: parsed,
-		}, nil
-	}
-
-	fmt.Println(fmt.Errorf("Identify Kustomize errors %w", err))
 
 	if parsed, err = ParseFileAsMesheryDesign(sanitizedFile); err == nil {
 		return IdentifiedFile{
@@ -68,6 +67,20 @@ func IdentifyFile(sanitizedFile SanitizedFile) (IdentifiedFile, error) {
 	if parsed, err = ParseFileAsHelmChart(sanitizedFile); err == nil {
 		return IdentifiedFile{
 			Type:       HELM_CHART,
+			ParsedFile: parsed,
+		}, nil
+	}
+
+	if parsed, err = ParseFileAsDockerCompose(sanitizedFile); err == nil {
+		return IdentifiedFile{
+			Type:       DOCKER_COMPOSE,
+			ParsedFile: parsed,
+		}, nil
+	}
+
+	if parsed, err = ParseFileAsKustomization(sanitizedFile); err == nil {
+		return IdentifiedFile{
+			Type:       KUSTOMIZATION,
 			ParsedFile: parsed,
 		}, nil
 	}
@@ -168,6 +181,7 @@ var ValidHelmChartFileExtensions = map[string]bool{
 	".tgz":    true,
 	".gz":     true,
 	".tar.gz": true,
+	".zip":    true,
 }
 
 var ValidKustomizeFileExtensions = map[string]bool{
@@ -177,6 +191,7 @@ var ValidKustomizeFileExtensions = map[string]bool{
 	".tgz":    true,
 	".gz":     true,
 	".tar.gz": true,
+	".zip":    true,
 }
 
 // ParseFileAsHelmChart loads a Helm chart from the extracted directory.
@@ -212,14 +227,16 @@ func ParseFileAsKustomization(file SanitizedFile) (resmap.ResMap, error) {
 	var fs filesys.FileSystem
 	var path string
 
-	if file.ExtractedContent != nil {
+	if file.ExtractedContentPath != "" {
+		path = file.ExtractedContentPath
 		// Check if ExtractedContent is a directory
 		// If it's a directory, use it directly with MakeFsOnDisk
 		fs = filesys.MakeFsOnDisk()
-		path = file.ExtractedContent.Name()
 
 		// Ensure the path points to the directory containing kustomization.yaml
 		kustomizationPath := filepath.Join(path, "kustomization.yaml")
+
+		fmt.Println("Kustomization Path %s", kustomizationPath)
 		if _, err := os.Stat(kustomizationPath); os.IsNotExist(err) {
 			return nil, fmt.Errorf("kustomization.yaml not found in extracted directory")
 		}
@@ -237,6 +254,7 @@ func ParseFileAsKustomization(file SanitizedFile) (resmap.ResMap, error) {
 			return nil, fmt.Errorf("failed to write raw data to in-memory filesystem: %v", err)
 		}
 	}
+	fmt.Println("kustomization extraxting from path %s", path)
 
 	// Use krusty to build the Kustomize resources
 	k := krusty.MakeKustomizer(krusty.MakeDefaultOptions())
@@ -246,4 +264,30 @@ func ParseFileAsKustomization(file SanitizedFile) (resmap.ResMap, error) {
 	}
 
 	return resMap, nil
+}
+
+// ParseFileAsDockerCompose parses a Docker Compose file into a types.Config struct.
+func ParseFileAsDockerCompose(file SanitizedFile) (*dockerTypes.Config, error) {
+	// Parse the YAML file into a map[string]interface{}
+	var rawConfig map[string]interface{}
+	if err := yaml.Unmarshal(file.RawData, &rawConfig); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal YAML: %v", err)
+	}
+
+	// Use Docker Compose's loader to parse the raw config into a types.Config
+	configDetails := dockerTypes.ConfigDetails{
+		ConfigFiles: []dockerTypes.ConfigFile{
+			{
+				Config: rawConfig,
+			},
+		},
+		Environment: map[string]string{}, // Optional: Add environment variables if needed
+	}
+
+	config, err := dockerLoader.Load(configDetails)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load Docker Compose config: %v", err)
+	}
+
+	return config, nil
 }
