@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"path"
 
 	"fmt"
 	"io"
@@ -197,7 +196,6 @@ func ExtractZipFromBytes(data []byte, outputDir string) error {
 // if multiple entries are found in the extractedPath then treat extractedPath as root
 func GetFirstTopLevelDir(extractedPath string) (string, error) {
 	entries, err := os.ReadDir(extractedPath)
-	fmt.Println("entries %v", entries)
 	if err != nil {
 		return "", fmt.Errorf("failed to read extracted directory: %v", err)
 	}
@@ -209,23 +207,19 @@ func GetFirstTopLevelDir(extractedPath string) (string, error) {
 }
 
 func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (SanitizedFile, error) {
-	// fmt.Println("temp", tempDir)
-	outputDir := path.Join(tempDir, fileName)
 
-	// outputDir, err := os.MkdirTemp(tempDir, fileName)
-	var err error
+	outputDir, err := os.MkdirTemp(tempDir, fileName)
 
-	// if err != nil {
-	// 	return SanitizedFile{}, fmt.Errorf("Failed to create extraction directory %w", err)
-	// }
+	if err != nil {
+		return SanitizedFile{}, fmt.Errorf("Failed to create extraction directory %w", err)
+	}
 
 	switch ext {
 
 	case ".tar", ".tar.gz", ".tgz", ".gz":
-		err = ExtractTar(bytes.NewReader(data), fileName, tempDir)
+		err = ExtractTar(bytes.NewReader(data), fileName, outputDir)
 	case ".zip":
-		target := path.Join(tempDir, fileName)
-		err = ExtractZipFromBytes(data, target)
+		err = ExtractZipFromBytes(data, outputDir)
 	default:
 		return SanitizedFile{}, fmt.Errorf("Unsupported compression extension %s", ext)
 	}
@@ -237,7 +231,6 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	// jump directly into the extracted dirs toplevel dir (which is the case if a single folder is archived the extracted dir preserves that structure)
 
 	extractedPath, err := GetFirstTopLevelDir(outputDir)
-	fmt.Println("extracted path %s %s", outputDir, extractedPath)
 
 	return SanitizedFile{
 		FileExt:              ext,

@@ -236,7 +236,6 @@ func ParseFileAsKustomization(file SanitizedFile) (resmap.ResMap, error) {
 		// Ensure the path points to the directory containing kustomization.yaml
 		kustomizationPath := filepath.Join(path, "kustomization.yaml")
 
-		fmt.Println("Kustomization Path %s", kustomizationPath)
 		if _, err := os.Stat(kustomizationPath); os.IsNotExist(err) {
 			return nil, fmt.Errorf("kustomization.yaml not found in extracted directory")
 		}
@@ -254,7 +253,6 @@ func ParseFileAsKustomization(file SanitizedFile) (resmap.ResMap, error) {
 			return nil, fmt.Errorf("failed to write raw data to in-memory filesystem: %v", err)
 		}
 	}
-	fmt.Println("kustomization extraxting from path %s", path)
 
 	// Use krusty to build the Kustomize resources
 	k := krusty.MakeKustomizer(krusty.MakeDefaultOptions())
