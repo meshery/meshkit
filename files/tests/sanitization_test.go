@@ -82,6 +82,13 @@ func TestSanitizeFile(t *testing.T) {
 		},
 
 		{
+			name:         "Can Identify Kubernetes Manifest With Crds",
+			filePath:     "./samples/manifest-with-crds.yml",
+			expectedExt:  ".yml",
+			expectedType: files.KUBERNETES_MANIFEST,
+		},
+
+		{
 			name:         "Can Identify HelmChart",
 			filePath:     "./samples/valid-helm.tgz",
 			expectedExt:  ".tgz",
