@@ -112,6 +112,20 @@ func TestSanitizeFile(t *testing.T) {
 			expectedExt:  ".yml",
 			expectedType: files.DOCKER_COMPOSE,
 		},
+
+		{
+			name:         "Can Identify Docker Compose v2",
+			filePath:     "./samples/valid-compose-2.yml",
+			expectedExt:  ".yml",
+			expectedType: files.DOCKER_COMPOSE,
+		},
+
+		// {
+		// 	name:         "Can Identify Docker Compose without version",
+		// 	filePath:     "./samples/valid-compose-3.yml",
+		// 	expectedExt:  ".yml",
+		// 	expectedType: files.DOCKER_COMPOSE,
+		// },
 	}
 
 	validExts := map[string]bool{

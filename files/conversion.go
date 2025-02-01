@@ -3,11 +3,11 @@ package files
 import (
 	"fmt"
 
-	dockerTypes "github.com/docker/cli/cli/compose/types"
+	// dockerTypes "github.com/docker/cli/cli/compose/types"
 
 	"github.com/layer5io/meshkit/utils/helm"
-	"github.com/layer5io/meshkit/utils/kubernetes/kompose"
-	"gopkg.in/yaml.v3"
+	// "github.com/layer5io/meshkit/utils/kubernetes/kompose"
+	// "gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart"
 )
 
@@ -25,15 +25,10 @@ func ConvertHelmChartToKubernetesManifest(file IdentifiedFile) (string, error) {
 }
 
 func ConvertDockerComposeToKubernetesManifest(file IdentifiedFile) (string, error) {
-	composeConfig, ok := file.ParsedFile.(*dockerTypes.Config)
-	if composeConfig != nil && !ok {
+	parsedCompose, ok := file.ParsedFile.(ParsedCompose)
+	if !ok {
 		return "", fmt.Errorf("Failed to get *chart.Chart from identified file")
 	}
 
-	yamlBytes, err := yaml.Marshal(composeConfig)
-
-	if err != nil {
-		return "", err
-	}
-	return kompose.Convert(yamlBytes)
+	return parsedCompose.manifest, nil
 }

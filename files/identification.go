@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/layer5io/meshkit/utils/kubernetes/kompose"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart"
@@ -282,18 +283,19 @@ func ParseFileAsKustomization(file SanitizedFile) (resmap.ResMap, error) {
 }
 
 // ParseFileAsDockerCompose parses a Docker Compose file into a types.Config struct.
-func ParseFileAsDockerCompose(file SanitizedFile) (*dockerTypes.Config, error) {
-	// Parse the YAML file into a map[string]interface{}
-	var rawConfig map[string]interface{}
-	if err := yaml.Unmarshal(file.RawData, &rawConfig); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal YAML: %v", err)
+func ParseFileAsDockerComposeStrict(file SanitizedFile) (*dockerTypes.Config, error) {
+
+	// Step 1: Parse YAML using Docker’s built-in loader (ensures correct types)
+	parsedConfig, err := dockerLoader.ParseYAML(file.RawData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Docker Compose YAML: %v", err)
 	}
 
 	// Use Docker Compose's loader to parse the raw config into a types.Config
 	configDetails := dockerTypes.ConfigDetails{
 		ConfigFiles: []dockerTypes.ConfigFile{
 			{
-				Config: rawConfig,
+				Config: parsedConfig,
 			},
 		},
 		Environment: map[string]string{}, // Optional: Add environment variables if needed
@@ -305,4 +307,24 @@ func ParseFileAsDockerCompose(file SanitizedFile) (*dockerTypes.Config, error) {
 	}
 
 	return config, nil
+}
+
+type ParsedCompose struct {
+	manifest string
+}
+
+// ParseFileAsDockerCompose parses a Docker Compose file into a types.Config struct.
+func ParseFileAsDockerCompose(file SanitizedFile) (ParsedCompose, error) {
+
+	manifest, err := kompose.Convert(file.RawData)
+
+	// fmt.Println("manifest ", manifest)
+
+	if err != nil {
+		return ParsedCompose{}, fmt.Errorf("failed to load Docker Compose config: %v", err)
+	}
+
+	return ParsedCompose{
+		manifest: manifest,
+	}, nil
 }
