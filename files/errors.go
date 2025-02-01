@@ -171,7 +171,7 @@ func ErrFailedToIdentifyFile(fileName string, fileExt string, identificationTrac
 
 	ldescription := []string{
 		fmt.Sprintf("The file '%s' was not recognized as any of the supported file types %v.", fileName, validTypes),
-		fmt.Sprintf("Identification attempts and errors:"),
+		"Identification attempts and errors:",
 	}
 	ldescription = append(ldescription, traceDetails...)
 
