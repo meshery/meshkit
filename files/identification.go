@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	k8sYaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/resmap"
@@ -164,7 +165,12 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 		// Decode the raw YAML into a runtime.Object
 		obj, _, err := decode(raw.Raw, nil, nil)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode YAML into Kubernetes object: %v", err)
+			// Fallback: Convert to Unstructured object for unknown API types
+			unstructuredObj := &unstructured.Unstructured{}
+			if err := json.Unmarshal(raw.Raw, unstructuredObj); err != nil {
+				return nil, fmt.Errorf("failed to decode YAML into Kubernetes object: %v", err)
+			}
+			objects = append(objects, unstructuredObj)
 		}
 
 		objects = append(objects, obj)
