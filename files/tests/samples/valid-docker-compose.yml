@@ -1,0 +1,37 @@
+version: "3.8"  # Docker Compose version
+
+services:
+  # NGINX web server
+  web:
+    image: nginx:latest  # Use the latest NGINX image
+    container_name: my_web_server  # Custom container name
+    ports:
+      - "80:80"  # Map host port 80 to container port 80
+    volumes:
+      - ./html:/usr/share/nginx/html  # Mount a local directory to the container
+    networks:
+      - my_network  # Attach to a custom network
+    depends_on:
+      - db  # Ensure the database service starts first
+
+  # PostgreSQL database
+  db:
+    image: postgres:13  # Use PostgreSQL version 13
+    container_name: my_database  # Custom container name
+    environment:
+      POSTGRES_USER: admin  # Database username
+      POSTGRES_PASSWORD: secret  # Database password
+      POSTGRES_DB: myapp_db  # Database name
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persist database data
+    networks:
+      - my_network  # Attach to the same custom network
+
+# Define custom networks
+networks:
+  my_network:
+    driver: bridge  # Use the default bridge driver
+
+# Define volumes for persistent data
+volumes:
+  postgres_data:  # Volume for PostgreSQL data

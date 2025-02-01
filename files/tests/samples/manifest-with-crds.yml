@@ -1,0 +1,417 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations: {}
+    labels: {}
+    name: redis-follower
+    namespace: default
+spec:
+    replicas: 2
+    selector:
+        matchLabels:
+            app: redis
+    template:
+        metadata:
+            labels:
+                app: redis
+                role: follower
+                tier: backend
+        spec:
+            containers:
+                - ports:
+                    - containerPort: 6379
+                - image: us-docker.pkg.dev/google-samples/containers/gke/gb-redis-follower:v2
+                  name: follower
+                  ports:
+                    - containerPort: 6379
+                  resources:
+                    requests:
+                        cpu: 100m
+                        memory: 100Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations: {}
+    labels: {}
+    name: redis-leader
+    namespace: default
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: redis
+    template:
+        metadata:
+            labels:
+                app: redis
+                role: leader
+                tier: backend
+        spec:
+            containers:
+                - ports:
+                    - containerPort: 6379
+                - image: docker.io/redis:6.0.5
+                  name: leader
+                  ports:
+                    - containerPort: 6379
+                  resources:
+                    requests:
+                        cpu: 100m
+                        memory: 100Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations: {}
+    labels: {}
+    name: configmap-volume
+    namespace: default
+spec:
+    replicas: 3
+    selector:
+        matchLabels:
+            app.kubernetes.io/name: configmap-volume
+    template:
+        metadata:
+            labels:
+                app.kubernetes.io/name: configmap-volume
+        spec:
+            containers:
+                - command:
+                    - /bin/sh
+                    - -c
+                    - while true; do echo "$(date) My preferred sport is $(cat /etc/config/sport)"; sleep 10; done;
+                  image: alpine:3
+                  name: alpine
+                  ports:
+                    - containerPort: 80
+                  volumeMounts:
+                    - mountPath: /etc/config
+                      name: config-volume
+            volumes:
+                - configMap:
+                    name: sport
+                  name: config-volume
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations: {}
+    labels: {}
+    name: frontend
+    namespace: default
+spec:
+    replicas: 3
+    selector:
+        matchLabels:
+            app: guestbook
+            tier: frontend
+    template:
+        metadata:
+            labels:
+                app: guestbook
+                tier: frontend
+        spec:
+            containers:
+                - env:
+                    - name: GET_HOSTS_FROM
+                      value: dns
+                  image: us-docker.pkg.dev/google-samples/containers/gke/gb-frontend:v5
+                  name: php-redis
+                  ports:
+                    - containerPort: 80
+                  resources:
+                    requests:
+                        cpu: 100m
+                        memory: 100Mi
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: GitRepository
+metadata:
+    annotations: {}
+    labels: {}
+    name: git-repository-ie
+    namespace: default
+spec:
+    gitImplementation: go-git
+    ref:
+        branch: master
+    timeout: 20s
+---
+apiVersion: garo.tietoevry.com/v1alpha1
+kind: GithubActionRunner
+metadata:
+    annotations: {}
+    labels: {}
+    name: github-action-runner-ds
+    namespace: default
+spec:
+    deletionOrder: Least Recent
+    minRunners: 1
+    minTtl: 0m
+    podTemplateSpec:
+        metadata:
+            finalizers: []
+        spec:
+            affinity:
+                nodeAffinity:
+                    preferredDuringSchedulingIgnoredDuringExecution: []
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                        nodeSelectorTerms: []
+                podAffinity:
+                    preferredDuringSchedulingIgnoredDuringExecution: []
+                    requiredDuringSchedulingIgnoredDuringExecution: []
+                podAntiAffinity:
+                    preferredDuringSchedulingIgnoredDuringExecution: []
+                    requiredDuringSchedulingIgnoredDuringExecution: []
+            containers: []
+            dnsConfig:
+                nameservers: []
+                options: []
+                searches: []
+            ephemeralContainers: []
+            hostAliases: []
+            imagePullSecrets: []
+            initContainers: []
+            readinessGates: []
+            resourceClaims: []
+            schedulingGates: []
+            securityContext:
+                supplementalGroups: []
+                sysctls: []
+            tolerations: []
+            topologySpreadConstraints: []
+            volumes: []
+    reconciliationPeriod: 1m
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+    annotations: {}
+    labels: {}
+    name: default
+    namespace: default
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+    annotations: {}
+    labels: {}
+    name: default
+    namespace: default
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+    annotations: {}
+    labels: {}
+    name: default
+    namespace: default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-gjt
+    namespace: default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-rny
+    namespace: default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-tjt
+    namespace: default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-uxe
+    namespace: default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-yx
+    namespace: default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-spd
+    namespace: default
+spec:
+    containers:
+        - command:
+            - /bin/sh
+            - -c
+            - while true; do echo "$(date) My preferred sport is $(cat /etc/config/sport)"; sleep 10; done;
+          image: alpine:3
+          name: alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: /etc/config
+              name: config-volume
+    volumes:
+        - configMap:
+            name: sport
+          name: config-volume
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-cfl
+    namespace: default
+spec:
+    containers:
+        - env:
+            - name: GET_HOSTS_FROM
+              value: dns
+          image: us-docker.pkg.dev/google-samples/containers/gke/gb-frontend:v5
+          name: php-redis
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+                cpu: 100m
+                memory: 100Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-nip
+    namespace: default
+spec:
+    containers:
+        - image: docker.io/redis:6.0.5
+          name: leader
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+                cpu: 100m
+                memory: 100Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-znv
+    namespace: default
+spec:
+    containers:
+        - image: us-docker.pkg.dev/google-samples/containers/gke/gb-redis-follower:v2
+          name: follower
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+                cpu: 100m
+                memory: 100Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-kea
+    namespace: default
+spec:
+    containers:
+        - ports:
+            - containerPort: 6379
+        - image: docker.io/redis:6.0.5
+          name: leader
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+                cpu: 100m
+                memory: 100Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-hgg
+    namespace: default
+spec:
+    containers:
+        - ports:
+            - containerPort: 6379
+        - image: us-docker.pkg.dev/google-samples/containers/gke/gb-redis-follower:v2
+          name: follower
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+                cpu: 100m
+                memory: 100Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations: {}
+    labels: {}
+    name: frontend
+    namespace: default
+spec:
+    ports:
+        - port: 80
+    selector:
+        app: guestbook
+        tier: frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations: {}
+    labels: {}
+    name: redis-follower
+    namespace: default
+spec:
+    ports:
+        - port: 6379
+    selector:
+        app: redis
+        role: follower
+        tier: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations: {}
+    labels: {}
+    name: redis-leader
+    namespace: default
+spec:
+    ports:
+        - port: 6379
+          targetPort: 6379
+    selector:
+        app: redis
+        role: leader
+        tier: backend
