@@ -13,6 +13,7 @@ const (
 	RelationshipDefinition EntityType = "relationship"
 	Model                  EntityType = "model"
 	Category               EntityType = "category"
+	SubCategory               EntityType = "sub_category"
 )
 
 // Each entity will have it's own Filter implementation via which it exposes the nobs and dials to fetch entities
