@@ -313,3 +313,32 @@ func ErrUnsupportedFileTypeForConversionToDesign(fileName string, fileType strin
 
 	return errors.New(ErrFileTypeNotSupportedForDesignConversion, errors.Critical, sdescription, ldescription, probableCause, remedy)
 }
+
+var (
+	ErrNoTarInsideOCICode        = "replace_me"
+	ErrEmptyOCIImageCode         = "replace_me"
+	ErrUnCompressOCIArtifactCode = "replace_me"
+	ErrWaklingLocalDirectoryCode = "replace_me"
+	ErrDecodePatternCode         = "replace_me"
+)
+
+// OCI Parsing errors
+
+func ErrNoTarInsideOCi() error {
+	return errors.New(ErrNoTarInsideOCICode, errors.Alert, []string{"No tar file found inside OCI image"}, []string{"Unable to locate the compressed file(.tar.gz) inside the OCI image."}, []string{"The OCI image does not contain a ziped file."}, []string{"Verify that the OCI image contains a ziped file."})
+}
+func ErrEmptyOCIImage(err error) error {
+	return errors.New(ErrEmptyOCIImageCode, errors.Alert, []string{}, []string{}, []string{}, []string{})
+}
+
+func ErrUnCompressOCIArtifact(err error) error {
+	return errors.New(ErrUnCompressOCIArtifactCode, errors.Alert, []string{"Failed to uncompress OCI artifact"}, []string{err.Error()}, []string{"unable to uncompress OCI artifact", "OCI artifact may be corrupted"}, []string{"check if the OCI artifact is valid and not corrupted"})
+}
+
+func ErrWaklingLocalDirectory(err error) error {
+	return errors.New(ErrWaklingLocalDirectoryCode, errors.Alert, []string{"Failed to walk local directory"}, []string{err.Error()}, []string{"unable to walk local directory", "local directory may be corrupted"}, []string{"check if the local directory is valid and not corrupted"})
+}
+
+func ErrDecodePattern(err error) error {
+	return errors.New(ErrDecodePatternCode, errors.Alert, []string{"Error failed to decode design data into go slice"}, []string{err.Error()}, []string{}, []string{})
+}

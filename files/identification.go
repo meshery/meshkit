@@ -9,7 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/layer5io/meshkit/encoding"
+	"github.com/layer5io/meshkit/models/oci"
+	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/kubernetes/kompose"
+	"github.com/layer5io/meshkit/utils/walker"
 	"github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 
@@ -96,6 +100,57 @@ func IdentifyFile(sanitizedFile SanitizedFile) (IdentifiedFile, error) {
 	// If no file type matched, return a detailed error with the identification trace
 	return IdentifiedFile{}, ErrFailedToIdentifyFile(sanitizedFile.FileName, sanitizedFile.FileExt, identificationErrorsTrace)
 }
+
+func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile, error) {
+
+	// Assume design is in OCI Tarball Format
+	tmpDir, err := oci.CreateTempOCIContentDir()
+	if err != nil {
+		return nil, utils.ErrCreateDir(err, "OCI")
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tmpInputDesignFile := filepath.Join(tmpDir, "design.tar")
+	file, err := os.Create(tmpInputDesignFile)
+	if err != nil {
+		return nil, utils.ErrCreateFile(err, tmpInputDesignFile)
+	}
+	defer file.Close()
+
+	reader := bytes.NewReader(artifact)
+	if _, err := io.Copy(file, reader); err != nil {
+		return nil, utils.ErrWritingIntoFile(err, tmpInputDesignFile)
+	}
+
+	tmpOutputDesignFile := filepath.Join(tmpDir, "output")
+	// Extract the tarball
+	if err := oci.UnCompressOCIArtifact(tmpInputDesignFile, tmpOutputDesignFile); err != nil {
+		return nil, ErrUnCompressOCIArtifact(err)
+	}
+
+	files, err := walker.WalkLocalDirectory(tmpOutputDesignFile)
+	if err != nil {
+		return nil, ErrWaklingLocalDirectory(err)
+	}
+
+	// TODO: Add support to merge multiple designs into one
+	// Currently, assumes to save only the first design
+	if len(files) == 0 {
+		return nil, ErrEmptyOCIImage(fmt.Errorf("no design file detected in the imported OCI image"))
+	}
+	design := files[0]
+
+	var patternFile pattern.PatternFile
+
+	err = encoding.Unmarshal([]byte(design.Content), &patternFile)
+
+	if err != nil {
+		return nil, ErrDecodePattern(err)
+	}
+	patternFile.Name = design.Name
+
+	return &patternFile, nil
+}
 func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 
 	var parsed pattern.PatternFile
@@ -116,6 +171,14 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 		decoder.DisallowUnknownFields()
 		err := decoder.Decode(&parsed)
 		return parsed, err
+
+	case ".tgz", ".tar", ".tar.gz", ".zip": // try to parse oci artifacts
+		parsed_design, err := ParseCompressedOCIArtifactIntoDesign(file.RawData)
+		if parsed_design == nil || err != nil {
+			return pattern.PatternFile{}, err
+		}
+
+		return *parsed_design, err
 
 	default:
 		return pattern.PatternFile{}, fmt.Errorf("Invalid File extension %s", file.FileExt)
