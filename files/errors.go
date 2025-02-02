@@ -11,19 +11,20 @@ import (
 
 var (
 	// Error code
-	ErrUnsupportedExtensionCode             = "replace_me"
-	ErrUnsupportedExtensionForOperationCode = "replace_me"
-	ErrFailedToIdentifyFileCode             = "replace_me"
-	ErrSanitizingFileCode                   = "replace_me"
-	ErrInvalidYamlCode                      = "replace_me"
-	ErrInvalidJsonCode                      = "replace_me"
-	ErrFailedToExtractTarCode               = "replace_me"
-	ErrUnsupportedFileTypeCode              = "replace_me"
-	ErrInvalidKubernetesManifestCode        = "replace_me"
-	ErrInvalidMesheryDesignCode             = "replace_me"
-	ErrInvalidHelmChartCode                 = "replace_me"
-	ErrInvalidDockerComposeCode             = "replace_me"
-	ErrInvalidKustomizationCode             = "replace_me"
+	ErrUnsupportedExtensionCode                = "replace_me"
+	ErrUnsupportedExtensionForOperationCode    = "replace_me"
+	ErrFailedToIdentifyFileCode                = "replace_me"
+	ErrSanitizingFileCode                      = "replace_me"
+	ErrInvalidYamlCode                         = "replace_me"
+	ErrInvalidJsonCode                         = "replace_me"
+	ErrFailedToExtractTarCode                  = "replace_me"
+	ErrUnsupportedFileTypeCode                 = "replace_me"
+	ErrInvalidKubernetesManifestCode           = "replace_me"
+	ErrInvalidMesheryDesignCode                = "replace_me"
+	ErrInvalidHelmChartCode                    = "replace_me"
+	ErrInvalidDockerComposeCode                = "replace_me"
+	ErrInvalidKustomizationCode                = "replace_me"
+	ErrFileTypeNotSupportedForDesignConversion = "replace_me"
 )
 
 func ErrUnsupportedExtensionForOperation(operation string, fileName string, fileExt string, supportedExtensions []string) error {
@@ -289,4 +290,26 @@ func ErrInvalidKustomization(fileName string, err error) error {
 	}
 
 	return errors.New(ErrInvalidKustomizationCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
+}
+
+func ErrUnsupportedFileTypeForConversionToDesign(fileName string, fileType string) error {
+	sdescription := []string{
+		fmt.Sprintf("The file '%s' of  type '%s' is not supported for  conversion to a design", fileName, fileType),
+	}
+
+	ldescription := []string{
+		fmt.Sprintf("The file '%s' of type '%s' cannot be converted to design. Supported formats are: meshery-design, helm-chart, k8s-manifest, docker-compose.", fileName, fileType),
+	}
+
+	probableCause := []string{
+		"File  doesn't match any supported IAC files",
+		"Attempting to convert a file type not enabled for design conversion",
+	}
+
+	remedy := []string{
+		"Verify the file format matches one of the supported types",
+		"Convert the file to a supported format before processing",
+	}
+
+	return errors.New(ErrFileTypeNotSupportedForDesignConversion, errors.Critical, sdescription, ldescription, probableCause, remedy)
 }
