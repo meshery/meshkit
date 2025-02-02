@@ -25,6 +25,17 @@ type SanitizedFile struct {
 	ExtractedContentPath string
 }
 
+var ValidIacExtensions = map[string]bool{
+	".yml":     true,
+	".yaml":    true,
+	".json":    true,
+	".tar":     true,
+	".tar.gz":  true,
+	".tar.tgz": true,
+	".zip":     true,
+	".gz":      true,
+}
+
 func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[string]bool) (SanitizedFile, error) {
 
 	ext := filepath.Ext(fileName)
