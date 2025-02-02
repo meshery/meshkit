@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	"github.com/layer5io/meshkit/utils/kubernetes/kompose"
+	"github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
+
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -27,13 +29,6 @@ import (
 	dockerLoader "github.com/docker/cli/cli/compose/loader"
 	dockerTypes "github.com/docker/cli/cli/compose/types"
 )
-
-const MESHERY_DESIGN = "Design"
-const KUBERNETES_MANIFEST = "KubernetesManifest"
-const DOCKER_COMPOSE = "DockerCompose"
-const KUSTOMIZATION = "Kustomization"
-const HELM_CHART = "HelmChart"
-const MESHERY_VIEW = "View"
 
 type IdentifiedFile struct {
 	Type string
@@ -56,47 +51,47 @@ func IdentifyFile(sanitizedFile SanitizedFile) (IdentifiedFile, error) {
 	// Attempt to parse the file as a Meshery design
 	if parsed, err = ParseFileAsMesheryDesign(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       MESHERY_DESIGN,
+			Type:       core.IacFileTypes.MESHERY_DESIGN,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[MESHERY_DESIGN] = err
+	identificationErrorsTrace[core.IacFileTypes.MESHERY_DESIGN] = err
 
 	// Attempt to parse the file as a Kubernetes manifest
 	if parsed, err = ParseFileAsKubernetesManifest(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       KUBERNETES_MANIFEST,
+			Type:       core.IacFileTypes.KUBERNETES_MANIFEST,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[KUBERNETES_MANIFEST] = err
+	identificationErrorsTrace[core.IacFileTypes.KUBERNETES_MANIFEST] = err
 
 	// Attempt to parse the file as a Helm chart
 	if parsed, err = ParseFileAsHelmChart(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       HELM_CHART,
+			Type:       core.IacFileTypes.HELM_CHART,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[HELM_CHART] = err
+	identificationErrorsTrace[core.IacFileTypes.HELM_CHART] = err
 
 	// Attempt to parse the file as a Docker Compose file
 	if parsed, err = ParseFileAsDockerCompose(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       DOCKER_COMPOSE,
+			Type:       core.IacFileTypes.DOCKER_COMPOSE,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[DOCKER_COMPOSE] = err
+	identificationErrorsTrace[core.IacFileTypes.DOCKER_COMPOSE] = err
 
 	// Attempt to parse the file as a Kustomization file
 	if parsed, err = ParseFileAsKustomization(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       KUSTOMIZATION,
+			Type:       core.IacFileTypes.KUSTOMIZE,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[KUSTOMIZATION] = err
+	identificationErrorsTrace[core.IacFileTypes.KUSTOMIZE] = err
 
 	// If no file type matched, return a detailed error with the identification trace
 	return IdentifiedFile{}, ErrFailedToIdentifyFile(sanitizedFile.FileName, sanitizedFile.FileExt, identificationErrorsTrace)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/layer5io/meshkit/errors"
 	"github.com/layer5io/meshkit/files"
+	"github.com/meshery/schemas/models/core"
 )
 
 func TestSanitizeFile(t *testing.T) {
@@ -72,52 +73,52 @@ func TestSanitizeFile(t *testing.T) {
 			name:         "Can Identify Design",
 			filePath:     "./samples/valid_design.yml",
 			expectedExt:  ".yml",
-			expectedType: files.MESHERY_DESIGN,
+			expectedType: core.IacFileTypes.MESHERY_DESIGN,
 		},
 		{
 			name:         "Can Identify Kubernetes Manifest",
 			filePath:     "./samples/valid_manifest.yml",
 			expectedExt:  ".yml",
-			expectedType: files.KUBERNETES_MANIFEST,
+			expectedType: core.IacFileTypes.KUBERNETES_MANIFEST,
 		},
 
 		{
 			name:         "Can Identify Kubernetes Manifest With Crds",
 			filePath:     "./samples/manifest-with-crds.yml",
 			expectedExt:  ".yml",
-			expectedType: files.KUBERNETES_MANIFEST,
+			expectedType: core.IacFileTypes.KUBERNETES_MANIFEST,
 		},
 
 		{
 			name:         "Can Identify HelmChart",
 			filePath:     "./samples/valid-helm.tgz",
 			expectedExt:  ".tgz",
-			expectedType: files.HELM_CHART,
+			expectedType: core.IacFileTypes.HELM_CHART,
 		},
 		{
 			name:         "Can Identify Kustomize archive (tar.gz)",
 			filePath:     "./samples/wordpress-kustomize.tar.gz",
 			expectedExt:  ".gz",
-			expectedType: files.KUSTOMIZATION,
+			expectedType: core.IacFileTypes.KUSTOMIZE,
 		},
 		{
 			name:         "Can Identify Kustomize archive (zip)",
 			filePath:     "./samples/wordpress-kustomize.zip",
 			expectedExt:  ".zip",
-			expectedType: files.KUSTOMIZATION,
+			expectedType: core.IacFileTypes.KUSTOMIZE,
 		},
 		{
 			name:         "Can Identify Docker Compose",
 			filePath:     "./samples/valid-docker-compose.yml",
 			expectedExt:  ".yml",
-			expectedType: files.DOCKER_COMPOSE,
+			expectedType: core.IacFileTypes.DOCKER_COMPOSE,
 		},
 
 		{
 			name:         "Can Identify Docker Compose v2",
 			filePath:     "./samples/valid-compose-2.yml",
 			expectedExt:  ".yml",
-			expectedType: files.DOCKER_COMPOSE,
+			expectedType: core.IacFileTypes.DOCKER_COMPOSE,
 		},
 
 		// {
