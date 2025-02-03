@@ -2,12 +2,7 @@ package files
 
 import (
 	"fmt"
-
-	// dockerTypes "github.com/docker/cli/cli/compose/types"
-
 	"github.com/layer5io/meshkit/utils/helm"
-	// "github.com/layer5io/meshkit/utils/kubernetes/kompose"
-	// "gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart"
 )
 
