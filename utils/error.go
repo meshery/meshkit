@@ -54,6 +54,8 @@ var (
 	// Google Sheets Service Errors
 	ErrGoogleJwtInvalidCode = "meshkit-11279"
 	ErrGoogleSheetSRVCode   = "meshkit-11280"
+
+	ErrWritingIntoFileCode = "replace_me"
 )
 var (
 	ErrExtractType = errors.New(
@@ -252,4 +254,8 @@ func ErrGoogleJwtInvalid(err error) error {
 
 func ErrGoogleSheetSRV(err error) error {
 	return errors.New(ErrGoogleSheetSRVCode, errors.Alert, []string{"Error while creating Google Sheets Service"}, []string{err.Error()}, []string{"Issue happened with Google Sheets Service"}, []string{"Make you provide valid JWT credentials and Spreadsheet ID"})
+}
+
+func ErrWritingIntoFile(err error, obj string) error {
+	return errors.New(ErrWritingIntoFileCode, errors.Alert, []string{fmt.Sprintf("failed to write into file %s", obj)}, []string{err.Error()}, []string{"Insufficient permissions to write into file", "file might be corrupted"}, []string{"check if sufficient permissions are givent to the file", "check if the file is corrupted"})
 }

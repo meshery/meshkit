@@ -1,0 +1,885 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-app-mesh
+    name: meshery-app-mesh
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery-app-mesh
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery-app-mesh
+        spec:
+            containers:
+                - image: layer5/meshery-app-mesh:stable-latest
+                  image Pull Policy: Always
+                  name: meshery-app-mesh
+                  ports:
+                    - container Port: 10005
+                  resources: {}
+            restart Policy: Always
+            service Account: meshery-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-app-mesh
+    name: meshery-app-mesh
+spec:
+    ports:
+        - name: "10005"
+          port: 10005
+          target Port: 10005
+    selector:
+        io.kompose.service: meshery-app-mesh
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-cilium
+    name: meshery-cilium
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery-cilium
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery-cilium
+        spec:
+            containers:
+                - image: layer5/meshery-cilium:stable-latest
+                  image Pull Policy: Always
+                  name: meshery-cilium
+                  ports:
+                    - container Port: 10012
+                  resources: {}
+            restart Policy: Always
+            service Account: meshery-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-cilium
+    name: meshery-cilium
+spec:
+    ports:
+        - name: "10012"
+          port: 10012
+          target Port: 10012
+    selector:
+        io.kompose.service: meshery-cilium
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-consul
+    name: meshery-consul
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery-consul
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery-consul
+        spec:
+            containers:
+                - image: layer5/meshery-consul:stable-latest
+                  image Pull Policy: Always
+                  name: meshery-consul
+                  ports:
+                    - container Port: 10002
+                  resources: {}
+            restart Policy: Always
+            service Account: meshery-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-consul
+    name: meshery-consul
+spec:
+    ports:
+        - name: "10002"
+          port: 10002
+          target Port: 10002
+    selector:
+        io.kompose.service: meshery-consul
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery
+    name: meshery
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery
+        spec:
+            containers:
+                - env:
+                    - name: EVENT
+                      value: mesheryLocal
+                    - name: PROVIDER_BASE_URLS
+                      value: https://meshery.layer5.io
+                    - name: ADAPTER_URLS
+                      value: meshery-istio:10000 meshery-linkerd:10001 meshery-consul:10002 meshery-nsm:10004 meshery-app-mesh:10005 meshery-kuma:10007 meshery-nginx-sm:10010
+                  image: layer5/meshery:stable-latest
+                  image Pull Policy: Always
+                  name: meshery
+                  ports:
+                    - container Port: 8080
+                  resources: {}
+            restart Policy: Always
+            service Account Name: meshery-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-istio
+    name: meshery-istio
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery-istio
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery-istio
+        spec:
+            containers:
+                - image: layer5/meshery-istio:stable-latest
+                  image Pull Policy: Always
+                  name: meshery-istio
+                  ports:
+                    - container Port: 10000
+                  resources: {}
+            restart Policy: Always
+            service Account: meshery-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-istio
+    name: meshery-istio
+spec:
+    ports:
+        - name: "10000"
+          port: 10000
+          target Port: 10000
+    selector:
+        io.kompose.service: meshery-istio
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-kuma
+    name: meshery-kuma
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery-kuma
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery-kuma
+        spec:
+            containers:
+                - image: layer5/meshery-kuma:stable-latest
+                  image Pull Policy: Always
+                  name: meshery-kuma
+                  ports:
+                    - container Port: 10007
+                  resources: {}
+            restart Policy: Always
+            service Account: meshery-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-kuma
+    name: meshery-kuma
+spec:
+    ports:
+        - name: "10007"
+          port: 10007
+          target Port: 10007
+    selector:
+        io.kompose.service: meshery-kuma
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-linkerd
+    name: meshery-linkerd
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery-linkerd
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery-linkerd
+        spec:
+            containers:
+                - image: layer5/meshery-linkerd:stable-latest
+                  image Pull Policy: Always
+                  name: meshery-linkerd
+                  ports:
+                    - container Port: 10001
+                  resources: {}
+            restart Policy: Always
+            service Account: meshery-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-linkerd
+    name: meshery-linkerd
+spec:
+    ports:
+        - name: "10001"
+          port: 10001
+          target Port: 10001
+    selector:
+        io.kompose.service: meshery-linkerd
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-nginx-sm
+    name: meshery-nginx-sm
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery-nginx-sm
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery-nginx-sm
+        spec:
+            containers:
+                - image: layer5/meshery-nginx-sm:stable-latest
+                  image Pull Policy: Always
+                  name: meshery-nginx-sm
+                  ports:
+                    - container Port: 10010
+                  resources: {}
+            restart Policy: Always
+            service Account: meshery-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-nginx-sm
+    name: meshery-nginx-sm
+spec:
+    ports:
+        - name: "10010"
+          port: 10010
+          target Port: 10010
+    selector:
+        io.kompose.service: meshery-nginx-sm
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-nsm
+    name: meshery-nsm
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery-nsm
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery-nsm
+        spec:
+            containers:
+                - image: layer5/meshery-nsm:stable-latest
+                  image Pull Policy: Always
+                  name: meshery-nsm
+                  ports:
+                    - container Port: 10004
+                  resources: {}
+            restart Policy: Always
+            service Account: meshery-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-nsm
+    name: meshery-nsm
+spec:
+    ports:
+        - name: "10004"
+          port: 10004
+          target Port: 10004
+    selector:
+        io.kompose.service: meshery-nsm
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery
+    name: meshery
+spec:
+    ports:
+        - name: http
+          port: 9081
+          target Port: 8080
+    selector:
+        io.kompose.service: meshery
+    type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-traefik-mesh
+    name: meshery-traefik-mesh
+spec:
+    replicas: 1
+    selector:
+        match Labels:
+            io.kompose.service: meshery-traefik-mesh
+    strategy: {}
+    template:
+        metadata:
+            creation Timestamp: null
+            labels:
+                io.kompose.service: meshery-traefik-mesh
+        spec:
+            containers:
+                - image: layer5/meshery-traefik-mesh:stable-latest
+                  image Pull Policy: Always
+                  name: meshery-traefik-mesh
+                  ports:
+                    - container Port: 10006
+                  resources: {}
+            restart Policy: Always
+            service Account: meshery-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        kompose.cmd: kompose convert -f ../docker-compose.yaml
+        kompose.version: 1.32.0 ()
+    labels:
+        io.kompose.service: meshery-traefik-mesh
+    name: meshery-traefik-mesh
+spec:
+    ports:
+        - name: "10000"
+          port: 10006
+          target Port: 10006
+    selector:
+        io.kompose.service: meshery-traefik-mesh
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+    annotations: {}
+    labels: {}
+    name: meshery-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+    annotations: {}
+    labels:
+        app: meshery
+    name: meshery-server
+rules:
+    - api Groups:
+        - '*'
+      resources:
+        - '*'
+      verbs:
+        - '*'
+    - non Resource URLs:
+        - /metrics
+        - /health
+        - /ping
+      verbs:
+        - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+    annotations: {}
+    labels:
+        app: meshery
+    name: meshery-server
+role Ref:
+    api Group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: meshery-server
+subjects:
+    - kind: ServiceAccount
+      name: meshery-server
+      namespace: meshery
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-jyy
+spec:
+    containers:
+        - env:
+            - name: EVENT
+              value: mesheryLocal
+            - name: PROVIDER_BASE_URLS
+              value: https://meshery.layer5.io
+            - name: ADAPTER_URLS
+              value: meshery-istio:10000 meshery-linkerd:10001 meshery-consul:10002 meshery-nsm:10004 meshery-app-mesh:10005 meshery-kuma:10007 meshery-nginx-sm:10010
+          image: layer5/meshery:stable-latest
+          image Pull Policy: Always
+          name: meshery
+          ports:
+            - container Port: 8080
+          resources: {}
+    restart Policy: Always
+    service Account Name: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-snq
+spec:
+    containers:
+        - image: layer5/meshery-app-mesh:stable-latest
+          image Pull Policy: Always
+          name: meshery-app-mesh
+          ports:
+            - container Port: 10005
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-kks
+spec:
+    containers:
+        - image: layer5/meshery-cilium:stable-latest
+          image Pull Policy: Always
+          name: meshery-cilium
+          ports:
+            - container Port: 10012
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-smx
+spec:
+    containers:
+        - image: layer5/meshery-consul:stable-latest
+          image Pull Policy: Always
+          name: meshery-consul
+          ports:
+            - container Port: 10002
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-mth
+spec:
+    containers:
+        - image: layer5/meshery-istio:stable-latest
+          image Pull Policy: Always
+          name: meshery-istio
+          ports:
+            - container Port: 10000
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-qwd
+spec:
+    containers:
+        - image: layer5/meshery-kuma:stable-latest
+          image Pull Policy: Always
+          name: meshery-kuma
+          ports:
+            - container Port: 10007
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-xcs
+spec:
+    containers:
+        - image: layer5/meshery-linkerd:stable-latest
+          image Pull Policy: Always
+          name: meshery-linkerd
+          ports:
+            - container Port: 10001
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-lui
+spec:
+    containers:
+        - image: layer5/meshery-nginx-sm:stable-latest
+          image Pull Policy: Always
+          name: meshery-nginx-sm
+          ports:
+            - container Port: 10010
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-izh
+spec:
+    containers:
+        - image: layer5/meshery-nsm:stable-latest
+          image Pull Policy: Always
+          name: meshery-nsm
+          ports:
+            - container Port: 10004
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-xzf
+spec:
+    containers:
+        - image: layer5/meshery-traefik-mesh:stable-latest
+          image Pull Policy: Always
+          name: meshery-traefik-mesh
+          ports:
+            - container Port: 10006
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-jyy
+spec:
+    containers:
+        - env:
+            - name: EVENT
+              value: mesheryLocal
+            - name: PROVIDER_BASE_URLS
+              value: https://meshery.layer5.io
+            - name: ADAPTER_URLS
+              value: meshery-istio:10000 meshery-linkerd:10001 meshery-consul:10002 meshery-nsm:10004 meshery-app-mesh:10005 meshery-kuma:10007 meshery-nginx-sm:10010
+          image: layer5/meshery:stable-latest
+          image Pull Policy: Always
+          name: meshery
+          ports:
+            - container Port: 8080
+          resources: {}
+    restart Policy: Always
+    service Account Name: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-snq
+spec:
+    containers:
+        - image: layer5/meshery-app-mesh:stable-latest
+          image Pull Policy: Always
+          name: meshery-app-mesh
+          ports:
+            - container Port: 10005
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-kks
+spec:
+    containers:
+        - image: layer5/meshery-cilium:stable-latest
+          image Pull Policy: Always
+          name: meshery-cilium
+          ports:
+            - container Port: 10012
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-smx
+spec:
+    containers:
+        - image: layer5/meshery-consul:stable-latest
+          image Pull Policy: Always
+          name: meshery-consul
+          ports:
+            - container Port: 10002
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-mth
+spec:
+    containers:
+        - image: layer5/meshery-istio:stable-latest
+          image Pull Policy: Always
+          name: meshery-istio
+          ports:
+            - container Port: 10000
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-qwd
+spec:
+    containers:
+        - image: layer5/meshery-kuma:stable-latest
+          image Pull Policy: Always
+          name: meshery-kuma
+          ports:
+            - container Port: 10007
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-xcs
+spec:
+    containers:
+        - image: layer5/meshery-linkerd:stable-latest
+          image Pull Policy: Always
+          name: meshery-linkerd
+          ports:
+            - container Port: 10001
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-lui
+spec:
+    containers:
+        - image: layer5/meshery-nginx-sm:stable-latest
+          image Pull Policy: Always
+          name: meshery-nginx-sm
+          ports:
+            - container Port: 10010
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-izh
+spec:
+    containers:
+        - image: layer5/meshery-nsm:stable-latest
+          image Pull Policy: Always
+          name: meshery-nsm
+          ports:
+            - container Port: 10004
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
+---
+apiVersion: v1
+kind: Pod
+metadata:
+    annotations: {}
+    labels: {}
+    name: pod-xzf
+spec:
+    containers:
+        - image: layer5/meshery-traefik-mesh:stable-latest
+          image Pull Policy: Always
+          name: meshery-traefik-mesh
+          ports:
+            - container Port: 10006
+          resources: {}
+    restart Policy: Always
+    service Account: meshery-server
