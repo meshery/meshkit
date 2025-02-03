@@ -55,7 +55,7 @@ var (
 	ErrGoogleJwtInvalidCode = "meshkit-11279"
 	ErrGoogleSheetSRVCode   = "meshkit-11280"
 
-	ErrWritingIntoFileCode = "replace_me"
+	ErrWritingIntoFileCode = "meshkit-11281"
 )
 var (
 	ErrExtractType = errors.New(
