@@ -27,6 +27,7 @@ func NewK8sManifestsFromPatternfile(patternFile *pattern.PatternFile) (string, e
 	buf := bytes.NewBufferString("")
 
 	enc := yaml.NewEncoder(buf)
+	enc.SetIndent(2)
 	for _, comp := range patternFile.Components {
 		err := enc.Encode(CreateK8sResourceStructure(comp))
 		if err != nil {

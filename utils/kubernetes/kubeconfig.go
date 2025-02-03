@@ -7,7 +7,7 @@ import (
 	"github.com/layer5io/meshkit/models"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func (c *Client) GetKubeConfig() (*models.Kubeconfig, error) {
