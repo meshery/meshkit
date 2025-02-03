@@ -375,7 +375,7 @@ func WriteYamlToFile[K any](outputPath string, data K) error {
 }
 
 func WriteJSONToFile[K any](outputPath string, data K) error {
-	byt, err := json.MarshalIndent(data, "", "    ")
+	byt, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return ErrMarshal(err)
 	}
