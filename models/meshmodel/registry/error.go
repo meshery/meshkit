@@ -7,14 +7,14 @@ import (
 )
 
 var (
-	ErrUnknownHostCode                 = "replace_me"
-	ErrEmptySchemaCode                 = "replace_me"
-	ErrMarshalingRegisteryAttemptsCode = "replace_me"
-	ErrWritingRegisteryAttemptsCode    = "replace_me"
-	ErrRegisteringEntityCode           = "replace_me"
-	ErrUnknownHostInMapCode            = "replace_me"
-	ErrCreatingUserDataDirectoryCode   = "replace_me"
-	ErrGetByIdCode                     = "replace_me"
+	ErrUnknownHostCode                 = "meshkit-11255"
+	ErrEmptySchemaCode                 = "meshkit-11256"
+	ErrMarshalingRegisteryAttemptsCode = "meshkit-11257"
+	ErrWritingRegisteryAttemptsCode    = "meshkit-11258"
+	ErrRegisteringEntityCode           = "meshkit-11259"
+	ErrUnknownHostInMapCode            = "meshkit-11260"
+	ErrCreatingUserDataDirectoryCode   = "meshkit-11261"
+	ErrGetByIdCode                     = "meshkit-11262"
 )
 
 func ErrGetById(err error, id string) error {

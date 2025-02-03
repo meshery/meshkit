@@ -40,17 +40,22 @@ var (
 	ErrExtractTarXZCode         = "meshkit-11184"
 	ErrExtractZipCode           = "meshkit-11185"
 	ErrReadDirCode              = "meshkit-11186"
-	ErrInvalidSchemaVersionCode = "replace_me"
-	ErrFileWalkDirCode          = "replace_me"
-	ErrRelPathCode              = "replace_me"
-	ErrCopyFileCode             = "replace_me"
-	ErrCloseFileCode            = "replace_me"
+	ErrInvalidSchemaVersionCode = "meshkit-11273"
+	ErrFileWalkDirCode          = "meshkit-11274"
+	ErrRelPathCode              = "meshkit-11275"
+	ErrCopyFileCode             = "meshkit-11276"
+	ErrCloseFileCode            = "meshkit-11277"
 	ErrCompressToTarGZCode      = "meshkit-11248"
 
-	ErrConvertToByteCode        = "meshkit-11187"
+	ErrConvertToByteCode = "meshkit-11187"
 
-	ErrOpenFileCode             = "replace_me"
+	ErrOpenFileCode = "meshkit-11278"
 
+	// Google Sheets Service Errors
+	ErrGoogleJwtInvalidCode = "meshkit-11279"
+	ErrGoogleSheetSRVCode   = "meshkit-11280"
+
+	ErrWritingIntoFileCode = "meshkit-11281"
 )
 var (
 	ErrExtractType = errors.New(
@@ -241,4 +246,16 @@ func ErrCloseFile(err error) error {
 }
 func ErrOpenFile(file string) error {
 	return errors.New(ErrOpenFileCode, errors.Alert, []string{"unable to open file: ", file}, []string{}, []string{"The file does not exist in the location"}, []string{"Make sure to upload the correct file"})
+}
+
+func ErrGoogleJwtInvalid(err error) error {
+	return errors.New(ErrGoogleJwtInvalidCode, errors.Alert, []string{"Invalid JWT credentials"}, []string{err.Error()}, []string{"Invalid JWT credentials"}, []string{"Make sure to provide valid JWT credentials"})
+}
+
+func ErrGoogleSheetSRV(err error) error {
+	return errors.New(ErrGoogleSheetSRVCode, errors.Alert, []string{"Error while creating Google Sheets Service"}, []string{err.Error()}, []string{"Issue happened with Google Sheets Service"}, []string{"Make you provide valid JWT credentials and Spreadsheet ID"})
+}
+
+func ErrWritingIntoFile(err error, obj string) error {
+	return errors.New(ErrWritingIntoFileCode, errors.Alert, []string{fmt.Sprintf("failed to write into file %s", obj)}, []string{err.Error()}, []string{"Insufficient permissions to write into file", "file might be corrupted"}, []string{"check if sufficient permissions are givent to the file", "check if the file is corrupted"})
 }

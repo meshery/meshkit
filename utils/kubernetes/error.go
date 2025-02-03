@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/layer5io/meshkit/errors"
+	"github.com/layer5io/meshkit/utils"
+	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -39,47 +41,175 @@ var (
 )
 
 func ErrApplyManifest(err error) error {
-	return errors.New(ErrApplyManifestCode, errors.Alert, []string{"Error Applying manifest"}, []string{err.Error()}, []string{"Manifest could be invalid"}, []string{"Make sure manifest yaml is valid"})
+	short := []string{"Error Applying manifest"}
+	long := []string{err.Error()}
+	probable := []string{"Manifest could be invalid"}
+	remedy := []string{"Make sure manifest yaml is valid"}
+
+	if utils.IsErrKubeStatusErr(err) {
+		statusErr := err.(*kubeerror.StatusError)
+		short, long, probable, remedy = utils.ParseKubeStatusErr(statusErr)
+	}
+
+	return errors.New(ErrApplyManifestCode, errors.Alert,
+		short,
+		long,
+		probable,
+		remedy)
 }
 
-// ErrServiceDiscovery returns an error of type "ErrServiceDiscovery" along with the passed error
+// ErrServiceDiscovery handles service discovery errors, including Kubernetes status errors
 func ErrServiceDiscovery(err error) error {
-	return errors.New(ErrServiceDiscoveryCode, errors.Alert, []string{"Error Discovering service"}, []string{err.Error()}, []string{"Network not reachable to the service"}, []string{"Make sure the endpoint is reachable"})
+	// Define default error messages
+	short := []string{"Error discovering service"}
+	long := []string{err.Error()}
+	probable := []string{"Network not reachable to the service"}
+	remedy := []string{"Make sure the endpoint is reachable"}
+
+	// If this is a Kubernetes status error, get more specific error details
+	if utils.IsErrKubeStatusErr(err) {
+		statusErr := err.(*kubeerror.StatusError)
+		short, long, probable, remedy = utils.ParseKubeStatusErr(statusErr)
+	}
+
+	return errors.New(ErrServiceDiscoveryCode, errors.Alert,
+		short,
+		long,
+		probable,
+		remedy)
 }
 
-// ErrApplyHelmChart is the error which occurs in the process of applying helm chart
+// ErrApplyHelmChart handles helm chart application errors, including Kubernetes status errors
 func ErrApplyHelmChart(err error) error {
-	return errors.New(ErrApplyHelmChartCode, errors.Alert, []string{"Error applying helm chart"}, []string{err.Error()}, []string{"Chart could be invalid"}, []string{"Make sure to apply valid chart"})
+	short := []string{"Error applying helm chart"}
+	long := []string{err.Error()}
+	probable := []string{"Chart could be invalid"}
+	remedy := []string{"Make sure to apply valid chart"}
+
+	if utils.IsErrKubeStatusErr(err) {
+		statusErr := err.(*kubeerror.StatusError)
+		short, long, probable, remedy = utils.ParseKubeStatusErr(statusErr)
+	}
+
+	return errors.New(ErrApplyHelmChartCode, errors.Alert,
+		short,
+		long,
+		probable,
+		remedy)
 }
 
-// ErrNewKubeClient is the error which occurs when creating a new Kubernetes clientset
+// ErrNewKubeClient handles Kubernetes client creation errors
 func ErrNewKubeClient(err error) error {
-	return errors.New(ErrNewKubeClientCode, errors.Alert, []string{"Error creating kubernetes clientset"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
+	short := []string{"Error creating kubernetes clientset"}
+	long := []string{err.Error()}
+	probable := []string{"Kubernetes config is not accessible to meshery or not valid"}
+	remedy := []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"}
+
+	if utils.IsErrKubeStatusErr(err) {
+		statusErr := err.(*kubeerror.StatusError)
+		short, long, probable, remedy = utils.ParseKubeStatusErr(statusErr)
+	}
+
+	return errors.New(ErrNewKubeClientCode, errors.Alert,
+		short,
+		long,
+		probable,
+		remedy)
 }
 
-// ErrNewDynClient is the error which occurs when creating a new dynamic client
+// ErrNewDynClient handles dynamic client creation errors
 func ErrNewDynClient(err error) error {
-	return errors.New(ErrNewDynClientCode, errors.Alert, []string{"Error creating dynamic client"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
+	short := []string{"Error creating dynamic client"}
+	long := []string{err.Error()}
+	probable := []string{"Kubernetes config is not accessible to meshery or not valid"}
+	remedy := []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"}
+
+	if utils.IsErrKubeStatusErr(err) {
+		statusErr := err.(*kubeerror.StatusError)
+		short, long, probable, remedy = utils.ParseKubeStatusErr(statusErr)
+	}
+
+	return errors.New(ErrNewDynClientCode, errors.Alert,
+		short,
+		long,
+		probable,
+		remedy)
 }
 
-// ErrNewDiscovery is the error which occurs when creating a new discovery client
+// ErrNewDiscovery handles discovery client creation errors
 func ErrNewDiscovery(err error) error {
-	return errors.New(ErrNewDiscoveryCode, errors.Alert, []string{"Error creating discovery client"}, []string{err.Error()}, []string{"Discovery resource is invalid or doesnt exist"}, []string{"Makes sure the you input valid resource for discovery"})
+	short := []string{"Error creating discovery client"}
+	long := []string{err.Error()}
+	probable := []string{"Discovery resource is invalid or doesnt exist"}
+	remedy := []string{"Makes sure the you input valid resource for discovery"}
+
+	if utils.IsErrKubeStatusErr(err) {
+		statusErr := err.(*kubeerror.StatusError)
+		short, long, probable, remedy = utils.ParseKubeStatusErr(statusErr)
+	}
+
+	return errors.New(ErrNewDiscoveryCode, errors.Alert,
+		short,
+		long,
+		probable,
+		remedy)
 }
 
-// ErrNewInformer is the error which occurs when creating a new informer
+// ErrNewInformer handles informer creation errors
 func ErrNewInformer(err error) error {
-	return errors.New(ErrNewInformerCode, errors.Alert, []string{"Error creating informer client"}, []string{err.Error()}, []string{"Informer is invalid or doesnt exist"}, []string{"Makes sure the you input valid resource for the informer"})
+	short := []string{"Error creating informer client"}
+	long := []string{err.Error()}
+	probable := []string{"Informer is invalid or doesnt exist"}
+	remedy := []string{"Makes sure the you input valid resource for the informer"}
+
+	if utils.IsErrKubeStatusErr(err) {
+		statusErr := err.(*kubeerror.StatusError)
+		short, long, probable, remedy = utils.ParseKubeStatusErr(statusErr)
+	}
+
+	return errors.New(ErrNewInformerCode, errors.Alert,
+		short,
+		long,
+		probable,
+		remedy)
 }
 
-// ErrLoadConfig is the error which occurs in the process of loading a kubernetes config
+// ErrLoadConfig handles config loading errors
 func ErrLoadConfig(err error) error {
-	return errors.New(ErrLoadConfigCode, errors.Alert, []string{"Error loading kubernetes config"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
+	short := []string{"Error loading kubernetes config"}
+	long := []string{err.Error()}
+	probable := []string{"Kubernetes config is not accessible to meshery or not valid"}
+	remedy := []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"}
+
+	if utils.IsErrKubeStatusErr(err) {
+		statusErr := err.(*kubeerror.StatusError)
+		short, long, probable, remedy = utils.ParseKubeStatusErr(statusErr)
+	}
+
+	return errors.New(ErrLoadConfigCode, errors.Alert,
+		short,
+		long,
+		probable,
+		remedy)
 }
 
-// ErrValidateConfig is the error which occurs in the process of validating a kubernetes config
+// ErrValidateConfig handles config validation errors
 func ErrValidateConfig(err error) error {
-	return errors.New(ErrValidateConfigCode, errors.Alert, []string{"Validation failed in the kubernetes config"}, []string{err.Error()}, []string{"Kubernetes config is not accessible to meshery or not valid"}, []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"})
+	short := []string{"Validation failed in the kubernetes config"}
+	long := []string{err.Error()}
+	probable := []string{"Kubernetes config is not accessible to meshery or not valid"}
+	remedy := []string{"Upload your kubernetes config via the settings dashboard. If uploaded, wait for a minute for it to get initialized"}
+
+	if utils.IsErrKubeStatusErr(err) {
+		statusErr := err.(*kubeerror.StatusError)
+		short, long, probable, remedy = utils.ParseKubeStatusErr(statusErr)
+	}
+
+	return errors.New(ErrValidateConfigCode, errors.Alert,
+		short,
+		long,
+		probable,
+		remedy)
 }
 
 // ErrCreatingHelmIndex is the error for creating helm index

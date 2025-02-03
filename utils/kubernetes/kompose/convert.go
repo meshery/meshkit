@@ -1,23 +1,13 @@
 package kompose
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
-	"strings"
 
-	"github.com/kubernetes/kompose/pkg/app"
-	"github.com/kubernetes/kompose/pkg/kobject"
-	"github.com/kubernetes/kompose/pkg/loader"
-	"github.com/kubernetes/kompose/pkg/transformer"
-	"github.com/kubernetes/kompose/pkg/transformer/kubernetes"
-	"github.com/kubernetes/kompose/pkg/transformer/openshift"
+	"github.com/kubernetes/kompose/client"
 	"github.com/layer5io/meshkit/utils"
 	"gopkg.in/yaml.v2"
-)
-
-var (
-	list = "List"
 )
 
 const DefaultDockerComposeSchemaURL = "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json"
@@ -41,14 +31,24 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
 // converts a given docker-compose file into kubernetes manifests
 // expects a validated docker-compose file
 func Convert(dockerCompose DockerComposeFile) (string, error) {
-	err := utils.CreateFile(dockerCompose, "temp.data", "./")
+	// Get user's home directory
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
+	// Construct path to .meshery directory
+	mesheryDir := filepath.Join(homeDir, ".meshery")
+	tempFilePath := filepath.Join(mesheryDir, "temp.data")
+	resultFilePath := filepath.Join(mesheryDir, "result.yaml")
+
+	if err := utils.CreateFile(dockerCompose, "temp.data", mesheryDir); err != nil {
+		return "", ErrCvrtKompose(err)
+	}
+
 	defer func() {
-		os.Remove("temp.data")
-		os.Remove("result.yaml")
+		os.Remove(tempFilePath)
+		os.Remove(resultFilePath)
 	}()
 
 	formatComposeFile(&dockerCompose)
@@ -57,77 +57,28 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 		return "", ErrCvrtKompose(err)
 	}
 
-	ConvertOpt := kobject.ConvertOptions{
-		ToStdout:     false,
-		CreateChart:  false, // for helm charts
-		GenerateYaml: true,
-		GenerateJSON: false,
-		Replicas:     1,
-		InputFiles:   []string{"temp.data"},
-		OutFile:      "result.yaml",
-		Provider:     "kubernetes",
-		CreateD:      false,
-		CreateDS:     false, CreateRC: false,
-		Build:                       "none",
-		BuildRepo:                   "",
-		BuildBranch:                 "",
-		PushImage:                   false,
-		PushImageRegistry:           "",
-		CreateDeploymentConfig:      true,
-		EmptyVols:                   false,
-		Volumes:                     "persistentVolumeClaim",
-		PVCRequestSize:              "",
-		InsecureRepository:          false,
-		IsDeploymentFlag:            false,
-		IsDaemonSetFlag:             false,
-		IsReplicationControllerFlag: false,
-		Controller:                  "",
-		IsReplicaSetFlag:            false,
-		IsDeploymentConfigFlag:      false,
-		YAMLIndent:                  2,
-		WithKomposeAnnotation:       true,
-		MultipleContainerMode:       false,
-		ServiceGroupMode:            "",
-		ServiceGroupName:            "",
-	}
-
-	err = convert(ConvertOpt)
-	if err != nil {
-		return "", err
-	}
-
-	result, err := os.ReadFile("result.yaml")
+	komposeClient, err := client.NewClient()
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
-	formattedResult, err := formatConvertedManifest(string(result))
+
+	ConvertOpt := client.ConvertOptions{
+		InputFiles:              []string{tempFilePath},
+		OutFile:                 resultFilePath,
+		GenerateNetworkPolicies: true,
+	}
+
+	_, err = komposeClient.Convert(ConvertOpt)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
-	return formattedResult, nil
-}
 
-func formatConvertedManifest(k8sMan string) (string, error) {
-	formattedManifest := ""
-
-	manifest := map[string]interface{}{}
-	if err := yaml.Unmarshal([]byte(k8sMan), &manifest); err != nil {
-		return "", err
+	result, err := os.ReadFile(resultFilePath)
+	if err != nil {
+		return "", ErrCvrtKompose(err)
 	}
 
-	if manifest["kind"] == list {
-		items := manifest["items"].([]interface{})
-		tempMans := []string{}
-		for _, resMan := range items {
-			res, err := yaml.Marshal(&resMan)
-			if err != nil {
-				return formattedManifest, nil
-			}
-			tempMans = append(tempMans, string(res))
-		}
-		formattedManifest = strings.Join(tempMans, "\n---\n")
-	}
-	return formattedManifest, nil
+	return string(result), nil
 }
 
 type composeFile struct {
@@ -150,9 +101,7 @@ func versionCheck(dc DockerComposeFile) error {
 	if err != nil {
 		return utils.ErrExpectedTypeMismatch(err, "float")
 	} else {
-		if versionFloatVal > 3.3 {
-			// kompose throws a fatal error when version exceeds 3.3
-			// need this till this PR gets merged https://github.com/kubernetes/kompose/pull/1440(move away from libcompose to compose-go)
+		if versionFloatVal > 3.9 {
 			return ErrIncompatibleVersion()
 		}
 	}
@@ -173,101 +122,4 @@ func formatComposeFile(yamlManifest *DockerComposeFile) {
 		return
 	}
 	*yamlManifest = out
-}
-
-var inputFormat = "compose"
-
-func convert(opt kobject.ConvertOptions) error {
-	err := validateControllers(&opt)
-	if err != nil {
-		return err
-	}
-
-	// loader parses input from file into komposeObject.
-	l, err := loader.GetLoader(inputFormat)
-	if err != nil {
-		return err
-	}
-
-	komposeObject, err := l.LoadFile(opt.InputFiles)
-	if err != nil {
-		return err
-	}
-
-	// Get a transformer that maps komposeObject to provider's primitives
-	t := getTransformer(opt)
-
-	// Do the transformation
-	objects, err := t.Transform(komposeObject, opt)
-
-	if err != nil {
-		return err
-	}
-
-	// Print output
-	err = kubernetes.PrintList(objects, opt)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Convenience method to return the appropriate Transformer based on
-// what provider we are using.
-func getTransformer(opt kobject.ConvertOptions) transformer.Transformer {
-	var t transformer.Transformer
-	if opt.Provider == app.DefaultProvider {
-		// Create/Init new Kubernetes object with CLI opts
-		t = &kubernetes.Kubernetes{Opt: opt}
-	} else {
-		// Create/Init new OpenShift object that is initialized with a newly
-		// created Kubernetes object. Openshift inherits from Kubernetes
-		t = &openshift.OpenShift{Kubernetes: kubernetes.Kubernetes{Opt: opt}}
-	}
-	return t
-}
-
-func validateControllers(opt *kobject.ConvertOptions) error {
-	singleOutput := len(opt.OutFile) != 0 || opt.OutFile == "-" || opt.ToStdout
-	if opt.Provider == app.ProviderKubernetes {
-		// create deployment by default if no controller has been set
-		if !opt.CreateD && !opt.CreateDS && !opt.CreateRC && opt.Controller == "" {
-			opt.CreateD = true
-		}
-		if singleOutput {
-			count := 0
-			if opt.CreateD {
-				count++
-			}
-			if opt.CreateDS {
-				count++
-			}
-			if opt.CreateRC {
-				count++
-			}
-			if count > 1 {
-				return fmt.Errorf("Error: only one kind of Kubernetes resource can be generated when --out or --stdout is specified")
-			}
-		}
-	} else if opt.Provider == app.ProviderOpenshift {
-		// create deploymentconfig by default if no controller has been set
-		if !opt.CreateDeploymentConfig {
-			opt.CreateDeploymentConfig = true
-		}
-		if singleOutput {
-			count := 0
-			if opt.CreateDeploymentConfig {
-				count++
-			}
-			// Add more controllers here once they are available in OpenShift
-			// if opt.foo {count++}
-
-			if count > 1 {
-				return fmt.Errorf("Error: only one kind of OpenShift resource can be generated when --out or --stdout is specified")
-			}
-		}
-	}
-
-	return nil
 }
