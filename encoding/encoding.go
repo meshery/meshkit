@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/layer5io/meshkit/utils"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Unmarshal parses the JSON/YAML data and stores the result in the value pointed to by out

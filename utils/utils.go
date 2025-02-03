@@ -356,26 +356,26 @@ func MergeMaps(mergeInto, toMerge map[string]interface{}) map[string]interface{}
 }
 
 func WriteYamlToFile[K any](outputPath string, data K) error {
-	byt, err := yaml.Marshal(data)
-	if err != nil {
-		// Use a different error code
-		return ErrMarshal(err)
-	}
-
 	file, err := os.Create(outputPath)
 	if err != nil {
 		return ErrCreateFile(err, outputPath)
 	}
+	defer file.Close()
 
-	_, err = file.Write(byt)
-	if err != nil {
-		return ErrWriteFile(err, outputPath)
+	encoder := yaml.NewEncoder(file)
+	encoder.SetIndent(2)
+
+	defer encoder.Close()
+
+	if err := encoder.Encode(data); err != nil {
+		return ErrMarshal(err)
 	}
+
 	return nil
 }
 
 func WriteJSONToFile[K any](outputPath string, data K) error {
-	byt, err := json.MarshalIndent(data, " ", " ")
+	byt, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		return ErrMarshal(err)
 	}
