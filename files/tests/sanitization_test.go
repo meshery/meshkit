@@ -75,6 +75,13 @@ func TestSanitizeFile(t *testing.T) {
 			expectedExt:  ".yml",
 			expectedType: core.IacFileTypes.MESHERY_DESIGN,
 		},
+
+		{
+			name:         "Can Identify Designs packaged as OCI images",
+			filePath:     "./samples/valid-design-oci.tar",
+			expectedExt:  ".tar",
+			expectedType: core.IacFileTypes.MESHERY_DESIGN,
+		},
 		{
 			name:         "Can Identify Kubernetes Manifest",
 			filePath:     "./samples/valid_manifest.yml",
