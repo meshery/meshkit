@@ -77,7 +77,7 @@ func TestSanitizeFile(t *testing.T) {
 		},
 
 		{
-			name:         "Can Identify Designs packages as OCI images",
+			name:         "Can Identify Designs packaged as OCI images",
 			filePath:     "./samples/valid-design-oci.tar",
 			expectedExt:  ".tar",
 			expectedType: core.IacFileTypes.MESHERY_DESIGN,
