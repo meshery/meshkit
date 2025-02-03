@@ -138,7 +138,18 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	if len(files) == 0 {
 		return nil, ErrEmptyOCIImage(fmt.Errorf("no design file detected in the imported OCI image"))
 	}
-	design := files[0]
+	var design *walker.File
+
+	// the extracted layer may contain metadata files like artifact.yml for artifacthub,etc
+	for _, file := range files {
+		if file.Name == "design.yml" {
+			design = file
+		}
+	}
+
+	if design == nil {
+		return nil, ErrEmptyOCIImage(fmt.Errorf("No design file detected in the imported OCI image"))
+	}
 
 	var patternFile pattern.PatternFile
 
