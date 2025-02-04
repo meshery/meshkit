@@ -2,8 +2,10 @@ package files
 
 import (
 	"fmt"
+
 	"github.com/layer5io/meshkit/utils/helm"
 	"helm.sh/helm/v3/pkg/chart"
+	"sigs.k8s.io/kustomize/api/resmap"
 )
 
 func ConvertHelmChartToKubernetesManifest(file IdentifiedFile) (string, error) {
@@ -26,4 +28,16 @@ func ConvertDockerComposeToKubernetesManifest(file IdentifiedFile) (string, erro
 	}
 
 	return parsedCompose.manifest, nil
+}
+
+func ConvertKustomizeToKubernetesManifest(file IdentifiedFile) (string, error) {
+	parsedKustomize, ok := file.ParsedFile.(resmap.ResMap)
+
+	if !ok {
+		return "", fmt.Errorf("Failed to get *resmap.ResMap from identified file")
+	}
+
+	yamlBytes, err := parsedKustomize.AsYaml()
+
+	return string(yamlBytes), err
 }
