@@ -2,7 +2,6 @@ package github
 
 import (
 	"bufio"
-	"io"
 
 	"net/url"
 	"os"
@@ -26,6 +25,7 @@ func (u URL) GetContent() (models.Package, error) {
 	downloadDirPath := filepath.Join(os.TempDir(), utils.GetRandomAlphabetsOfDigit(5))
 	_ = os.MkdirAll(downloadDirPath, 0755)
 
+	// Parse URL and extract version information
 	url := u.URL.String()
 	version := url[strings.LastIndex(url, "/")+1:]
 	url, _ = strings.CutSuffix(url, "/"+version)
@@ -39,53 +39,29 @@ func (u URL) GetContent() (models.Package, error) {
 	}
 
 	manifestFilePath := filepath.Join(os.TempDir(), utils.GetRandomAlphabetsOfDigit(5)) + ".yml"
-
 	manifestFile, _ := os.Create(manifestFilePath)
-
 	w := bufio.NewWriter(manifestFile)
+
+	// Create processing context and handler
+	ctx := utils.NewProcessingContext(w)
+	handler := func(path string, ctx *utils.ProcessingContext) error {
+		return helm.ConvertToK8sManifest(path, "", ctx)
+	}
 
 	defer func() {
 		_ = os.RemoveAll(downloadDirPath)
 		_ = w.Flush()
 	}()
 
-	err = ProcessContent(w, downloadDirPath, downloadfilePath)
+	err = utils.ProcessPathContent(downloadfilePath, downloadDirPath, ctx, handler)
 	if err != nil {
 		return nil, err
 	}
+
 	return GitHubPackage{
 		Name:      u.PackageName,
 		filePath:  manifestFilePath,
 		version:   version,
 		SourceURL: u.URL.String(),
 	}, nil
-}
-
-func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error {
-	var err error
-	if utils.IsTarGz(downloadfilePath) {
-		err = utils.ExtractTarGz(downloadDirPath, downloadfilePath)
-	} else if utils.IsZip(downloadfilePath) {
-		err = utils.ExtractZip(downloadDirPath, downloadfilePath)
-	} else {
-		// If it is not an archive/zip, then the file itself is to be processed.
-		downloadDirPath = downloadfilePath
-	}
-
-	if err != nil {
-		return err
-	}
-
-	err = utils.ProcessContent(downloadDirPath, func(path string) error {
-		err = helm.ConvertToK8sManifest(path, "", w)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-	return nil
 }
