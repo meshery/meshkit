@@ -3,6 +3,7 @@ package files
 import (
 	"fmt"
 	"maps"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -26,6 +27,25 @@ var (
 	ErrInvalidKustomizationCode                = "replace_me"
 	ErrFileTypeNotSupportedForDesignConversion = "replace_me"
 )
+
+func ErrMessageBasedOnFileExtension(filename string, operation string, err error) error {
+	fileExt := filepath.Ext(filename)
+
+	isEntityJsonFile := fileExt == ".json"
+	isEntityYamlFile := fileExt == ".yaml" || fileExt == ".yml"
+	isEntityModel := fileExt == ".tar.gz" || fileExt == ".zip" || fileExt == ".tar" || fileExt == ".tgz"
+
+	if isEntityJsonFile {
+		return ErrInvalidJson(filename, err)
+	} else if isEntityYamlFile {
+		return ErrInvalidYaml(filename, err)
+	} else if isEntityModel {
+		return ErrFailedToExtractArchive(filename, err)
+	} else {
+		supportedExtensions := []string{".json", ".yaml", ".yml", ".tar", ".tgz", ".tar.gz", ".zip"}
+		return ErrUnsupportedExtensionForOperation(operation, filename, fileExt, supportedExtensions)
+	}
+}
 
 func ErrUnsupportedExtensionForOperation(operation string, fileName string, fileExt string, supportedExtensions []string) error {
 	sdescription := []string{
