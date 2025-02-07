@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/layer5io/meshkit/utils"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
