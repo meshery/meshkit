@@ -29,8 +29,6 @@ type ModelFilter struct {
 	Components    bool
 	Relationships bool
 	Status        string
-	// When set to true, it will retrieve all models including the ones marked as ignored
-	ShowIgnored bool
 	// When Trim is true it will only send necessary models data
 	// like: component count, relationship count, id and name of model
 	Trim bool
@@ -158,8 +156,6 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 
 	if mf.Status != "" {
 		finder = finder.Where("model_dbs.status = ?", mf.Status)
-	} else if !mf.ShowIgnored {
-		finder = finder.Where("model_dbs.status = ?", "enabled")
 	}
 
 	finder.Count(&count)
