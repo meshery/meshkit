@@ -1,6 +1,9 @@
 package encoding
 
 import (
+	"bytes"
+	"fmt"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,4 +29,14 @@ func ToYaml(data []byte) ([]byte, error) {
 	enc.SetIndent(2)
 	err = enc.Encode(out.Content[0])
 	return buf.Bytes(), err
+}
+
+// setBlockStyle changes the node and all its children to block style.
+// In simple terms, it makes the output print on multiple indented lines
+// instead of one single inline line that looks like JSON.
+func setBlockStyle(n *yaml.Node) {
+	n.Style = 0 // Reset style to default (block style).
+	for _, child := range n.Content {
+		setBlockStyle(child)
+	}
 }
