@@ -2,9 +2,6 @@ package registry
 
 import (
 	"fmt"
-	"strings"
-	"time"
-
 	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
 	models "github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
@@ -17,6 +14,9 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm/clause"
+	"strings"
+	"sync"
+	"time"
 )
 
 // MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
@@ -32,14 +32,36 @@ type MeshModelRegistrantData struct {
 	Entity     []byte                `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
 }
 
-// map for caching the quires for entities
 type EntityCacheValue struct {
 	Entities []entity.Entity
 	Count    int64
 	Unique   int
 	err      error
 }
-type RegistryEntityCache map[entity.Filter]EntityCacheValue
+
+// RegistryEntityCache is a thread-safe cache for storing entity query results.
+//
+// This cache maps entity filters (`entity.Filter`) to their corresponding results (`EntityCacheValue`).
+// It uses `sync.Map` for safe concurrent access, making it suitable for multi-goroutine environments.
+//
+// The caller is responsible for managing the cache's lifecycle, including eviction and expiration if needed.
+type RegistryEntityCache struct {
+	cache sync.Map
+}
+
+// Get retrieves a cached value
+func (c *RegistryEntityCache) Get(f entity.Filter) (EntityCacheValue, bool) {
+	value, exists := c.cache.Load(f)
+	if exists {
+		return value.(EntityCacheValue), true
+	}
+	return EntityCacheValue{}, false
+}
+
+// Set stores a value in the cache
+func (c *RegistryEntityCache) Set(f entity.Filter, value EntityCacheValue) {
+	c.cache.Store(f, value)
+}
 
 type Registry struct {
 	ID           uuid.UUID
@@ -206,24 +228,50 @@ func (rm *RegistryManager) GetEntities(f entity.Filter) ([]entity.Entity, int64,
 	return f.Get(rm.db)
 }
 
-func (rm *RegistryManager) GetEntitiesMemoized(f entity.Filter, cache RegistryEntityCache) ([]entity.Entity, int64, int, error) {
+// GetEntitiesMemoized retrieves entities based on the provided filter `f`, using a concurrent-safe cache to optimize performance.
+//
+// ## Cache Behavior:
+//   - **Cache Hit**: If the requested entities are found in the `cache`, the function returns the cached result immediately, avoiding a redundant query.
+//   - **Cache Miss**: If the requested entities are *not* found in the cache, the function fetches them from the registry using `rm.GetEntities(f)`,
+//     stores the result in the `cache`, and returns the newly retrieved entities.
+//
+// ## Concurrency and Thread Safety:
+// - The `cache` is implemented using `sync.Map`, ensuring **safe concurrent access** across multiple goroutines.
+// - `sync.Map` is optimized for scenarios where **reads significantly outnumber writes**, making it well-suited for caching use cases.
+//
+// ## Ownership and Responsibility:
+//   - **RegistryManager (`rm`)**: Owns the logic for retrieving entities from the source when a cache miss occurs.
+//   - **Caller Ownership of Cache**: The caller is responsible for providing and managing the `cache` instance.
+//     This function does *not* handle cache eviction, expiration, or memory constraints—those concerns must be managed externally.
+//
+// ## Parameters:
+// - `f entity.Filter`: The filter criteria used to retrieve entities.
+// - `cache *RegistryEntityCache`: A pointer to a concurrent-safe cache (`sync.Map`) that stores previously retrieved entity results.
+//
+// ## Returns:
+// - `[]entity.Entity`: The list of retrieved entities (either from cache or freshly fetched).
+// - `int64`: The total count of entities matching the filter.
+// - `int`: The number of unique entities found.
+// - `error`: An error if the retrieval operation fails.
+func (rm *RegistryManager) GetEntitiesMemoized(f entity.Filter, cache *RegistryEntityCache) ([]entity.Entity, int64, int, error) {
 
-	cachedEnities := cache[f]
-
-	if cachedEnities.Entities != nil && len(cachedEnities.Entities) > 0 {
-		return cachedEnities.Entities, cachedEnities.Count, cachedEnities.Unique, cachedEnities.err
+	// Attempt to retrieve from cache
+	if cachedEntities, exists := cache.Get(f); exists && len(cachedEntities.Entities) > 0 {
+		return cachedEntities.Entities, cachedEntities.Count, cachedEntities.Unique, cachedEntities.err
 	}
 
+	// Fetch from source if cache miss
 	entities, count, unique, err := rm.GetEntities(f)
-	cache[f] = EntityCacheValue{
+
+	// Store result in cache
+	cache.Set(f, EntityCacheValue{
 		Entities: entities,
 		Count:    count,
 		Unique:   unique,
 		err:      err,
-	}
+	})
 
 	return entities, count, unique, err
-
 }
 
 func HostnameToPascalCase(input string) string {
