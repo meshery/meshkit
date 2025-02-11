@@ -49,9 +49,14 @@ type RegistryEntityCache struct {
 	cache sync.Map
 }
 
+func filterKey(f entity.Filter) string {
+	// Convert the filter to a unique string representation (adjust as needed)
+	return fmt.Sprintf("%v", f)
+}
+
 // Get retrieves a cached value
 func (c *RegistryEntityCache) Get(f entity.Filter) (EntityCacheValue, bool) {
-	value, exists := c.cache.Load(f)
+	value, exists := c.cache.Load(filterKey(f))
 	if exists {
 		return value.(EntityCacheValue), true
 	}
@@ -60,7 +65,7 @@ func (c *RegistryEntityCache) Get(f entity.Filter) (EntityCacheValue, bool) {
 
 // Set stores a value in the cache
 func (c *RegistryEntityCache) Set(f entity.Filter, value EntityCacheValue) {
-	c.cache.Store(f, value)
+	c.cache.Store(filterKey(f), value)
 }
 
 type Registry struct {
