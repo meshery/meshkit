@@ -31,6 +31,16 @@ type MeshModelRegistrantData struct {
 	EntityType entity.EntityType     `json:"entityType"`
 	Entity     []byte                `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
 }
+
+// map for caching the quires for entities
+type EntityCacheValue struct {
+	Entities []entity.Entity
+	Count    int64
+	Unique   int
+	err      error
+}
+type RegistryEntityCache map[entity.Filter]EntityCacheValue
+
 type Registry struct {
 	ID           uuid.UUID
 	RegistrantID uuid.UUID
@@ -194,6 +204,26 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 
 func (rm *RegistryManager) GetEntities(f entity.Filter) ([]entity.Entity, int64, int, error) {
 	return f.Get(rm.db)
+}
+
+func (rm *RegistryManager) GetEntitiesMemoized(f entity.Filter, cache RegistryEntityCache) ([]entity.Entity, int64, int, error) {
+
+	cachedEnities := cache[f]
+
+	if cachedEnities.Entities != nil && len(cachedEnities.Entities) > 0 {
+		return cachedEnities.Entities, cachedEnities.Count, cachedEnities.Unique, cachedEnities.err
+	}
+
+	entities, count, unique, err := rm.GetEntities(f)
+	cache[f] = EntityCacheValue{
+		Entities: entities,
+		Count:    count,
+		Unique:   unique,
+		err:      err,
+	}
+
+	return entities, count, unique, err
+
 }
 
 func HostnameToPascalCase(input string) string {
