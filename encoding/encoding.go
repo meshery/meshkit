@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	"bytes"
 	"encoding/json"
 
 	"github.com/layer5io/meshkit/utils"
@@ -52,12 +53,16 @@ func unmarshalJSON(data []byte, result interface{}) error {
 }
 
 func Marshal(in interface{}) ([]byte, error) {
-	result, err := json.Marshal(in)
+	result, err := json.MarshalIndent(in, "", "  ")
 	if err != nil {
-		result, err = yaml.Marshal(in)
+		var buf bytes.Buffer
+		enc := yaml.NewEncoder(&buf)
+		enc.SetIndent(2)
+		err = enc.Encode(in)
 		if err != nil {
 			return nil, utils.ErrMarshal(err)
 		}
+		result = buf.Bytes()
 	}
 
 	return result, nil
