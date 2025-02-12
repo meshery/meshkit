@@ -19,10 +19,16 @@ func ErrSeedingComponents(err error) error {
 	return errors.New(
 		ErrSeedingComponentsCode,
 		errors.Alert,
-		[]string{"Failed to register the given models into meshery's registry"},
+		[]string{"Failed to register the given models into Meshery's registry."},
 		[]string{err.Error()},
-		[]string{"Given models may not be in accordance with Meshery's schema", "Internal(OS level) error while reading files"},
-		[]string{"Make sure the models being seeded are valid in accordance with Meshery's schema", "If it is an internal error, please try again after some time"},
+		[]string{
+			"Given models may not be in accordance with Meshery's schema.",
+			"Internal (OS level) error while reading files.",
+		},
+		[]string{
+			"Make sure the models being seeded are valid in accordance with Meshery's schema.",
+			"If it is an internal error, please try again after some time.",
+		},
 	)
 }
 
@@ -30,11 +36,10 @@ func ErrMissingRegistrant(modelName string) error {
 	return errors.New(
 		ErrMissingRegistrantCode,
 		errors.Alert,
-		[]string{fmt.Sprintf("Model with name: %s does not have registrant information", modelName)},
+		[]string{fmt.Sprintf("Model with name: %s does not have registrant information.", modelName)},
 		[]string{"Meshery models are always registered in context of a registrant."},
-		// there is only one cause for this error
-		[]string{""},
-		[]string{"Make sure that the registrant information is present in the model definition"},
+		[]string{"The registrant information is missing from the model definition."},
+		[]string{"Make sure that the registrant information is present in the model definition."},
 	)
 }
 
@@ -42,10 +47,16 @@ func ErrRegisterEntity(err error, name, entity string) error {
 	return errors.New(
 		ErrRegisterEntityCode,
 		errors.Alert,
-		[]string{fmt.Sprintf("Failed to register an entity of name: %s and type: %s into Meshery's registry", name, entity)},
+		[]string{fmt.Sprintf("Failed to register an entity of name: %s and type: %s into Meshery's registry.", name, entity)},
 		[]string{err.Error()},
-		[]string{fmt.Sprintf("%s definition might be violating the definition schema", entity), fmt.Sprintf("%s might be missing model details", entity)},
-		[]string{fmt.Sprintf("ensure the %s definition follows the correct schema", entity), fmt.Sprintf("ensure %s definition belongs to correct model", entity)},
+		[]string{
+			fmt.Sprintf("%s definition might be violating the definition schema.", entity),
+			fmt.Sprintf("%s might be missing model details.", entity),
+		},
+		[]string{
+			fmt.Sprintf("Ensure the %s definition follows the correct schema.", entity),
+			fmt.Sprintf("Ensure %s definition belongs to correct model.", entity),
+		},
 	)
 }
 

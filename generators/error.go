@@ -7,5 +7,9 @@ var (
 )
 
 func ErrUnsupportedRegistrant(err error) error {
-	return errors.New(ErrUnsupportedRegistrantCode, errors.Alert, []string{"unsupported registrant"}, []string{err.Error()}, []string{"Select from one of the supported registrants"}, []string{"Check docs for the list of supported registrants"})
+	return errors.New(ErrUnsupportedRegistrantCode, errors.Alert, 
+		[]string{"Unsupported registrant."}, 
+		[]string{err.Error()}, 
+		[]string{"The selected registrant is not supported by Meshery."}, 
+		[]string{"Please check the documentation for the list of supported registrants."})
 }
