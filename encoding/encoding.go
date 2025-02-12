@@ -10,6 +10,13 @@ import (
 
 // Unmarshal parses the JSON/YAML data and stores the result in the value pointed to by out
 func Unmarshal(data []byte, out interface{}) error {
+	if node, ok := out.(*yaml.Node); ok {
+		err := unmarshalYAML(data, node)
+		if err != nil {
+			return err
+		}
+	}
+
 	err := unmarshalJSON(data, out)
 	if err != nil {
 		err = unmarshalYAML(data, out)
