@@ -34,6 +34,7 @@ var ValidIacExtensions = map[string]bool{
 	".tar.tgz": true,
 	".zip":     true,
 	".gz":      true,
+	".tgz":     true,
 }
 
 func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[string]bool) (SanitizedFile, error) {
@@ -44,7 +45,6 @@ func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[st
 	if !validExts[ext] && !validExts[filepath.Ext(strings.TrimSuffix(fileName, ".gz"))] {
 		return SanitizedFile{}, ErrUnsupportedExtension(fileName, ext, validExts)
 	}
-
 	switch ext {
 
 	case ".yml", ".yaml":
