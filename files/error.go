@@ -3,6 +3,7 @@ package files
 import (
 	"fmt"
 	"maps"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -341,4 +342,120 @@ func ErrWaklingLocalDirectory(err error) error {
 
 func ErrDecodePattern(err error) error {
 	return errors.New(ErrDecodePatternCode, errors.Alert, []string{"Error failed to decode design data into go slice"}, []string{err.Error()}, []string{}, []string{})
+}
+
+var (
+	ErrInvalidModelCode        = "replace_me"
+	ErrInvalidModelArchiveCode = "replace_me"
+	ErrInvalidModelYamlCode    = "replace_me"
+	ErrInvalidModelJsonCode    = "replace_me"
+	ErrEmptyModelCode          = "replace_me"
+	ErrNoModelFoundCode        = "replace_me"
+)
+
+func ErrInvalidModel(filename string, err error) error {
+	// return error based on file extension
+	fileExt := filepath.Ext(filename)
+
+	isEntityJsonFile := fileExt == ".json"
+	isEntityYamlFile := fileExt == ".yaml" || fileExt == ".yml"
+	// check prefix as random string is appended to archive during file handling (eg: .tar becomes .tar263831)
+	isEntityModel := strings.HasPrefix(fileExt, ".tar") || strings.HasPrefix(fileExt, ".tgz") || strings.HasPrefix(fileExt, ".tar.gz")
+
+	if isEntityJsonFile {
+		return ErrInvalidModelJson(filename, err)
+	} else if isEntityYamlFile {
+		return ErrInvalidModelYaml(filename, err)
+	} else if isEntityModel {
+		return ErrInvalidModelArchive(filename, err)
+	}
+	supportedExtensions := []string{".json", ".yaml", ".yml", ".tar", ".tgz", ".tar.gz"}
+	return ErrUnsupportedExtensionForOperation("import", filename, fileExt, supportedExtensions)
+}
+
+func ErrInvalidModelArchive(fileName string, err error) error {
+	sdescription := []string{
+		fmt.Sprintf("Failed to extract the archive '%s'.", fileName),
+	}
+
+	ldescription := []string{
+		fmt.Sprintf("An error occurred while attempting to extract the TAR archive '%s'.", fileName),
+		fmt.Sprintf("Error details: %s", err.Error()),
+	}
+
+	probableCause := []string{
+		"The archive may be non OCI compliant.",
+		"The archive may be corrupted or incomplete.",
+		"The archive may contain unsupported compression formats or features.",
+		"Insufficient permissions to read or write files during extraction.",
+		"The archive may have been created with a different tool or version that is incompatible.",
+	}
+
+	remedy := []string{
+		"Make sure the archive is OCI compliant. Meshery Models should be OCI compliant archives.",
+		"Verify that the  archive is not corrupted by checking its integrity or re-downloading it.",
+		"Ensure the archive uses a supported compression format (e.g., .tar, .tar.gz, ).",
+		"Check that you have sufficient permissions to read the archive and write to the destination directory.",
+		"Try using a different extraction tool or library to rule out compatibility issues.",
+	}
+
+	return errors.New(ErrInvalidModelArchiveCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
+}
+
+func ErrInvalidModelYaml(fileName string, err error) error {
+	sdescription := []string{
+		fmt.Sprintf("The file '%s' contains invalid YAML syntax or does not conform to the Meshery model schema.", fileName),
+	}
+
+	ldescription := []string{
+		fmt.Sprintf("The file '%s' could not be parsed due to invalid YAML syntax or does not conform to the Meshery model schema.", fileName),
+		fmt.Sprintf("Error details: %s", err.Error()),
+	}
+
+	probableCause := []string{
+		"The YAML file may contain syntax errors, such as incorrect indentation, missing colons, or invalid characters.",
+		"The file may have been corrupted or improperly edited.",
+		"Special characters or escape sequences may not have been properly formatted.",
+		"The YAML does not conform to the Meshery model schema.",
+	}
+
+	remedy := []string{
+		"Review the YAML syntax in the file and correct any errors.",
+		"Use a YAML validator or linter to identify and fix issues.",
+		"Ensure the YAML conforms to the Meshery model schema. You can refer to the Meshery model schema documentation for more details.",
+	}
+
+	return errors.New(ErrInvalidModelYamlCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
+}
+
+func ErrInvalidModelJson(fileName string, err error) error {
+	sdescription := []string{
+		fmt.Sprintf("The file '%s' contains invalid JSON syntax or does not conform to the Meshery model schema.", fileName),
+	}
+
+	ldescription := []string{
+		fmt.Sprintf("The file '%s' could not be parsed due to invalid JSON syntax or does not conform to the Meshery model schema.", fileName),
+		fmt.Sprintf("Error details: %s", err.Error()),
+	}
+
+	probableCause := []string{
+		"The JSON file may contain syntax errors, such as missing commas, curly braces, or square brackets.",
+		"The file may have been corrupted or improperly edited.",
+		"Special characters or escape sequences may not have been properly formatted.",
+		"The JSON does not conform to the Meshery model schema.",
+	}
+
+	remedy := []string{
+		"Review the JSON syntax in the file and correct any errors.",
+		"Use a JSON validator or linter to identify and fix issues.",
+		"Ensure the file adheres to the JSON specification (e.g., double quotes for keys and strings).",
+		"Check for common issues like trailing commas or unescaped special characters.",
+		"Ensure the JSON conforms to the Meshery model schema. You can refer to the Meshery model schema documentation for more details.",
+	}
+
+	return errors.New(ErrInvalidModelJsonCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
+}
+
+func ErrEmptyModel() error {
+	return errors.New(ErrEmptyModelCode, errors.Alert, []string{"No component found in model provided."}, []string{"No component found in model provided. Models must have atleast one component."}, []string{}, []string{})
 }
