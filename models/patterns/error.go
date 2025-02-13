@@ -7,5 +7,9 @@ const (
 )
 
 func ErrInvalidVersion(err error) error {
-	return errors.New(ErrInvalidVersionCode, errors.Alert, []string{"invalid/incompatible semver version"}, []string{err.Error()}, []string{"version history for the content has been tampered outside meshery"}, []string{"rolllback to one of the previous version"})
+	return errors.New(ErrInvalidVersionCode, errors.Alert, 
+		[]string{"Invalid/incompatible semver version."}, 
+		[]string{err.Error()}, 
+		[]string{"Version history for the content has been tampered with outside Meshery."}, 
+		[]string{"Roll back to one of the previous versions."})
 }

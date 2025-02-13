@@ -7,5 +7,9 @@ const (
 )
 
 func ErrUnknownKind(err error) error {
-	return errors.New(ErrUnknownKindCode, errors.Alert, []string{"unsupported connection kind detected"}, []string{err.Error()}, []string{"The component's registrant is not supported by the version of server you are running"}, []string{"Try upgrading to latest available version"})
+	return errors.New(ErrUnknownKindCode, errors.Alert, 
+		[]string{"Unsupported connection kind detected."}, 
+		[]string{err.Error()}, 
+		[]string{"The component's registrant is not supported by the version of server you are running."}, 
+		[]string{"Try upgrading to the latest available version."})
 }
