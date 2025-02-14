@@ -11,20 +11,20 @@ import (
 
 var (
 	// Error code
-	ErrUnsupportedExtensionCode                = "meshkit-11282"
-	ErrUnsupportedExtensionForOperationCode    = "meshkit-11283"
-	ErrFailedToIdentifyFileCode                = "meshkit-11284"
-	ErrSanitizingFileCode                      = "meshkit-11285"
-	ErrInvalidYamlCode                         = "meshkit-11286"
-	ErrInvalidJsonCode                         = "meshkit-11287"
-	ErrFailedToExtractTarCode                  = "meshkit-11288"
-	ErrUnsupportedFileTypeCode                 = "meshkit-11289"
-	ErrInvalidKubernetesManifestCode           = "meshkit-11290"
-	ErrInvalidMesheryDesignCode                = "meshkit-11291"
-	ErrInvalidHelmChartCode                    = "meshkit-11292"
-	ErrInvalidDockerComposeCode                = "meshkit-11293"
-	ErrInvalidKustomizationCode                = "meshkit-11294"
-	ErrFileTypeNotSupportedForDesignConversion = "replace_me"
+	ErrUnsupportedExtensionCode                    = "meshkit-11282"
+	ErrUnsupportedExtensionForOperationCode        = "meshkit-11283"
+	ErrFailedToIdentifyFileCode                    = "meshkit-11284"
+	ErrSanitizingFileCode                          = "meshkit-11285"
+	ErrInvalidYamlCode                             = "meshkit-11286"
+	ErrInvalidJsonCode                             = "meshkit-11287"
+	ErrFailedToExtractTarCode                      = "meshkit-11288"
+	ErrUnsupportedFileTypeCode                     = "meshkit-11289"
+	ErrInvalidKubernetesManifestCode               = "meshkit-11290"
+	ErrInvalidMesheryDesignCode                    = "meshkit-11291"
+	ErrInvalidHelmChartCode                        = "meshkit-11292"
+	ErrInvalidDockerComposeCode                    = "meshkit-11293"
+	ErrInvalidKustomizationCode                    = "meshkit-11294"
+	ErrFileTypeNotSupportedForDesignConversionCode = "replace_me"
 )
 
 func ErrUnsupportedExtensionForOperation(operation string, fileName string, fileExt string, supportedExtensions []string) error {
