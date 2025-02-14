@@ -311,7 +311,7 @@ func ErrUnsupportedFileTypeForConversionToDesign(fileName string, fileType strin
 		"Convert the file to a supported format before processing",
 	}
 
-	return errors.New(ErrFileTypeNotSupportedForDesignConversion, errors.Critical, sdescription, ldescription, probableCause, remedy)
+	return errors.New(ErrFileTypeNotSupportedForDesignConversionCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
 }
 
 var (
