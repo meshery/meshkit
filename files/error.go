@@ -24,7 +24,7 @@ var (
 	ErrInvalidHelmChartCode                        = "meshkit-11292"
 	ErrInvalidDockerComposeCode                    = "meshkit-11293"
 	ErrInvalidKustomizationCode                    = "meshkit-11294"
-	ErrFileTypeNotSupportedForDesignConversionCode = "replace_me"
+	ErrFileTypeNotSupportedForDesignConversionCode = "meshkit-11300"
 )
 
 func ErrUnsupportedExtensionForOperation(operation string, fileName string, fileExt string, supportedExtensions []string) error {
