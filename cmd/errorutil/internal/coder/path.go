@@ -66,7 +66,7 @@ func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesh
 
 func isErrorGoFile(path string) bool {
 	_, file := filepath.Split(path)
-	return file == "error.go"
+	return file == "error.go" || file == "errors.go"
 }
 
 func includeFile(path string) bool {
