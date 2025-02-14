@@ -9,10 +9,10 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/registry/v1alpha3"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/storage"
+	"github.com/open-policy-agent/opa/v1/storage/inmem"
+	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/sirupsen/logrus"
 )
 
@@ -117,5 +117,4 @@ func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString
 	}
 
 	return evaluationResponse, nil
-
 }
