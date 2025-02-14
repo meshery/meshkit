@@ -11,19 +11,19 @@ import (
 
 var (
 	// Error code
-	ErrUnsupportedExtensionCode                = "replace_me"
-	ErrUnsupportedExtensionForOperationCode    = "replace_me"
-	ErrFailedToIdentifyFileCode                = "replace_me"
-	ErrSanitizingFileCode                      = "replace_me"
-	ErrInvalidYamlCode                         = "replace_me"
-	ErrInvalidJsonCode                         = "replace_me"
-	ErrFailedToExtractTarCode                  = "replace_me"
-	ErrUnsupportedFileTypeCode                 = "replace_me"
-	ErrInvalidKubernetesManifestCode           = "replace_me"
-	ErrInvalidMesheryDesignCode                = "replace_me"
-	ErrInvalidHelmChartCode                    = "replace_me"
-	ErrInvalidDockerComposeCode                = "replace_me"
-	ErrInvalidKustomizationCode                = "replace_me"
+	ErrUnsupportedExtensionCode                = "meshkit-11282"
+	ErrUnsupportedExtensionForOperationCode    = "meshkit-11283"
+	ErrFailedToIdentifyFileCode                = "meshkit-11284"
+	ErrSanitizingFileCode                      = "meshkit-11285"
+	ErrInvalidYamlCode                         = "meshkit-11286"
+	ErrInvalidJsonCode                         = "meshkit-11287"
+	ErrFailedToExtractTarCode                  = "meshkit-11288"
+	ErrUnsupportedFileTypeCode                 = "meshkit-11289"
+	ErrInvalidKubernetesManifestCode           = "meshkit-11290"
+	ErrInvalidMesheryDesignCode                = "meshkit-11291"
+	ErrInvalidHelmChartCode                    = "meshkit-11292"
+	ErrInvalidDockerComposeCode                = "meshkit-11293"
+	ErrInvalidKustomizationCode                = "meshkit-11294"
 	ErrFileTypeNotSupportedForDesignConversion = "replace_me"
 )
 
@@ -315,11 +315,11 @@ func ErrUnsupportedFileTypeForConversionToDesign(fileName string, fileType strin
 }
 
 var (
-	ErrNoTarInsideOCICode        = "replace_me"
-	ErrEmptyOCIImageCode         = "replace_me"
-	ErrUnCompressOCIArtifactCode = "replace_me"
-	ErrWaklingLocalDirectoryCode = "replace_me"
-	ErrDecodePatternCode         = "replace_me"
+	ErrNoTarInsideOCICode        = "meshkit-11295"
+	ErrEmptyOCIImageCode         = "meshkit-11296"
+	ErrUnCompressOCIArtifactCode = "meshkit-11297"
+	ErrWaklingLocalDirectoryCode = "meshkit-11298"
+	ErrDecodePatternCode         = "meshkit-11299"
 )
 
 // OCI Parsing errors
