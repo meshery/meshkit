@@ -58,7 +58,7 @@ func New(opts Options) (broker.Handler, error) {
 		return nil, ErrConnect(err)
 	}
 
-	return &Nats{ec: nc}, nil
+	return &Nats{ec: nc, wg: &sync.WaitGroup{}}, nil
 }
 
 func (n *Nats) ConnectedEndpoints() (endpoints []string) {
@@ -109,11 +109,11 @@ func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) er
 
 // Subscribe - for subscribing messages
 // TODO Ques: Do we want to unsubscribe
-// TODO will the method-user just subsribe, how will it handle the received messages?
-func (n *Nats) Subscribe(subject, queue string, message *[]byte) error {
+// TODO will the method-user just subscribe, how will it handle the received messages?
+func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 	n.wg.Add(1)
 	_, err := n.ec.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
-		*message = msg.Data
+		copy(message, msg.Data)
 		n.wg.Done()
 	})
 	if err != nil {
