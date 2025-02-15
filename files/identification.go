@@ -163,6 +163,9 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 
 	return &patternFile, nil
 }
+
+// we are allowing unknown fields to keep compabitibilty with old designs when
+// we make unversioned changes to schema
 func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 
 	var parsed pattern.PatternFile
@@ -172,7 +175,6 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 	case ".yml", ".yaml":
 
 		decoder := yaml.NewDecoder(bytes.NewReader(file.RawData))
-		// decoder.KnownFields(true)
 		err := decoder.Decode(&parsed)
 		if err != nil {
 			return pattern.PatternFile{}, err
@@ -187,7 +189,6 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 
 		decoder := json.NewDecoder(bytes.NewReader(file.RawData))
 
-		// decoder.DisallowUnknownFields()
 		err := decoder.Decode(&parsed)
 
 		if err != nil {
