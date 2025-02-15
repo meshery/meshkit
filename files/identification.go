@@ -15,6 +15,7 @@ import (
 	"github.com/layer5io/meshkit/utils/kubernetes/kompose"
 	"github.com/layer5io/meshkit/utils/walker"
 	"github.com/meshery/schemas/models/core"
+	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 
 	"gopkg.in/yaml.v3"
@@ -171,17 +172,31 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 	case ".yml", ".yaml":
 
 		decoder := yaml.NewDecoder(bytes.NewReader(file.RawData))
-		decoder.KnownFields(true)
+		// decoder.KnownFields(true)
 		err := decoder.Decode(&parsed)
-		return parsed, err
+		if err != nil {
+			return pattern.PatternFile{}, err
+		}
+		if parsed.SchemaVersion == v1beta1.DesignSchemaVersion {
+			return parsed, err
+		} else {
+			return pattern.PatternFile{}, utils.ErrInvalidConstructSchemaVersion("design", parsed.SchemaVersion, v1beta1.DesignSchemaVersion)
+		}
 
 	case ".json":
 
 		decoder := json.NewDecoder(bytes.NewReader(file.RawData))
 
-		decoder.DisallowUnknownFields()
+		// decoder.DisallowUnknownFields()
 		err := decoder.Decode(&parsed)
-		return parsed, err
+
+		if err != nil {
+			return pattern.PatternFile{}, err
+		}
+		if parsed.SchemaVersion == v1beta1.DesignSchemaVersion {
+			return parsed, err
+		}
+		return pattern.PatternFile{}, utils.ErrInvalidConstructSchemaVersion("design", parsed.SchemaVersion, v1beta1.DesignSchemaVersion)
 
 	case ".tgz", ".tar", ".tar.gz", ".zip": // try to parse oci artifacts
 		parsed_design, err := ParseCompressedOCIArtifactIntoDesign(file.RawData)
