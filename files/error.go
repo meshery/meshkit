@@ -349,9 +349,9 @@ func ErrDecodePattern(err error) error {
 }
 
 var (
-	ErrInvalidModelCode        = "replace_me"
-	ErrInvalidModelArchiveCode = "replace_me"
-	ErrEmptyModelCode          = "replace_me"
+	ErrInvalidModelCode        = "meshkit-11301"
+	ErrInvalidModelArchiveCode = "meshkit-11302"
+	ErrEmptyModelCode          = "meshkit-11303"
 )
 
 func ErrInvalidModel(operation string, filename string, err error) error {
