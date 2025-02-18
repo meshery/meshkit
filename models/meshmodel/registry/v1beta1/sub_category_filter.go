@@ -3,13 +3,9 @@ package v1beta1
 import (
 	"gorm.io/gorm/clause"
 	"github.com/layer5io/meshkit/database"
-	// "github.com/layer5io/meshkit/models/meshmodel/entity"
-	// "github.com/layer5io/meshkit/models/meshmodel/registry"
-	// "github.com/meshery/schemas/models/v1beta1/subCategory"
-
-	"github.com/octocamocoder47/meshkit/models/meshmodel/entity"
-	"github.com/octocamocoder47/meshkit/models/meshmodel/registry"
-	"github.com/octocamocoder47/schemas/models/v1beta1/subCategory"
+	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/v1beta1/subCategory"
 )
 
 type SubCategoryFilter struct {
