@@ -22,7 +22,7 @@ GOVERSION = 1.23.4
 GOPATH = $(shell go env GOPATH)
 GOBIN  = $(GOPATH)/bin
 
-SHELL :=/bin/bash -o pipefail
+SHELL :=/usr/bin/env bash -o pipefail
 
 #-----------------------------------------------------------------------------
 # Build

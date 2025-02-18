@@ -57,6 +57,19 @@ var (
 
 	ErrWritingIntoFileCode = "meshkit-11281"
 )
+
+func ErrInvalidConstructSchemaVersion(contruct string, version string, supportedVersion string) error {
+
+	return errors.New(
+		ErrInvalidSchemaVersionCode,
+		errors.Critical,
+		[]string{"Invalid schema version " + version},
+		[]string{"The `schemaVersion` key is either empty or has an incorrect value."},
+		[]string{fmt.Sprintf("The schema is not of type '%s'", contruct)},
+		[]string{"Verify that `schemaVersion` key should be '%s'", supportedVersion},
+	)
+}
+
 var (
 	ErrExtractType = errors.New(
 		ErrUnmarshalTypeCode,

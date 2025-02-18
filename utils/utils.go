@@ -20,8 +20,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
+	"github.com/layer5io/meshkit/logger"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -865,4 +867,10 @@ func ParseKubeStatusErr(err *kubeerror.StatusError) (shortDescription, longDescr
 	}
 
 	return
+}
+
+func TrackTime(logger logger.Handler, start time.Time, name string) {
+
+	elapsed := time.Since(start)
+	logger.Debugf("%s took %s\n", name, elapsed)
 }
