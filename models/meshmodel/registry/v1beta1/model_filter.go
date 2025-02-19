@@ -92,16 +92,26 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 
 	var modelWithCategories []model.ModelDefinition
 
-	finder := db.Model(&model.ModelDefinition{}).Preload("Category").Preload("Registrant").
-		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
+	finder := db.Model(&model.ModelDefinition{}).
+		Preload("Category").
+		Preload("Registrant")
+
+	finder = finder.Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN registries ON registries.entity = model_dbs.id").
 		Joins("JOIN connections ON connections.id = registries.registrant_id")
 
+	// Conditionally add components and relationships based on trim and include flags
+	if !mf.Trim {
+		if mf.Components {
+			finder = finder.Preload("Components")
+		}
+		if mf.Relationships {
+			finder = finder.Preload("Relationships")
+		}
+	}
+
 	// total count before pagination
 	var count int64
-
-	// include components and relationships in response body
-	var includeComponents, includeRelationships bool
 
 	if mf.Greedy {
 		if mf.Id != "" {
@@ -171,62 +181,28 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		finder = finder.Offset(mf.Offset)
 	}
 
-	includeComponents = mf.Components
-	includeRelationships = mf.Relationships
-
-	err := finder.
-		Find(&modelWithCategories).Error
+	err := finder.Find(&modelWithCategories).Error
 	if err != nil {
 		return nil, 0, 0, err
 	}
 
-	defs := []entity.Entity{}
+	// Transform into required format
+	defs := make([]entity.Entity, len(modelWithCategories))
 
-	for _, modelDB := range modelWithCategories {
-		// resolve for loop scope
-		_modelDB := modelDB
-		var componentCount int64
-		db.Model(&component.ComponentDefinition{}).Where("component_definition_dbs.model_id = ?", _modelDB.Id).Count(&componentCount)
-		var relationshipCount int64
-		db.Model(&relationship.RelationshipDefinition{}).Where("relationship_definition_dbs.model_id = ?", _modelDB.Id).Count(&relationshipCount)
-		_modelDB.ComponentsCount = int(componentCount)
-		_modelDB.RelationshipsCount = int(relationshipCount)
-
-		// If Trim is true, only include the id, name, counts and metadata
+	for i, modelDB := range modelWithCategories {
 		if mf.Trim {
-			trimmedModel := &model.ModelDefinition{
-				Id:                 _modelDB.Id,
-				Name:               _modelDB.Name,
-				DisplayName:        _modelDB.DisplayName,
-				Metadata:           _modelDB.Metadata,
-				ComponentsCount:    int(componentCount),
-				RelationshipsCount: int(relationshipCount),
+			defs[i] = &model.ModelDefinition{
+				Id:          modelDB.Id,
+				Name:        modelDB.Name,
+				DisplayName: modelDB.DisplayName,
+				Metadata:    modelDB.Metadata,
+				// Components and relationships counts will be included in the base model
+				// since we're using preload
 			}
-			defs = append(defs, trimmedModel)
-
 		} else {
-			if includeComponents {
-				var components []component.ComponentDefinition
-				finder := db.Model(&component.ComponentDefinition{}).
-					Select("component_definition_dbs.*").
-					Where("component_definition_dbs.model_id = ?", _modelDB.Id)
-				if err := finder.Scan(&components).Error; err != nil {
-					return nil, 0, 0, err
-				}
-				_modelDB.Components = components
-			}
-			if includeRelationships {
-				var relationships []relationship.RelationshipDefinition
-				finder := db.Model(&relationship.RelationshipDefinition{}).
-					Select("relationship_definition_dbs.*").
-					Where("relationship_definition_dbs.model_id = ?", _modelDB.Id)
-				if err := finder.Scan(&relationships).Error; err != nil {
-					return nil, 0, 0, err
-				}
-				_modelDB.Relationships = relationships
-			}
-			defs = append(defs, &_modelDB)
+			defs[i] = &modelDB
 		}
 	}
+
 	return defs, count, countUniqueModels(modelWithCategories), nil
 }
