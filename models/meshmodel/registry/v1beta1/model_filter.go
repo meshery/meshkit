@@ -1,6 +1,7 @@
 package v1beta1
 
 import (
+	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
@@ -89,26 +90,14 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 }
 
 func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
-
 	var modelWithCategories []model.ModelDefinition
 
 	finder := db.Model(&model.ModelDefinition{}).
 		Preload("Category").
-		Preload("Registrant")
-
-	finder = finder.Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
+		Preload("Registrant").
+		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN registries ON registries.entity = model_dbs.id").
 		Joins("JOIN connections ON connections.id = registries.registrant_id")
-
-	// Conditionally add components and relationships based on trim and include flags
-	if !mf.Trim {
-		if mf.Components {
-			finder = finder.Preload("Components")
-		}
-		if mf.Relationships {
-			finder = finder.Preload("Relationships")
-		}
-	}
 
 	// total count before pagination
 	var count int64
@@ -186,22 +175,78 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		return nil, 0, 0, err
 	}
 
-	// Transform into required format
-	defs := make([]entity.Entity, len(modelWithCategories))
-
-	for i, modelDB := range modelWithCategories {
-		if mf.Trim {
+	if mf.Trim {
+		defs := make([]entity.Entity, len(modelWithCategories))
+		for i, modelDB := range modelWithCategories {
 			defs[i] = &model.ModelDefinition{
 				Id:          modelDB.Id,
 				Name:        modelDB.Name,
 				DisplayName: modelDB.DisplayName,
 				Metadata:    modelDB.Metadata,
-				// Components and relationships counts will be included in the base model
-				// since we're using preload
 			}
-		} else {
-			defs[i] = &modelDB
 		}
+		return defs, count, countUniqueModels(modelWithCategories), nil
+	}
+
+	modelMap := make(map[uuid.UUID]*model.ModelDefinition, len(modelWithCategories))
+	modelIds := make([]uuid.UUID, len(modelWithCategories))
+
+	for i := range modelWithCategories {
+		modelIds[i] = modelWithCategories[i].Id
+		modelMap[modelWithCategories[i].Id] = &modelWithCategories[i]
+
+		// Initialize empty slices for components and relationships
+		if mf.Components {
+			modelWithCategories[i].Components = make([]component.ComponentDefinition, 0)
+		}
+		if mf.Relationships {
+			modelWithCategories[i].Relationships = make([]relationship.RelationshipDefinition, 0)
+		}
+	}
+
+	if mf.Components {
+		var components []component.ComponentDefinition
+		if err := db.Model(&component.ComponentDefinition{}).
+			Where("model_id IN ?", modelIds).
+			Find(&components).Error; err != nil {
+			return nil, 0, 0, err
+		}
+
+		// Map components to their models
+		for _, comp := range components {
+			if model, exists := modelMap[comp.ModelId]; exists {
+				model.Components = append(
+					model.Components.([]component.ComponentDefinition),
+					comp,
+				)
+				model.ComponentsCount++
+			}
+		}
+	}
+
+	if mf.Relationships {
+		var relationships []relationship.RelationshipDefinition
+		if err := db.Model(&relationship.RelationshipDefinition{}).
+			Where("model_id IN ?", modelIds).
+			Find(&relationships).Error; err != nil {
+			return nil, 0, 0, err
+		}
+
+		// Map relationships to their models
+		for _, rel := range relationships {
+			if model, exists := modelMap[rel.ModelId]; exists {
+				model.Relationships = append(
+					model.Relationships.([]relationship.RelationshipDefinition),
+					rel,
+				)
+				model.RelationshipsCount++
+			}
+		}
+	}
+
+	defs := make([]entity.Entity, len(modelWithCategories))
+	for i := range modelWithCategories {
+		defs[i] = &modelWithCategories[i]
 	}
 
 	return defs, count, countUniqueModels(modelWithCategories), nil
