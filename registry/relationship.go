@@ -109,7 +109,7 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) erro
 
 func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsheetUpdateChan chan RelationshipCSV, path string) {
 	if path == "" {
-		path = "../server/meshmodel"
+		path = "../../meshery/server/meshmodel"
 	}
 	for _, relationship := range relationshipCSVHelper.Relationships {
 		var versions []string
