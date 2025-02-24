@@ -100,7 +100,7 @@ func ErrInvalidYaml(fileName string, err error) error {
 		"Review the YAML syntax in the file and correct any errors.",
 		"Use a YAML validator or linter to identify and fix issues.",
 		"Ensure the file adheres to the YAML specification.",
-		"Ensure the YAML conforms to the Meshery model schema. You can refer to the Meshery model schema documentation for more details.",
+		"Ensure the YAML conforms to the Meshery model schema. You can refer to the following documentation for more details: https://docs.meshery.io/project/contributing/contributing-models",
 	}
 
 	return errors.New(ErrInvalidYamlCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
@@ -128,7 +128,7 @@ func ErrInvalidJson(fileName string, err error) error {
 		"Use a JSON validator or linter to identify and fix issues.",
 		"Ensure the file adheres to the JSON specification (e.g., double quotes for keys and strings).",
 		"Check for common issues like trailing commas or unescaped special characters.",
-		"Ensure the JSON conforms to the Meshery model schema. You can refer to the Meshery model schema documentation for more details.",
+		"Ensure the JSON conforms to the Meshery model schema. You can refer to the following documentation for more details: https://docs.meshery.io/project/contributing/contributing-models",
 	}
 
 	return errors.New(ErrInvalidJsonCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
@@ -368,6 +368,9 @@ func ErrInvalidModel(operation string, filename string, err error) error {
 		return ErrInvalidModelArchive(filename, err)
 	default:
 		supportedExtensions := slices.Collect(maps.Keys(ValidIacExtensions))
+		supportedExtensions = slices.DeleteFunc(supportedExtensions, func(ext string) bool {
+			return ext == ".zip"
+		})
 		return ErrUnsupportedExtensionForOperation(operation, filename, fileExt, supportedExtensions)
 	}
 }
@@ -389,7 +392,7 @@ func ErrInvalidModelArchive(fileName string, err error) error {
 
 	remedy := []string{
 		"Make sure the archive is OCI compliant. Meshery Models should be OCI compliant archives.",
-		"Try using a different extraction tool or library to rule out compatibility issues.",
+		"Ensure the archive is created using a compatible tool (eg: ORAS) and version that follows OCI standards.",
 	}
 
 	return errors.New(ErrInvalidModelArchiveCode, errors.Critical, sdescription, ldescription, probableCause, remedy)

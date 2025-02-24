@@ -32,9 +32,9 @@ var ValidIacExtensions = map[string]bool{
 	".tar":     true,
 	".tar.gz":  true,
 	".tar.tgz": true,
+	".zip":     true,
 	".gz":      true,
 	".tgz":     true,
-	// TODO: add support for zip
 }
 
 func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[string]bool) (SanitizedFile, error) {
