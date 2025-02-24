@@ -391,7 +391,7 @@ func ErrInvalidModelArchive(fileName string, err error) error {
 	}
 
 	remedy := []string{
-		"Make sure the archive is OCI compliant. Meshery Models should be OCI compliant archives.",
+		"Make sure the archive is OCI compliant. Meshery Models should be OCI compliant archive.",
 		"Ensure the archive is created using a compatible tool (eg: ORAS) and version that follows OCI standards.",
 	}
 
@@ -399,5 +399,5 @@ func ErrInvalidModelArchive(fileName string, err error) error {
 }
 
 func ErrEmptyModel() error {
-	return errors.New(ErrEmptyModelCode, errors.Alert, []string{"No component found in model provided."}, []string{"No component found in model provided. Models must have atleast one component."}, []string{}, []string{})
+	return errors.New(ErrEmptyModelCode, errors.Alert, []string{"No component found in model provided."}, []string{"No component found in model provided. Models must have at least one component."}, []string{}, []string{})
 }
