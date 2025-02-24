@@ -9,6 +9,7 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/models/oci"
 
+	meshkitFileUtils "github.com/layer5io/meshkit/files"
 	"github.com/layer5io/meshkit/utils"
 
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
@@ -48,12 +49,7 @@ func (d Dir) PkgUnit(regErrStore RegistrationErrorStore) (_ PackagingUnit, err e
 	// Process the path (file or directory)
 	err = processDir(d.dirpath, &pkg, regErrStore)
 	if err != nil {
-		modelName := ""
-		if !reflect.ValueOf(pkg.Model).IsZero() {
-			modelName = pkg.Model.Name
-		}
-		regErrStore.InsertEntityRegError("", modelName, entity.EntityType("unknown"), filename, ErrDirPkgUnitParseFail(d.dirpath, fmt.Errorf("could not process the path: %w", err)))
-		return pkg, ErrDirPkgUnitParseFail(d.dirpath, fmt.Errorf("could not process the path: %w", err))
+		return pkg, err
 	}
 
 	if reflect.ValueOf(pkg.Model).IsZero() {
@@ -105,6 +101,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 			tempDirs = append(tempDirs, tempDir)
 			err = oci.UnCompressOCIArtifact(path, tempDir)
 			if err != nil {
+				err := meshkitFileUtils.ErrUnCompressOCIArtifact(err)
 				regErrStore.InsertEntityRegError("", "", entity.EntityType("unknown"), filepath.Base(path), err)
 				regErrStore.AddInvalidDefinition(path, err)
 				return nil
@@ -127,6 +124,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 			}
 			tempDirs = append(tempDirs, tempDir)
 			if err := utils.ExtractFile(path, tempDir); err != nil {
+				err := meshkitFileUtils.ErrFailedToExtractArchive(filepath.Base(path), err)
 				regErrStore.InsertEntityRegError("", "", entity.EntityType("unknown"), filepath.Base(path), err)
 				regErrStore.AddInvalidDefinition(path, err)
 				return nil
@@ -139,16 +137,20 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 		}
 
 		content := data
-		content, err = utils.YAMLToJSON(content)
-		if err != nil {
-			regErrStore.InsertEntityRegError("", "", entity.EntityType("unknown"), filepath.Base(path), err)
-			return nil
+		if utils.IsYaml(path) {
+			content, err = utils.YAMLToJSON(content)
+			if err != nil {
+				regErrStore.InsertEntityRegError("", "", entity.EntityType("unknown"), filepath.Base(path), err)
+				return nil
+			}
 		}
+
 		// Determine the entity type
 		entityType, err := utils.FindEntityType(content)
 		if err != nil {
-			regErrStore.InsertEntityRegError("", "", entity.EntityType("unknown"), filepath.Base(path), err)
-			regErrStore.AddInvalidDefinition(path, err)
+			errMsg := meshkitFileUtils.ErrInvalidModel("import", filepath.Base(path), err)
+			regErrStore.InsertEntityRegError("", filepath.Base(path), entity.EntityType("unknown"), filepath.Base(path), errMsg)
+			regErrStore.AddInvalidDefinition(path, errMsg)
 			return nil
 		}
 
