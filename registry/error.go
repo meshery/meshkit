@@ -7,16 +7,16 @@ import (
 )
 
 var (
-	ErrMarshalStructToCSVCode     = "replace_me"
-	ErrAppendToSheetCode          = "replace_me"
-	ErrUpdateToSheetCode          = "replace_me"
-	ErrFileReadCode               = "replace_me"
-	ErrGeneratesModelCode         = "replace_me"
-	ErrReadCSVRowCode             = "replace_me"
-	ErrCSVFileNotFoundCode        = "replace_me"
-	ErrUpdateComponentsCode       = "replace_me"
-	ErrGeneratesComponentCode     = "replace_me"
-	ErrUpdateRelationshipFileCode = "replace_me"
+	ErrMarshalStructToCSVCode     = "meshkit-11301"
+	ErrAppendToSheetCode          = "meshkit-11302"
+	ErrUpdateToSheetCode          = "meshkit-11303"
+	ErrFileReadCode               = "meshkit-11304"
+	ErrGeneratesModelCode         = "meshkit-11305"
+	ErrReadCSVRowCode             = "meshkit-11306"
+	ErrCSVFileNotFoundCode        = "meshkit-11307"
+	ErrUpdateComponentsCode       = "meshkit-11308"
+	ErrGeneratesComponentCode     = "meshkit-11309"
+	ErrUpdateRelationshipFileCode = "meshkit-11310"
 )
 
 func ErrMarshalStructToCSV(err error) error {
