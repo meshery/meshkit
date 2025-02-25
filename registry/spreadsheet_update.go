@@ -157,7 +157,6 @@ func VerifyandUpdateSpreadsheet(cred string, wg *sync.WaitGroup, srv *sheets.Ser
 		if err != nil {
 			Log.Error(err)
 		}
-		return
 	}
 }
 func (mrh *RelationshipCSVHelper) UpdateRelationshipSheet(srv *sheets.Service, cred, sheetId, csvPath string) error {
@@ -306,15 +305,15 @@ func GetCsv(csvDirectory string) (string, string, string, error) {
 		filePath := filepath.Join(csvDirectory, file.Name())
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".csv") {
 			headers, secondRow, err := getCSVHeader(filePath)
+			if err != nil {
+				return "", "", "", err
+			}
 			if Contains("modelDisplayName", headers) != -1 || Contains("modelDisplayName", secondRow) != -1 {
 				modelCSVFilePath = filePath
 			} else if Contains("component", headers) != -1 || Contains("component", secondRow) != -1 {
 				componentCSVFilePath = filePath
 			} else if Contains("kind", headers) != -1 || Contains("kind", secondRow) != -1 { // Check if the file matches the relationshipCSV structure
 				relationshipCSVFilePath = filePath
-			}
-			if err != nil {
-				return "", "", "", err
 			}
 
 		}
