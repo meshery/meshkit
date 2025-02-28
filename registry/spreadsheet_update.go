@@ -309,11 +309,11 @@ func GetCsv(csvDirectory string) (string, string, string, error) {
 			if err != nil {
 				return "", "", "", err
 			}
-			if utils.Locate("modelDisplayName", headers) != -1 || utils.Locate("modelDisplayName", secondRow) != -1 {
+			if utils.FindIndexInSlice("modelDisplayName", headers) != -1 || utils.FindIndexInSlice("modelDisplayName", secondRow) != -1 {
 				modelCSVFilePath = filePath
-			} else if utils.Locate("component", headers) != -1 || utils.Locate("component", secondRow) != -1 {
+			} else if utils.FindIndexInSlice("component", headers) != -1 || utils.FindIndexInSlice("component", secondRow) != -1 {
 				componentCSVFilePath = filePath
-			} else if utils.Locate("kind", headers) != -1 || utils.Locate("kind", secondRow) != -1 { // Check if the file matches the relationshipCSV structure
+			} else if utils.FindIndexInSlice("kind", headers) != -1 || utils.FindIndexInSlice("kind", secondRow) != -1 { // Check if the file matches the relationshipCSV structure
 				relationshipCSVFilePath = filePath
 			}
 
