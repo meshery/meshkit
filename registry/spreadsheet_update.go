@@ -13,6 +13,7 @@ import (
 	cuecsv "cuelang.org/go/pkg/encoding/csv"
 	"github.com/gocarina/gocsv"
 	"github.com/layer5io/meshkit/utils"
+	csvUtils "github.com/layer5io/meshkit/utils/csv"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"google.golang.org/api/sheets/v4"
 )
@@ -265,13 +266,13 @@ func appendSheet(srv *sheets.Service, cred, sheetId, appendRange string, values 
 func marshalStructToCSValues[K any](data []*K) ([][]interface{}, error) {
 	csvString, err := gocsv.MarshalString(data)
 	if err != nil {
-		return nil, ErrMarshalStructToCSV(err)
+		return nil, csvUtils.ErrMarshalStructToCSV(err)
 	}
 	csvReader := bytes.NewBufferString(csvString)
 	decodedCSV, err := cuecsv.Decode(csvReader)
 
 	if err != nil {
-		return nil, ErrMarshalStructToCSV(err)
+		return nil, csvUtils.ErrMarshalStructToCSV(err)
 	}
 
 	results := make([][]interface{}, 0)
@@ -308,11 +309,11 @@ func GetCsv(csvDirectory string) (string, string, string, error) {
 			if err != nil {
 				return "", "", "", err
 			}
-			if Contains("modelDisplayName", headers) != -1 || Contains("modelDisplayName", secondRow) != -1 {
+			if utils.Locate("modelDisplayName", headers) != -1 || utils.Locate("modelDisplayName", secondRow) != -1 {
 				modelCSVFilePath = filePath
-			} else if Contains("component", headers) != -1 || Contains("component", secondRow) != -1 {
+			} else if utils.Locate("component", headers) != -1 || utils.Locate("component", secondRow) != -1 {
 				componentCSVFilePath = filePath
-			} else if Contains("kind", headers) != -1 || Contains("kind", secondRow) != -1 { // Check if the file matches the relationshipCSV structure
+			} else if utils.Locate("kind", headers) != -1 || utils.Locate("kind", secondRow) != -1 { // Check if the file matches the relationshipCSV structure
 				relationshipCSVFilePath = filePath
 			}
 
@@ -335,13 +336,13 @@ func getCSVHeader(filePath string) (headers, secondRow []string, err error) {
 	reader := csv.NewReader(file)
 	headers, err = reader.Read()
 	if err != nil {
-		err = ErrReadCSVRow(err, "header")
+		err = csvUtils.ErrReadCSVRow(err, "header")
 		return headers, secondRow, err
 	}
 
 	secondRow, err = reader.Read()
 	if err != nil {
-		err = ErrReadCSVRow(err, "second row")
+		err = csvUtils.ErrReadCSVRow(err, "second row")
 		return headers, secondRow, err
 	}
 	return headers, secondRow, nil

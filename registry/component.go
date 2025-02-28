@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/layer5io/meshkit/encoding"
+	"github.com/layer5io/meshkit/files"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/csv"
@@ -247,7 +248,7 @@ func (mch *ComponentCSVHelper) ParseComponentsSheet(modelName string) error {
 	})
 
 	if err != nil {
-		return ErrFileRead(err)
+		return files.ErrFileRead(err)
 	}
 
 	go func() {

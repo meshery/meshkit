@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/layer5io/meshkit/encoding"
+	"github.com/layer5io/meshkit/files"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/csv"
 	"github.com/meshery/schemas/models/v1alpha3"
@@ -75,7 +76,7 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) erro
 	})
 
 	if err != nil {
-		return ErrFileRead(err)
+		return files.ErrFileRead(err)
 	}
 
 	rowIndex := 3 //first 2 are headers

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/layer5io/meshkit/encoding"
+	"github.com/layer5io/meshkit/files"
 	"github.com/layer5io/meshkit/generators"
 	"github.com/layer5io/meshkit/generators/models"
 	"github.com/layer5io/meshkit/models/meshmodel/entity"
@@ -259,7 +260,7 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool, modelName string)
 		return false
 	})
 	if err != nil {
-		return ErrFileRead(err)
+		return files.ErrFileRead(err)
 	}
 
 	go func() {
@@ -278,7 +279,7 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool, modelName string)
 			}
 			mch.Models = append(mch.Models, data)
 		case err := <-errorChan:
-			return ErrFileRead(err)
+			return files.ErrFileRead(err)
 
 		case <-csvReader.Context.Done():
 			return nil

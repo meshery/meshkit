@@ -52,12 +52,3 @@ func SetupLogger(name string, debugLevel bool, output io.Writer) logger.Handler 
 	}
 	return logger
 }
-
-func Contains(key string, col []string) int {
-	for i, n := range col {
-		if n == key {
-			return i
-		}
-	}
-	return -1
-}
