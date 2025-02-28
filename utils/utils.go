@@ -261,7 +261,7 @@ func Contains[G []K, K comparable](slice G, ele K) bool {
 	return false
 }
 
-func Locate(key string, col []string) int {
+func FindIndexInSlice(key string, col []string) int {
 	for i, n := range col {
 		if n == key {
 			return i
