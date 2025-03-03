@@ -23,7 +23,7 @@
           "file": {
             "type": "string",
             "format": "file",
-            "description": "Browse the model file from your file system. Ensure it's an OCI artifact in .tar, .tar.gz, or .tgz format.",
+            "description": "Browse the filter file from your file system",
             "x-rjsf-grid-area": "12"
           }
         },
