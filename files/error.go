@@ -11,6 +11,18 @@ import (
 )
 
 var (
+	ErrFileReadCode = "meshkit-11304"
+)
+
+func ErrFileRead(err error) error {
+	return errors.New(ErrFileReadCode, errors.Alert,
+		[]string{"File read error"},
+		[]string{err.Error()},
+		[]string{"The provided file is not present or has an invalid path."},
+		[]string{"To proceed, provide a valid file path with a valid file."})
+}
+
+var (
 	// Error code
 	ErrUnsupportedExtensionCode                    = "meshkit-11282"
 	ErrUnsupportedExtensionForOperationCode        = "meshkit-11283"

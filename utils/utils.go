@@ -261,6 +261,15 @@ func Contains[G []K, K comparable](slice G, ele K) bool {
 	return false
 }
 
+func FindIndexInSlice(key string, col []string) int {
+	for i, n := range col {
+		if n == key {
+			return i
+		}
+	}
+	return -1
+}
+
 func Cast[K any](val interface{}) (K, error) {
 	var assertedValue K
 	if IsInterfaceNil(val) {
