@@ -64,7 +64,12 @@ func DryRunHelmChart(chart *chart.Chart, kubernetesVersion string) ([]byte, erro
 }
 
 // Takes in the directory and converts HelmCharts/multiple manifests into a single K8s manifest
-func ConvertToK8sManifest(path, kubeVersion string, w io.Writer) error {
+func ConvertToK8sManifest(path, kubeVersion string, ctx *utils.ProcessingContext) error {
+	// If this path has already been processed, skip it
+	if ctx.IsProcessed(path) {
+		return nil
+	}
+
 	info, err := os.Stat(path)
 	if err != nil {
 		return utils.ErrReadDir(err, path)
@@ -74,30 +79,41 @@ func ConvertToK8sManifest(path, kubeVersion string, w io.Writer) error {
 		helmChartPath, _ = strings.CutSuffix(path, filepath.Base(path))
 	}
 	if IsHelmChart(helmChartPath) {
-		err := LoadHelmChart(helmChartPath, w, true, kubeVersion)
+		err := LoadHelmChart(helmChartPath, ctx.Writer, true, kubeVersion)
 		if err != nil {
 			return err
 		}
+		// Mark the entire helm chart directory as processed to prevent
+		// reprocessing its contents
+		ctx.MarkProcessed(helmChartPath)
 		// If not a helm chart then assume k8s manifest.
 		// Add introspection for compose files later on.
 	} else if utils.IsYaml(path) {
 		pathInfo, _ := os.Stat(path)
 		if pathInfo.IsDir() {
-			err := filepath.WalkDir(path, func(path string, d fs.DirEntry, _err error) error {
-				err := writeToFile(w, path)
-				if err != nil {
-					return err
+			err := filepath.WalkDir(path, func(filePath string, d fs.DirEntry, _err error) error {
+				if !d.IsDir() {
+					err := writeToFile(ctx.Writer, filePath)
+					if err != nil {
+						return err
+					}
+					// Mark individual files as processed
+					ctx.MarkProcessed(filePath)
 				}
 				return nil
 			})
 			if err != nil {
 				return err
 			}
+			// Mark the directory itself as processed
+			ctx.MarkProcessed(path)
 		} else {
-			err := writeToFile(w, path)
+			err := writeToFile(ctx.Writer, path)
 			if err != nil {
 				return err
 			}
+			// Mark the individual file as processed
+			ctx.MarkProcessed(path)
 		}
 	}
 	return nil
