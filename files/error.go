@@ -3,11 +3,24 @@ package files
 import (
 	"fmt"
 	"maps"
+	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/layer5io/meshkit/errors"
 )
+
+var (
+	ErrFileReadCode = "meshkit-11304"
+)
+
+func ErrFileRead(err error) error {
+	return errors.New(ErrFileReadCode, errors.Alert,
+		[]string{"File read error"},
+		[]string{err.Error()},
+		[]string{"The provided file is not present or has an invalid path."},
+		[]string{"To proceed, provide a valid file path with a valid file."})
+}
 
 var (
 	// Error code
@@ -92,12 +105,14 @@ func ErrInvalidYaml(fileName string, err error) error {
 	probableCause := []string{
 		"The YAML file may contain syntax errors, such as incorrect indentation, missing colons, or invalid characters.",
 		"The file may have been corrupted or improperly edited.",
+		"The YAML does not conform to the Meshery model schema.",
 	}
 
 	remedy := []string{
 		"Review the YAML syntax in the file and correct any errors.",
 		"Use a YAML validator or linter to identify and fix issues.",
 		"Ensure the file adheres to the YAML specification.",
+		"Ensure the YAML conforms to the Meshery model schema. You can refer to the following documentation for more details: https://docs.meshery.io/project/contributing/contributing-models",
 	}
 
 	return errors.New(ErrInvalidYamlCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
@@ -117,6 +132,7 @@ func ErrInvalidJson(fileName string, err error) error {
 		"The JSON file may contain syntax errors, such as missing commas, curly braces, or square brackets.",
 		"The file may have been corrupted or improperly edited.",
 		"Special characters or escape sequences may not have been properly formatted.",
+		"The JSON does not conform to the Meshery model schema.",
 	}
 
 	remedy := []string{
@@ -124,6 +140,7 @@ func ErrInvalidJson(fileName string, err error) error {
 		"Use a JSON validator or linter to identify and fix issues.",
 		"Ensure the file adheres to the JSON specification (e.g., double quotes for keys and strings).",
 		"Check for common issues like trailing commas or unescaped special characters.",
+		"Ensure the JSON conforms to the Meshery model schema. You can refer to the following documentation for more details: https://docs.meshery.io/project/contributing/contributing-models",
 	}
 
 	return errors.New(ErrInvalidJsonCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
@@ -341,4 +358,58 @@ func ErrWaklingLocalDirectory(err error) error {
 
 func ErrDecodePattern(err error) error {
 	return errors.New(ErrDecodePatternCode, errors.Alert, []string{"Error failed to decode design data into go slice"}, []string{err.Error()}, []string{}, []string{})
+}
+
+var (
+	ErrInvalidModelCode        = "meshkit-11301"
+	ErrInvalidModelArchiveCode = "meshkit-11302"
+	ErrEmptyModelCode          = "meshkit-11303"
+)
+
+func ErrInvalidModel(operation string, filename string, err error) error {
+	// return error based on file extension
+	fileExt := filepath.Ext(filename)
+
+	switch {
+	case fileExt == ".json":
+		return ErrInvalidJson(filename, err)
+	case fileExt == ".yaml", fileExt == ".yml":
+		return ErrInvalidYaml(filename, err)
+	case strings.HasPrefix(fileExt, ".tar"), strings.HasPrefix(fileExt, ".tgz"), strings.HasPrefix(fileExt, ".tar.gz"):
+		// check prefix as random numeric suffix is appended to archive during file handling (eg: .tar becomes .tar263831)
+		return ErrInvalidModelArchive(filename, err)
+	default:
+		supportedExtensions := slices.Collect(maps.Keys(ValidIacExtensions))
+		supportedExtensions = slices.DeleteFunc(supportedExtensions, func(ext string) bool {
+			return ext == ".zip"
+		})
+		return ErrUnsupportedExtensionForOperation(operation, filename, fileExt, supportedExtensions)
+	}
+}
+
+func ErrInvalidModelArchive(fileName string, err error) error {
+	sdescription := []string{
+		fmt.Sprintf("Failed to extract the archive '%s'.", fileName),
+	}
+
+	ldescription := []string{
+		fmt.Sprintf("An error occurred while attempting to extract the TAR archive '%s'.", fileName),
+		fmt.Sprintf("Error details: %s", err.Error()),
+	}
+
+	probableCause := []string{
+		"The archive may be non OCI compliant.",
+		"The archive may have been created with a different tool or version that is incompatible.",
+	}
+
+	remedy := []string{
+		"Make sure the archive is OCI compliant. Meshery Models should be OCI compliant archive.",
+		"Ensure the archive is created using a compatible tool (eg: ORAS) and version that follows OCI standards.",
+	}
+
+	return errors.New(ErrInvalidModelArchiveCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
+}
+
+func ErrEmptyModel() error {
+	return errors.New(ErrEmptyModelCode, errors.Alert, []string{"No component found in model provided."}, []string{"No component found in model provided. Models must have at least one component."}, []string{}, []string{})
 }
