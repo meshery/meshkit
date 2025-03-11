@@ -2,5 +2,10 @@
   "uploadType": {
     "ui:widget": "radio"
   },
+
+  "url":{
+    "ui:disabled": true
+  },
+
   "ui:order": ["uploadType", "file", "url"]
 }
