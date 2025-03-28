@@ -27,6 +27,7 @@ import (
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	_model "github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta1/subcategory"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/api/sheets/v4"
@@ -58,41 +59,41 @@ var defVersion = "v1.0.0"
 
 // keep
 type ModelCSV struct {
-	Registrant         string `json:"registrant" csv:"registrant"`
-	ModelDisplayName   string `json:"modelDisplayName" csv:"modelDisplayName"`
-	Model              string `json:"model" csv:"model"`
-	Category           string `json:"category" csv:"category"`
-	SubCategory        string `json:"subCategory" csv:"subCategory"`
-	Description        string `json:"description" csv:"description"`
-	SourceURL          string `json:"sourceURL" csv:"sourceURL"`
-	Website            string `json:"website" csv:"website"`
-	Docs               string `json:"docs" csv:"docs"`
-	Shape              string `json:"shape" csv:"shape"`
-	PrimaryColor       string `json:"primaryColor" csv:"primaryColor"`
-	SecondaryColor     string `json:"secondaryColor" csv:"secondaryColor"`
-	StyleOverrides     string `json:"styleOverrides" csv:"styleOverrides"`
-	Styles             string `json:"styles" csv:"styles"`
-	ShapePolygonPoints string `json:"shapePolygonPoints" csv:"shapePolygonPoints"`
-	DefaultData        string `json:"defaultData" csv:"defaultData"`
-	Capabilities       string `json:"capabilities" csv:"capabilities"`
-	LogoURL            string `json:"logoURL" csv:"logoURL"`
-	SVGColor           string `json:"svgColor" csv:"svgColor"`
-	SVGWhite           string `json:"svgWhite" csv:"svgWhite"`
-	SVGComplete        string `json:"svgComplete" csv:"svgComplete"`
-	IsAnnotation       string `json:"isAnnotation" csv:"isAnnotation"`
-	PublishToRegistry  string `json:"publishToRegistry" csv:"publishToRegistry"`
-	AboutProject       string `json:"aboutProject" csv:"-"`
-	PageSubtTitle      string `json:"pageSubtitle" csv:"-"`
-	DocsURL            string `json:"docsURL" csv:"-"`
-	StandardBlurb      string `json:"standardBlurb" csv:"-"`
-	Feature1           string `json:"feature1" csv:"-"`
-	Feature2           string `json:"feature2" csv:"-"`
-	Feature3           string `json:"feature3" csv:"-"`
-	HowItWorks         string `json:"howItWorks" csv:"-"`
-	HowItWorksDetails  string `json:"howItWorksDetails" csv:"-"`
-	Screenshots        string `json:"screenshots" csv:"-"`
-	FullPage           string `json:"fullPage" csv:"-"`
-	PublishToSites     string `json:"publishToSites" csv:"-"`
+	Registrant         string                            `json:"registrant" csv:"registrant"`
+	ModelDisplayName   string                            `json:"modelDisplayName" csv:"modelDisplayName"`
+	Model              string                            `json:"model" csv:"model"`
+	Category           category.CategoryDefinitionName   `json:"category" csv:"category"`
+	SubCategory        subcategory.SubCategoryDefinition `json:"subCategory" csv:"subCategory"`
+	Description        string                            `json:"description" csv:"description"`
+	SourceURL          string                            `json:"sourceURL" csv:"sourceURL"`
+	Website            string                            `json:"website" csv:"website"`
+	Docs               string                            `json:"docs" csv:"docs"`
+	Shape              string                            `json:"shape" csv:"shape"`
+	PrimaryColor       string                            `json:"primaryColor" csv:"primaryColor"`
+	SecondaryColor     string                            `json:"secondaryColor" csv:"secondaryColor"`
+	StyleOverrides     string                            `json:"styleOverrides" csv:"styleOverrides"`
+	Styles             string                            `json:"styles" csv:"styles"`
+	ShapePolygonPoints string                            `json:"shapePolygonPoints" csv:"shapePolygonPoints"`
+	DefaultData        string                            `json:"defaultData" csv:"defaultData"`
+	Capabilities       string                            `json:"capabilities" csv:"capabilities"`
+	LogoURL            string                            `json:"logoURL" csv:"logoURL"`
+	SVGColor           string                            `json:"svgColor" csv:"svgColor"`
+	SVGWhite           string                            `json:"svgWhite" csv:"svgWhite"`
+	SVGComplete        string                            `json:"svgComplete" csv:"svgComplete"`
+	IsAnnotation       string                            `json:"isAnnotation" csv:"isAnnotation"`
+	PublishToRegistry  string                            `json:"publishToRegistry" csv:"publishToRegistry"`
+	AboutProject       string                            `json:"aboutProject" csv:"-"`
+	PageSubtTitle      string                            `json:"pageSubtitle" csv:"-"`
+	DocsURL            string                            `json:"docsURL" csv:"-"`
+	StandardBlurb      string                            `json:"standardBlurb" csv:"-"`
+	Feature1           string                            `json:"feature1" csv:"-"`
+	Feature2           string                            `json:"feature2" csv:"-"`
+	Feature3           string                            `json:"feature3" csv:"-"`
+	HowItWorks         string                            `json:"howItWorks" csv:"-"`
+	HowItWorksDetails  string                            `json:"howItWorksDetails" csv:"-"`
+	Screenshots        string                            `json:"screenshots" csv:"-"`
+	FullPage           string                            `json:"fullPage" csv:"-"`
+	PublishToSites     string                            `json:"publishToSites" csv:"-"`
 }
 
 var modelMetadataValues = []string{
