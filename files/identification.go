@@ -241,7 +241,7 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 			if err == io.EOF {
 				break // End of file
 			}
-			return nil, fmt.Errorf("failed to decode YAML document: %v", err)
+			return nil, fmt.Errorf("Failed to decode YAML document: %v", err)
 		}
 
 		if len(raw.Raw) == 0 {
@@ -254,7 +254,7 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 			// Fallback: Convert to Unstructured object for unknown API types
 			unstructuredObj := &unstructured.Unstructured{}
 			if err := json.Unmarshal(raw.Raw, unstructuredObj); err != nil {
-				return nil, fmt.Errorf("failed to decode YAML into Kubernetes object: %v", err)
+				return nil, fmt.Errorf("Failed to decode YAML into Kubernetes object \n %v", utils.TruncateErrorMessage(err, 20))
 			}
 			objects = append(objects, unstructuredObj)
 		}
