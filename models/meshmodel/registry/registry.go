@@ -2,6 +2,10 @@ package registry
 
 import (
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/gofrs/uuid"
 	"github.com/layer5io/meshkit/database"
 	models "github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
@@ -14,9 +18,6 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm/clause"
-	"strings"
-	"sync"
-	"time"
 )
 
 // MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
@@ -174,11 +175,11 @@ func (rm *RegistryManager) GetRegistrant(e entity.Entity) connection.Connection 
 // to be removed
 func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshModelHostsWithEntitySummary, int64, error) {
 	var result []models.MesheryHostSummaryDB
-	var totalcount int64
+	var totalConnectionsCount int64
 	db := rm.db
 
 	query := db.Table("connections c").
-		Count(&totalcount).
+		Count(&totalConnectionsCount).
 		Select("c.*, " +
 			"COUNT(CASE WHEN r.type = 'component' THEN 1 END)  AS components, " +
 			"COUNT(CASE WHEN r.type = 'model' THEN 1 END) AS models," +
@@ -213,8 +214,14 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 	}
 
 	var response []models.MeshModelHostsWithEntitySummary
-
+	nonRegistantCount := int64(0)
 	for _, r := range result {
+
+		if r.Models == 0 {
+			nonRegistantCount++
+			continue
+		}
+
 		res := models.MeshModelHostsWithEntitySummary{
 			Connection: r.Connection,
 			Summary: models.EntitySummary{
@@ -226,7 +233,9 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 		response = append(response, res)
 	}
 
-	return response, totalcount, nil
+	registrantCount := (totalConnectionsCount - nonRegistantCount)
+
+	return response, registrantCount, nil
 }
 
 func (rm *RegistryManager) GetEntities(f entity.Filter) ([]entity.Entity, int64, int, error) {
