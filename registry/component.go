@@ -15,7 +15,9 @@ import (
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1alpha1/capability"
 	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta1/subcategory"
 )
 
 const (
@@ -24,29 +26,29 @@ const (
 )
 
 type ComponentCSV struct {
-	Registrant         string `json:"registrant" csv:"registrant"`
-	Model              string `json:"model" csv:"model"`
-	Component          string `json:"component" csv:"component"`
-	Category           string `json:"category" csv:"category"`
-	SubCategory        string `json:"subCategory" csv:"subCategory"`
-	Description        string `json:"description" csv:"description"`
-	Shape              string `json:"shape" csv:"shape"`
-	PrimaryColor       string `json:"primaryColor" csv:"primaryColor"`
-	SecondaryColor     string `json:"secondaryColor" csv:"secondaryColor"`
-	SVGColor           string `json:"svgColor" csv:"svgColor"`
-	SVGWhite           string `json:"svgWhite" csv:"svgWhite"`
-	SVGComplete        string `json:"svgComplete" csv:"svgComplete"`
-	Schema             string `json:"schema" csv:"schema"`
-	Docs               string `json:"docs" csv:"docs"`
-	StyleOverrides     string `json:"styleOverrides" csv:"styleOverrides"`
-	Styles             string `json:"styles" csv:"styles"`
-	ShapePolygonPoints string `json:"shapePolygonPoints" csv:"shapePolygonPoints"`
-	DefaultData        string `json:"defaultData" csv:"defaultData"`
-	Capabilities       string `json:"capabilities" csv:"capabilities"`
-	LogoURL            string `json:"logoURL" csv:"logoURL"`
-	Genealogy          string `json:"genealogy" csv:"genealogy"`
-	IsAnnotation       string `json:"isAnnotation" csv:"isAnnotation"`
-	Version            string `json:"version" csv:"version"`
+	Registrant         string                            `json:"registrant" csv:"registrant"`
+	Model              string                            `json:"model" csv:"model"`
+	Component          string                            `json:"component" csv:"component"`
+	Category           category.CategoryDefinitionName   `json:"category" csv:"category"`
+	SubCategory        subcategory.SubCategoryDefinition `json:"subCategory" csv:"subCategory"`
+	Description        string                            `json:"description" csv:"description"`
+	Shape              string                            `json:"shape" csv:"shape"`
+	PrimaryColor       string                            `json:"primaryColor" csv:"primaryColor"`
+	SecondaryColor     string                            `json:"secondaryColor" csv:"secondaryColor"`
+	SVGColor           string                            `json:"svgColor" csv:"svgColor"`
+	SVGWhite           string                            `json:"svgWhite" csv:"svgWhite"`
+	SVGComplete        string                            `json:"svgComplete" csv:"svgComplete"`
+	Schema             string                            `json:"schema" csv:"schema"`
+	Docs               string                            `json:"docs" csv:"docs"`
+	StyleOverrides     string                            `json:"styleOverrides" csv:"styleOverrides"`
+	Styles             string                            `json:"styles" csv:"styles"`
+	ShapePolygonPoints string                            `json:"shapePolygonPoints" csv:"shapePolygonPoints"`
+	DefaultData        string                            `json:"defaultData" csv:"defaultData"`
+	Capabilities       string                            `json:"capabilities" csv:"capabilities"`
+	LogoURL            string                            `json:"logoURL" csv:"logoURL"`
+	Genealogy          string                            `json:"genealogy" csv:"genealogy"`
+	IsAnnotation       string                            `json:"isAnnotation" csv:"isAnnotation"`
+	Version            string                            `json:"version" csv:"version"`
 
 	ModelDisplayName string `json:"modelDisplayName" csv:"-"`
 
