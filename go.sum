@@ -418,6 +418,8 @@ github.com/mattn/go-sqlite3 v1.14.24/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxU
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
 github.com/meshery/schemas v0.8.2 h1:+pPQN8zkzrCt30q6mwDRm2HCR6KMwbkrL4GoOr3DeBg=
 github.com/meshery/schemas v0.8.2/go.mod h1:CyxzZDsaJuawkpqyfDfSBitndS0GLVyyGmbbNHIm3lM=
+github.com/meshery/schemas v0.8.4 h1:CYUw6R3k8Nk1x8/UrYjDO7GY7itntYBd9ovSCkuC6uQ=
+github.com/meshery/schemas v0.8.4/go.mod h1:CyxzZDsaJuawkpqyfDfSBitndS0GLVyyGmbbNHIm3lM=
 github.com/miekg/dns v1.1.57 h1:Jzi7ApEIzwEPLHWRcafCN9LZSBbqQpxjt/wpgvg7wcM=
 github.com/miekg/dns v1.1.57/go.mod h1:uqRjCRUuEAA6qsOiJvDd+CFo/vW+y5WR6SNmHE55hZk=
 github.com/mitchellh/copystructure v1.2.0 h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw=
