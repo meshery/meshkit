@@ -17,7 +17,7 @@ project:
     - name: meshkit
       url: https://github.com/meshery/meshkit
       comment: |
-         Website for Meshery.
+         Common microservices framework for Meshery components 
   vulnerability-reporting:
     reports-accepted: true
     bug-bounty-available: false
