@@ -8,14 +8,15 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/layer5io/meshkit/models/patterns"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
+	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/lint/support"
-	"gopkg.in/yaml.v3"
 )
 
 type HelmConverter struct{}
@@ -32,8 +33,20 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 		return "", err
 	}
 
-	tmpDir, err := os.MkdirTemp("", "meshery-helm-")
+	homeDir, err := os.UserHomeDir()
+	fmt.Println("Home directory: ", homeDir)
 	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	mesheryDir := filepath.Join(homeDir, ".meshery")
+	if err := os.MkdirAll(mesheryDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create .meshery directory: %w", err)
+	}
+
+	timestamp := time.Now().Format("20060102-150405")
+	tmpDir := filepath.Join(mesheryDir, "tmp", "helm", timestamp)
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create temporary directory: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
@@ -48,7 +61,6 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 	}
 
 	if err := lintChart(chartPath); err != nil {
-		//Need to add meshery push notif if an error occured
 		return "", fmt.Errorf("chart linting failed: %w", err)
 	}
 
@@ -483,12 +495,12 @@ func indentYaml(yamlStr string, spaces int) string {
 }
 
 func generateHelperTemplates() string {
-	return `{{}}
+	return `{{/* Expand the name of the chart. */}}
 {{- define "chart.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{}}
+{{/* Create chart name and version as used by the chart label. */}}
 {{- define "chart.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
@@ -502,14 +514,14 @@ func generateHelperTemplates() string {
 {{- end }}
 {{- end }}
 
-{{}}
+{{/* Create common labels */}}
 {{- define "helpers.labels" -}}
 helm.sh/chart: {{ include "chart.name" . }}-{{ .Chart.Version }}
 {{ include "helpers.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{}}
+{{/* Selector labels */}}
 {{- define "helpers.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "chart.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
@@ -728,7 +740,18 @@ func lintChart(chartPath string) error {
 func packageChart(chartPath string, w io.Writer) error {
 
 	client := action.NewPackage()
-	client.Destination = os.TempDir()
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	packagesDir := filepath.Join(homeDir, ".meshery", "tmp", "packages")
+	if err := os.MkdirAll(packagesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create packages directory: %w", err)
+	}
+
+	client.Destination = packagesDir
 	client.DependencyUpdate = false
 
 	packagedChartPath, err := client.Run(chartPath, nil)
