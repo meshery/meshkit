@@ -61,6 +61,7 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 	}
 
 	if err := lintChart(chartPath); err != nil {
+		//Need to add push notif here if it fails
 		return "", fmt.Errorf("chart linting failed: %w", err)
 	}
 
