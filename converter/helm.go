@@ -1,9 +1,7 @@
 package converter
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +12,9 @@ import (
 	"github.com/layer5io/meshkit/models/patterns"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/lint/support"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,191 +27,119 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 	}
 	patterns.ProcessAnnotations(pattern)
 
-	tmpDir, err := os.MkdirTemp("", "meshery-helm-")
+	helmChart, err := generateHelmChart(pattern)
 	if err != nil {
 		return "", err
+	}
+
+	tmpDir, err := os.MkdirTemp("", "meshery-helm-")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary directory: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	chartName := sanitizeHelmName(pattern.Name)
-	chartDir := filepath.Join(tmpDir, chartName)
-	if err := os.MkdirAll(chartDir, 0755); err != nil {
-		return "", err
+	chartPath := filepath.Join(tmpDir, sanitizeHelmName(pattern.Name))
+	if err := os.MkdirAll(chartPath, 0755); err != nil {
+		return "", fmt.Errorf("failed to create chart directory: %w", err)
 	}
 
-	err = generateHelmChart(pattern, chartDir)
-	if err != nil {
-		return "", err
+	if err := saveChartToDirectory(helmChart, chartPath); err != nil {
+		return "", fmt.Errorf("failed to save chart to directory: %w", err)
+	}
+
+	if err := lintChart(chartPath); err != nil {
+		//Need to add meshery push notif if an error occured
+		return "", fmt.Errorf("chart linting failed: %w", err)
 	}
 
 	var buf bytes.Buffer
-	gw := gzip.NewWriter(&buf)
-	tw := tar.NewWriter(gw)
-
-	err = filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if path == tmpDir {
-			return nil
-		}
-
-		header, err := tar.FileInfoHeader(info, info.Name())
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(tmpDir, path)
-		if err != nil {
-			return err
-		}
-		header.Name = relPath
-
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-
-		if !info.IsDir() {
-			file, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
-			if _, err := io.Copy(tw, file); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return "", err
-	}
-
-	if err := tw.Close(); err != nil {
-		return "", err
-	}
-
-	if err := gw.Close(); err != nil {
-		return "", err
+	if err := packageChart(chartPath, &buf); err != nil {
+		return "", fmt.Errorf("failed to package helm chart: %w", err)
 	}
 
 	return buf.String(), nil
 }
 
-func generateHelmChart(patternFile *pattern.PatternFile, chartDir string) error {
-	chartsDir := filepath.Join(chartDir, "charts")
-	templatesDir := filepath.Join(chartDir, "templates")
+func generateNamespaceTemplate() []byte {
+	return []byte(`{{- if .Values.createNamespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.global.namespace }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    helm.sh/chart: {{ include "chart.name" . }}
+{{- end }}
+`)
+}
 
-	for _, dir := range []string{chartsDir, templatesDir} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return err
-		}
-	}
+func generateHelmChart(patternFile *pattern.PatternFile) (*chart.Chart, error) {
+	chartName := sanitizeHelmName(patternFile.Name)
 
-	chartYaml := map[string]interface{}{
-		"apiVersion":  "v2",
-		"name":        sanitizeHelmName(patternFile.Name),
-		"description": fmt.Sprintf("Helm chart for Meshery design %s", patternFile.Name),
-		"type":        "application",
-		"version":     "0.1.0",
-		"appVersion":  patternFile.Version,
-		"keywords":    []string{"meshery", "design", "kubernetes"},
-		"home":        "https://meshery.io/",
-		"sources":     []string{"https://github.com/meshery/meshery"},
-		"maintainers": []map[string]string{
-			{
-				"name":  "Meshery Authors",
-				"email": "maintainers@meshery.io",
+	helmChart := &chart.Chart{
+		Metadata: &chart.Metadata{
+			Name:        chartName,
+			Version:     "0.1.0",
+			Description: fmt.Sprintf("Helm chart for Meshery design %s", patternFile.Name),
+			APIVersion:  chart.APIVersionV2,
+			Type:        "application",
+			AppVersion:  patternFile.Version,
+			Keywords:    []string{"meshery", "design", "kubernetes"},
+			Home:        "https://meshery.io/",
+			Sources:     []string{"https://github.com/meshery/meshery"},
+			Maintainers: []*chart.Maintainer{
+				{
+					Name:  "Meshery Authors",
+					Email: "maintainers@meshery.io",
+				},
 			},
 		},
+		Templates: []*chart.File{},
+		Files:     []*chart.File{},
 	}
 
-	dependencies := extractDependencies(patternFile)
-	if len(dependencies) > 0 {
-		chartYaml["dependencies"] = dependencies
-	}
-
-	chartYamlData, err := yaml.Marshal(chartYaml)
+	values, err := generateValues(patternFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := os.WriteFile(filepath.Join(chartDir, "Chart.yaml"), chartYamlData, 0644); err != nil {
-		return err
-	}
+	values["createNamespace"] = false
 
-	values, err := generateValuesYaml(patternFile)
+	helmChart.Values = values
+
+	helmChart.Templates = append(helmChart.Templates, &chart.File{
+		Name: "templates/namespace.yaml",
+		Data: generateNamespaceTemplate(),
+	})
+
+	templatesByKind, err := generateTemplates(patternFile, helmChart)
 	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(filepath.Join(chartDir, "values.yaml"), []byte(values), 0644); err != nil {
-		return err
-	}
-
-	templatesByKind, err := generateTemplates(patternFile, templatesDir)
-	if err != nil {
-		return err
+		return nil, err
 	}
 
 	helpersContent := generateHelperTemplates()
-	if err := os.WriteFile(filepath.Join(templatesDir, "_helpers.tpl"), []byte(helpersContent), 0644); err != nil {
-		return err
-	}
+	helmChart.Templates = append(helmChart.Templates, &chart.File{
+		Name: "templates/_helpers.tpl",
+		Data: []byte(helpersContent),
+	})
 
 	notesContent := generateNotes(patternFile, templatesByKind)
-	if err := os.WriteFile(filepath.Join(templatesDir, "NOTES.txt"), []byte(notesContent), 0644); err != nil {
-		return err
-	}
+	helmChart.Templates = append(helmChart.Templates, &chart.File{
+		Name: "templates/NOTES.txt",
+		Data: []byte(notesContent),
+	})
 
 	readmeContent := generateReadme(patternFile, templatesByKind)
-	if err := os.WriteFile(filepath.Join(chartDir, "README.md"), []byte(readmeContent), 0644); err != nil {
-		return err
-	}
+	helmChart.Files = append(helmChart.Files, &chart.File{
+		Name: "README.md",
+		Data: []byte(readmeContent),
+	})
 
-	return nil
+	return helmChart, nil
 }
 
-func extractDependencies(patternFile *pattern.PatternFile) []map[string]interface{} {
-	dependencies := []map[string]interface{}{}
-	addedDeps := make(map[string]bool)
-
-	for _, comp := range patternFile.Components {
-		if comp.Model.Id.String() == "" || comp.Model.Registrant.Id.String() == "" || comp.Model.Registrant.Kind == "" {
-			continue
-		}
-
-		if comp.Model.Registrant.Kind == "artifacthub" {
-			safeName := sanitizeHelmName(comp.Model.Name)
-			if addedDeps[safeName] {
-				continue
-			}
-
-			if safeName == "kubernetes" {
-				safeName = "kubernetes-charts"
-			}
-
-			addedDeps[safeName] = true
-			alias := fmt.Sprintf("%s-%s", safeName, sanitizeHelmName(comp.DisplayName))
-
-			dependencies = append(dependencies, map[string]interface{}{
-				"name":       safeName,
-				"version":    comp.Model.Model.Version,
-				"repository": fmt.Sprintf("https://artifacthub.io/packages/helm/%s/%s", safeName, safeName),
-				"condition":  fmt.Sprintf("components.%s.enabled", sanitizeHelmName(comp.DisplayName)),
-				"alias":      alias,
-			})
-		}
-	}
-
-	return dependencies
-}
-
-func generateValuesYaml(patternFile *pattern.PatternFile) (string, error) {
+func generateValues(patternFile *pattern.PatternFile) (map[string]interface{}, error) {
 	values := map[string]interface{}{
 		"global": map[string]interface{}{
 			"namespace": "default",
@@ -218,230 +147,348 @@ func generateValuesYaml(patternFile *pattern.PatternFile) (string, error) {
 				"app.kubernetes.io/managed-by": "Meshery",
 			},
 		},
-		"components": map[string]interface{}{},
+		"resources": map[string]interface{}{},
 	}
 
-	componentsValues := values["components"].(map[string]interface{})
+	resources := values["resources"].(map[string]interface{})
 
 	for _, comp := range patternFile.Components {
-		safeCompName := sanitizeHelmName(comp.DisplayName)
+		safeName := sanitizeHelmName(comp.DisplayName)
 
-		compValues := map[string]interface{}{
+		resourceConfig := map[string]interface{}{
 			"enabled": true,
-			"image": map[string]interface{}{
-				"repository": "layer5/meshery",
-				"tag":        "stable-latest",
-				"pullPolicy": "Always",
-			},
+			"kind": comp.Component.Kind,
+			"apiVersion": comp.Component.Version,
 		}
 
 		if comp.Component.Kind == "Deployment" || comp.Component.Kind == "StatefulSet" {
-			replicas := 1
-			if conf, ok := comp.Configuration["spec"]; ok {
-				if spec, ok := conf.(map[string]interface{}); ok {
-					if r, ok := spec["replicas"]; ok {
-						if rVal, ok := r.(int); ok {
-							replicas = rVal
-						}
-					}
-				}
-			}
-
-			compValues["replicas"] = replicas
-
-			if comp.Configuration != nil {
-				if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
-					if template, ok := spec["template"].(map[string]interface{}); ok {
-						if podSpec, ok := template["spec"].(map[string]interface{}); ok {
-							if containers, ok := podSpec["containers"].([]interface{}); ok && len(containers) > 0 {
-								if container, ok := containers[0].(map[string]interface{}); ok {
-									if image, ok := container["image"].(string); ok {
-										imageParts := strings.Split(image, ":")
-										repository := imageParts[0]
-										tag := "latest"
-										if len(imageParts) > 1 {
-											tag = imageParts[1]
-										}
-
-										imageConfig := compValues["image"].(map[string]interface{})
-										imageConfig["repository"] = repository
-										imageConfig["tag"] = tag
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+			resourceConfig["replicas"] = extractReplicas(comp, 1)
 		}
 
-		if conf, ok := comp.Configuration["metadata"]; ok {
-			if metadata, ok := conf.(map[string]interface{}); ok {
-				if namespace, ok := metadata["namespace"]; ok && namespace != "default" {
-					compValues["namespace"] = namespace
-				}
-			}
+		image := extractImage(comp)
+		if image != "" {
+			resourceConfig["image"] = image
 		}
 
-		componentsValues[safeCompName] = compValues
+		if ns := extractNamespace(comp); ns != "" {
+			resourceConfig["namespace"] = ns
+		}
+
+		if labels := extractLabels(comp); len(labels) > 0 {
+			resourceConfig["labels"] = labels
+		}
+
+		if annotations := extractAnnotations(comp); len(annotations) > 0 {
+			resourceConfig["annotations"] = annotations
+		}
+
+		resources[safeName] = resourceConfig
 	}
 
-	var buf bytes.Buffer
-	buf.WriteString("# Default values for Meshery design\n")
-	buf.WriteString("# This is a YAML-formatted file.\n")
-	buf.WriteString("# Declare variables to be passed into your templates.\n\n")
-
-	yamlData, err := yaml.Marshal(values)
-	if err != nil {
-		return "", err
-	}
-
-	buf.Write(yamlData)
-	return buf.String(), nil
+	return values, nil
 }
 
-func generateTemplates(patternFile *pattern.PatternFile, templatesDir string) (map[string][]string, error) {
+func extractReplicas(comp *component.ComponentDefinition, defaultValue int) int {
+	if comp.Configuration == nil {
+		return defaultValue
+	}
+
+	if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+		if replicas, ok := spec["replicas"]; ok {
+			if val, ok := replicas.(int); ok {
+				return val
+			}
+		}
+	}
+
+	return defaultValue
+}
+
+func extractImage(comp *component.ComponentDefinition) string {
+	if comp.Configuration == nil {
+		return ""
+	}
+
+	if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+		if template, ok := spec["template"].(map[string]interface{}); ok {
+			if podSpec, ok := template["spec"].(map[string]interface{}); ok {
+				if containers, ok := podSpec["containers"].([]interface{}); ok && len(containers) > 0 {
+					if container, ok := containers[0].(map[string]interface{}); ok {
+						if image, ok := container["image"].(string); ok {
+							return image
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+func extractNamespace(comp *component.ComponentDefinition) string {
+	if comp.Configuration == nil {
+		return ""
+	}
+
+	if metadata, ok := comp.Configuration["metadata"].(map[string]interface{}); ok {
+		if ns, ok := metadata["namespace"].(string); ok && ns != "default" {
+			return ns
+		}
+	}
+
+	return ""
+}
+
+func extractLabels(comp *component.ComponentDefinition) map[string]interface{} {
+	if comp.Configuration == nil {
+		return nil
+	}
+
+	if metadata, ok := comp.Configuration["metadata"].(map[string]interface{}); ok {
+		if labels, ok := metadata["labels"].(map[string]interface{}); ok && len(labels) > 0 {
+			return labels
+		}
+	}
+
+	return nil
+}
+
+func extractAnnotations(comp *component.ComponentDefinition) map[string]interface{} {
+	if comp.Configuration == nil {
+		return nil
+	}
+
+	if metadata, ok := comp.Configuration["metadata"].(map[string]interface{}); ok {
+		if annotations, ok := metadata["annotations"].(map[string]interface{}); ok && len(annotations) > 0 {
+			return annotations
+		}
+	}
+
+	return nil
+}
+
+func generateTemplates(patternFile *pattern.PatternFile, helmChart *chart.Chart) (map[string][]string, error) {
 	templatesByKind := make(map[string][]string)
 
-	for i, comp := range patternFile.Components {
+	componentsByKind := make(map[string][]*component.ComponentDefinition)
+	for _, comp := range patternFile.Components {
 		if comp.Component.Kind == "" {
 			continue
 		}
 
-		k8sResource := createK8sResource(comp)
-		addHelmTemplate(k8sResource, comp)
-
-		resourceYaml, err := yaml.Marshal(k8sResource)
-		if err != nil {
-			return nil, err
-		}
-
-		// Use index function for accessing hyphenated properties
-		templateContent := fmt.Sprintf(`{{- if index .Values.components "%s" "enabled" }}
-%s
-{{- end }}
-`, sanitizeHelmName(comp.DisplayName), string(resourceYaml))
-
 		kind := strings.ToLower(comp.Component.Kind)
-		name := sanitizeFileName(comp.DisplayName)
-		filename := fmt.Sprintf("%02d-%s-%s.yaml", i+1, kind, name)
+		if _, ok := componentsByKind[kind]; !ok {
+			componentsByKind[kind] = []*component.ComponentDefinition{}
+		}
+		componentsByKind[kind] = append(componentsByKind[kind], comp)
 
 		if _, ok := templatesByKind[kind]; !ok {
 			templatesByKind[kind] = []string{}
 		}
-		templatesByKind[kind] = append(templatesByKind[kind], name)
+		templatesByKind[kind] = append(templatesByKind[kind], comp.DisplayName)
+	}
 
-		if err := os.WriteFile(filepath.Join(templatesDir, filename), []byte(templateContent), 0644); err != nil {
-			return nil, err
-		}
+	for kind, components := range componentsByKind {
+		templateContent := generateTemplateForKind(kind, components)
+
+		helmChart.Templates = append(helmChart.Templates, &chart.File{
+			Name: fmt.Sprintf("templates/%s.yaml", kind),
+			Data: []byte(templateContent),
+		})
 	}
 
 	return templatesByKind, nil
 }
 
-func createK8sResource(comp *component.ComponentDefinition) map[string]interface{} {
-	// Initialize with default structure
-	k8sResource := map[string]interface{}{
-		"apiVersion": comp.Component.Version,
-		"kind":       comp.Component.Kind,
-		"metadata": map[string]interface{}{
-			"name": comp.DisplayName,
-			// Use index function for accessing hyphenated properties
-			"namespace": fmt.Sprintf("{{ index .Values.components \"%s\" \"namespace\" | default .Values.global.namespace }}",
-				sanitizeHelmName(comp.DisplayName)),
-			"labels": map[string]interface{}{
-				"app.kubernetes.io/name":       comp.DisplayName,
-				"app.kubernetes.io/instance":   "{{ .Release.Name }}",
-				"app.kubernetes.io/managed-by": "{{ .Release.Service }}",
-				"helm.sh/chart":                "{{ include \"chart.name\" . }}-{{ .Chart.Version }}",
-			},
-		},
+func generateTemplateForKind(kind string, components []*component.ComponentDefinition) string {
+	var templateContent bytes.Buffer
+
+	if strings.ToLower(kind) == "namespace" {
+		return ""
 	}
 
-	if conf, ok := comp.Configuration["metadata"]; ok {
-		if metadata, ok := conf.(map[string]interface{}); ok {
-			if annotations, ok := metadata["annotations"]; ok {
-				k8sResource["metadata"].(map[string]interface{})["annotations"] = annotations
+	for _, comp := range components {
+		safeName := sanitizeHelmName(comp.DisplayName)
+
+		templateContent.WriteString(fmt.Sprintf(`{{- if (index .Values.resources "%s").enabled }}
+---
+apiVersion: {{ (index .Values.resources "%s").apiVersion | default "%s" }}
+kind: {{ (index .Values.resources "%s").kind | default "%s" }}
+metadata:
+  name: %s
+  namespace: {{ (index .Values.resources "%s").namespace | default .Values.global.namespace }}
+  labels:
+    app.kubernetes.io/name: %s
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ include "chart.name" . }}-{{ .Chart.Version }}
+`, safeName, safeName, comp.Component.Version, safeName, comp.Component.Kind, comp.DisplayName, safeName, comp.DisplayName))
+
+		templateContent.WriteString(fmt.Sprintf(`    {{- if (index .Values.resources "%s").labels }}
+    {{- toYaml (index .Values.resources "%s").labels | nindent 4 }}
+    {{- end }}
+`, safeName, safeName))
+
+		templateContent.WriteString(fmt.Sprintf(`  {{- if (index .Values.resources "%s").annotations }}
+  annotations:
+    {{- toYaml (index .Values.resources "%s").annotations | nindent 4 }}
+  {{- end }}
+`, safeName, safeName))
+
+		switch strings.ToLower(kind) {
+		case "deployment", "statefulset":
+			templateContent.WriteString(fmt.Sprintf(`spec:
+  replicas: {{ (index .Values.resources "%s").replicas | default 1 }}
+`, safeName))
+
+			if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+				if selector, ok := spec["selector"].(map[string]interface{}); ok {
+					selectorYaml, err := yaml.Marshal(selector)
+					if err == nil {
+						templateContent.WriteString(fmt.Sprintf(`  selector:
+%s`, indentYaml(string(selectorYaml), 4)))
+					}
+				}
 			}
-			if labels, ok := metadata["labels"]; ok {
-				for k, v := range labels.(map[string]interface{}) {
-					k8sResource["metadata"].(map[string]interface{})["labels"].(map[string]interface{})[k] = v
+
+			if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+				if template, ok := spec["template"].(map[string]interface{}); ok {
+
+					templateContent.WriteString(`  template:
+    metadata:
+      labels:
+        app: {{ include "chart.name" . }}
+        {{- if (index .Values.resources "`)
+					templateContent.WriteString(fmt.Sprintf("%s", safeName))
+					templateContent.WriteString(`").labels }}
+        {{- toYaml (index .Values.resources "`)
+					templateContent.WriteString(fmt.Sprintf("%s", safeName))
+					templateContent.WriteString(`").labels | nindent 8 }}
+        {{- end }}
+`)
+
+					if podSpec, ok := template["spec"].(map[string]interface{}); ok {
+						podSpecCopy := make(map[string]interface{})
+						for k, v := range podSpec {
+							if k == "containers" {
+								if containers, ok := v.([]interface{}); ok && len(containers) > 0 {
+
+									podSpecCopy["containers"] = []interface{}{
+										map[string]interface{}{
+											"name":  comp.DisplayName,
+											"image": fmt.Sprintf(`{{ (index .Values.resources "%s").image | default "nginx:latest" }}`, safeName),
+										},
+									}
+
+									if container, ok := containers[0].(map[string]interface{}); ok {
+										containerCopy := podSpecCopy["containers"].([]interface{})[0].(map[string]interface{})
+										for k, v := range container {
+											if k != "image" && k != "name" {
+												containerCopy[k] = v
+											}
+										}
+									}
+								}
+							} else {
+								podSpecCopy[k] = v
+							}
+						}
+
+						podSpecYaml, err := yaml.Marshal(podSpecCopy)
+						if err == nil {
+							templateContent.WriteString(fmt.Sprintf(`    spec:
+%s`, indentYaml(string(podSpecYaml), 6)))
+						}
+					}
+				}
+			}
+
+		case "service":
+			if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+				specYaml, err := yaml.Marshal(spec)
+				if err == nil {
+					templateContent.WriteString(fmt.Sprintf(`spec:
+%s`, indentYaml(string(specYaml), 2)))
+				}
+			}
+
+		case "networkpolicy":
+
+			if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+
+				specCopy := make(map[string]interface{})
+				for k, v := range spec {
+					specCopy[k] = v
+				}
+
+				if _, hasPodSelector := specCopy["podSelector"]; !hasPodSelector {
+					if selector, hasSelector := specCopy["selector"]; hasSelector {
+
+						specCopy["podSelector"] = selector
+						delete(specCopy, "selector")
+					} else {
+
+						specCopy["podSelector"] = map[string]interface{}{}
+					}
+				}
+
+				specYaml, err := yaml.Marshal(specCopy)
+				if err == nil {
+					templateContent.WriteString(fmt.Sprintf(`spec:
+%s`, indentYaml(string(specYaml), 2)))
+				}
+			} else {
+
+				templateContent.WriteString(`spec:
+  podSelector: {}
+`)
+			}
+
+		default:
+
+			for key, value := range comp.Configuration {
+				if key != "apiVersion" && key != "kind" && key != "metadata" {
+					valueYaml, err := yaml.Marshal(value)
+					if err == nil {
+						templateContent.WriteString(fmt.Sprintf(`%s:
+%s`, key, indentYaml(string(valueYaml), 2)))
+					}
 				}
 			}
 		}
+
+		templateContent.WriteString(fmt.Sprintf(`
+{{- end }}
+`))
 	}
 
-	for k, v := range comp.Configuration {
-		if k != "apiVersion" && k != "kind" && k != "metadata" {
-			k8sResource[k] = processConfigValue(v, comp.DisplayName, comp.Component.Kind)
-		}
-	}
-
-	return k8sResource
+	return templateContent.String()
 }
 
-func processConfigValue(value interface{}, componentName, kind string) interface{} {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		result := make(map[string]interface{})
-		for k, val := range v {
-			result[k] = processConfigValue(val, componentName, kind)
-		}
-		return result
-
-	case []interface{}:
-		result := make([]interface{}, len(v))
-		for i, val := range v {
-			result[i] = processConfigValue(val, componentName, kind)
-		}
-		return result
-
-	case string:
-		if kind == "Deployment" && strings.Contains(v, ":") && strings.HasPrefix(v, "layer5/") {
-			safeName := sanitizeHelmName(componentName)
-			// Use index function for accessing hyphenated properties
-			return fmt.Sprintf("{{ index .Values.components \"%s\" \"image\" \"repository\" | default \"%s\" }}:{{ index .Values.components \"%s\" \"image\" \"tag\" | default \"latest\" }}",
-				safeName, strings.Split(v, ":")[0], safeName)
-		}
-		return v
-
-	default:
-		return v
+func indentYaml(yamlStr string, spaces int) string {
+	indent := strings.Repeat(" ", spaces)
+	lines := strings.Split(yamlStr, "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
 	}
-}
 
-func addHelmTemplate(resource map[string]interface{}, comp *component.ComponentDefinition) {
-	safeName := sanitizeHelmName(comp.DisplayName)
-
-	switch comp.Component.Kind {
-	case "Deployment", "StatefulSet":
-		if spec, ok := resource["spec"].(map[string]interface{}); ok {
-			// Use index function for accessing hyphenated properties
-			spec["replicas"] = fmt.Sprintf("{{ index .Values.components \"%s\" \"replicas\" }}", safeName)
-		}
-
-	case "Service":
-		if spec, ok := resource["spec"].(map[string]interface{}); ok {
-			if selector, ok := spec["selector"].(map[string]interface{}); ok {
-				for k := range selector {
-					selector[k] = fmt.Sprintf("{{ include \"helpers.selectorLabels\" . }}")
-				}
-			}
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = indent + line
 		}
 	}
+
+	return strings.Join(lines, "\n")
 }
 
 func generateHelperTemplates() string {
-	return `{{/*
-Expand the name of the chart.
-*/}}
+	return `{{}}
 {{- define "chart.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
+{{}}
 {{- define "chart.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
@@ -455,18 +502,14 @@ Create chart name and version as used by the chart label.
 {{- end }}
 {{- end }}
 
-{{/*
-Create common labels
-*/}}
+{{}}
 {{- define "helpers.labels" -}}
 helm.sh/chart: {{ include "chart.name" . }}-{{ .Chart.Version }}
 {{ include "helpers.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
+{{}}
 {{- define "helpers.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "chart.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
@@ -531,31 +574,47 @@ func generateReadme(patternFile *pattern.PatternFile, templatesByKind map[string
 
 	readme.WriteString("## Installation\n\n")
 	readme.WriteString("```bash\n")
-	readme.WriteString(fmt.Sprintf("helm install my-release ./%s\n", sanitizeHelmName(patternFile.Name)))
+	readme.WriteString(fmt.Sprintf("# Install using default namespace\n"))
+	readme.WriteString(fmt.Sprintf("helm install my-release ./%s\n\n", sanitizeHelmName(patternFile.Name)))
+	readme.WriteString(fmt.Sprintf("# Install with custom namespace\n"))
+	readme.WriteString(fmt.Sprintf("helm install my-release ./%s --set global.namespace=my-namespace --set createNamespace=true\n", sanitizeHelmName(patternFile.Name)))
 	readme.WriteString("```\n\n")
 
 	readme.WriteString("## Configuration\n\n")
 	readme.WriteString("The following table lists the configurable parameters of the chart and their default values.\n\n")
 	readme.WriteString("| Parameter | Description | Default |\n")
 	readme.WriteString("| --- | --- | --- |\n")
-	readme.WriteString("| `global.namespace` | Default namespace for all components | `default` |\n")
+	readme.WriteString("| `global.namespace` | Default namespace for all resources | `default` |\n")
+	readme.WriteString("| `createNamespace` | Create the namespace if it doesn't exist | `false` |\n")
 
-	for _, comp := range patternFile.Components {
-		safeName := sanitizeHelmName(comp.DisplayName)
-		readme.WriteString(fmt.Sprintf("| `components.%s.enabled` | Enable %s component | `true` |\n",
-			safeName, comp.DisplayName))
+	for kind, resources := range templatesByKind {
+		if kind == "namespace" {
+			continue
+		}
 
-		if comp.Component.Kind == "Deployment" || comp.Component.Kind == "StatefulSet" {
-			readme.WriteString(fmt.Sprintf("| `components.%s.replicas` | Number of replicas for %s | `1` |\n",
-				safeName, comp.DisplayName))
+		for _, resourceName := range resources {
+			safeName := sanitizeHelmName(resourceName)
+			readme.WriteString(fmt.Sprintf("| `resources.%s.enabled` | Enable %s %s | `true` |\n",
+				safeName, resourceName, kind))
+
+			if kind == "deployment" || kind == "statefulset" {
+				readme.WriteString(fmt.Sprintf("| `resources.%s.replicas` | Number of replicas for %s | `1` |\n",
+					safeName, resourceName))
+				readme.WriteString(fmt.Sprintf("| `resources.%s.image` | Image for %s | `As defined in design` |\n",
+					safeName, resourceName))
+			}
 		}
 	}
 
-	readme.WriteString("\n## Components\n\n")
-	for kind, names := range templatesByKind {
+	readme.WriteString("\n## Resources\n\n")
+	for kind, resources := range templatesByKind {
+		if kind == "namespace" {
+			continue
+		}
+
 		titleKind := strings.Title(kind)
 		readme.WriteString(fmt.Sprintf("### %s\n\n", titleKind))
-		for _, name := range names {
+		for _, name := range resources {
 			readme.WriteString(fmt.Sprintf("- %s\n", name))
 		}
 		readme.WriteString("\n")
@@ -596,4 +655,94 @@ func sanitizeFileName(name string) string {
 	result = strings.Trim(result, "-")
 
 	return result
+}
+
+func saveChartToDirectory(c *chart.Chart, dir string) error {
+
+	templatesDir := filepath.Join(dir, "templates")
+	if err := os.MkdirAll(templatesDir, 0755); err != nil {
+		return err
+	}
+
+	chartsDir := filepath.Join(dir, "charts")
+	if err := os.MkdirAll(chartsDir, 0755); err != nil {
+		return err
+	}
+
+	chartYaml, err := yaml.Marshal(c.Metadata)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "Chart.yaml"), chartYaml, 0644); err != nil {
+		return err
+	}
+
+	valuesYaml, err := yaml.Marshal(c.Values)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "values.yaml"), valuesYaml, 0644); err != nil {
+		return err
+	}
+
+	for _, template := range c.Templates {
+		templatePath := filepath.Join(dir, template.Name)
+
+		if err := os.MkdirAll(filepath.Dir(templatePath), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(templatePath, template.Data, 0644); err != nil {
+			return err
+		}
+	}
+
+	for _, file := range c.Files {
+		filePath := filepath.Join(dir, file.Name)
+
+		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filePath, file.Data, 0644); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func lintChart(chartPath string) error {
+
+	client := action.NewLint()
+
+	result := client.Run([]string{chartPath}, nil)
+
+	for _, message := range result.Messages {
+		if message.Severity == support.ErrorSev {
+			return fmt.Errorf("chart linting failed: %s", message.Err)
+		}
+	}
+
+	return nil
+}
+
+func packageChart(chartPath string, w io.Writer) error {
+
+	client := action.NewPackage()
+	client.Destination = os.TempDir()
+	client.DependencyUpdate = false
+
+	packagedChartPath, err := client.Run(chartPath, nil)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(packagedChartPath)
+
+	f, err := os.Open(packagedChartPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(w, f)
+	return err
 }
