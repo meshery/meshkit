@@ -13,10 +13,10 @@ import (
 	"github.com/layer5io/meshkit/models/patterns"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
-	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/lint/support"
+	"gopkg.in/yaml.v3"
 )
 
 type HelmConverter struct{}
@@ -34,7 +34,6 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 	}
 
 	homeDir, err := os.UserHomeDir()
-	fmt.Println("Home directory: ", homeDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
 	}
@@ -60,9 +59,13 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 		return "", fmt.Errorf("failed to save chart to directory: %w", err)
 	}
 
-	if err := lintChart(chartPath); err != nil {
-		//Need to add push notif here if it fails
-		return "", fmt.Errorf("chart linting failed: %w", err)
+	debugTemplates(chartPath)
+
+	err = lintChart(chartPath)
+	if err != nil {
+		fmt.Println("Chart linting failed:", err)
+		return "", fmt.Errorf("failed to lint helm chart: %w", err)
+
 	}
 
 	var buf bytes.Buffer
@@ -71,6 +74,241 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+func debugTemplates(chartPath string) {
+	templatesDir := filepath.Join(chartPath, "templates")
+	files, err := os.ReadDir(templatesDir)
+	if err != nil {
+		fmt.Println("Error reading templates directory:", err)
+		return
+	}
+
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".yaml") {
+			filePath := filepath.Join(templatesDir, file.Name())
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				fmt.Printf("Error reading file %s: %v\n", file.Name(), err)
+				continue
+			}
+			fmt.Printf("Debugging template %s (%d bytes)\n", file.Name(), len(data))
+		}
+	}
+}
+
+func fixTemplateYamlIssues(chartPath string) bool {
+	templatesDir := filepath.Join(chartPath, "templates")
+	files, err := os.ReadDir(templatesDir)
+	if err != nil {
+		fmt.Println("Error reading templates directory:", err)
+		return false
+	}
+
+	helperPath := filepath.Join(templatesDir, "_helpers.tpl")
+	helperData, err := os.ReadFile(helperPath)
+	if err == nil {
+		fixedContent := strings.ReplaceAll(string(helperData), "{{}}", "{{/* */}}")
+		err = os.WriteFile(helperPath, []byte(fixedContent), 0644)
+		if err != nil {
+			fmt.Printf("Error writing fixed helpers file: %v\n", err)
+		}
+	}
+
+	fixedAny := false
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".yaml") {
+			filePath := filepath.Join(templatesDir, file.Name())
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				fmt.Printf("Error reading file %s: %v\n", file.Name(), err)
+				continue
+			}
+
+			fixedContent := fixYamlIndentation(string(data))
+			fixedContent = fixYamlTemplateIssues(fixedContent)
+
+			if fixedContent != string(data) {
+				err = os.WriteFile(filePath, []byte(fixedContent), 0644)
+				if err != nil {
+					fmt.Printf("Error writing fixed file %s: %v\n", file.Name(), err)
+					continue
+				}
+				fixedAny = true
+				fmt.Printf("Fixed template %s\n", file.Name())
+			}
+		}
+	}
+	return fixedAny
+}
+
+func fixYamlIndentation(content string) string {
+	lines := strings.Split(content, "\n")
+	result := []string{}
+	inTemplate := false
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		if trimmedLine == "" {
+			result = append(result, "")
+			continue
+		}
+
+		if strings.HasPrefix(trimmedLine, "{{-") || strings.HasPrefix(trimmedLine, "{{") {
+			inTemplate = true
+			result = append(result, line)
+			continue
+		}
+
+		if inTemplate && (strings.Contains(trimmedLine, "-}}") || strings.Contains(trimmedLine, "}}")) {
+			inTemplate = false
+			result = append(result, line)
+			continue
+		}
+
+		if inTemplate {
+			result = append(result, line)
+			continue
+		}
+
+		if containsMappingValueIssue(line) {
+			fixed := fixMappingValueLine(line)
+			result = append(result, fixed)
+			continue
+		}
+
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
+}
+
+func containsMappingValueIssue(line string) bool {
+	trimmed := strings.TrimSpace(line)
+
+	return strings.Contains(trimmed, ": {") ||
+	       (strings.Contains(trimmed, ":") &&
+	        strings.Count(trimmed, ":") > 1 &&
+	        !strings.Contains(trimmed, "- "))
+}
+
+func fixMappingValueLine(line string) string {
+	indentLevel := len(line) - len(strings.TrimLeft(line, " "))
+	trimmed := strings.TrimSpace(line)
+
+	if strings.Contains(trimmed, ": {") && strings.Contains(trimmed, "}") {
+		parts := strings.SplitN(trimmed, ": {", 2)
+		if len(parts) == 2 {
+			key := parts[0]
+			value := strings.TrimSuffix(parts[1], "}")
+
+			valueParts := strings.Split(value, ",")
+			result := strings.Repeat(" ", indentLevel) + key + ":"
+
+			for _, vp := range valueParts {
+				vp = strings.TrimSpace(vp)
+				if vp != "" {
+					keyVal := strings.SplitN(vp, ":", 2)
+					if len(keyVal) == 2 {
+						result += "\n" + strings.Repeat(" ", indentLevel+2) +
+						          keyVal[0] + ":" + keyVal[1]
+					} else {
+						result += "\n" + strings.Repeat(" ", indentLevel+2) + vp
+					}
+				}
+			}
+
+			return result
+		}
+	}
+
+	return line
+}
+
+func fixYamlTemplateIssues(content string) string {
+
+	r := regexp.MustCompile(`(\{\{-?\s*toYaml\s+[^}]+\s*\}{2}-?)`)
+	content = r.ReplaceAllStringFunc(content, func(match string) string {
+
+		if !strings.Contains(match, "nindent") && !strings.Contains(match, "indent") {
+
+			return strings.Replace(match, "}}", " | nindent 2 }}", 1)
+		}
+		return match
+	})
+
+	content = fixComplexNestedStructures(content)
+
+	return content
+}
+
+func fixComplexNestedStructures(content string) string {
+
+	problemPatterns := []string{
+		"nodeAffinity:",
+		"affinity:",
+		"tolerations:",
+		"nodeSelector:",
+		"matchExpressions:",
+	}
+
+	for _, pattern := range problemPatterns {
+		if strings.Contains(content, pattern) {
+
+			content = fixIndentationForSection(content, pattern)
+		}
+	}
+
+	return content
+}
+
+func fixIndentationForSection(content, sectionName string) string {
+	lines := strings.Split(content, "\n")
+	result := []string{}
+	inSection := false
+	sectionIndent := 0
+
+	for i, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		currentIndent := len(line) - len(strings.TrimLeft(line, " "))
+
+		if strings.HasPrefix(trimmedLine, sectionName) {
+			inSection = true
+			sectionIndent = currentIndent
+			result = append(result, line)
+			continue
+		}
+
+		if inSection {
+
+			if currentIndent <= sectionIndent && trimmedLine != "" {
+				inSection = false
+				result = append(result, line)
+				continue
+			}
+
+			if containsMappingValueIssue(line) {
+				fixed := fixMappingValueLine(line)
+				result = append(result, fixed)
+				continue
+			}
+
+			if i > 0 && strings.TrimSpace(lines[i-1]) == sectionName+":" {
+
+				if currentIndent <= sectionIndent {
+
+					indent := strings.Repeat(" ", sectionIndent + 2)
+					result = append(result, indent + trimmedLine)
+					continue
+				}
+			}
+		}
+
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
 }
 
 func generateNamespaceTemplate() []byte {
@@ -85,6 +323,41 @@ metadata:
     helm.sh/chart: {{ include "chart.name" . }}
 {{- end }}
 `)
+}
+
+func generateTemplates(patternFile *pattern.PatternFile, helmChart *chart.Chart) (map[string][]string, error) {
+	templatesByKind := make(map[string][]string)
+
+	componentsByKind := make(map[string][]*component.ComponentDefinition)
+	for _, comp := range patternFile.Components {
+		if comp.Component.Kind == "" {
+			continue
+		}
+
+		kind := strings.ToLower(comp.Component.Kind)
+		if _, ok := componentsByKind[kind]; !ok {
+			componentsByKind[kind] = []*component.ComponentDefinition{}
+		}
+		componentsByKind[kind] = append(componentsByKind[kind], comp)
+
+		if _, ok := templatesByKind[kind]; !ok {
+			templatesByKind[kind] = []string{}
+		}
+		templatesByKind[kind] = append(templatesByKind[kind], comp.DisplayName)
+	}
+
+	for kind, components := range componentsByKind {
+		templateContent := generateTemplateForKind(kind, components)
+
+		if templateContent != "" {
+			helmChart.Templates = append(helmChart.Templates, &chart.File{
+				Name: fmt.Sprintf("templates/%s.yaml", kind),
+				Data: []byte(templateContent),
+			})
+		}
+	}
+
+	return templatesByKind, nil
 }
 
 func generateHelmChart(patternFile *pattern.PatternFile) (*chart.Chart, error) {
@@ -195,6 +468,11 @@ func generateValues(patternFile *pattern.PatternFile) (map[string]interface{}, e
 			resourceConfig["annotations"] = annotations
 		}
 
+		if strings.ToLower(comp.Component.Kind) == "service" {
+
+    		resourceConfig["selector"] = extractSelector(comp)
+    	}
+
 		resources[safeName] = resourceConfig
 	}
 
@@ -208,8 +486,11 @@ func extractReplicas(comp *component.ComponentDefinition, defaultValue int) int 
 
 	if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
 		if replicas, ok := spec["replicas"]; ok {
-			if val, ok := replicas.(int); ok {
+			switch val := replicas.(type) {
+			case int:
 				return val
+			case float64:
+				return int(val)
 			}
 		}
 	}
@@ -281,37 +562,18 @@ func extractAnnotations(comp *component.ComponentDefinition) map[string]interfac
 	return nil
 }
 
-func generateTemplates(patternFile *pattern.PatternFile, helmChart *chart.Chart) (map[string][]string, error) {
-	templatesByKind := make(map[string][]string)
+func extractSelector(comp *component.ComponentDefinition) map[string]interface{} {
+    if comp.Configuration == nil {
+        return map[string]interface{}{"app": sanitizeHelmName(comp.DisplayName)}
+    }
 
-	componentsByKind := make(map[string][]*component.ComponentDefinition)
-	for _, comp := range patternFile.Components {
-		if comp.Component.Kind == "" {
-			continue
-		}
+    if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+        if selector, ok := spec["selector"].(map[string]interface{}); ok && len(selector) > 0 {
+            return selector
+        }
+    }
 
-		kind := strings.ToLower(comp.Component.Kind)
-		if _, ok := componentsByKind[kind]; !ok {
-			componentsByKind[kind] = []*component.ComponentDefinition{}
-		}
-		componentsByKind[kind] = append(componentsByKind[kind], comp)
-
-		if _, ok := templatesByKind[kind]; !ok {
-			templatesByKind[kind] = []string{}
-		}
-		templatesByKind[kind] = append(templatesByKind[kind], comp.DisplayName)
-	}
-
-	for kind, components := range componentsByKind {
-		templateContent := generateTemplateForKind(kind, components)
-
-		helmChart.Templates = append(helmChart.Templates, &chart.File{
-			Name: fmt.Sprintf("templates/%s.yaml", kind),
-			Data: []byte(templateContent),
-		})
-	}
-
-	return templatesByKind, nil
+    return map[string]interface{}{"app": sanitizeHelmName(comp.DisplayName)}
 }
 
 func generateTemplateForKind(kind string, components []*component.ComponentDefinition) string {
@@ -329,14 +591,23 @@ func generateTemplateForKind(kind string, components []*component.ComponentDefin
 apiVersion: {{ (index .Values.resources "%s").apiVersion | default "%s" }}
 kind: {{ (index .Values.resources "%s").kind | default "%s" }}
 metadata:
-  name: %s
+  name: %s # Use safeName for K8s object name
   namespace: {{ (index .Values.resources "%s").namespace | default .Values.global.namespace }}
   labels:
-    app.kubernetes.io/name: %s
+    app.kubernetes.io/name: %s # Use safeName for consistency in labels
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     helm.sh/chart: {{ include "chart.name" . }}-{{ .Chart.Version }}
-`, safeName, safeName, comp.Component.Version, safeName, comp.Component.Kind, comp.DisplayName, safeName, comp.DisplayName))
+`,
+			safeName,
+			safeName,
+			comp.Component.Version,
+			safeName,
+			comp.Component.Kind,
+			safeName,
+			safeName,
+			safeName,
+		))
 
 		templateContent.WriteString(fmt.Sprintf(`    {{- if (index .Values.resources "%s").labels }}
     {{- toYaml (index .Values.resources "%s").labels | nindent 4 }}
@@ -351,132 +622,409 @@ metadata:
 
 		switch strings.ToLower(kind) {
 		case "deployment", "statefulset":
+
 			templateContent.WriteString(fmt.Sprintf(`spec:
   replicas: {{ (index .Values.resources "%s").replicas | default 1 }}
 `, safeName))
 
 			if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
-				if selector, ok := spec["selector"].(map[string]interface{}); ok {
-					selectorYaml, err := yaml.Marshal(selector)
+				var podLabels map[string]interface{}
+
+				if template, ok := spec["template"].(map[string]interface{}); ok {
+					if metadata, ok := template["metadata"].(map[string]interface{}); ok {
+						if labels, ok := metadata["labels"].(map[string]interface{}); ok {
+							podLabels = labels
+						}
+					}
+				}
+
+				if podLabels != nil && len(podLabels) > 0 {
+
+					selector := map[string]interface{}{
+						"matchLabels": podLabels,
+					}
+					selectorBytes, err := yaml.Marshal(selector)
+
 					if err == nil {
-						templateContent.WriteString(fmt.Sprintf(`  selector:
-%s`, indentYaml(string(selectorYaml), 4)))
+
+						templateContent.WriteString("  selector:\n")
+						templateContent.WriteString(processYamlField(string(selectorBytes), 4))
+					} else {
+
+						templateContent.WriteString("  # Error generating selector\n")
+					}
+				} else {
+
+					fmt.Printf("WARN: No spec.template.metadata.labels found for %s '%s', generating fallback selector.\n", kind, safeName)
+					templateContent.WriteString(fmt.Sprintf(`  selector:
+    matchLabels:
+      app.kubernetes.io/name: %s
+      app.kubernetes.io/instance: {{ .Release.Name }}
+`, safeName))
+				}
+
+				if template, ok := spec["template"].(map[string]interface{}); ok {
+					templateContent.WriteString("  template:\n")
+
+					if metadata, ok := template["metadata"].(map[string]interface{}); ok {
+						metadataBytes, _ := yaml.Marshal(metadata)
+						templateContent.WriteString("    metadata:\n")
+						templateContent.WriteString(processYamlField(string(metadataBytes), 6))
+					} else {
+
+						templateContent.WriteString(fmt.Sprintf(`    metadata:
+      labels:
+        # Ensure these labels match the selector generated above
+        app.kubernetes.io/name: %s
+        app.kubernetes.io/instance: {{ .Release.Name }}
+`, safeName))
+					}
+
+					if podSpec, ok := template["spec"].(map[string]interface{}); ok {
+						podSpecStr := processComplexYaml(podSpec)
+						templateContent.WriteString("    spec:\n")
+						templateContent.WriteString(processYamlField(podSpecStr, 6))
+					}
+				} else {
+					templateContent.WriteString("  # Warning: spec.template missing\n")
+				}
+			} else {
+				templateContent.WriteString("  # Warning: spec missing\n")
+			}
+
+		case "pod":
+
+			if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+				specStr := processComplexYaml(spec)
+				templateContent.WriteString("spec:\n")
+				templateContent.WriteString(processYamlField(specStr, 2))
+			} else {
+
+				if comp.Configuration != nil {
+					otherFields := make(map[string]interface{})
+					for k, v := range comp.Configuration {
+						if k != "apiVersion" && k != "kind" && k != "metadata" {
+							otherFields[k] = v
+						}
+					}
+					if len(otherFields) > 0 {
+						yamlBytes, _ := yaml.Marshal(otherFields)
+						templateContent.WriteString(processYamlField(string(yamlBytes), 0))
 					}
 				}
 			}
 
-			if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
-				if template, ok := spec["template"].(map[string]interface{}); ok {
+			case "service":
+						templateContent.WriteString("spec:\n")
 
-					templateContent.WriteString(`  template:
-    metadata:
-      labels:
-        app: {{ include "chart.name" . }}
-        {{- if (index .Values.resources "`)
-					templateContent.WriteString(fmt.Sprintf("%s", safeName))
-					templateContent.WriteString(`").labels }}
-        {{- toYaml (index .Values.resources "`)
-					templateContent.WriteString(fmt.Sprintf("%s", safeName))
-					templateContent.WriteString(`").labels | nindent 8 }}
-        {{- end }}
-`)
-
-					if podSpec, ok := template["spec"].(map[string]interface{}); ok {
-						podSpecCopy := make(map[string]interface{})
-						for k, v := range podSpec {
-							if k == "containers" {
-								if containers, ok := v.([]interface{}); ok && len(containers) > 0 {
-
-									podSpecCopy["containers"] = []interface{}{
-										map[string]interface{}{
-											"name":  comp.DisplayName,
-											"image": fmt.Sprintf(`{{ (index .Values.resources "%s").image | default "nginx:latest" }}`, safeName),
-										},
+						templateContent.WriteString("  selector:\n")
+						if comp.Configuration != nil && comp.Configuration["spec"] != nil {
+							if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+								if selector, ok := spec["selector"].(map[string]interface{}); ok && len(selector) > 0 {
+									for k, v := range selector {
+										templateContent.WriteString(fmt.Sprintf("    %s: %v\n", k, v))
 									}
+								} else {
+									templateContent.WriteString("    app: meshery\n")
+								}
+							} else {
+								templateContent.WriteString("    app: meshery\n")
+							}
+						} else {
+							templateContent.WriteString("    app: meshery\n")
+						}
 
-									if container, ok := containers[0].(map[string]interface{}); ok {
-										containerCopy := podSpecCopy["containers"].([]interface{})[0].(map[string]interface{})
-										for k, v := range container {
-											if k != "image" && k != "name" {
-												containerCopy[k] = v
+						if comp.Configuration != nil && comp.Configuration["spec"] != nil {
+							if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
+								if ports, ok := spec["ports"].([]interface{}); ok && len(ports) > 0 {
+									templateContent.WriteString("  ports:\n")
+									for _, p := range ports {
+										if port, ok := p.(map[string]interface{}); ok {
+											templateContent.WriteString("    - ")
+											first := true
+											for k, v := range port {
+												if !first {
+													templateContent.WriteString("      ")
+												}
+												templateContent.WriteString(fmt.Sprintf("%s: %v\n", k, v))
+												first = false
 											}
 										}
 									}
+								} else {
+									templateContent.WriteString("  ports:\n")
+									templateContent.WriteString("    - name: http\n")
+									templateContent.WriteString("      port: 80\n")
+									templateContent.WriteString("      targetPort: 8080\n")
+								}
+
+								if svcType, ok := spec["type"].(string); ok && svcType != "" {
+									templateContent.WriteString(fmt.Sprintf("  type: %s\n", svcType))
+								} else {
+									templateContent.WriteString("  type: ClusterIP\n")
 								}
 							} else {
-								podSpecCopy[k] = v
+
+								templateContent.WriteString("  ports:\n")
+								templateContent.WriteString("    - name: http\n")
+								templateContent.WriteString("      port: 80\n")
+								templateContent.WriteString("      targetPort: 8080\n")
+								templateContent.WriteString("  type: ClusterIP\n")
 							}
-						}
+						} else {
 
-						podSpecYaml, err := yaml.Marshal(podSpecCopy)
-						if err == nil {
-							templateContent.WriteString(fmt.Sprintf(`    spec:
-%s`, indentYaml(string(podSpecYaml), 6)))
+							templateContent.WriteString("  ports:\n")
+							templateContent.WriteString("    - name: http\n")
+							templateContent.WriteString("      port: 80\n")
+							templateContent.WriteString("      targetPort: 8080\n")
+							templateContent.WriteString("  type: ClusterIP\n")
 						}
-					}
-				}
-			}
-
-		case "service":
-			if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
-				specYaml, err := yaml.Marshal(spec)
-				if err == nil {
-					templateContent.WriteString(fmt.Sprintf(`spec:
-%s`, indentYaml(string(specYaml), 2)))
-				}
-			}
 
 		case "networkpolicy":
 
 			if spec, ok := comp.Configuration["spec"].(map[string]interface{}); ok {
-
 				specCopy := make(map[string]interface{})
-				for k, v := range spec {
-					specCopy[k] = v
-				}
+				for k, v := range spec { specCopy[k] = v }
 
 				if _, hasPodSelector := specCopy["podSelector"]; !hasPodSelector {
 					if selector, hasSelector := specCopy["selector"]; hasSelector {
-
 						specCopy["podSelector"] = selector
 						delete(specCopy, "selector")
 					} else {
-
 						specCopy["podSelector"] = map[string]interface{}{}
 					}
 				}
 
-				specYaml, err := yaml.Marshal(specCopy)
-				if err == nil {
-					templateContent.WriteString(fmt.Sprintf(`spec:
-%s`, indentYaml(string(specYaml), 2)))
-				}
+				specStr := processComplexYaml(specCopy)
+				templateContent.WriteString("spec:\n")
+				templateContent.WriteString(processYamlField(specStr, 2))
 			} else {
 
-				templateContent.WriteString(`spec:
-  podSelector: {}
-`)
+				templateContent.WriteString("spec:\n  podSelector: {}\n")
+			}
+
+		case "clusterrolebinding", "rolebinding":
+
+			var roleRef map[string]interface{}
+			var subjectsRaw interface{}
+			otherFields := make(map[string]interface{})
+
+			if comp.Configuration != nil {
+				if rr, ok := comp.Configuration["roleRef"].(map[string]interface{}); ok { roleRef = rr }
+				subjectsRaw = comp.Configuration["subjects"]
+				for k, v := range comp.Configuration {
+					if k != "apiVersion" && k != "kind" && k != "metadata" && k != "roleRef" && k != "subjects" {
+						otherFields[k] = v
+					}
+				}
+			}
+
+			if roleRef != nil {
+				roleRefBytes, _ := yaml.Marshal(roleRef)
+				templateContent.WriteString("roleRef:\n")
+				templateContent.WriteString(processYamlField(string(roleRefBytes), 2))
+			} else {
+				templateContent.WriteString("roleRef: {}\n")
+			}
+
+			fixedSubjects := fixRoleBindingSubjects(subjectsRaw)
+			subjectsBytes, _ := yaml.Marshal(fixedSubjects)
+			templateContent.WriteString("subjects:\n")
+			templateContent.WriteString(processYamlField(string(subjectsBytes), 2))
+
+			if len(otherFields) > 0 {
+				yamlBytes, _ := yaml.Marshal(otherFields)
+				templateContent.WriteString(processYamlField(string(yamlBytes), 0))
 			}
 
 		default:
 
-			for key, value := range comp.Configuration {
-				if key != "apiVersion" && key != "kind" && key != "metadata" {
-					valueYaml, err := yaml.Marshal(value)
-					if err == nil {
-						templateContent.WriteString(fmt.Sprintf(`%s:
-%s`, key, indentYaml(string(valueYaml), 2)))
+			if comp.Configuration != nil {
+				otherFields := make(map[string]interface{})
+				for k, v := range comp.Configuration {
+					if k != "apiVersion" && k != "kind" && k != "metadata" {
+						otherFields[k] = v
 					}
+				}
+				if len(otherFields) > 0 {
+
+					yamlStr := processComplexYaml(otherFields)
+
+					templateContent.WriteString(processYamlField(yamlStr, 0))
 				}
 			}
 		}
 
-		templateContent.WriteString(fmt.Sprintf(`
-{{- end }}
-`))
+		templateContent.WriteString("\n{{- end }}\n")
 	}
 
 	return templateContent.String()
+}
+
+func processField(key string, value interface{}) string {
+	var yamlField string
+
+	switch v := value.(type) {
+	case map[string]interface{}:
+		if isComplexNestedObject(v) {
+			yamlStr := processComplexYaml(v)
+			yamlField = fmt.Sprintf(`%s:
+%s`, key, processYamlField(yamlStr, 2))
+		} else {
+			yamlBytes, _ := yaml.Marshal(v)
+			yamlField = fmt.Sprintf(`%s:
+%s`, key, processYamlField(string(yamlBytes), 2))
+		}
+	case []interface{}:
+		yamlBytes, _ := yaml.Marshal(v)
+		yamlField = fmt.Sprintf(`%s:
+%s`, key, processYamlField(string(yamlBytes), 2))
+	default:
+		yamlBytes, _ := yaml.Marshal(v)
+		yamlField = fmt.Sprintf(`%s:
+%s`, key, processYamlField(string(yamlBytes), 2))
+	}
+
+	return yamlField
+}
+
+func isComplexNestedObject(obj map[string]interface{}) bool {
+	complexFields := []string{
+		"affinity", "nodeAffinity", "podAffinity", "podAntiAffinity",
+		"requiredDuringSchedulingIgnoredDuringExecution", "preferredDuringSchedulingIgnoredDuringExecution",
+		"matchExpressions", "matchFields", "matchLabels",
+	}
+
+	for _, field := range complexFields {
+		if _, exists := obj[field]; exists {
+			return true
+		}
+	}
+
+	return false
+}
+
+func processComplexYaml(obj interface{}) string {
+
+	tempBuf := new(bytes.Buffer)
+	enc := yaml.NewEncoder(tempBuf)
+	enc.SetIndent(2)
+
+	err := enc.Encode(obj)
+	enc.Close()
+	if err != nil {
+
+		yamlBytes, _ := yaml.Marshal(obj)
+		return string(yamlBytes)
+	}
+
+	yamlStr := tempBuf.String()
+
+	return yamlStr
+}
+
+func processYamlField(yamlStr string, baseIndent int) string {
+	lines := strings.Split(yamlStr, "\n")
+	indent := strings.Repeat(" ", baseIndent)
+
+	for len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = indent + line
+		}
+	}
+
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func fixRoleBindingSubjects(subjectsRaw interface{}) []map[string]interface{} {
+	var fixedSubjects []map[string]interface{}
+
+	switch subjects := subjectsRaw.(type) {
+	case []interface{}:
+		for _, subj := range subjects {
+
+			subject := make(map[string]interface{})
+
+			switch val := subj.(type) {
+			case map[string]interface{}:
+
+				subject = val
+			case string:
+
+				subject["name"] = val
+			case map[string]string:
+
+				for k, v := range val {
+					subject[k] = v
+				}
+			default:
+
+				continue
+			}
+
+			if _, hasName := subject["name"]; !hasName {
+
+				subject["name"] = "default-account"
+			}
+
+			if _, hasKind := subject["kind"]; !hasKind {
+
+				subject["kind"] = "ServiceAccount"
+			}
+
+			if kind, ok := subject["kind"].(string); ok &&
+				kind == "ServiceAccount" {
+				if _, hasNamespace := subject["namespace"]; !hasNamespace {
+
+					subject["namespace"] = "kube-system"
+				}
+			}
+
+			fixedSubjects = append(fixedSubjects, subject)
+		}
+	case map[string]interface{}:
+
+		subject := subjects
+
+		if _, hasName := subject["name"]; !hasName {
+			subject["name"] = "default-account"
+		}
+
+		if _, hasKind := subject["kind"]; !hasKind {
+			subject["kind"] = "ServiceAccount"
+		}
+
+		if kind, ok := subject["kind"].(string); ok &&
+			kind == "ServiceAccount" {
+			if _, hasNamespace := subject["namespace"]; !hasNamespace {
+				subject["namespace"] = "kube-system"
+			}
+		}
+
+		fixedSubjects = append(fixedSubjects, subject)
+	case string:
+
+		subject := map[string]interface{}{
+			"name":      subjects,
+			"kind":      "ServiceAccount",
+			"namespace": "kube-system",
+		}
+		fixedSubjects = append(fixedSubjects, subject)
+	default:
+
+		subject := map[string]interface{}{
+			"name":      "default-account",
+			"kind":      "ServiceAccount",
+			"namespace": "kube-system",
+		}
+		fixedSubjects = append(fixedSubjects, subject)
+	}
+
+	return fixedSubjects
 }
 
 func indentYaml(yamlStr string, spaces int) string {
@@ -496,12 +1044,12 @@ func indentYaml(yamlStr string, spaces int) string {
 }
 
 func generateHelperTemplates() string {
-	return `{{/* Expand the name of the chart. */}}
+    return `{{/* Helper template for chart name */}}
 {{- define "chart.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/* Create chart name and version as used by the chart label. */}}
+{{/* Helper template for chart fullname */}}
 {{- define "chart.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
@@ -515,7 +1063,7 @@ func generateHelperTemplates() string {
 {{- end }}
 {{- end }}
 
-{{/* Create common labels */}}
+{{/* Standard Kubernetes labels */}}
 {{- define "helpers.labels" -}}
 helm.sh/chart: {{ include "chart.name" . }}-{{ .Chart.Version }}
 {{ include "helpers.selectorLabels" . }}
@@ -526,9 +1074,9 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- define "helpers.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "chart.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
-`
+{{- end }}`
 }
+
 
 func generateNotes(patternFile *pattern.PatternFile, templatesByKind map[string][]string) string {
 	var notes bytes.Buffer
@@ -724,19 +1272,31 @@ func saveChartToDirectory(c *chart.Chart, dir string) error {
 }
 
 func lintChart(chartPath string) error {
+    client := action.NewLint()
+    result := client.Run([]string{chartPath}, nil)
 
-	client := action.NewLint()
+    var errorMsgs []string
+    for _, message := range result.Messages {
+        if message.Severity == support.ErrorSev {
+            errorMsgs = append(errorMsgs, message.Error())
+        }
+    }
 
-	result := client.Run([]string{chartPath}, nil)
+    if len(errorMsgs) > 0 {
+        return fmt.Errorf("chart linting failed with %d errors: %s",
+            len(errorMsgs), strings.Join(errorMsgs[:min(3, len(errorMsgs))], "; "))
+    }
 
-	for _, message := range result.Messages {
-		if message.Severity == support.ErrorSev {
-			return fmt.Errorf("chart linting failed: %s", message.Err)
-		}
-	}
-
-	return nil
+    return nil
 }
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
+
 
 func packageChart(chartPath string, w io.Writer) error {
 
