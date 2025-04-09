@@ -209,14 +209,19 @@ type ComponentCSVHelper struct {
 func NewComponentCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64, localCsvPath string) (*ComponentCSVHelper, error) {
 	var csvPath string
 	if localCsvPath == "" {
-		sheetURL = sheetURL + "/pub?output=csv" + "&gid=" + strconv.FormatInt(spreadsheetID, 10)
-		Log.Info("Downloading CSV from: ", sheetURL)
+		newSheetURL := sheetURL + defaultURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
+		Log.Info("Downloading CSV from: ", newSheetURL)
 		dirPath := filepath.Join(utils.GetHome(), ".meshery", "content")
 		_ = os.MkdirAll(dirPath, 0755)
 		csvPath = filepath.Join(dirPath, "components.csv")
-		err := utils.DownloadFile(csvPath, sheetURL)
+		err := utils.DownloadFile(csvPath, newSheetURL)
 		if err != nil {
-			return nil, utils.ErrReadingRemoteFile(err)
+			// If downloading with the default URL Path fails, retry using the overridden URL Path.
+			newSheetURL = sheetURL + overridedURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
+			err = utils.DownloadFile(csvPath, newSheetURL)
+			if err != nil {
+				return nil, utils.ErrReadingRemoteFile(err)
+			}
 		}
 	} else {
 		csvPath = localCsvPath
