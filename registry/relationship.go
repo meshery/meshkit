@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/layer5io/meshkit/encoding"
 	"github.com/layer5io/meshkit/files"
@@ -46,14 +47,18 @@ type RelationshipCSV struct {
 func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64, localCsvPath string) (*RelationshipCSVHelper, error) {
 	var csvPath string
 	if localCsvPath == "" {
-		sheetURL = FormatSheetURL(sheetURL, spreadsheetID)
-		Log.Info("Downloading CSV from: ", sheetURL)
+		newSheetURL := sheetURL + defaultURL + strconv.FormatInt(spreadsheetID, 10)
+		Log.Info("Downloading CSV from: ", newSheetURL)
 		dirPath := filepath.Join(utils.GetHome(), ".meshery", "content")
 		_ = os.MkdirAll(dirPath, 0755)
 		csvPath = filepath.Join(dirPath, "relationship.csv")
-		err := utils.DownloadFile(csvPath, sheetURL)
+		err := utils.DownloadFile(csvPath, newSheetURL)
 		if err != nil {
-			return nil, utils.ErrReadingRemoteFile(err)
+			newSheetURL = sheetURL + overrideURL + strconv.FormatInt(spreadsheetID, 10)
+			err = utils.DownloadFile(csvPath, newSheetURL)
+			if err != nil {
+				return nil, utils.ErrReadingRemoteFile(err)
+			}
 		}
 	} else {
 		csvPath = localCsvPath

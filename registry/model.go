@@ -221,11 +221,15 @@ func NewModelCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64, lo
 
 		// Set the CSV file path
 		csvPath = filepath.Join(dirPath, "models.csv")
-		sheetURL = FormatSheetURL(sheetURL, spreadsheetID)
-		Log.Info("Downloading CSV from: ", sheetURL)
-		err = utils.DownloadFile(csvPath, sheetURL)
+		newSheetURL := sheetURL + defaultURL + strconv.FormatInt(spreadsheetID, 10)
+		Log.Info("Downloading CSV from: ", newSheetURL)
+		err = utils.DownloadFile(csvPath, newSheetURL)
 		if err != nil {
-			return nil, utils.ErrReadingRemoteFile(err)
+			newSheetURL = sheetURL + overrideURL + strconv.FormatInt(spreadsheetID, 10)
+			err = utils.DownloadFile(csvPath, newSheetURL)
+			if err != nil {
+				return nil, utils.ErrReadingRemoteFile(err)
+			}
 		}
 
 	} else {
