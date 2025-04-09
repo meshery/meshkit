@@ -22,11 +22,11 @@ func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
 
 	downloader := NewDownloaderForScheme(protocol, url, ghpm.PackageName)
 	if downloader == nil {
-		return nil, ErrGenerateGitHubPackage(err, ghpm.PackageName)
+		return nil, ErrInvalidProtocol(err, ghpm.PackageName, protocol)
 	}
 	ghPackage, err := downloader.GetContent()
 	if err != nil {
-		return nil, ErrGenerateGitHubPackage(err, ghpm.PackageName)
+		return nil, ErrFetchingContentfromURL(err)
 	}
 	return ghPackage, nil
 }
