@@ -54,6 +54,7 @@ func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID in
 		csvPath = filepath.Join(dirPath, "relationship.csv")
 		err := utils.DownloadFile(csvPath, newSheetURL)
 		if err != nil {
+			// If downloading with the default URL fails, retry using the overridden URL.
 			newSheetURL = sheetURL + overridedURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
 			err = utils.DownloadFile(csvPath, newSheetURL)
 			if err != nil {

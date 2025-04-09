@@ -225,6 +225,7 @@ func NewModelCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64, lo
 		Log.Info("Downloading CSV from: ", newSheetURL)
 		err = utils.DownloadFile(csvPath, newSheetURL)
 		if err != nil {
+			// If downloading with the default URL Path fails, retry using the overridden URL Path.
 			newSheetURL = sheetURL + overridedURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
 			err = utils.DownloadFile(csvPath, newSheetURL)
 			if err != nil {

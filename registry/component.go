@@ -216,6 +216,7 @@ func NewComponentCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64
 		csvPath = filepath.Join(dirPath, "components.csv")
 		err := utils.DownloadFile(csvPath, newSheetURL)
 		if err != nil {
+			// If downloading with the default URL fails, retry using the overridden URL.
 			newSheetURL = sheetURL + overridedURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
 			err = utils.DownloadFile(csvPath, newSheetURL)
 			if err != nil {
