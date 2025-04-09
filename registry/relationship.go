@@ -47,14 +47,14 @@ type RelationshipCSV struct {
 func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64, localCsvPath string) (*RelationshipCSVHelper, error) {
 	var csvPath string
 	if localCsvPath == "" {
-		newSheetURL := sheetURL + defaultURL + strconv.FormatInt(spreadsheetID, 10)
+		newSheetURL := sheetURL + defaultURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
 		Log.Info("Downloading CSV from: ", newSheetURL)
 		dirPath := filepath.Join(utils.GetHome(), ".meshery", "content")
 		_ = os.MkdirAll(dirPath, 0755)
 		csvPath = filepath.Join(dirPath, "relationship.csv")
 		err := utils.DownloadFile(csvPath, newSheetURL)
 		if err != nil {
-			newSheetURL = sheetURL + overrideURL + strconv.FormatInt(spreadsheetID, 10)
+			newSheetURL = sheetURL + overridedURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
 			err = utils.DownloadFile(csvPath, newSheetURL)
 			if err != nil {
 				return nil, utils.ErrReadingRemoteFile(err)

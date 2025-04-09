@@ -17,11 +17,11 @@ var (
 )
 
 const (
-	artifactHub            = "artifacthub"
-	gitHub                 = "github"
-	shouldRegisterColIndex = -1
-	defaultURL             = "/pub?output=csv&gid="
-	overrideURL            = "/export?format=csv&gid="
+	artifactHub                    = "artifacthub"
+	gitHub                         = "github"
+	shouldRegisterColIndex         = -1
+	defaultURLPathAndQueryParams   = "/pub?output=csv&gid="
+	overridedURLPathAndQueryParams = "/export?format=csv&gid="
 )
 
 func GetIndexForRegisterCol(cols []string, shouldRegister string) int {
