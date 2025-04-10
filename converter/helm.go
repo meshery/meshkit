@@ -20,7 +20,7 @@ type HelmConverter struct{}
 func (h *HelmConverter) Convert(patternFile string) (string, error) {
 	pattern, err := patterns.GetPatternFormat(patternFile)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to load pattern file")
+		return "", errors.Wrap(err, "failed to load pattern file: "+patternFile)
 	}
 
 	patterns.ProcessAnnotations(pattern)
@@ -73,8 +73,12 @@ func createHelmChartContent(manifestContent, chartName, chartVersion string) (st
 	buildDir := filepath.Join(tempDir, buildID)
 	chartSourcePath := filepath.Join(buildDir, chartName)
 
-	defer os.RemoveAll(buildDir)
-
+	defer func() {
+		err := os.RemoveAll(buildDir)
+		if err != nil {
+			fmt.Printf("Warning: Failed to clean up build directory: %+v\n", errors.Wrap(err, "failed to remove build directory"))
+		}
+	}()
 	if err := os.MkdirAll(chartSourcePath, 0755); err != nil {
 		return "", errors.Wrap(err, "failed to create chart source directory")
 	}
@@ -150,7 +154,7 @@ app.kubernetes.io/name: {{ include "chart.name" . }}
 	fmt.Printf("Packaged chart size: %d bytes\n", len(chartData))
 
 	if err := os.Remove(packagedChartPath); err != nil {
-		fmt.Printf("Warning: Failed to clean up packaged chart: %v\n", err)
+		fmt.Printf("Warning: Failed to clean up packaged chart: %+v\n", errors.Wrap(err, "failed to remove packaged chart"))	
 	}
 
 	return string(chartData), nil
