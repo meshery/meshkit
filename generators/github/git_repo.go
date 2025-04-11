@@ -46,8 +46,14 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	}
 	br := bufio.NewWriter(fd)
 
+	contentProcessorContext := utils.NewProcessingContext(br)
+	// Create handler function that will be used by both interceptors
+	handler := func(path string, ctx *utils.ProcessingContext) error {
+		return helm.ConvertToK8sManifest(path, "", ctx)
+	}
+
 	defer func() {
-		br.Flush()
+		// br.Flush()
 		fd.Close()
 	}()
 	gw := gitWalker.
@@ -55,8 +61,8 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 		Repo(repo).
 		Branch(branch).
 		Root(root).
-		RegisterFileInterceptor(fileInterceptor(br)).
-		RegisterDirInterceptor(dirInterceptor(br))
+		RegisterFileInterceptor(fileInterceptor(contentProcessorContext, handler)).
+		RegisterDirInterceptor(dirInterceptor(contentProcessorContext, handler))
 
 	if version != "" {
 		gw = gw.ReferenceName(fmt.Sprintf("refs/tags/%s", version))
@@ -96,21 +102,24 @@ func (gr GitRepo) ExtractRepoDetailsFromSourceURL() (owner, repo, branch, root s
 	return gr.extractRepoDetailsFromSourceURL()
 }
 
-func fileInterceptor(br *bufio.Writer) walker.FileInterceptor {
+func fileInterceptor(ctx *utils.ProcessingContext, handler utils.HandlerFunc) walker.FileInterceptor {
 	return func(file walker.File) error {
-		tempPath := filepath.Join(os.TempDir(), utils.GetRandomAlphabetsOfDigit(5))
-		return ProcessContent(br, tempPath, file.Path)
-	}
-}
-
-// When passing a directory to extract charts and the format introspector is provided as file/dir interceptor i.e. ConvertToK8sManifest ensure the Recurese is off. It is required othweise we will process the dir as well as process the file in that dir separately.
-// Add more calrifying commment and entry inside docs.
-func dirInterceptor(br *bufio.Writer) walker.DirInterceptor {
-	return func(d walker.Directory) error {
-		err := helm.ConvertToK8sManifest(d.Path, "", br)
+		extractPath := filepath.Join(os.TempDir(), utils.GetRandomAlphabetsOfDigit(5))
+		err := os.MkdirAll(extractPath, 0755)
 		if err != nil {
 			return err
 		}
-		return nil
+		defer os.RemoveAll(extractPath)
+
+		return utils.ProcessPathContent(file.Path, extractPath, ctx, handler)
+	}
+}
+
+func dirInterceptor(ctx *utils.ProcessingContext, handler utils.HandlerFunc) walker.DirInterceptor {
+	return func(d walker.Directory) error {
+		// For directories, we can use the directory itself as the extract path
+		// since we're not dealing with archives at the directory level, dir containing any
+		// archive will be processed by the file interceptor
+		return utils.ProcessPathContent(d.Path, d.Path, ctx, handler)
 	}
 }
