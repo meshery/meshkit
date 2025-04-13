@@ -8,6 +8,7 @@ import (
 	"github.com/layer5io/meshkit/models/meshmodel/registry"
 	"github.com/layer5io/meshkit/models/meshmodel/registry/v1alpha3"
 	"github.com/layer5io/meshkit/utils"
+	"github.com/layer5io/meshkit/utils/patching"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
@@ -64,6 +65,12 @@ func (h *CustomPrintHook) Print(ctx print.Context, s string) error {
 	return nil
 }
 
+type ComponentUpdateActionPayload struct {
+	Id    string      `json:"id"`
+	Value interface{} `json:"value"`
+	Path  []string    `json:"path"`
+}
+
 // RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
 func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString string, relationshipsToEvalaute ...string) (pattern.EvaluationResponse, error) {
 	var evaluationResponse pattern.EvaluationResponse
@@ -112,8 +119,54 @@ func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString
 	}
 
 	evaluationResponse, err = utils.MarshalAndUnmarshal[interface{}, pattern.EvaluationResponse](evalResults)
+
 	if err != nil {
 		return evaluationResponse, err
+	}
+
+	componentConfigurationUpdates := []ComponentUpdateActionPayload{}
+
+	for _, action := range evaluationResponse.Actions {
+		if action.Op == "update_component_configuration" {
+			payload, err := utils.MarshalAndUnmarshal[map[string]interface{}, ComponentUpdateActionPayload](action.Value)
+
+			if err != nil {
+				fmt.Println("failed to parse payload", err)
+				continue
+			}
+			componentConfigurationUpdates = append(componentConfigurationUpdates, payload)
+		}
+	}
+
+	// apply patches to components
+	for _, component := range evaluationResponse.Design.Components {
+
+		componentPatches := []patch.Patch{}
+
+		for _, payload := range componentConfigurationUpdates {
+
+			if payload.Id == component.Id.String() {
+
+				// remove "configuration" i.e first index from path as we are directly updating that
+				componentPatches = append(componentPatches, patch.Patch{
+					Path:  payload.Path[1:],
+					Value: payload.Value,
+				})
+			}
+		}
+
+		if len(componentPatches) == 0 {
+			continue
+		}
+
+		updated, err := patch.ApplyPatches(component.Configuration, componentPatches)
+
+		if err != nil {
+			fmt.Println(fmt.Errorf("error patching %v", err))
+		} else {
+			component.Configuration = updated
+		}
+
 	}
 
 	return evaluationResponse, nil
