@@ -39,9 +39,6 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 	}
 
 	chartVersion := pattern.Version
-	if chartVersion == "" {
-		chartVersion = "0.1.0"
-	}
 
 	chartContent, err := createHelmChartContent(k8sManifest, chartName, chartVersion)
 	if err != nil {
