@@ -6,12 +6,12 @@ import (
 	"github.com/layer5io/meshkit/errors"
 )
 
-// Error codes for the converter package
 var (
-	ErrLoadPatternCode      = "meshkit-"
-	ErrConvertK8sCode       = "meshkit-"
-	ErrCreateHelmChartCode  = "meshkit-"
-	ErrHelmPackageCode      = "meshkit-"
+	// Error codes for Helm Converter
+	ErrLoadPatternCode = "meshkit-11315"
+	ErrConvertK8sCode  = "meshkit-11316"
+	ErrCreateChartCode = "meshkit-11317"
+	ErrHelmPackageCode = "meshkit-11318"
 )
 
 // ErrLoadPattern returns error for failing to load pattern file
@@ -36,7 +36,7 @@ func ErrConvertK8s(err error) error {
 
 // ErrCreateHelmChart returns error for failing to create Helm chart
 func ErrCreateHelmChart(err error, operation string) error {
-	return errors.New(ErrCreateHelmChartCode,
+	return errors.New(ErrCreateChartCode,
 		errors.Critical,
 		[]string{"Failed to create Helm chart"},
 		[]string{fmt.Sprintf("Error during operation '%s': %s", operation, err.Error())},
