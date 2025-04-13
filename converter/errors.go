@@ -47,7 +47,7 @@ func ErrCreateHelmChart(err error, operation string) error {
 // ErrHelmPackage returns error for failing to package Helm chart
 func ErrHelmPackage(err error) error {
 	return errors.New(ErrHelmPackageCode,
-		errors.Alert,
+		errors.Critical,
 		[]string{"Helm packaging failed"},
 		[]string{err.Error()},
 		[]string{"Issues with the Helm chart structure or configuration"},
