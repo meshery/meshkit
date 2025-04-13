@@ -35,7 +35,7 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 
 	chartName := sanitizeHelmName(pattern.Name)
 	if chartName == "" {
-		chartName = "meshery-design"
+		chartName = pattern.Name
 	}
 
 	chartVersion := pattern.Version
