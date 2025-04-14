@@ -61,8 +61,15 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp := component.ComponentDefinition{}
 	cmp.SchemaVersion = v1beta1.ComponentSchemaVersion
 
+	resolvedResource, err := GetResolvedManifest(resource)
+	if errors.Is(err, ErrNoSchemasFound) {
+		resolvedResource = resource
+	} else if err != nil {
+		return cmp, err
+	}
+
 	cmp.Metadata = component.ComponentDefinition_Metadata{}
-	crdCue, err := utils.YamlToCue(resource)
+	crdCue, err := utils.YamlToCue(resolvedResource)
 	if err != nil {
 		return cmp, err
 	}
