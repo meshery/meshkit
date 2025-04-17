@@ -133,10 +133,6 @@ func ExtractTarGz(path, downloadfilePath string) error {
 
 	tarReader := tar.NewReader(uncompressedStream)
 
-	if err != nil {
-		return ErrExtractTarXZ(err, path)
-	}
-
 	for {
 		header, err := tarReader.Next()
 

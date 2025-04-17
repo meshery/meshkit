@@ -3,7 +3,7 @@ package converter
 type DesignFormat string
 
 const (
-	HelmChart     DesignFormat = "Helm Chart"
+	HelmChart     DesignFormat = "helm-chart"
 	DockerCompose DesignFormat = "Docker Compose"
 	K8sManifest   DesignFormat = "Kubernetes Manifest"
 	Design        DesignFormat = "Design"
