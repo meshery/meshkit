@@ -2,6 +2,7 @@ package artifacthub
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/layer5io/meshkit/generators/models"
 )
@@ -12,13 +13,27 @@ type ArtifactHubPackageManager struct {
 }
 
 func (ahpm ArtifactHubPackageManager) GetPackage() (models.Package, error) {
-	// get relevant packages
-	pkgs, err := GetAhPackagesWithName(ahpm.PackageName)
+	// Try to extract package name from URL if available
+	searchName := ahpm.PackageName
+	if ahpm.SourceURL != "" {
+		// Try to parse the URL
+		parsedURL, err := url.Parse(ahpm.SourceURL)
+		if err == nil {
+			// Extract the ts_query_web parameter if it exists
+			queryParams := parsedURL.Query()
+			if tsQueryWeb := queryParams.Get("ts_query_web"); tsQueryWeb != "" {
+				searchName = tsQueryWeb
+			}
+		}
+	}
+
+	// get relevant packages with either the extracted name or original name
+	pkgs, err := GetAhPackagesWithName(searchName)
 	if err != nil {
 		return nil, err
 	}
 	if len(pkgs) == 0 {
-		return nil, ErrNoPackageFound(ahpm.PackageName, "Artifacthub")
+		return nil, ErrNoPackageFound(searchName, "Artifacthub")
 	}
 	// update package information
 	for i, ap := range pkgs {
