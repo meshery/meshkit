@@ -33,7 +33,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 
 	versions, err := utils.GetLatestReleaseTagsSorted(owner, repo)
 	if err != nil {
-		return nil, ErrInvalidGitHubSourceURL(err)
+		return nil, err
 	}
 	version := versions[len(versions)-1]
 	dirPath := filepath.Join(os.TempDir(), owner, repo, branch)
