@@ -217,7 +217,8 @@ func NewComponentCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64
 		err := utils.DownloadFile(csvPath, newSheetURL)
 		if err != nil {
 			// The URL format /pub?output=csv (defaultURLPathAndQueryParams) fails for spreadsheets not published to the web.
-			// Instead, we use the /export?format=csv format (overridedURLPathAndQueryParams).
+			// mesheryctl registry publish and mesheryctl registry generate might fail If spreadsheets are not published.
+			// Instead, we use the /export?format=csv format (overridedURLPathAndQueryParams) which works for sheets that are shared with everyone.
 			newSheetURL = sheetURL + overridedURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
 			err = utils.DownloadFile(csvPath, newSheetURL)
 			if err != nil {
