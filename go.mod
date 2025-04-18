@@ -8,6 +8,8 @@ replace (
 	// github.com/docker/libcompose => github.com/docker/libcompose v0.4.1-0.20190808084053-143e0f3f1ab9
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
+
+// github.com/meshery/schemas v0.8.10 => ../schemas
 )
 
 require (
@@ -24,7 +26,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.35.0
 	github.com/layer5io/meshery-operator v0.8.1
-	github.com/meshery/schemas v0.8.2
+	github.com/meshery/schemas v0.8.11
 	github.com/nats-io/nats.go v1.38.0
 	github.com/open-policy-agent/opa v1.0.1
 	github.com/opencontainers/image-spec v1.1.0
@@ -32,6 +34,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
+	github.com/tidwall/sjson v1.2.5
 	golang.org/x/oauth2 v0.25.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/text v0.22.0
@@ -231,6 +234,9 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.2 // indirect
+	github.com/tidwall/gjson v1.14.2 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/vbatts/tar-split v0.11.7 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect

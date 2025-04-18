@@ -387,16 +387,12 @@ func WriteYamlToFile[K any](outputPath string, data K) error {
 
 func WriteJSONToFile[K any](outputPath string, data K) error {
 	byt, err := json.MarshalIndent(data, "", "  ")
+
 	if err != nil {
 		return ErrMarshal(err)
 	}
+	err = os.WriteFile(outputPath, byt, 0644)
 
-	file, err := os.Create(outputPath)
-	if err != nil {
-		return ErrCreateFile(err, outputPath)
-	}
-
-	_, err = file.Write(byt)
 	if err != nil {
 		return ErrWriteFile(err, outputPath)
 	}
@@ -882,4 +878,19 @@ func TrackTime(logger logger.Handler, start time.Time, name string) {
 
 	elapsed := time.Since(start)
 	logger.Debugf("%s took %s\n", name, elapsed)
+}
+
+// TruncateErrorMessage truncates an error message to a specified word limit.
+func TruncateErrorMessage(err error, wordLimit int) error {
+	if err == nil {
+		return nil
+	}
+
+	words := strings.Fields(err.Error())
+	if len(words) > wordLimit {
+		words = words[:wordLimit]
+		return fmt.Errorf("%s...", strings.Join(words, " "))
+	}
+
+	return err
 }
