@@ -51,7 +51,7 @@ func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID in
 		Log.Info("Downloading CSV from: ", newSheetURL)
 		dirPath := filepath.Join(utils.GetHome(), ".meshery", "content")
 		_ = os.MkdirAll(dirPath, 0755)
-		csvPath = filepath.Join(dirPath, "relationship.csv")
+		csvPath = filepath.Join(dirPath, "relationships.csv")
 		err := utils.DownloadFile(csvPath, newSheetURL)
 		if err != nil {
 			// The URL format /pub?output=csv (defaultURLPathAndQueryParams) fails for spreadsheets not published to the web.
@@ -63,6 +63,7 @@ func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID in
 				return nil, utils.ErrReadingRemoteFile(err)
 			}
 		}
+		sheetURL = newSheetURL
 	} else {
 		csvPath = localCsvPath
 	}

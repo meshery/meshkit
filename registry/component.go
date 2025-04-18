@@ -225,6 +225,7 @@ func NewComponentCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64
 				return nil, utils.ErrReadingRemoteFile(err)
 			}
 		}
+		sheetURL = newSheetURL
 	} else {
 		csvPath = localCsvPath
 	}

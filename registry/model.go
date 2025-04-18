@@ -234,7 +234,7 @@ func NewModelCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64, lo
 				return nil, utils.ErrReadingRemoteFile(err)
 			}
 		}
-
+		sheetURL = newSheetURL
 	} else {
 		csvPath = localCsvPath
 	}
