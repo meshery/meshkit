@@ -107,13 +107,13 @@ func GetCode(err error) string {
 	var code string
 	defer func() {
 		if r := recover(); r != nil {
-			code = strings.Join(NoneString[:], "")
+			code = strings.Join(NoneString, "")
 		}
 	}()
 	if obj := err.(*Error); obj != nil && obj.Code != " " {
 		code = obj.Code
 	} else {
-		code = strings.Join(NoneString[:], "")
+		code = strings.Join(NoneString, "")
 	}
 	return code
 }
@@ -137,13 +137,13 @@ func GetSDescription(err error) string {
 	var description string
 	defer func() {
 		if r := recover(); r != nil {
-			description = strings.Join(NoneString[:], "")
+			description = strings.Join(NoneString, "")
 		}
 	}()
 	if obj := err.(*Error); obj != nil {
 		description = strings.Join(obj.ShortDescription[:], ".")
 	} else {
-		description = strings.Join(NoneString[:], "")
+		description = strings.Join(NoneString, "")
 	}
 	return description
 }
@@ -152,13 +152,13 @@ func GetCause(err error) string {
 	var cause string
 	defer func() {
 		if r := recover(); r != nil {
-			cause = strings.Join(NoneString[:], "")
+			cause = strings.Join(NoneString, "")
 		}
 	}()
 	if obj := err.(*Error); obj != nil {
 		cause = strings.Join(obj.ProbableCause[:], ".")
 	} else {
-		cause = strings.Join(NoneString[:], "")
+		cause = strings.Join(NoneString, "")
 	}
 	return cause
 }
@@ -167,13 +167,13 @@ func GetRemedy(err error) string {
 	var remedy string
 	defer func() {
 		if r := recover(); r != nil {
-			remedy = strings.Join(NoneString[:], "")
+			remedy = strings.Join(NoneString, "")
 		}
 	}()
 	if obj := err.(*Error); obj != nil {
 		remedy = strings.Join(obj.SuggestedRemediation[:], ".")
 	} else if err != nil {
-		remedy = strings.Join(NoneString[:], "")
+		remedy = strings.Join(NoneString, "")
 	}
 	return remedy
 }
