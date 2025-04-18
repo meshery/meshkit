@@ -1,7 +1,6 @@
 package validator
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/layer5io/meshkit/models/catalog/v1alpha1"
@@ -38,7 +37,7 @@ func TestValidator(t *testing.T) {
 				},
 				PatternCaveats: "NA",
 				PatternInfo:    "NA",
-				Type:           v1alpha1.CatalogDataType("Dployment"),
+				Type:           v1alpha1.CatalogDataType("Deployment"),
 			},
 			ShouldPass: false,
 		},
@@ -64,15 +63,13 @@ func TestValidator(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run("validaion", func(_t *testing.T) {
+		t.Run("validation", func(_t *testing.T) {
 			schema, err := GetSchemaFor(test.Path)
 			if err != nil {
 				t.Errorf("%v", err)
-
 			}
 
 			err = Validate(schema, test.Resource)
-			fmt.Println(err)
 			if test.ShouldPass && err != nil {
 				t.Errorf("test failed for %s, got %s, want %t, error: %v", test.Path, "false", test.ShouldPass, err)
 
