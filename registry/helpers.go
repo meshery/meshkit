@@ -60,7 +60,6 @@ func SetupLogger(name string, debugLevel bool, output io.Writer) logger.Handler 
 // Downloads CSV file using spreadsheet URL
 func DownloadCSV(sheetURL ,csvPath string, spreadsheetID int64)  (string ,error){
 	newSheetURL := sheetURL + defaultURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
-	Log.Info("Downloading CSV from: ", newSheetURL)
 	err := utils.DownloadFile(csvPath, newSheetURL)
 
 	// The `/pub?output=csv` URL format has been reported to fail for some users, possibly due to a bug or deprecation.
@@ -77,5 +76,6 @@ func DownloadCSV(sheetURL ,csvPath string, spreadsheetID int64)  (string ,error)
 			return "",utils.ErrReadingRemoteFile(err)
 		}
 	}
+	Log.Info("Downloaded CSV from: ", newSheetURL)
 	return newSheetURL,nil
 }
