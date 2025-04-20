@@ -1,0 +1,16 @@
+id: c8e41e87-5a61-4ea5-be50-0ce975eb6152
+name: invalid-k8s
+schemaVersion: designs.meshery.io/v1beta1
+version: 0.0.1
+metadata: {}
+components:
+   - id: bad-comp
+     schemaVersion: components.meshery.io/v1beta1
+     version: v1.0.0
+     displayName: bad
+     configuration:
+        apiVersion: v1
+        kind: NotARealKind
+        metadata:
+           name: bad
+relationships: []
