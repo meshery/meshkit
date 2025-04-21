@@ -93,7 +93,7 @@ expectedType: coreV1.K8sManifest,
 			name:         "Can Identify Kubernetes Manifest With Crds",
 			filePath:     "./samples/manifest-with-crds.yml",
 			expectedExt:  ".yml",
-			expectedType: coreV1.MesheryDesign,
+expectedType: coreV1.K8sManifest,
 		},
 
 		{
