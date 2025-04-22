@@ -53,7 +53,7 @@ func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID in
 		}
 		csvPath = filepath.Join(dirPath, "relationships.csv")
 
-		sheetURL,err = DownloadCSV(sheetURL,csvPath,spreadsheetID)
+		sheetURL,err = DownloadCSVAndGetDownloadURL(sheetURL,csvPath,spreadsheetID)
 		if err !=nil{
 			return nil,err
 		}

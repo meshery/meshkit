@@ -222,7 +222,7 @@ func NewModelCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64, lo
 		// Set the CSV file path
 		csvPath = filepath.Join(dirPath, "models.csv")
 
-		sheetURL,err = DownloadCSV(sheetURL,csvPath,spreadsheetID)
+		sheetURL,err = DownloadCSVAndGetDownloadURL(sheetURL,csvPath,spreadsheetID)
 		if err !=nil{
 			return nil,err
 		}

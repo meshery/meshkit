@@ -58,7 +58,7 @@ func SetupLogger(name string, debugLevel bool, output io.Writer) logger.Handler 
 }
 
 // Downloads CSV file using spreadsheet URL
-func DownloadCSV(sheetURL ,csvPath string, spreadsheetID int64)  (string ,error){
+func DownloadCSVAndGetDownloadURL(sheetURL ,csvPath string, spreadsheetID int64)  (string ,error){
 	newSheetURL := sheetURL + defaultURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
 	err := utils.DownloadFile(csvPath, newSheetURL)
 

@@ -217,7 +217,7 @@ func NewComponentCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64
 
 		csvPath = filepath.Join(dirPath, "components.csv")
 		
-		sheetURL,err = DownloadCSV(sheetURL,csvPath,spreadsheetID)
+		sheetURL,err = DownloadCSVAndGetDownloadURL(sheetURL,csvPath,spreadsheetID)
 		if err !=nil{
 			return nil,err
 		}
