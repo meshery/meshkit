@@ -1,6 +1,7 @@
 package github
 
 import (
+	"errors"
 	"net/url"
 
 	"github.com/layer5io/meshkit/generators/models"
@@ -22,6 +23,7 @@ func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
 
 	downloader := NewDownloaderForScheme(protocol, url, ghpm.PackageName)
 	if downloader == nil {
+		err = errors.New("unsupported protocol")
 		return nil, ErrGenerateGitHubPackage(err, ghpm.PackageName)
 	}
 	ghPackage, err := downloader.GetContent()
