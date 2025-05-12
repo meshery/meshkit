@@ -617,8 +617,8 @@ func AssignDefaultsForCompDefs(componentDef *component.ComponentDefinition, mode
 		}
 	}
 }
-func GenerateComponentsFromPkg(pkg models.Package, compDirPath string, defVersion string, modelDef _model.ModelDefinition) (int, int, error) {
-	comps, err := pkg.GenerateComponents("")
+func GenerateComponentsFromPkg(pkg models.Package, compDirPath string, defVersion string, modelDef _model.ModelDefinition, groupFilter string) (int, int, error) {
+	comps, err := pkg.GenerateComponents(groupFilter)
 	if err != nil {
 		return 0, 0, err
 	}

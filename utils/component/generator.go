@@ -10,6 +10,7 @@ import (
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/sirupsen/logrus"
 )
 
 const ComponentMetaNameKey = "name"
@@ -68,7 +69,11 @@ func IncludeComponentBasedOnGroup(resource string, groupFilter string) (bool, er
 		return false, err
 	}
 
-	group, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
+	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
+
+	if err != nil {
+		logrus.Info("Failed to extract group from crd %v", err)
+	}
 
 	return group == groupFilter, nil
 
