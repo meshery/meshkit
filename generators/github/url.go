@@ -2,6 +2,7 @@ package github
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 
 	"net/url"
@@ -9,9 +10,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	// "github.com/layer5io/meshkit/files"
 	"github.com/layer5io/meshkit/generators/models"
 	"github.com/layer5io/meshkit/utils"
 	"github.com/layer5io/meshkit/utils/helm"
+	// "k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 type URL struct {
@@ -27,12 +30,12 @@ func (u URL) GetContent() (models.Package, error) {
 	_ = os.MkdirAll(downloadDirPath, 0755)
 
 	url := u.URL.String()
+
 	version := url[strings.LastIndex(url, "/")+1:]
-	url, _ = strings.CutSuffix(url, "/"+version)
+	// url, _ = strings.CutSuffix(url, "/"+version)
 
 	fileName := utils.GetRandomAlphabetsOfDigit(6)
 	downloadfilePath := filepath.Join(downloadDirPath, fileName)
-
 	err := utils.DownloadFile(downloadfilePath, url)
 	if err != nil {
 		return nil, err
@@ -49,6 +52,26 @@ func (u URL) GetContent() (models.Package, error) {
 		_ = w.Flush()
 	}()
 
+	// process manifest files
+	if strings.HasSuffix(url, ".yml") || strings.HasSuffix(url, ".yaml") {
+
+		data, err := os.ReadFile(downloadfilePath)
+		_, err = w.Write(data)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println("azure package:", u.PackageName, version)
+
+		return GitHubPackage{
+			Name:      u.PackageName,
+			filePath:  manifestFilePath,
+			version:   version,
+			SourceURL: u.URL.String(),
+		}, nil
+
+	}
+
+	// process helm
 	err = ProcessContent(w, downloadDirPath, downloadfilePath)
 	if err != nil {
 		return nil, err
@@ -77,6 +100,7 @@ func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error
 	}
 
 	err = utils.ProcessContent(downloadDirPath, func(path string) error {
+
 		err = helm.ConvertToK8sManifest(path, "", w)
 		if err != nil {
 			return err
