@@ -898,7 +898,6 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 				return
 			}
 			modelDirPath, compDirPath, err := createVersionedDirectoryForModelAndComp(version, model.Model, path)
-			fmt.Println("model path", modelDirPath, compDirPath, version, model.Model, path)
 			if err != nil {
 				err = ErrGenerateModel(err, model.Model)
 				LogError.Error(err)
@@ -972,7 +971,7 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 
 	wg.Wait()
 	close(spreadsheeetChan)
-	// ProcessRelationships(relationshipCSVHelper, relationshipUpdateChan, path)
+	ProcessRelationships(relationshipCSVHelper, relationshipUpdateChan, path)
 	close(relationshipUpdateChan)
 	wgForRelationshipUpdates.Wait()
 	err = relationshipCSVHelper.UpdateRelationshipSheet(srv, spreadsheeetCred, spreadsheeetID, relationshipCSVFilePath)
