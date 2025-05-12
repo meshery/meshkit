@@ -60,7 +60,6 @@ func (u URL) GetContent() (models.Package, error) {
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("azure package:", u.PackageName, version)
 
 		return GitHubPackage{
 			Name:      u.PackageName,
