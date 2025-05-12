@@ -34,7 +34,7 @@ func (gp GitHubPackage) GetName() string {
 	return gp.Name
 }
 
-func (gp GitHubPackage) GenerateComponents() ([]_component.ComponentDefinition, error) {
+func (gp GitHubPackage) GenerateComponents(group string) ([]_component.ComponentDefinition, error) {
 	components := make([]_component.ComponentDefinition, 0)
 
 	data, err := os.ReadFile(gp.filePath)
@@ -46,6 +46,17 @@ func (gp GitHubPackage) GenerateComponents() ([]_component.ComponentDefinition, 
 	errs := []error{}
 
 	for _, crd := range manifestBytes {
+		resource := string(crd)
+		include, err := component.IncludeComponentBasedOnGroup(resource, group)
+
+		if err != nil {
+			errs = append(errs, err)
+		}
+
+		if !include {
+			continue
+		}
+
 		isCrd := kubernetes.IsCRD(string(crd))
 		if !isCrd {
 
@@ -56,6 +67,7 @@ func (gp GitHubPackage) GenerateComponents() ([]_component.ComponentDefinition, 
 			}
 			components = append(components, comps...)
 		} else {
+
 			comp, err := component.Generate(string(crd))
 			if err != nil {
 				continue

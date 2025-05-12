@@ -84,7 +84,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				t.Errorf("error while getting package: %v", err)
 				return
 			}
-			comps, err := pkg.GenerateComponents()
+			comps, err := pkg.GenerateComponents("")
 			if err != nil {
 				fmt.Println(err)
 				t.Errorf("error while generating components: %v", err)
