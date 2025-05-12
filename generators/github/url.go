@@ -2,7 +2,6 @@ package github
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 
 	"net/url"
