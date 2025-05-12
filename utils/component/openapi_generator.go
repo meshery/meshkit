@@ -24,7 +24,7 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 	if resource == "" {
 		return nil, nil
 	}
-	resource, err := getResolvedManifest(resource)
+	resource, err := GetResolvedManifest(resource)
 	if err != nil && errors.Is(err, ErrNoSchemasFound) {
 		return nil, nil
 	}
@@ -174,7 +174,7 @@ func getResourceScope(manifest string, kind string) (bool, error) {
 	return false, nil // Resource is cluster-scoped
 }
 
-func getResolvedManifest(manifest string) (string, error) {
+func GetResolvedManifest(manifest string) (string, error) {
 	var m map[string]interface{}
 
 	err := yaml.Unmarshal([]byte(manifest), &m)
