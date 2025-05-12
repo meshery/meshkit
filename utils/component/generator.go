@@ -57,6 +57,23 @@ var OpenAPISpecPathConfig = CuePathConfig{
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
+func IncludeComponentBasedOnGroup(resource string, groupFilter string) (bool, error) {
+	if groupFilter == "" {
+		return true, nil
+	}
+
+	crdCue, err := utils.YamlToCue(resource)
+
+	if err != nil {
+		return false, err
+	}
+
+	group, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
+
+	return group == groupFilter, nil
+
+}
+
 func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp := component.ComponentDefinition{}
 	cmp.SchemaVersion = v1beta1.ComponentSchemaVersion
@@ -84,6 +101,7 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 		return cmp, err
 	}
 	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
+
 	if err != nil {
 		return cmp, err
 	}

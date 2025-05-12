@@ -46,7 +46,7 @@ func (pkg AhPackage) GetName() string {
 	return pkg.Name
 }
 
-func (pkg AhPackage) GenerateComponents() ([]_component.ComponentDefinition, error) {
+func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDefinition, error) {
 	components := make([]_component.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
 

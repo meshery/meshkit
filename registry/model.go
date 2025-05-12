@@ -82,6 +82,7 @@ type ModelCSV struct {
 	SVGComplete        string                            `json:"svgComplete" csv:"svgComplete"`
 	IsAnnotation       string                            `json:"isAnnotation" csv:"isAnnotation"`
 	PublishToRegistry  string                            `json:"publishToRegistry" csv:"publishToRegistry"`
+	Group              string                            `json:"group" csv:"group"`
 	AboutProject       string                            `json:"aboutProject" csv:"-"`
 	PageSubtTitle      string                            `json:"pageSubtitle" csv:"-"`
 	DocsURL            string                            `json:"docsURL" csv:"-"`
@@ -222,9 +223,9 @@ func NewModelCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64, lo
 		// Set the CSV file path
 		csvPath = filepath.Join(dirPath, "models.csv")
 
-		sheetURL,err = DownloadCSVAndGetDownloadURL(sheetURL,csvPath,spreadsheetID)
-		if err !=nil{
-			return nil,err
+		sheetURL, err = DownloadCSVAndGetDownloadURL(sheetURL, csvPath, spreadsheetID)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		csvPath = localCsvPath
@@ -617,7 +618,7 @@ func AssignDefaultsForCompDefs(componentDef *component.ComponentDefinition, mode
 	}
 }
 func GenerateComponentsFromPkg(pkg models.Package, compDirPath string, defVersion string, modelDef _model.ModelDefinition) (int, int, error) {
-	comps, err := pkg.GenerateComponents()
+	comps, err := pkg.GenerateComponents("")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -837,6 +838,7 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 	}()
 	// Iterate models from the spreadsheet
 	for _, model := range modelCSVHelper.Models {
+
 		if modelName != "" && modelName != model.Model {
 			continue
 		}
@@ -883,7 +885,7 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 
 			version := pkg.GetVersion()
 
-			comps, err := pkg.GenerateComponents()
+			comps, err := pkg.GenerateComponents(model.Group)
 			if err != nil {
 				err = ErrGenerateModel(err, model.Model)
 				LogError.Error(err)
@@ -896,6 +898,7 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 				return
 			}
 			modelDirPath, compDirPath, err := createVersionedDirectoryForModelAndComp(version, model.Model, path)
+			fmt.Println("model path", modelDirPath, compDirPath, version, model.Model, path)
 			if err != nil {
 				err = ErrGenerateModel(err, model.Model)
 				LogError.Error(err)
@@ -969,7 +972,7 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 
 	wg.Wait()
 	close(spreadsheeetChan)
-	ProcessRelationships(relationshipCSVHelper, relationshipUpdateChan, path)
+	// ProcessRelationships(relationshipCSVHelper, relationshipUpdateChan, path)
 	close(relationshipUpdateChan)
 	wgForRelationshipUpdates.Wait()
 	err = relationshipCSVHelper.UpdateRelationshipSheet(srv, spreadsheeetCred, spreadsheeetID, relationshipCSVFilePath)
