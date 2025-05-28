@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/layer5io/meshkit/errors"
+	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
 )
 
 var (
@@ -173,7 +174,7 @@ func ErrFailedToExtractArchive(fileName string, err error) error {
 	return errors.New(ErrFailedToExtractTarCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
 }
 
-func ErrFailedToIdentifyFile(fileName string, fileExt string, identificationTrace map[string]error) error {
+func ErrFailedToIdentifyFile(fileName string, fileExt string, identificationTrace map[coreV1.IaCFileTypes]error) error {
 
 	validTypes := slices.Collect(maps.Keys(identificationTrace))
 

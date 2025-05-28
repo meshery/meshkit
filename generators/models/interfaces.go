@@ -11,7 +11,7 @@ type Validator interface {
 // system's capabilities in Meshery
 // A Package should have all the information that we need to generate the components
 type Package interface {
-	GenerateComponents() ([]component.ComponentDefinition, error)
+	GenerateComponents(group string) ([]component.ComponentDefinition, error)
 	GetVersion() string
 	GetSourceURL() string
 	GetName() string

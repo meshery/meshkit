@@ -10,6 +10,7 @@ import (
 	"github.com/layer5io/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/sirupsen/logrus"
 )
 
 const ComponentMetaNameKey = "name"
@@ -57,6 +58,27 @@ var OpenAPISpecPathConfig = CuePathConfig{
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
 
+func IncludeComponentBasedOnGroup(resource string, groupFilter string) (bool, error) {
+	if groupFilter == "" {
+		return true, nil
+	}
+
+	crdCue, err := utils.YamlToCue(resource)
+
+	if err != nil {
+		return false, err
+	}
+
+	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
+
+	if err != nil {
+		logrus.Info("Failed to extract group from crd %v", err)
+	}
+
+	return group == groupFilter, nil
+
+}
+
 func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp := component.ComponentDefinition{}
 	cmp.SchemaVersion = v1beta1.ComponentSchemaVersion
@@ -84,6 +106,7 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 		return cmp, err
 	}
 	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
+
 	if err != nil {
 		return cmp, err
 	}
