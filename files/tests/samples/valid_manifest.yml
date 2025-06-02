@@ -20,7 +20,7 @@ spec:
                 io.kompose.service: meshery-app-mesh
         spec:
             containers:
-                - image: layer5/meshery-app-mesh:stable-latest
+                - image: meshery/meshery-app-mesh:stable-latest
                   image Pull Policy: Always
                   name: meshery-app-mesh
                   ports:
@@ -68,7 +68,7 @@ spec:
                 io.kompose.service: meshery-cilium
         spec:
             containers:
-                - image: layer5/meshery-cilium:stable-latest
+                - image: meshery/meshery-cilium:stable-latest
                   image Pull Policy: Always
                   name: meshery-cilium
                   ports:
@@ -116,7 +116,7 @@ spec:
                 io.kompose.service: meshery-consul
         spec:
             containers:
-                - image: layer5/meshery-consul:stable-latest
+                - image: meshery/meshery-consul:stable-latest
                   image Pull Policy: Always
                   name: meshery-consul
                   ports:
@@ -168,10 +168,10 @@ spec:
                     - name: EVENT
                       value: mesheryLocal
                     - name: PROVIDER_BASE_URLS
-                      value: https://meshery.layer5.io
+                      value: https://meshery.io
                     - name: ADAPTER_URLS
                       value: meshery-istio:10000 meshery-linkerd:10001 meshery-consul:10002 meshery-nsm:10004 meshery-app-mesh:10005 meshery-kuma:10007 meshery-nginx-sm:10010
-                  image: layer5/meshery:stable-latest
+                  image: meshery/meshery:stable-latest
                   image Pull Policy: Always
                   name: meshery
                   ports:
@@ -202,7 +202,7 @@ spec:
                 io.kompose.service: meshery-istio
         spec:
             containers:
-                - image: layer5/meshery-istio:stable-latest
+                - image: meshery/meshery-istio:stable-latest
                   image Pull Policy: Always
                   name: meshery-istio
                   ports:
@@ -250,7 +250,7 @@ spec:
                 io.kompose.service: meshery-kuma
         spec:
             containers:
-                - image: layer5/meshery-kuma:stable-latest
+                - image: meshery/meshery-kuma:stable-latest
                   image Pull Policy: Always
                   name: meshery-kuma
                   ports:
@@ -298,7 +298,7 @@ spec:
                 io.kompose.service: meshery-linkerd
         spec:
             containers:
-                - image: layer5/meshery-linkerd:stable-latest
+                - image: meshery/meshery-linkerd:stable-latest
                   image Pull Policy: Always
                   name: meshery-linkerd
                   ports:
@@ -346,7 +346,7 @@ spec:
                 io.kompose.service: meshery-nginx-sm
         spec:
             containers:
-                - image: layer5/meshery-nginx-sm:stable-latest
+                - image: meshery/meshery-nginx-sm:stable-latest
                   image Pull Policy: Always
                   name: meshery-nginx-sm
                   ports:
@@ -394,7 +394,7 @@ spec:
                 io.kompose.service: meshery-nsm
         spec:
             containers:
-                - image: layer5/meshery-nsm:stable-latest
+                - image: meshery/meshery-nsm:stable-latest
                   image Pull Policy: Always
                   name: meshery-nsm
                   ports:
@@ -460,7 +460,7 @@ spec:
                 io.kompose.service: meshery-traefik-mesh
         spec:
             containers:
-                - image: layer5/meshery-traefik-mesh:stable-latest
+                - image: meshery/meshery-traefik-mesh:stable-latest
                   image Pull Policy: Always
                   name: meshery-traefik-mesh
                   ports:
@@ -542,10 +542,10 @@ spec:
             - name: EVENT
               value: mesheryLocal
             - name: PROVIDER_BASE_URLS
-              value: https://meshery.layer5.io
+              value: https://meshery.io
             - name: ADAPTER_URLS
               value: meshery-istio:10000 meshery-linkerd:10001 meshery-consul:10002 meshery-nsm:10004 meshery-app-mesh:10005 meshery-kuma:10007 meshery-nginx-sm:10010
-          image: layer5/meshery:stable-latest
+          image: meshery/meshery:stable-latest
           image Pull Policy: Always
           name: meshery
           ports:
@@ -562,7 +562,7 @@ metadata:
     name: pod-snq
 spec:
     containers:
-        - image: layer5/meshery-app-mesh:stable-latest
+        - image: meshery/meshery-app-mesh:stable-latest
           image Pull Policy: Always
           name: meshery-app-mesh
           ports:
@@ -579,7 +579,7 @@ metadata:
     name: pod-kks
 spec:
     containers:
-        - image: layer5/meshery-cilium:stable-latest
+        - image: meshery/meshery-cilium:stable-latest
           image Pull Policy: Always
           name: meshery-cilium
           ports:
@@ -596,7 +596,7 @@ metadata:
     name: pod-smx
 spec:
     containers:
-        - image: layer5/meshery-consul:stable-latest
+        - image: meshery/meshery-consul:stable-latest
           image Pull Policy: Always
           name: meshery-consul
           ports:
@@ -613,7 +613,7 @@ metadata:
     name: pod-mth
 spec:
     containers:
-        - image: layer5/meshery-istio:stable-latest
+        - image: meshery/meshery-istio:stable-latest
           image Pull Policy: Always
           name: meshery-istio
           ports:
@@ -630,7 +630,7 @@ metadata:
     name: pod-qwd
 spec:
     containers:
-        - image: layer5/meshery-kuma:stable-latest
+        - image: meshery/meshery-kuma:stable-latest
           image Pull Policy: Always
           name: meshery-kuma
           ports:
@@ -647,7 +647,7 @@ metadata:
     name: pod-xcs
 spec:
     containers:
-        - image: layer5/meshery-linkerd:stable-latest
+        - image: meshery/meshery-linkerd:stable-latest
           image Pull Policy: Always
           name: meshery-linkerd
           ports:
@@ -664,7 +664,7 @@ metadata:
     name: pod-lui
 spec:
     containers:
-        - image: layer5/meshery-nginx-sm:stable-latest
+        - image: meshery/meshery-nginx-sm:stable-latest
           image Pull Policy: Always
           name: meshery-nginx-sm
           ports:
@@ -681,7 +681,7 @@ metadata:
     name: pod-izh
 spec:
     containers:
-        - image: layer5/meshery-nsm:stable-latest
+        - image: meshery/meshery-nsm:stable-latest
           image Pull Policy: Always
           name: meshery-nsm
           ports:
@@ -698,7 +698,7 @@ metadata:
     name: pod-xzf
 spec:
     containers:
-        - image: layer5/meshery-traefik-mesh:stable-latest
+        - image: meshery/meshery-traefik-mesh:stable-latest
           image Pull Policy: Always
           name: meshery-traefik-mesh
           ports:
@@ -719,10 +719,10 @@ spec:
             - name: EVENT
               value: mesheryLocal
             - name: PROVIDER_BASE_URLS
-              value: https://meshery.layer5.io
+              value: https://meshery.io
             - name: ADAPTER_URLS
               value: meshery-istio:10000 meshery-linkerd:10001 meshery-consul:10002 meshery-nsm:10004 meshery-app-mesh:10005 meshery-kuma:10007 meshery-nginx-sm:10010
-          image: layer5/meshery:stable-latest
+          image: meshery/meshery:stable-latest
           image Pull Policy: Always
           name: meshery
           ports:
@@ -739,7 +739,7 @@ metadata:
     name: pod-snq
 spec:
     containers:
-        - image: layer5/meshery-app-mesh:stable-latest
+        - image: meshery/meshery-app-mesh:stable-latest
           image Pull Policy: Always
           name: meshery-app-mesh
           ports:
@@ -756,7 +756,7 @@ metadata:
     name: pod-kks
 spec:
     containers:
-        - image: layer5/meshery-cilium:stable-latest
+        - image: meshery/meshery-cilium:stable-latest
           image Pull Policy: Always
           name: meshery-cilium
           ports:
@@ -773,7 +773,7 @@ metadata:
     name: pod-smx
 spec:
     containers:
-        - image: layer5/meshery-consul:stable-latest
+        - image: meshery/meshery-consul:stable-latest
           image Pull Policy: Always
           name: meshery-consul
           ports:
@@ -790,7 +790,7 @@ metadata:
     name: pod-mth
 spec:
     containers:
-        - image: layer5/meshery-istio:stable-latest
+        - image: meshery/meshery-istio:stable-latest
           image Pull Policy: Always
           name: meshery-istio
           ports:
@@ -807,7 +807,7 @@ metadata:
     name: pod-qwd
 spec:
     containers:
-        - image: layer5/meshery-kuma:stable-latest
+        - image: meshery/meshery-kuma:stable-latest
           image Pull Policy: Always
           name: meshery-kuma
           ports:
@@ -824,7 +824,7 @@ metadata:
     name: pod-xcs
 spec:
     containers:
-        - image: layer5/meshery-linkerd:stable-latest
+        - image: meshery/meshery-linkerd:stable-latest
           image Pull Policy: Always
           name: meshery-linkerd
           ports:
@@ -841,7 +841,7 @@ metadata:
     name: pod-lui
 spec:
     containers:
-        - image: layer5/meshery-nginx-sm:stable-latest
+        - image: meshery/meshery-nginx-sm:stable-latest
           image Pull Policy: Always
           name: meshery-nginx-sm
           ports:
@@ -858,7 +858,7 @@ metadata:
     name: pod-izh
 spec:
     containers:
-        - image: layer5/meshery-nsm:stable-latest
+        - image: meshery/meshery-nsm:stable-latest
           image Pull Policy: Always
           name: meshery-nsm
           ports:
@@ -875,7 +875,7 @@ metadata:
     name: pod-xzf
 spec:
     containers:
-        - image: layer5/meshery-traefik-mesh:stable-latest
+        - image: meshery/meshery-traefik-mesh:stable-latest
           image Pull Policy: Always
           name: meshery-traefik-mesh
           ports:
