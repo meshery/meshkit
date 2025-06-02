@@ -9,7 +9,7 @@ replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
 
-// github.com/meshery/schemas v0.8.10 => ../schemas
+// github.com/meshery/schemas v0.8.14 => ../schemas
 )
 
 require (
@@ -26,7 +26,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.35.0
 	github.com/layer5io/meshery-operator v0.8.1
-	github.com/meshery/schemas v0.8.14
+	github.com/meshery/schemas v0.8.22
 	github.com/nats-io/nats.go v1.38.0
 	github.com/open-policy-agent/opa v1.0.1
 	github.com/opencontainers/image-spec v1.1.0
@@ -114,6 +114,7 @@ require (
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
@@ -176,7 +177,6 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
-	github.com/layer5io/meshkit v0.8.22 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/magiconair/properties v1.8.9 // indirect
@@ -195,6 +195,7 @@ require (
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/spdystream v0.5.0 // indirect
+	github.com/moby/sys/mountinfo v0.7.1 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/moby/sys/user v0.3.0 // indirect
 	github.com/moby/sys/userns v0.1.0 // indirect
