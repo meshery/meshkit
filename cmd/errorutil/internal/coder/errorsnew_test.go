@@ -7,10 +7,10 @@ import (
 	"go/token"
 	"testing"
 
-	"github.com/layer5io/meshkit/broker"
-	"github.com/layer5io/meshkit/broker/nats"
-	errutilerr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
-	mesherr "github.com/layer5io/meshkit/errors"
+	"github.com/meshery/meshkit/broker"
+	"github.com/meshery/meshkit/broker/nats"
+	errutilerr "github.com/meshery/meshkit/cmd/errorutil/internal/error"
+	mesherr "github.com/meshery/meshkit/errors"
 )
 
 var ErrTestNewCode1 = "one"   //nolint:unused

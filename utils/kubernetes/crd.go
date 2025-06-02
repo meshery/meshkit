@@ -3,8 +3,8 @@ package kubernetes
 import (
 	"context"
 
-	"github.com/layer5io/meshkit/encoding"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/encoding"
+	"github.com/meshery/meshkit/utils"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 )

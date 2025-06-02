@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/layer5io/meshkit/errors"
+	"github.com/meshery/meshkit/errors"
 	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
 )
 

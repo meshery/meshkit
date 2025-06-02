@@ -1,6 +1,6 @@
 package v1beta1
 
-import "github.com/layer5io/meshkit/errors"
+import "github.com/meshery/meshkit/errors"
 
 const (
 	ErrUnknownKindCode = "meshkit-11254"

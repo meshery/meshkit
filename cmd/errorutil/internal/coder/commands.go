@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
-	mesherr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
+	"github.com/meshery/meshkit/cmd/errorutil/internal/config"
+	mesherr "github.com/meshery/meshkit/cmd/errorutil/internal/error"
 	"github.com/spf13/cobra"
 )
 

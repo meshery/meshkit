@@ -1,6 +1,6 @@
 package component
 
-import "github.com/layer5io/meshkit/errors"
+import "github.com/meshery/meshkit/errors"
 
 const (
 	ErrCrdGenerateCode  = "meshkit-11155"

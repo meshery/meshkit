@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/utils"
 )
 
 type CSV[E any] struct {

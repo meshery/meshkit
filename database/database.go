@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/layer5io/meshkit/logger"
+	"github.com/meshery/meshkit/logger"
 	"gorm.io/driver/postgres"
 	sqlite "gorm.io/driver/sqlite"
 	"gorm.io/gorm"

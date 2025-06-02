@@ -3,7 +3,7 @@ package github
 import (
 	"net/url"
 
-	"github.com/layer5io/meshkit/generators/models"
+	"github.com/meshery/meshkit/generators/models"
 )
 
 type DownloaderScheme interface {

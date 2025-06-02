@@ -9,9 +9,9 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cueJson "cuelang.org/go/encoding/json"
-	"github.com/layer5io/meshkit/generators/models"
-	"github.com/layer5io/meshkit/utils"
-	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/meshkit/generators/models"
+	"github.com/meshery/meshkit/utils"
+	"github.com/meshery/meshkit/utils/manifests"
 
 	"gopkg.in/yaml.v3"
 

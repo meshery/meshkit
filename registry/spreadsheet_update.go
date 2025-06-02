@@ -12,8 +12,8 @@ import (
 
 	cuecsv "cuelang.org/go/pkg/encoding/csv"
 	"github.com/gocarina/gocsv"
-	"github.com/layer5io/meshkit/utils"
-	csvUtils "github.com/layer5io/meshkit/utils/csv"
+	"github.com/meshery/meshkit/utils"
+	csvUtils "github.com/meshery/meshkit/utils/csv"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"google.golang.org/api/sheets/v4"
 )

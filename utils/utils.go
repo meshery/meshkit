@@ -23,8 +23,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/layer5io/meshkit/logger"
-	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/logger"
+	"github.com/meshery/meshkit/models/meshmodel/entity"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 

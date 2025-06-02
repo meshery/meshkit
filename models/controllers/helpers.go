@@ -11,8 +11,8 @@ import (
 	"net/url"
 
 	"github.com/layer5io/meshery-operator/api/v1alpha1"
-	"github.com/layer5io/meshkit/utils"
-	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
+	"github.com/meshery/meshkit/utils"
+	mesherykube "github.com/meshery/meshkit/utils/kubernetes"
 )
 
 const BrokerPingEndpoint = "/connz"

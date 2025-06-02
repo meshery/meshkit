@@ -3,7 +3,7 @@ package component
 import (
 	"testing"
 
-	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1/component"
 )
 

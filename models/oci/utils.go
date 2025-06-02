@@ -16,7 +16,7 @@ import (
 	gcrv1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/utils"
 )
 
 func CreateTempOCIContentDir() (tempDir string, err error) {

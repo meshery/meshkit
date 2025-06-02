@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/kubernetes/kompose/client"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/utils"
 	"gopkg.in/yaml.v3"
 )
 

@@ -1,6 +1,6 @@
 package entity
 
-import "github.com/layer5io/meshkit/database"
+import "github.com/meshery/meshkit/database"
 
 type EntityStatus string
 

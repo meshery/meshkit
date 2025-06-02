@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	// "github.com/layer5io/meshkit/files"
-	"github.com/layer5io/meshkit/generators/models"
-	"github.com/layer5io/meshkit/utils"
-	"github.com/layer5io/meshkit/utils/helm"
+	// "github.com/meshery/meshkit/files"
+	"github.com/meshery/meshkit/generators/models"
+	"github.com/meshery/meshkit/utils"
+	"github.com/meshery/meshkit/utils/helm"
 	// "k8s.io/apimachinery/pkg/util/validation/field"
 )
 

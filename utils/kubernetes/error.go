@@ -3,8 +3,8 @@ package kubernetes
 import (
 	"fmt"
 
-	"github.com/layer5io/meshkit/errors"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/errors"
+	"github.com/meshery/meshkit/utils"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 )
 

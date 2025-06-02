@@ -1,6 +1,6 @@
 package database
 
-import "github.com/layer5io/meshkit/errors"
+import "github.com/meshery/meshkit/errors"
 
 var (
 	ErrNoneDatabaseCode              = "meshkit-11126"

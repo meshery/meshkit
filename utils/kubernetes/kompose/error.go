@@ -1,6 +1,6 @@
 package kompose
 
-import "github.com/layer5io/meshkit/errors"
+import "github.com/meshery/meshkit/errors"
 
 const (
 	ErrCvrtKomposeCode               = "meshkit-11229"

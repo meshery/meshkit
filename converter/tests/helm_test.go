@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/layer5io/meshkit/converter"
-	meshkiterr "github.com/layer5io/meshkit/errors"
+	"github.com/meshery/meshkit/converter"
+	meshkiterr "github.com/meshery/meshkit/errors"
 )
 
 func TestHelmConverter_Convert(t *testing.T) {

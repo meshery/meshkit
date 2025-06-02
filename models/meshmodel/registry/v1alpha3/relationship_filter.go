@@ -1,9 +1,9 @@
 package v1alpha3
 
 import (
-	"github.com/layer5io/meshkit/database"
-	"github.com/layer5io/meshkit/models/meshmodel/entity"
-	"github.com/layer5io/meshkit/models/meshmodel/registry"
+	"github.com/meshery/meshkit/database"
+	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 
 	"gorm.io/gorm/clause"

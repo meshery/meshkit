@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/layer5io/meshkit/config"
+	"github.com/meshery/meshkit/config"
 	"github.com/spf13/viper"
 )
 

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/meshkit/utils/manifests"
 )
 
 var AhApiSearchParams = map[string]string{

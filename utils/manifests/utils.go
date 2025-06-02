@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"cuelang.org/go/cue"
-	"github.com/layer5io/meshkit/encoding"
-	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
+	"github.com/meshery/meshkit/encoding"
+	"github.com/meshery/meshkit/models/oam/core/v1alpha1"
 )
 
 const (
