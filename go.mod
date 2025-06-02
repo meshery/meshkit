@@ -1,4 +1,4 @@
-module github.com/layer5io/meshkit
+module github.com/meshery/meshkit
 
 go 1.23.4
 
@@ -26,6 +26,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.35.0
 	github.com/layer5io/meshery-operator v0.8.1
+	github.com/layer5io/meshkit v0.8.29
 	github.com/meshery/schemas v0.8.14
 	github.com/nats-io/nats.go v1.38.0
 	github.com/open-policy-agent/opa v1.0.1
@@ -114,7 +115,6 @@ require (
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
@@ -195,7 +195,6 @@ require (
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/spdystream v0.5.0 // indirect
-	github.com/moby/sys/mountinfo v0.7.1 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/moby/sys/user v0.3.0 // indirect
 	github.com/moby/sys/userns v0.1.0 // indirect
