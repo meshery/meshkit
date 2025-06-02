@@ -3,8 +3,8 @@ package registration
 import (
 	"fmt"
 
-	"github.com/layer5io/meshkit/encoding"
-	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/encoding"
+	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/schemas/models/v1alpha3"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1"

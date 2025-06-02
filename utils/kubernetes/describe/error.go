@@ -1,6 +1,6 @@
 package describe
 
-import "github.com/layer5io/meshkit/errors"
+import "github.com/meshery/meshkit/errors"
 
 var (
 	ErrGetDescriberFuncCode = "meshkit-11189"

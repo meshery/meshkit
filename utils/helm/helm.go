@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/layer5io/meshkit/encoding"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/encoding"
+	"github.com/meshery/meshkit/utils"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"

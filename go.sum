@@ -394,8 +394,8 @@ github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 h1:P6pPBnrTSX3DEVR4fDembhR
 github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0/go.mod h1:vmVJ0l/dxyfGW6FmdpVm2joNMFikkuWg0EoCKLGUMNw=
 github.com/layer5io/meshery-operator v0.8.1 h1:AP6BTQ8fi5re4+o71vJ3NoQBuwfn+33EIYjabHU0Kxg=
 github.com/layer5io/meshery-operator v0.8.1/go.mod h1:Wi9ODHppoq8ODtzdfiplWYJXYpqsHOJfkJyTMQeNXk4=
-github.com/layer5io/meshkit v0.8.29 h1:9Mtl6Z7KcvFZCO6CMzqlUDaEzbMdIPu98NaY4q7/PMw=
-github.com/layer5io/meshkit v0.8.29/go.mod h1:lMeuC99MrbP5WIBNdzDOKokCfUOW/5a/hERcCl9YSFs=
+github.com/layer5io/meshkit v0.8.22 h1:OeGWSyxSqXkj92oQWdYGw4i124kdOhmR0Y49lBduybw=
+github.com/layer5io/meshkit v0.8.22/go.mod h1:M9tQEgvU0sVcLuU7Knq6FE0M3s8ezod947tMgsP0DVI=
 github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
 github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de h1:9TO3cAIGXtEhnIaL+V+BEER86oLrvS+kWobKpbJuye0=

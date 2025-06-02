@@ -3,10 +3,10 @@ package generators
 import (
 	"fmt"
 
-	"github.com/layer5io/meshkit/generators/artifacthub"
-	"github.com/layer5io/meshkit/generators/github"
-	"github.com/layer5io/meshkit/generators/models"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/generators/artifacthub"
+	"github.com/meshery/meshkit/generators/github"
+	"github.com/meshery/meshkit/generators/models"
+	"github.com/meshery/meshkit/utils"
 )
 
 const (

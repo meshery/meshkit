@@ -3,7 +3,7 @@ package describe
 // describe package provides a way to describe Kubernetes objects for the kubernetes Api
 
 import (
-	meshkitkube "github.com/layer5io/meshkit/utils/kubernetes"
+	meshkitkube "github.com/meshery/meshkit/utils/kubernetes"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"

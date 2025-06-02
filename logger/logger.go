@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/layer5io/meshkit/errors"
+	"github.com/meshery/meshkit/errors"
 	"github.com/sirupsen/logrus"
 	gormlogger "gorm.io/gorm/logger"
 )

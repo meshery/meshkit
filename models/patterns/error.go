@@ -1,6 +1,6 @@
 package patterns
 
-import "github.com/layer5io/meshkit/errors"
+import "github.com/meshery/meshkit/errors"
 
 const (
 	ErrInvalidVersionCode = "meshkit-11266"

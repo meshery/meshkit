@@ -3,7 +3,7 @@ package csv
 import (
 	"fmt"
 
-	"github.com/layer5io/meshkit/errors"
+	"github.com/meshery/meshkit/errors"
 )
 
 var (

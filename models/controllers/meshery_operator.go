@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	mesherykube "github.com/layer5io/meshkit/utils/kubernetes"
+	mesherykube "github.com/meshery/meshkit/utils/kubernetes"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"

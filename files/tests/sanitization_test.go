@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/layer5io/meshkit/errors"
-	"github.com/layer5io/meshkit/files"
+	"github.com/meshery/meshkit/errors"
+	"github.com/meshery/meshkit/files"
 	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
 )
 

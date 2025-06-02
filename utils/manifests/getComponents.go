@@ -8,8 +8,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/layer5io/meshkit/utils"
-	k8s "github.com/layer5io/meshkit/utils/kubernetes"
+	"github.com/meshery/meshkit/utils"
+	k8s "github.com/meshery/meshkit/utils/kubernetes"
 )
 
 func GetFromManifest(ctx context.Context, url string, resource int, cfg Config) (*Component, error) {

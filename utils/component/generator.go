@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"cuelang.org/go/cue"
-	"github.com/layer5io/meshkit/utils"
-	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/meshkit/utils"
+	"github.com/meshery/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/sirupsen/logrus"

@@ -3,7 +3,7 @@ package files
 import (
 	"fmt"
 
-	"github.com/layer5io/meshkit/utils/helm"
+	"github.com/meshery/meshkit/utils/helm"
 	"helm.sh/helm/v3/pkg/chart"
 	"sigs.k8s.io/kustomize/api/resmap"
 )

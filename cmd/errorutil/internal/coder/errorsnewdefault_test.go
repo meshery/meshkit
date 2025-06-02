@@ -6,9 +6,9 @@ import (
 	"go/token"
 	"testing"
 
-	"github.com/layer5io/meshkit/errors"         //nolint
-	. "github.com/layer5io/meshkit/errors"       //nolint
-	mesherr "github.com/layer5io/meshkit/errors" //nolint
+	"github.com/meshery/meshkit/errors"         //nolint
+	. "github.com/meshery/meshkit/errors"       //nolint
+	mesherr "github.com/meshery/meshkit/errors" //nolint
 )
 
 var ErrTestCode1 = "one" //nolint:unused

@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/layer5io/meshkit/generators/models"
-	"github.com/layer5io/meshkit/utils"
-	"github.com/layer5io/meshkit/utils/helm"
-	"github.com/layer5io/meshkit/utils/walker"
+	"github.com/meshery/meshkit/generators/models"
+	"github.com/meshery/meshkit/utils"
+	"github.com/meshery/meshkit/utils/helm"
+	"github.com/meshery/meshkit/utils/walker"
 )
 
 type GitRepo struct {

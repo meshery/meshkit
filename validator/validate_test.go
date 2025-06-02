@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/layer5io/meshkit/models/catalog/v1alpha1"
+	"github.com/meshery/meshkit/models/catalog/v1alpha1"
 	"github.com/meshery/schemas/models/v1alpha2"
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/category"

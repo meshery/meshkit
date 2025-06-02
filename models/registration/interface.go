@@ -1,7 +1,7 @@
 package registration
 
 import (
-	"github.com/layer5io/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/meshmodel/entity"
 )
 
 /*

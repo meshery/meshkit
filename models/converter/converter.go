@@ -1,7 +1,7 @@
 package converter
 
 import (
-	"github.com/layer5io/meshkit/converter"
+	"github.com/meshery/meshkit/converter"
 )
 
 type ConvertFormat interface {

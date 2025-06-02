@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 
-	mesherr "github.com/layer5io/meshkit/cmd/errorutil/internal/error"
+	mesherr "github.com/meshery/meshkit/cmd/errorutil/internal/error"
 	"github.com/sirupsen/logrus"
 )
 

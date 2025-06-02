@@ -2,8 +2,8 @@ package patterns
 
 import (
 	"github.com/Masterminds/semver/v3"
-	"github.com/layer5io/meshkit/encoding"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/encoding"
+	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 )

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/layer5io/meshkit/utils"
-	"github.com/layer5io/meshkit/utils/component"
-	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/meshkit/utils"
+	"github.com/meshery/meshkit/utils/component"
+	"github.com/meshery/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	_component "github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"

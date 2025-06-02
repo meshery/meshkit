@@ -1,6 +1,6 @@
 package manifests
 
-import "github.com/layer5io/meshkit/errors"
+import "github.com/meshery/meshkit/errors"
 
 const (
 	ErrGetCrdNamesCode           = "meshkit-11233"

@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/layer5io/meshkit/models"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/models"
+	"github.com/meshery/meshkit/utils"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )

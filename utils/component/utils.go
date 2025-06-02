@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 
 	"cuelang.org/go/cue"
-	"github.com/layer5io/meshkit/utils"
-	"github.com/layer5io/meshkit/utils/kubernetes"
-	"github.com/layer5io/meshkit/utils/manifests"
+	"github.com/meshery/meshkit/utils"
+	"github.com/meshery/meshkit/utils/kubernetes"
+	"github.com/meshery/meshkit/utils/manifests"
 )
 
 // Remove the fields which is either not required by end user (like status) or is prefilled by system (like apiVersion, kind and metadata)

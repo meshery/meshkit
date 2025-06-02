@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/layer5io/meshkit/models/meshmodel/entity"
-	"github.com/layer5io/meshkit/models/oci"
+	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/oci"
 
-	meshkitFileUtils "github.com/layer5io/meshkit/files"
-	"github.com/layer5io/meshkit/utils"
+	meshkitFileUtils "github.com/meshery/meshkit/files"
+	"github.com/meshery/meshkit/utils"
 
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/component"

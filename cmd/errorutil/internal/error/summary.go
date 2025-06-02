@@ -7,10 +7,10 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/component"
+	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/layer5io/meshkit/cmd/errorutil/internal/config"
+	"github.com/meshery/meshkit/cmd/errorutil/internal/config"
 )
 
 type analysisSummary struct {

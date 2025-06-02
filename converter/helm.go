@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
-	"github.com/layer5io/meshkit/models/patterns"
-	"github.com/layer5io/meshkit/utils/helm"
+	"github.com/meshery/meshkit/models/patterns"
+	"github.com/meshery/meshkit/utils/helm"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"sigs.k8s.io/yaml"

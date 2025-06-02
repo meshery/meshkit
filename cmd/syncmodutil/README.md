@@ -1,6 +1,6 @@
 # Sync Go mods
 
-go run github.com/layer5io/meshkit/cmd/syncmodutil < path to src go mod >  < path to destination go mod >
+go run github.com/meshery/meshkit/cmd/syncmodutil < path to src go mod >  < path to destination go mod >
 
 
 # Caveats

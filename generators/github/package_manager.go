@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/url"
 
-	"github.com/layer5io/meshkit/generators/models"
-	"github.com/layer5io/meshkit/utils/walker"
+	"github.com/meshery/meshkit/generators/models"
+	"github.com/meshery/meshkit/utils/walker"
 )
 
 type GitHubPackageManager struct {

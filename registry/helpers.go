@@ -5,8 +5,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/layer5io/meshkit/logger"
-	"github.com/layer5io/meshkit/utils"
+	"github.com/meshery/meshkit/logger"
+	"github.com/meshery/meshkit/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )

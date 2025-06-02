@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/layer5io/meshkit/cmd/syncmodutil/internal/modsync"
+	"github.com/meshery/meshkit/cmd/syncmodutil/internal/modsync"
 )
 
 func main() {

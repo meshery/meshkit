@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/layer5io/meshkit/broker"
+	"github.com/meshery/meshkit/broker"
 	nats "github.com/nats-io/nats.go"
 )
 

@@ -1,7 +1,7 @@
 package kubernetes
 
 import (
-	"github.com/layer5io/meshkit/utils/helm"
+	"github.com/meshery/meshkit/utils/helm"
 	"helm.sh/helm/v3/pkg/chart/loader"
 )
 

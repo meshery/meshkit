@@ -2,7 +2,7 @@ package entity
 
 import (
 	"github.com/gofrs/uuid"
-	"github.com/layer5io/meshkit/database"
+	"github.com/meshery/meshkit/database"
 )
 
 type EntityType string
