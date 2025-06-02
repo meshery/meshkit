@@ -1,4 +1,4 @@
-// Copyright 2021 Layer5, Inc.
+// Copyright 2021 Meshery Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
