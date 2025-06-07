@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
 	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
 )
@@ -166,7 +165,7 @@ expectedType: coreV1.K8sManifest,
 			if tc.expectError {
 				if err == nil {
 					t.Error("Expected error, got nil")
-				} else if tc.expectedErrMsg != "" && errors.GetCode(err) != tc.expectedErrMsg {
+				} else if tc.expectedErrMsg != "" && err.Error() != tc.expectedErrMsg {
 					t.Errorf("Expected error message %q, got %q", tc.expectedErrMsg, err.Error())
 				}
 				return
