@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"slices"
 
 	"fmt"
 	"io"
@@ -25,24 +26,23 @@ type SanitizedFile struct {
 	ExtractedContentPath string
 }
 
-var ValidIacExtensions = map[string]bool{
-	".yml":     true,
-	".yaml":    true,
-	".json":    true,
-	".tar":     true,
-	".tar.gz":  true,
-	".tar.tgz": true,
-	".zip":     true,
-	".gz":      true,
-	".tgz":     true,
+var ValidIacExtensions = []string{
+	".yaml",
+	".tar",
+	".tar.gz",
+	".tgz",
+	".zip",
+	".json",
+	".yml",
 }
 
-func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[string]bool) (SanitizedFile, error) {
+func SanitizeFile(data []byte, fileName string, tempDir string, validExts []string) (SanitizedFile, error) {
 
 	ext := filepath.Ext(fileName)
+	// Handle .gz special case
+	ext2 := filepath.Ext(strings.TrimSuffix(fileName, ".gz"))
 
-	// 1. Check if file has supported  extension
-	if !validExts[ext] && !validExts[filepath.Ext(strings.TrimSuffix(fileName, ".gz"))] {
+	if !slices.Contains(validExts, ext) && !slices.Contains(validExts, ext2) {
 		return SanitizedFile{}, ErrUnsupportedExtension(fileName, ext, validExts)
 	}
 	switch ext {

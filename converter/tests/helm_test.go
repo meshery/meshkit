@@ -139,7 +139,9 @@ func extractManifestFromChart(chartData []byte) (bool, string) {
 		}
 		if strings.HasSuffix(hdr.Name, "templates/manifest.yaml") {
 			buf := new(bytes.Buffer)
-			io.Copy(buf, tr)
+			if _, err := io.Copy(buf, tr); err != nil {
+    			return false, ""
+			}
 			return true, buf.String()
 		}
 	}

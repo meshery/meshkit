@@ -20,6 +20,13 @@ import (
 )
 
 func CreateTempOCIContentDir() (tempDir string, err error) {
+	if custom := os.Getenv("MESHERY_CONTENT_PATH"); custom != "" {
+		tempDir, err = os.MkdirTemp(custom, "oci")
+		if err != nil {
+			return "", err
+		}
+		return tempDir, nil
+	}
 	wd := utils.GetHome()
 	wd = filepath.Join(wd, ".meshery", "content")
 	tempDir, err = os.MkdirTemp(wd, "oci")

@@ -67,12 +67,12 @@ func ErrUnsupportedExtensionForOperation(operation string, fileName string, file
 	return errors.New(ErrUnsupportedExtensionForOperationCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
 }
 
-func ErrUnsupportedExtension(fileName string, fileExt string, supportedExtensionsMap map[string]bool) error {
-	supportedExtensions := slices.Collect(maps.Keys(supportedExtensionsMap))
+func ErrUnsupportedExtension(fileName string, fileExt string, supportedExtensions []string) error {
+	extList := strings.Join(supportedExtensions, ", ")
 
 	sdescription := []string{
 		fmt.Sprintf("The file '%s' has an unsupported extension: '%s'.", fileName, fileExt),
-		fmt.Sprintf("Supported file extensions are: %s.", strings.Join(supportedExtensions, ", ")),
+		fmt.Sprintf("Supported file extensions are: %s.", extList),
 	}
 
 	ldescription := []string{
@@ -380,7 +380,7 @@ func ErrInvalidModel(operation string, filename string, err error) error {
 		// check prefix as random numeric suffix is appended to archive during file handling (eg: .tar becomes .tar263831)
 		return ErrInvalidModelArchive(filename, err)
 	default:
-		supportedExtensions := slices.Collect(maps.Keys(ValidIacExtensions))
+		supportedExtensions := slices.Clone(ValidIacExtensions)
 		supportedExtensions = slices.DeleteFunc(supportedExtensions, func(ext string) bool {
 			return ext == ".zip"
 		})

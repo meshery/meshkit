@@ -21,7 +21,6 @@ type ValidationCases struct {
 func TestValidator(t *testing.T) {
 	tests := []ValidationCases{
 		{
-			Path: "design",
 			Resource: v1alpha2.PatternFile{
 				Name:     "test-design",
 				Services: make(map[string]*v1alpha2.Service),

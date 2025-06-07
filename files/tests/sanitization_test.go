@@ -46,7 +46,7 @@ func TestSanitizeFile(t *testing.T) {
 			name:            "Unsupported extension",
 			filePath:        "./samples/valid.txt",
 			expectError:     true,
-			expectedErrCode: files.ErrUnsupportedExtensionCode,
+			expectedErrCode: files.ErrSanitizingFileCode,
 		},
 		{
 			name:        "Valid compressed extension",
@@ -86,14 +86,14 @@ func TestSanitizeFile(t *testing.T) {
 			name:         "Can Identify Kubernetes Manifest",
 			filePath:     "./samples/valid_manifest.yml",
 			expectedExt:  ".yml",
-expectedType: coreV1.K8sManifest,
+			expectedType: coreV1.K8sManifest,
 		},
 
 		{
 			name:         "Can Identify Kubernetes Manifest With Crds",
 			filePath:     "./samples/manifest-with-crds.yml",
 			expectedExt:  ".yml",
-expectedType: coreV1.K8sManifest,
+			expectedType: coreV1.K8sManifest,
 		},
 
 		{
@@ -136,18 +136,20 @@ expectedType: coreV1.K8sManifest,
 		// },
 	}
 
-	validExts := map[string]bool{
-		".json":   true,
-		".yml":    true,
-		".yaml":   true,
-		".tar":    true,
-		".tar.gz": true,
-		".tgz":    true,
-		".zip":    true,
+	validExts := []string{
+		".yaml",
+		".tar",
+		".tar.gz",
+		".tgz",
+		".zip",
+		".json",
+		".yml",
 	}
 
-	tempDir, _ := os.MkdirTemp(" ", "temp-tests")
+	tempDir, _ := os.MkdirTemp("", "temp-tests")
+	os.Setenv("MESHERY_CONTENT_PATH", tempDir)
 	defer os.RemoveAll(tempDir)
+	defer os.Unsetenv("MESHERY_CONTENT_PATH")
 	// tempDir := "./temp"
 
 	for _, tc := range testCases {

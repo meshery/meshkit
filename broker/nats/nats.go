@@ -1,12 +1,14 @@
 package nats
 
 import (
+	"encoding/json"
 	"log"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/meshery/meshkit/broker"
+	"github.com/meshery/meshkit/errors"
 	nats "github.com/nats-io/nats.go"
 )
 
@@ -23,10 +25,36 @@ type Options struct {
 	MaxReconnect   int
 }
 
+// NatsConn defines the minimal interface for a NATS connection used by Nats
+// Only the methods used in Nats are included
+type NatsConn interface {
+	Servers() []string
+	Drain() error
+	Close()
+	Publish(subject string, data []byte) error
+	QueueSubscribe(subject, queue string, cb func(msg *nats.Msg)) (*nats.Subscription, error)
+	// Opts returns the options struct (for Info)
+	Opts() nats.Options
+}
+
+// natsConnWrapper adapts *nats.Conn to the NatsConn interface
+type natsConnWrapper struct {
+	*nats.Conn
+}
+
+func (w *natsConnWrapper) Opts() nats.Options {
+	return w.Conn.Opts
+}
+
+func (w *natsConnWrapper) QueueSubscribe(subject, queue string, cb func(msg *nats.Msg)) (*nats.Subscription, error) {
+	// Adapt the callback to nats.MsgHandler
+	return w.Conn.QueueSubscribe(subject, queue, nats.MsgHandler(cb))
+}
+
 // Nats will implement Nats subscribe and publish functionality
 type Nats struct {
-	ec *nats.EncodedConn
-	wg *sync.WaitGroup
+	conn NatsConn
+	wg   *sync.WaitGroup
 }
 
 // New - constructor
@@ -57,46 +85,65 @@ func New(opts Options) (broker.Handler, error) {
 		return nil, ErrConnect(err)
 	}
 
-	ec, err := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
-	if err != nil {
-		return nil, ErrEncodedConn(err)
-	}
-
-	return &Nats{ec: ec}, nil
+	return &Nats{conn: &natsConnWrapper{nc}, wg: &sync.WaitGroup{}}, nil
 }
+
 func (n *Nats) ConnectedEndpoints() (endpoints []string) {
-	for _, server := range n.ec.Conn.Servers() {
+	for _, server := range n.conn.Servers() {
 		endpoints = append(endpoints, strings.TrimPrefix(server, "nats://"))
 	}
 	return
 }
 
 func (n *Nats) Info() string {
-	if n.ec == nil || n.ec.Conn == nil {
+	if n.conn == nil {
 		return broker.NotConnected
 	}
-	return n.ec.Conn.Opts.Name
+	return n.conn.Opts().Name
 }
 
 func (n *Nats) CloseConnection() {
-	n.ec.Close()
+	if n.conn != nil {
+		if err := n.conn.Drain(); err != nil {
+			log.Printf("nats: drain error: %v", err)
+		}
+		n.conn.Close()
+	}
 }
 
 // Publish - to publish messages
 func (n *Nats) Publish(subject string, message *broker.Message) error {
-	err := n.ec.Publish(subject, message)
+	if message == nil {
+		return ErrPublish(errors.New(
+			"nats_publish_error",
+			errors.Alert,
+			[]string{"message is nil"},
+			[]string{},
+			[]string{},
+			[]string{},
+		))
+	}
+	b, err := json.Marshal(message)
 	if err != nil {
 		return ErrPublish(err)
 	}
-	return nil
+	return n.conn.Publish(subject, b)
 }
 
 // PublishWithChannel - to publish messages with channel
 func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) error {
-	err := n.ec.BindSendChan(subject, msgch)
-	if err != nil {
-		return ErrPublish(err)
-	}
+	go func() {
+		for msg := range msgch {
+			b, err := json.Marshal(msg)
+			if err != nil {
+				log.Printf("nats: JSON marshal error: %v", err)
+				continue
+			}
+			if err := n.conn.Publish(subject, b); err != nil {
+				log.Printf("nats: publish error for subject %s: %v", subject, err)
+			}
+		}
+	}()
 	return nil
 }
 
@@ -105,7 +152,7 @@ func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) er
 // TODO will the method-user just subsribe, how will it handle the received messages?
 func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 	n.wg.Add(1)
-	_, err := n.ec.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
+	_, err := n.conn.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
 		message = msg.Data
 		n.wg.Done()
 	})
@@ -119,7 +166,12 @@ func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 
 // SubscribeWithChannel will publish all the messages received to the given channel
 func (n *Nats) SubscribeWithChannel(subject, queue string, msgch chan *broker.Message) error {
-	_, err := n.ec.BindRecvQueueChan(subject, queue, msgch)
+	_, err := n.conn.QueueSubscribe(subject, queue, func(m *nats.Msg) {
+		var msg broker.Message
+		if err := json.Unmarshal(m.Data, &msg); err == nil {
+			msgch <- &msg
+		}
+	})
 	if err != nil {
 		return ErrQueueSubscribe(err)
 	}
@@ -153,8 +205,5 @@ func (in *Nats) DeepCopyObject() broker.Handler {
 // Check if the connection object is empty
 func (in *Nats) IsEmpty() bool {
 	empty := &Nats{}
-	if in == nil || *in == *empty {
-		return true
-	}
-	return false
+	return in == nil || *in == *empty
 }
