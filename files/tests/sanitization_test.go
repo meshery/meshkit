@@ -16,7 +16,7 @@ func TestSanitizeFile(t *testing.T) {
 		filePath        string
 		expectedExt     string
 		expectError     bool
-		expectedErrCode string
+		expectedErrMsg string
 		expectedContent map[string]interface{}
 		expectedType    coreV1.IaCFileTypes
 	}{
@@ -46,7 +46,7 @@ func TestSanitizeFile(t *testing.T) {
 			name:            "Unsupported extension",
 			filePath:        "./samples/valid.txt",
 			expectError:     true,
-			expectedErrCode: files.ErrUnsupportedExtensionCode,
+			expectedErrMsg:  "The file 'valid.txt' could not be processed because the extension '.txt' is not supported by the system..The system is designed to handle files with the following extensions: .yaml, .tar, .tar.gz, .tgz, .zip, .json, .yml.",
 		},
 		{
 			name:        "Valid compressed extension",
@@ -136,14 +136,14 @@ expectedType: coreV1.K8sManifest,
 		// },
 	}
 
-	validExts := map[string]bool{
-		".json":   true,
-		".yml":    true,
-		".yaml":   true,
-		".tar":    true,
-		".tar.gz": true,
-		".tgz":    true,
-		".zip":    true,
+	validExts := []string{
+		".yaml",
+		".tar",
+		".tar.gz",
+		".tgz",
+		".zip",
+		".json",
+		".yml",
 	}
 
 	tempDir, _ := os.MkdirTemp(" ", "temp-tests")
@@ -166,8 +166,8 @@ expectedType: coreV1.K8sManifest,
 			if tc.expectError {
 				if err == nil {
 					t.Error("Expected error, got nil")
-				} else if tc.expectedErrCode != "" && errors.GetCode(err) != tc.expectedErrCode {
-					t.Errorf("Expected error message %q, got %q", tc.expectedErrCode, err.Error())
+				} else if tc.expectedErrMsg != "" && errors.GetCode(err) != tc.expectedErrMsg {
+					t.Errorf("Expected error message %q, got %q", tc.expectedErrMsg, err.Error())
 				}
 				return
 			}
