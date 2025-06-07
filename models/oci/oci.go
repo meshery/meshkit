@@ -147,7 +147,7 @@ func PushToOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username, 
 	opts := oras.PackManifestOptions{
 		Layers: fileDescriptors,
 	}
-	manifestDescriptor, packageErr := oras.PackManifest(ctx, fs, oras.PackManifestVersion1_1_RC4, artifactType, opts)
+	manifestDescriptor, packageErr := oras.PackManifest(ctx, fs, oras.PackManifestVersion1_1, artifactType, opts)
 	if packageErr != nil {
 		return ErrGettingLayer(packageErr)
 	}
