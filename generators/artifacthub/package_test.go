@@ -17,7 +17,7 @@ func TestGetChartUrl(t *testing.T) {
 	}{
 		// these might change in the future, so the tests have to be changed as well when the urls change
 		// because the urls will change with every new version update to the package
-		{AhPackage{Name: "consul", Repository: "bitnami", Organization: "", RepoUrl: "https://charts.bitnami.com/bitnami"}, "https://charts.bitnami.com/bitnami/consul"},
+		{AhPackage{Name: "consul", Repository: "bitnami", Organization: "", RepoUrl: "https://charts.bitnami.com/bitnami"}, "oci://registry-1.docker.io/bitnamicharts/consul"},
 		{AhPackage{Name: "crossplane-types", Repository: "crossplane", Organization: "", RepoUrl: "https://charts.crossplane.io/master"}, "https://charts.crossplane.io/master/crossplane-types-0.13.0-rc.191.g3a18fb7.tgz"},
 	}
 	for _, tt := range tests {
