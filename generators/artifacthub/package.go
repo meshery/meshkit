@@ -48,11 +48,7 @@ func (pkg AhPackage) GetName() string {
 
 func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDefinition, error) {
 	components := make([]_component.ComponentDefinition, 0)
-	if strings.HasPrefix(pkg.ChartUrl, "oci://") {
-		// OCI URL detected; handled by manifests.GetCrdsFromHelm
-	}
 	// TODO: Move this to the configuration
-
 	if pkg.ChartUrl == "" {
 		return components, ErrChartUrlEmpty(pkg.Name, "ArtifactHub")
 	}
