@@ -15,9 +15,7 @@ import (
 	"github.com/meshery/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1alpha1/capability"
 	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
-	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/component"
-	"github.com/meshery/schemas/models/v1beta1/subcategory"
 )
 
 const (
@@ -26,29 +24,29 @@ const (
 )
 
 type ComponentCSV struct {
-	Registrant         string                            `json:"registrant" csv:"registrant"`
-	Model              string                            `json:"model" csv:"model"`
-	Component          string                            `json:"component" csv:"component"`
-	Category           category.CategoryDefinitionName   `json:"category" csv:"category"`
-	SubCategory        subcategory.SubCategoryDefinition `json:"subCategory" csv:"subCategory"`
-	Description        string                            `json:"description" csv:"description"`
-	Shape              string                            `json:"shape" csv:"shape"`
-	PrimaryColor       string                            `json:"primaryColor" csv:"primaryColor"`
-	SecondaryColor     string                            `json:"secondaryColor" csv:"secondaryColor"`
-	SVGColor           string                            `json:"svgColor" csv:"svgColor"`
-	SVGWhite           string                            `json:"svgWhite" csv:"svgWhite"`
-	SVGComplete        string                            `json:"svgComplete" csv:"svgComplete"`
-	Schema             string                            `json:"schema" csv:"schema"`
-	Docs               string                            `json:"docs" csv:"docs"`
-	StyleOverrides     string                            `json:"styleOverrides" csv:"styleOverrides"`
-	Styles             string                            `json:"styles" csv:"styles"`
-	ShapePolygonPoints string                            `json:"shapePolygonPoints" csv:"shapePolygonPoints"`
-	DefaultData        string                            `json:"defaultData" csv:"defaultData"`
-	Capabilities       string                            `json:"capabilities" csv:"capabilities"`
-	LogoURL            string                            `json:"logoURL" csv:"logoURL"`
-	Genealogy          string                            `json:"genealogy" csv:"genealogy"`
-	IsAnnotation       string                            `json:"isAnnotation" csv:"isAnnotation"`
-	Version            string                            `json:"version" csv:"version"`
+	Registrant string `json:"registrant" csv:"registrant"`
+	Model      string `json:"model" csv:"model"`
+	Component  string `json:"component" csv:"component"`
+	// Category           category.CategoryDefinitionName   `json:"category" csv:"category"`
+	// SubCategory        subcategory.SubCategoryDefinition `json:"subCategory" csv:"subCategory"`
+	Description        string `json:"description" csv:"description"`
+	Shape              string `json:"shape" csv:"shape"`
+	PrimaryColor       string `json:"primaryColor" csv:"primaryColor"`
+	SecondaryColor     string `json:"secondaryColor" csv:"secondaryColor"`
+	SVGColor           string `json:"svgColor" csv:"svgColor"`
+	SVGWhite           string `json:"svgWhite" csv:"svgWhite"`
+	SVGComplete        string `json:"svgComplete" csv:"svgComplete"`
+	Schema             string `json:"schema" csv:"schema"`
+	Docs               string `json:"docs" csv:"docs"`
+	StyleOverrides     string `json:"styleOverrides" csv:"styleOverrides"`
+	Styles             string `json:"styles" csv:"styles"`
+	ShapePolygonPoints string `json:"shapePolygonPoints" csv:"shapePolygonPoints"`
+	DefaultData        string `json:"defaultData" csv:"defaultData"`
+	Capabilities       string `json:"capabilities" csv:"capabilities"`
+	LogoURL            string `json:"logoURL" csv:"logoURL"`
+	Genealogy          string `json:"genealogy" csv:"genealogy"`
+	IsAnnotation       string `json:"isAnnotation" csv:"isAnnotation"`
+	Version            string `json:"version" csv:"version"`
 
 	ModelDisplayName string `json:"modelDisplayName" csv:"-"`
 
@@ -211,15 +209,15 @@ func NewComponentCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64
 	if localCsvPath == "" {
 		dirPath := filepath.Join(utils.GetHome(), ".meshery", "content")
 		err := os.MkdirAll(dirPath, 0755)
-		if err != nil{
+		if err != nil {
 			return nil, utils.ErrCreateDir(err, dirPath)
 		}
 
 		csvPath = filepath.Join(dirPath, "components.csv")
-		
-		sheetURL,err = DownloadCSVAndGetDownloadURL(sheetURL,csvPath,spreadsheetID)
-		if err !=nil{
-			return nil,err
+
+		sheetURL, err = DownloadCSVAndGetDownloadURL(sheetURL, csvPath, spreadsheetID)
+		if err != nil {
+			return nil, err
 		}
 
 	} else {
@@ -425,8 +423,6 @@ func ConvertCompDefToCompCSV(modelcsv *ModelCSV, compDef component.ComponentDefi
 	compCSV.Model = modelcsv.Model
 	compCSV.Component = compDef.Component.Kind
 	compCSV.ModelDisplayName = modelcsv.ModelDisplayName
-	compCSV.Category = modelcsv.Category
-	compCSV.SubCategory = modelcsv.SubCategory
 	compCSV.Capabilities = modelcsv.Capabilities
 	compCSV.Shape = modelcsv.Shape
 	compCSV.PrimaryColor = modelcsv.PrimaryColor
