@@ -72,7 +72,7 @@ func IncludeComponentBasedOnGroup(resource string, groupFilter string) (bool, er
 	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
 
 	if err != nil {
-		logrus.Info("Failed to extract group from crd %v", err)
+		logrus.Infof("Failed to extract group from crd %v", err)
 	}
 
 	return group == groupFilter, nil

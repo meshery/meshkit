@@ -22,7 +22,9 @@ func (ahpm ArtifactHubPackageManager) GetPackage() (models.Package, error) {
 	}
 	// update package information
 	for i, ap := range pkgs {
-		_ = ap.UpdatePackageData()
+		if err := ap.UpdatePackageData(); err != nil {
+			return nil, err
+		}
 		pkgs[i] = ap
 	}
 

@@ -52,11 +52,11 @@ Or you may configure your IDE, for example, Visual Studio Code to automatically 
 
 
 #### Tests
-Users can now test their code on their local machine against the CI checks implemented using `make run-tests`.
+Users can now test their code on their local machine against the CI checks implemented using `make test`.
 
 To test code changes on your local machine, run the following command:
 ```
-make run-tests
+make test
 ```
 
 #### Building Docker image
