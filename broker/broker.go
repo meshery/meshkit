@@ -17,6 +17,7 @@ type SubscribeInterface interface {
 type Handler interface {
 	PublishInterface
 	SubscribeInterface
+	// Encoder
 	Info() string
 	DeepCopyObject() Handler
 	DeepCopyInto(Handler)
