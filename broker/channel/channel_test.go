@@ -50,8 +50,6 @@ func TestPubSubModel(t *testing.T) {
 		)
 	}
 
-	assert.ElementsMatch(t, expectedConnectedEndpoints, br.ConnectedEndpoints(), "must return list of connected endpoints")
-
 	errPublishWithChannel := br.PublishWithChannel(subject, in)
 	assert.NoError(t, errPublishWithChannel, "br.PublishWithChannel must not end with error")
 	if errPublishWithChannel != nil {
@@ -107,4 +105,7 @@ func TestPubSubModel(t *testing.T) {
 	}()
 
 	wg.Wait()
+
+	assert.ElementsMatch(t, expectedConnectedEndpoints, br.ConnectedEndpoints(), "br.ConnectedEndpoints() must return list of connected endpoints in format subject::queue")
+	assert.NotEmpty(t, br.Info(), "br.Info() nust not return empty string")
 }
