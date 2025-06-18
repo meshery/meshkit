@@ -7,7 +7,7 @@ type Options struct {
 	PublishToChannelDelay   time.Duration
 }
 
-var DefautOptions = Options{
+var DefaultOptions = Options{
 	SingleChannelBufferSize: 1024,
 	PublishToChannelDelay:   1 * time.Second,
 }
