@@ -34,7 +34,7 @@ func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler
 	}
 }
 
-func (h *ChannelBrokerHandler) ConnectedEndpoints() (endpoints []string) {
+func (h *ChannelBrokerHandler) ConnectedEndpoints() []string {
 	// return subjects::queue list intead of connection endpoints
 	list := make([]string, 0, len(h.storage))
 	for subject, qstorage := range h.storage {
