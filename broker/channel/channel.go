@@ -15,6 +15,7 @@ type ChannelBrokerHandler struct {
 	// this structure represents [subject] => [queue] => channel
 	// so there is a channel per queue per subject
 	storage map[string]map[string]chan *broker.Message
+	// TODO add syncronisation for storage map
 }
 
 func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler {
