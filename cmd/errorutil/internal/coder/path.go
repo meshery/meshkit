@@ -23,10 +23,10 @@ func contains(s []string, str string) bool {
 
 func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesherr.InfoAll) error {
 	subDirsToSkip := append([]string{".git", ".github"}, globalFlags.skipDirs...)
-	logrus.Info(fmt.Sprintf("root directory: %s", globalFlags.rootDir))
-	logrus.Info(fmt.Sprintf("output directory: %s", globalFlags.outDir))
-	logrus.Info(fmt.Sprintf("info directory: %s", globalFlags.infoDir))
-	logrus.Info(fmt.Sprintf("subdirs to skip: %v", subDirsToSkip))
+	logrus.Infof("root directory: %s", globalFlags.rootDir)
+	logrus.Infof("output directory: %s", globalFlags.outDir)
+	logrus.Infof("info directory: %s", globalFlags.infoDir)
+	logrus.Infof("subdirs to skip: %v", subDirsToSkip)
 	comp, err := component.New(globalFlags.infoDir)
 	if err != nil {
 		return err
