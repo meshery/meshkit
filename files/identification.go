@@ -149,7 +149,7 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	}
 
 	if design == nil {
-		return nil, ErrEmptyOCIImage(fmt.Errorf("No design file detected in the imported OCI image"))
+		return nil, ErrEmptyOCIImage(fmt.Errorf("no design file detected in the imported OCI image"))
 	}
 
 	var patternFile pattern.PatternFile
@@ -208,7 +208,7 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 		return *parsed_design, err
 
 	default:
-		return pattern.PatternFile{}, fmt.Errorf("Invalid File extension %s", file.FileExt)
+		return pattern.PatternFile{}, fmt.Errorf("invalid file extension %s", file.FileExt)
 	}
 
 }
@@ -241,7 +241,7 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 			if err == io.EOF {
 				break // End of file
 			}
-			return nil, fmt.Errorf("Failed to decode YAML document: %v", err)
+			return nil, fmt.Errorf("failed to decode YAML document: %v", err)
 		}
 
 		if len(raw.Raw) == 0 {
@@ -254,7 +254,7 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 			// Fallback: Convert to Unstructured object for unknown API types
 			unstructuredObj := &unstructured.Unstructured{}
 			if err := json.Unmarshal(raw.Raw, unstructuredObj); err != nil {
-				return nil, fmt.Errorf("Failed to decode YAML into Kubernetes object \n %v", utils.TruncateErrorMessage(err, 20))
+				return nil, fmt.Errorf("failed to decode YAML into Kubernetes object \n %v", utils.TruncateErrorMessage(err, 20))
 			}
 			objects = append(objects, unstructuredObj)
 		}
@@ -265,18 +265,33 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 	return objects, nil
 }
 
-// findChartDir uses filepath.Glob to locate Chart.yaml in nested directories
+// FindChartDir searches recursively for a Chart.yaml and returns its directory.
 func FindChartDir(root string) (string, error) {
-	matches, err := filepath.Glob(filepath.Join(root, "**/Chart.yaml"))
-	if err != nil {
-		return "", err
+	var chartPath string
+
+	// Sentinel used to short-circuit the directory walk
+	errStopWalk := fmt.Errorf("stop walk after chart found")
+
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return fmt.Errorf("error accessing path %q: %w", path, walkErr)
+		}
+		if d.Name() == "Chart.yaml" {
+			chartPath = filepath.Dir(path)
+			return errStopWalk
+		}
+		return nil
+	})
+
+	// Move the error check here so errStopWalk is in scope
+	if err != nil && err != errStopWalk {
+		return "", fmt.Errorf("error walking directory %s: %w", root, err)
 	}
-	if len(matches) == 0 {
+	if chartPath == "" {
 		return "", fmt.Errorf("no valid Helm chart found in %s", root)
 	}
 
-	// Extract directory path where Chart.yaml is found
-	return filepath.Dir(matches[0]), nil
+	return chartPath, nil
 }
 
 var ValidHelmChartFileExtensions = map[string]bool{
@@ -301,14 +316,25 @@ var ValidKustomizeFileExtensions = map[string]bool{
 func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
 
 	if !ValidHelmChartFileExtensions[file.FileExt] {
-		return nil, fmt.Errorf("Invalid file extension %s", file.FileExt)
+		return nil, fmt.Errorf("invalid Helm chart file extension: %s", file.FileExt)
+	}
+	if file.ExtractedContentPath == "" {
+		return nil, fmt.Errorf("cannot parse Helm chart: extracted content path is empty")
 	}
 
-	// Use Helm's loader.LoadDir to load the chart
-	// This function automatically handles nested directories and locates Chart.yaml
-	chart, err := loader.LoadArchive(bytes.NewReader(file.RawData))
+	// Search for the directory containing Chart.yaml starting from the extracted path
+	chartDir, findErr := FindChartDir(file.ExtractedContentPath)
+	if findErr != nil {
+		return nil, fmt.Errorf(
+			"failed to find Helm chart in %s (Chart.yaml not found: %w)",
+			file.ExtractedContentPath, findErr,
+		)
+	}
+
+	// Load the Helm chart from the found directory
+	chart, err := loader.Load(chartDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load Helm chart  %v", err)
+		return nil, fmt.Errorf("failed to load Helm chart from %s: %w", chartDir, err)
 	}
 
 	// Validate the chart (optional but recommended)
