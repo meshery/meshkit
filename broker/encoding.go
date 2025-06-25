@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
+	"strings"
 )
 
 const (
@@ -18,27 +19,22 @@ type Encoder interface {
 	Encoding() string
 }
 
-func NewEncoding(enc string) (Encoder, error) {
-	switch enc {
-	case JSONEncoding:
-		return NewJSONEncoding()
-	// case GobEncoding:
-	// 	return NewGobEncoding()
+func NewEncoding(enc string) Encoder {
+	switch strings.ToLower(enc) {
+	case GobEncoding:
+		return NewGobEncoding()
 	// case ProtobufEncoding:
 	// 	return NewProtobufEncoding()
 	default:
-		// If the encoding is not supported should we return an error or a default encoding?
-		// TODO: Should there be an errors file for broker overall or just implementations of it
-		// return nil, ErrUnsupportedEncoding(enc)
-		return nil, nil
+		return NewJSONEncoding()
 	}
 }
 
 // An empty struct that implements the Encoder interface for JSON encoding
 type JSONEncoder struct{}
 
-func NewJSONEncoding() (Encoder, error) {
-	return &JSONEncoder{}, nil
+func NewJSONEncoding() *JSONEncoder {
+	return &JSONEncoder{}
 }
 
 func (j *JSONEncoder) Encode(v any) ([]byte, error) {
@@ -58,12 +54,11 @@ func (j *JSONEncoder) Encoding() string {
 	return JSONEncoding
 }
 
-// An empty struct that implements the Encoder interface for JSON encoding
 type GobEncoder struct{}
 
-func NewGobEncoding() (Encoder, error) {
+func NewGobEncoding() *GobEncoder {
 	gob.Register(Message{})
-	return &GobEncoder{}, nil
+	return &GobEncoder{}
 }
 
 func (g *GobEncoder) Encode(v any) ([]byte, error) {

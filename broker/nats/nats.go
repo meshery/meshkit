@@ -4,6 +4,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/meshery/meshkit/broker"
 	nats "github.com/nats-io/nats.go"
@@ -12,6 +13,16 @@ import (
 var (
 	NewEmptyConnection = &Nats{}
 )
+
+type Options struct {
+	URLS           []string
+	ConnectionName string
+	Username       string
+	Password       string
+	ReconnectWait  time.Duration
+	MaxReconnect   int
+	Encoder        string
+}
 
 // Nats will implement Nats subscribe and publish functionality
 type Nats struct {
@@ -48,12 +59,7 @@ func New(opts Options) (broker.Handler, error) {
 		return nil, ErrConnect(err)
 	}
 
-	en, err := broker.NewEncoding(opts.Encoder)
-	if err != nil {
-		nc.Close()
-		// return nil, ErrEncoding(err)
-		return nil, nil
-	}
+	en := broker.NewEncoding(opts.Encoder)
 
 	return &Nats{nc: nc, en: en}, nil
 }
@@ -80,8 +86,7 @@ func (n *Nats) CloseConnection() {
 func (n *Nats) Publish(subject string, message *broker.Message) error {
 	em, err := n.en.Encode(message)
 	if err != nil {
-		// return ErrEncode(err)
-		return ErrPublish(err)
+		return ErrEncode(err)
 	}
 
 	err = n.nc.Publish(subject, em)
@@ -94,12 +99,18 @@ func (n *Nats) Publish(subject string, message *broker.Message) error {
 
 // PublishWithChannel - to publish messages with channel
 func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) error {
-	for msg := range msgch {
-		err := n.Publish(subject, msg)
-		if err != nil {
-			return err
+	go func() {
+		for {
+			val, ok := <-msgch
+			if !ok {
+				return // Channel closed, exit the loop
+			}
+
+			if e := n.Publish(subject, val); e != nil {
+				return
+			}
 		}
-	}
+	}()
 	return nil
 }
 
@@ -108,7 +119,7 @@ func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) er
 // TODO will the method-user just subsribe, how will it handle the received messages?
 func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 	n.wg.Add(1)
-	_, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
+	sub, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
 		message = msg.Data
 		n.wg.Done()
 	})
@@ -116,7 +127,7 @@ func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 		return ErrQueueSubscribe(err)
 	}
 	n.wg.Wait()
-
+	sub.Unsubscribe()
 	return nil
 }
 
@@ -126,6 +137,7 @@ func (n *Nats) SubscribeWithChannel(subject, queue string, msgch chan *broker.Me
 		brokerMsg := &broker.Message{}
 		err := n.en.Decode(msg.Data, brokerMsg)
 		if err != nil {
+			log.Printf("Error decoding message: %v", err)
 			return
 		}
 
