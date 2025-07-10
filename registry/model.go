@@ -274,7 +274,7 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool, modelName string)
 		select {
 
 		case data := <-ch:
-			if modelName != "" && data.Model != modelName {
+			if modelName != "" && !strings.EqualFold(data.Model, modelName) {
 				continue
 			}
 			mch.Models = append(mch.Models, data)
@@ -839,7 +839,7 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 	// Iterate models from the spreadsheet
 	for _, model := range modelCSVHelper.Models {
 
-		if modelName != "" && ! strings.EqualFold(modelName, model.Model) {
+		if modelName != "" && !strings.EqualFold(modelName, model.Model) {
 			continue
 		}
 		totalAvailableModels++

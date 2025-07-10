@@ -268,7 +268,7 @@ func (mch *ComponentCSVHelper) ParseComponentsSheet(modelName string) error {
 		select {
 
 		case data := <-ch:
-			if modelName != "" && data.Model != modelName {
+			if modelName != "" && !strings.EqualFold(data.Model, modelName) {
 				continue
 			}
 			if mch.Components[data.Registrant] == nil {

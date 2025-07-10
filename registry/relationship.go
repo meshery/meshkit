@@ -95,7 +95,7 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) erro
 	for {
 		select {
 		case data := <-ch:
-			if modelName != "" && data.Model != modelName {
+			if modelName != "" && !strings.EqualFold(data.Model, modelName) {
 				continue
 			}
 			data.RowIndex = currentRow
