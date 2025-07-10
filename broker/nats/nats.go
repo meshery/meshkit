@@ -168,7 +168,9 @@ func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 func (n *Nats) SubscribeWithChannel(subject, queue string, msgch chan *broker.Message) error {
 	_, err := n.conn.QueueSubscribe(subject, queue, func(m *nats.Msg) {
 		var msg broker.Message
-		if err := json.Unmarshal(m.Data, &msg); err == nil {
+		if err := json.Unmarshal(m.Data, &msg); err != nil {
+			log.Printf("nats: unable to unmarshal message: %v", err)
+		} else {
 			msgch <- &msg
 		}
 	})

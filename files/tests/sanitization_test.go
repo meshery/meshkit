@@ -136,14 +136,14 @@ func TestSanitizeFile(t *testing.T) {
 		// },
 	}
 
-	validExts := []string{
-		".yaml",
-		".tar",
-		".tar.gz",
-		".tgz",
-		".zip",
-		".json",
-		".yml",
+	validExts := map[string]bool{
+		".json":   true,
+		".yml":    true,
+		".yaml":   true,
+		".tar":    true,
+		".tar.gz": true,
+		".tgz":    true,
+		".zip":    true,
 	}
 
 	tempDir, _ := os.MkdirTemp("", "temp-tests")
