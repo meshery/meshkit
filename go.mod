@@ -9,7 +9,7 @@ replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
 
-// github.com/meshery/schemas v0.8.14 => ../schemas
+// github.com/meshery/schemas v0.8.30 => ../schemas
 )
 
 require (
@@ -26,7 +26,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.35.0
 	github.com/layer5io/meshery-operator v0.8.1
-	github.com/meshery/schemas v0.8.22
+	github.com/meshery/schemas v0.8.30
 	github.com/nats-io/nats.go v1.38.0
 	github.com/open-policy-agent/opa v1.0.1
 	github.com/opencontainers/image-spec v1.1.0
@@ -43,7 +43,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/driver/sqlite v1.5.7
-	gorm.io/gorm v1.25.12
+	gorm.io/gorm v1.30.0
 	helm.sh/helm/v3 v3.17.0
 	k8s.io/api v0.32.1
 	k8s.io/apimachinery v0.32.1
