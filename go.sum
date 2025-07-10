@@ -416,8 +416,8 @@ github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxU
 github.com/mattn/go-sqlite3 v1.14.24 h1:tpSp2G2KyMnnQu99ngJ47EIkWVmliIizyZBfPrBWDRM=
 github.com/mattn/go-sqlite3 v1.14.24/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
-github.com/meshery/schemas v0.8.28 h1:UiATR5+mVaMUMHmWi9e6xmMURQGhHdDh35yd1JYHTGQ=
-github.com/meshery/schemas v0.8.28/go.mod h1:97EY5vheaqaymzKfxxvSrQmML+lfg7BdTfFOS+cW1CE=
+github.com/meshery/schemas v0.8.30 h1:BaiJjTvK94VFJyDnAXNo9VhdlZrp3eOkDsiETn/FKC8=
+github.com/meshery/schemas v0.8.30/go.mod h1:97EY5vheaqaymzKfxxvSrQmML+lfg7BdTfFOS+cW1CE=
 github.com/miekg/dns v1.1.57 h1:Jzi7ApEIzwEPLHWRcafCN9LZSBbqQpxjt/wpgvg7wcM=
 github.com/miekg/dns v1.1.57/go.mod h1:uqRjCRUuEAA6qsOiJvDd+CFo/vW+y5WR6SNmHE55hZk=
 github.com/mitchellh/copystructure v1.2.0 h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw=
