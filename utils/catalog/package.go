@@ -10,7 +10,6 @@ import (
 )
 
 func BuildArtifactHubPkg(name, downloadURL, user, version string, createdAt *time.Time, catalogData *v1alpha1.CatalogData) *ArtifactHubMetadata {
-	
 	var createdTime time.Time
     if createdAt != nil {
         createdTime = *createdAt
