@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"sort"
 
 	"fmt"
 	"io"
@@ -37,12 +38,27 @@ var ValidIacExtensions = map[string]bool{
 	".tgz":     true,
 }
 
+func identifyExtension(name string) string {
+
+	normalizedName := strings.ToLower(strings.TrimSpace(name))
+
+	// Prioritize longer, more specific extensions first to correctly identify ".tar.gz" over ".gz"
+	knownExtensions := []string{".tar.gz", ".tar.tgz", ".tgz", ".tar", ".zip", ".gz", ".yml", ".yaml", ".json"}
+	for _, ext := range knownExtensions {
+		if strings.HasSuffix(normalizedName, ext) {
+			return ext
+		}
+	}
+
+	return filepath.Ext(normalizedName)
+}
+
 func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[string]bool) (SanitizedFile, error) {
 
-	ext := filepath.Ext(fileName)
+	ext := identifyExtension(fileName)
 
 	// 1. Check if file has supported  extension
-	if !validExts[ext] && !validExts[filepath.Ext(strings.TrimSuffix(fileName, ".gz"))] {
+	if !validExts[ext] {
 		return SanitizedFile{}, ErrUnsupportedExtension(fileName, ext, validExts)
 	}
 	switch ext {
@@ -196,6 +212,65 @@ func ExtractZipFromBytes(data []byte, outputDir string) error {
 	return nil
 }
 
+// SanitizeDirNames replaces spaces in directory names with hyphens recursively in the specified root directory.
+func SanitizeDirNames(root string) error {
+	var dirPaths []string
+
+	// Walk the directory tree and collect all directory paths
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			dirPaths = append(dirPaths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to scan directory tree: %w", err)
+	}
+
+	// Sort directories by depth (number of path separators) in descending order
+	// This ensures that we rename deeper directories first, avoiding issues with renaming parent directories before
+	sort.SliceStable(dirPaths, func(i, j int) bool {
+		return strings.Count(dirPaths[i], string(os.PathSeparator)) >
+			strings.Count(dirPaths[j], string(os.PathSeparator))
+	})
+
+	// Iterate through the collected directory paths and rename them if they contain spaces
+	for _, path := range dirPaths {
+		base := filepath.Base(path)
+		if strings.Contains(base, " ") {
+			safeBase := strings.ReplaceAll(base, " ", "-")
+			newPath := filepath.Join(filepath.Dir(path), safeBase)
+			if path != newPath {
+				if err := os.Rename(path, newPath); err != nil {
+					return fmt.Errorf("failed to rename %q to %q: %w", path, newPath, err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// removeHiddenFiles deletes .DS_Store and AppleDouble (._*) files recursively
+func removeHiddenFiles(root string) error {
+	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		base := filepath.Base(path)
+		if strings.HasPrefix(base, "._") || base == ".DS_Store" || base == "Icon\r" {
+			if remErr := os.Remove(path); remErr != nil {
+				return fmt.Errorf("failed to remove hidden macOS file %q: %w", path, remErr)
+			}
+		}
+
+		return nil
+	})
+}
+
 // get the root dir from the extractedPath
 // if multiple entries are found in the extractedPath then treat extractedPath as root
 func GetFirstTopLevelDir(extractedPath string) (string, error) {
@@ -215,7 +290,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	outputDir, err := os.MkdirTemp(tempDir, fileName)
 
 	if err != nil {
-		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("Failed to create extraction directory %w", err))
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("failed to create extraction directory %w", err))
 	}
 
 	switch ext {
@@ -225,11 +300,20 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	case ".zip":
 		err = ExtractZipFromBytes(data, outputDir)
 	default:
-		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("Unsupported compression extension %s", ext))
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("unsupported compression extension %s", ext))
 	}
 
 	if err != nil {
 		return SanitizedFile{}, err
+	}
+	// Sanitize directory names in the extracted content
+	if err := SanitizeDirNames(outputDir); err != nil {
+		return SanitizedFile{}, fmt.Errorf("failed to sanitize directories: %w", err)
+	}
+
+	// Remove hidden macOS files like .DS_Store and AppleDouble (._*)
+	if err := removeHiddenFiles(outputDir); err != nil {
+		return SanitizedFile{}, fmt.Errorf("failed to remove hidden macOS files from extractedPath: %w", err)
 	}
 
 	// jump directly into the extracted dirs toplevel dir (which is the case if a single folder is archived the extracted dir preserves that structure)
@@ -239,7 +323,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	if err != nil {
 		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, err)
 	}
-
+	
 	return SanitizedFile{
 		FileExt:              ext,
 		FileName:             fileName,
