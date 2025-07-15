@@ -244,7 +244,7 @@ func (mch *ComponentCSVHelper) GetColumns() ([]string, error) {
 	return csvReader.ExtractCols(rowIndex)
 }
 
-func (mch *ComponentCSVHelper) ParseComponentsSheet(modelNames []string) error {
+func (mch *ComponentCSVHelper) ParseComponentsSheet(modelNames ...string) error {
 	ch := make(chan ComponentCSV, 1)
 	errorChan := make(chan error, 1)
 	csvReader, err := csv.NewCSVParser[ComponentCSV](mch.CSVPath, rowIndex, nil, func(_ []string, _ []string) bool {

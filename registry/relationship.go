@@ -70,7 +70,7 @@ func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID in
 		Relationships:  []RelationshipCSV{},
 	}, nil
 }
-func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelNames []string) error {
+func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelNames ...string) error {
 	ch := make(chan RelationshipCSV, 1)
 	errorChan := make(chan error, 1)
 	csvReader, err := csv.NewCSVParser[RelationshipCSV](mrh.CSVPath, rowIndex, nil, func(_ []string, _ []string) bool {
