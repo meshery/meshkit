@@ -34,7 +34,7 @@ meshery,test-model,TestComponent2,null,#FF6B6B,rectangle`
         compDef, err := comp.CreateComponentDefinition(true, "v1.0.0")
         assert.NoError(t, err)
         
-\        assert.NotNil(t, compDef.Capabilities)
+        assert.NotNil(t, compDef.Capabilities)
         assert.Len(t, *compDef.Capabilities, 3)
         
         capabilities := *compDef.Capabilities
