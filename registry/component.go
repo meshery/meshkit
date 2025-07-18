@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"encoding/json"
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/files"
@@ -16,6 +17,7 @@ import (
 	"github.com/meshery/schemas/models/v1alpha1/capability"
 	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas"
 )
 
 const (
@@ -118,12 +120,25 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 		return err
 	}
 	var capabilities []capability.Capability
-	if c.Capabilities != "" {
+	if c.Capabilities != "" && c.Capabilities != "null" {
 		err := encoding.Unmarshal([]byte(c.Capabilities), &capabilities)
 		if err != nil {
 			Log.Error(err)
+			defaultCapabilities, defaultErr := getMinimalUICapabilitiesFromSchema()
+			if defaultErr == nil {
+				capabilities = defaultCapabilities
+			}
+		}
+	} else {
+		defaultCapabilities, err := getMinimalUICapabilitiesFromSchema()
+		if err != nil {
+			Log.Error(err)
+		} else {
+			capabilities = defaultCapabilities
 		}
 	}
+
+	compDef.Capabilities = &capabilities
 
 	compDef.Capabilities = &capabilities
 	compDefStyles := &component.Styles{}
@@ -195,6 +210,8 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 	compDef.Metadata.AdditionalProperties = metadata
 	return nil
 }
+
+
 
 type ComponentCSVHelper struct {
 	SpreadsheetID  int64
@@ -447,4 +464,99 @@ func getSVGForComponent(model ModelCSV, component ComponentCSV) (colorSVG string
 		whiteSVG = model.SVGWhite
 	}
 	return
+}
+
+func getMinimalUICapabilitiesFromSchema() ([]capability.Capability, error) {
+    schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta1/component/component.json")
+    if err != nil {
+        return nil, fmt.Errorf("failed to read component schema: %v", err)
+    }
+
+    allDefaults, err := extractCapabilitiesDefaultFromSchema(schema)
+    if err != nil {
+        return nil, fmt.Errorf("failed to extract capabilities from schema: %v", err)
+    }
+
+    if len(allDefaults) >= 3 {
+        lastThree := allDefaults[len(allDefaults)-3:]
+        return convertToCapabilityStructs(lastThree)
+    }
+
+    return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allDefaults))
+}
+
+func extractCapabilitiesDefaultFromSchema(schema []byte) ([]interface{}, error) {
+    var schemaMap map[string]interface{}
+    if err := json.Unmarshal(schema, &schemaMap); err != nil {
+        return nil, err
+    }
+
+    if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
+        if capabilitiesSchema, ok := properties["capabilities"].(map[string]interface{}); ok {
+            if defaultValue, ok := capabilitiesSchema["default"].([]interface{}); ok {
+                return defaultValue, nil
+            }
+        }
+    }
+
+    return nil, fmt.Errorf("default capabilities not found in schema")
+}
+
+func convertToCapabilityStructs(rawCaps []interface{}) ([]capability.Capability, error) {
+	var capabilities []capability.Capability
+	
+	for _, rawCap := range rawCaps {
+		capMap, ok := rawCap.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("invalid capability format")
+		}
+		
+		cap := capability.Capability{
+			SchemaVersion: getString(capMap, "schemaVersion"),
+			Version:       getString(capMap, "version"),
+			DisplayName:   getString(capMap, "displayName"),
+			Description:   getString(capMap, "description"),
+			Kind:          getString(capMap, "kind"),
+			Type:          getString(capMap, "type"),
+			SubType:       getString(capMap, "subType"),
+			Key:           getString(capMap, "key"),
+			Status:        capability.CapabilityStatus(getString(capMap, "status")),
+			EntityState:   convertEntityState(capMap["entityState"]),
+			Metadata:      convertMetadata(capMap["metadata"]),
+		}
+		
+		capabilities = append(capabilities, cap)
+	}
+	
+	return capabilities, nil
+}
+
+func getString(m map[string]interface{}, key string) string {
+	if val, ok := m[key].(string); ok {
+		return val
+	}
+	return ""
+}
+
+func convertEntityState(raw interface{}) []capability.CapabilityEntityState {
+	if arr, ok := raw.([]interface{}); ok {
+		var states []capability.CapabilityEntityState
+		for _, item := range arr {
+			if str, ok := item.(string); ok {
+				states = append(states, capability.CapabilityEntityState(str))
+			}
+		}
+		return states
+	}
+	return nil
+}
+
+func convertMetadata(raw interface{}) *map[string]interface{} {
+	if raw == nil {
+		return nil
+	}
+	if metadata, ok := raw.(map[string]interface{}); ok {
+		return &metadata
+	}
+	return nil
 }
