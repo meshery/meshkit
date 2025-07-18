@@ -49,7 +49,6 @@ func (pkg AhPackage) GetName() string {
 func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDefinition, error) {
 	components := make([]_component.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
-
 	if pkg.ChartUrl == "" {
 		return components, ErrChartUrlEmpty(pkg.Name, "ArtifactHub")
 	}
@@ -107,15 +106,29 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	if pkgEntry == nil || !ok {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
-	urls, ok := pkgEntry.([]interface{})[0].(map[interface{}]interface{})["urls"]
-	if urls == nil || !ok {
+	urlField, ok := pkgEntry.([]interface{})[0].(map[interface{}]interface{})["urls"]
+	if urlField == nil || !ok {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
-	chartUrl, ok := urls.([]interface{})[0].(string)
-	if !ok || chartUrl == "" {
+	var chartUrl string
+	for i, u := range urlField.([]interface{}) {
+		s, _ := u.(string)
+		if s == "" {
+			continue
+		}
+		if i == 0 {
+			chartUrl = s
+		}
+		if strings.HasPrefix(s, "http") {
+			chartUrl = s
+			break
+		}
+	}
+	if chartUrl == "" {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
-	if !strings.HasPrefix(chartUrl, "http") {
+
+	if !strings.HasPrefix(chartUrl, "http") && !strings.HasPrefix(chartUrl, "oci://") {
 		if !strings.HasSuffix(pkg.RepoUrl, "/") {
 			pkg.RepoUrl = pkg.RepoUrl + "/"
 		}

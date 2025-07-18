@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-
 	"fmt"
 	"io"
 

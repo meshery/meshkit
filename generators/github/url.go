@@ -55,6 +55,9 @@ func (u URL) GetContent() (models.Package, error) {
 	if strings.HasSuffix(url, ".yml") || strings.HasSuffix(url, ".yaml") {
 
 		data, err := os.ReadFile(downloadfilePath)
+		if err != nil {
+			return nil, err
+		}
 		_, err = w.Write(data)
 		if err != nil {
 			return nil, err
