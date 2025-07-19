@@ -139,8 +139,6 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 	}
 
 	compDef.Capabilities = &capabilities
-
-	compDef.Capabilities = &capabilities
 	compDefStyles := &component.Styles{}
 
 	//Addtional properties from file
@@ -472,20 +470,24 @@ func getMinimalUICapabilitiesFromSchema() ([]capability.Capability, error) {
         return nil, fmt.Errorf("failed to read component schema: %v", err)
     }
 
-    allDefaults, err := extractCapabilitiesDefaultFromSchema(schema)
+    capabilitiesJSON, err := extractCapabilitiesJSONFromSchema(schema)
     if err != nil {
         return nil, fmt.Errorf("failed to extract capabilities from schema: %v", err)
     }
 
-    if len(allDefaults) >= 3 {
-        lastThree := allDefaults[len(allDefaults)-3:]
-        return convertToCapabilityStructs(lastThree)
+    var allCapabilities []capability.Capability
+    if err := json.Unmarshal(capabilitiesJSON, &allCapabilities); err != nil {
+        return nil, fmt.Errorf("failed to unmarshal capabilities: %v", err)
     }
 
-    return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allDefaults))
+    if len(allCapabilities) >= 3 {
+        return allCapabilities[len(allCapabilities)-3:], nil
+    }
+
+    return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allCapabilities))
 }
 
-func extractCapabilitiesDefaultFromSchema(schema []byte) ([]interface{}, error) {
+func extractCapabilitiesJSONFromSchema(schema []byte) ([]byte, error) {
     var schemaMap map[string]interface{}
     if err := json.Unmarshal(schema, &schemaMap); err != nil {
         return nil, err
@@ -493,70 +495,11 @@ func extractCapabilitiesDefaultFromSchema(schema []byte) ([]interface{}, error) 
 
     if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
         if capabilitiesSchema, ok := properties["capabilities"].(map[string]interface{}); ok {
-            if defaultValue, ok := capabilitiesSchema["default"].([]interface{}); ok {
-                return defaultValue, nil
+            if defaultValue, ok := capabilitiesSchema["default"]; ok {
+                return json.Marshal(defaultValue)
             }
         }
     }
 
     return nil, fmt.Errorf("default capabilities not found in schema")
-}
-
-func convertToCapabilityStructs(rawCaps []interface{}) ([]capability.Capability, error) {
-	var capabilities []capability.Capability
-	
-	for _, rawCap := range rawCaps {
-		capMap, ok := rawCap.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("invalid capability format")
-		}
-		
-		cap := capability.Capability{
-			SchemaVersion: getString(capMap, "schemaVersion"),
-			Version:       getString(capMap, "version"),
-			DisplayName:   getString(capMap, "displayName"),
-			Description:   getString(capMap, "description"),
-			Kind:          getString(capMap, "kind"),
-			Type:          getString(capMap, "type"),
-			SubType:       getString(capMap, "subType"),
-			Key:           getString(capMap, "key"),
-			Status:        capability.CapabilityStatus(getString(capMap, "status")),
-			EntityState:   convertEntityState(capMap["entityState"]),
-			Metadata:      convertMetadata(capMap["metadata"]),
-		}
-		
-		capabilities = append(capabilities, cap)
-	}
-	
-	return capabilities, nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if val, ok := m[key].(string); ok {
-		return val
-	}
-	return ""
-}
-
-func convertEntityState(raw interface{}) []capability.CapabilityEntityState {
-	if arr, ok := raw.([]interface{}); ok {
-		var states []capability.CapabilityEntityState
-		for _, item := range arr {
-			if str, ok := item.(string); ok {
-				states = append(states, capability.CapabilityEntityState(str))
-			}
-		}
-		return states
-	}
-	return nil
-}
-
-func convertMetadata(raw interface{}) *map[string]interface{} {
-	if raw == nil {
-		return nil
-	}
-	if metadata, ok := raw.(map[string]interface{}); ok {
-		return &metadata
-	}
-	return nil
 }
