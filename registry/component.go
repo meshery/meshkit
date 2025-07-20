@@ -17,7 +17,7 @@ import (
 	"github.com/meshery/schemas/models/v1alpha1/capability"
 	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
-	// "github.com/meshery/schemas"
+	"github.com/meshery/schemas"
 )
 
 const (
