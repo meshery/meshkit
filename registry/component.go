@@ -119,51 +119,24 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 	if err != nil {
 		return err
 	}
-	// var capabilities []capability.Capability
-	// if c.Capabilities != "" && c.Capabilities != "null" {
-	// 	err := encoding.Unmarshal([]byte(c.Capabilities), &capabilities)
-	// 	if err != nil {
-	// 		Log.Error(err)
-	// 		defaultCapabilities, defaultErr := getMinimalUICapabilitiesFromSchema()
-	// 		if defaultErr == nil {
-	// 			capabilities = defaultCapabilities
-	// 		}
-	// 	}
-	// } else {
-	// 	defaultCapabilities, err := getMinimalUICapabilitiesFromSchema()
-	// 	if err != nil {
-	// 		Log.Error(err)
-	// 	} else {
-	// 		capabilities = defaultCapabilities
-	// 	}
-	// }
-
 	var capabilities []capability.Capability
-    if c.Capabilities != "" && c.Capabilities != "null" {
-        fmt.Printf("🔍 DEBUG: Using existing capabilities\n")
-        err := encoding.Unmarshal([]byte(c.Capabilities), &capabilities)
-        if err != nil {
-            fmt.Printf("🔍 DEBUG: Failed to parse existing capabilities, using defaults: %v\n", err)
-            Log.Error(err)
-            defaultCapabilities, defaultErr := getMinimalUICapabilitiesFromSchema()
-            if defaultErr == nil {
-                capabilities = defaultCapabilities
-                fmt.Printf("🔍 DEBUG: Applied %d default capabilities\n", len(capabilities))
-            } else {
-                fmt.Printf("🔍 DEBUG: Failed to get defaults: %v\n", defaultErr)
-            }
-        }
-    } else {
-        fmt.Printf("🔍 DEBUG: Capabilities empty/null, applying defaults\n")
-        defaultCapabilities, err := getMinimalUICapabilitiesFromSchema()
-        if err != nil {
-            fmt.Printf("🔍 DEBUG: Failed to get default capabilities: %v\n", err)
-            Log.Error(err)
-        } else {
-            capabilities = defaultCapabilities
-            fmt.Printf("🔍 DEBUG: Applied %d default capabilities\n", len(capabilities))
-        }
-    }
+	if c.Capabilities != "" && c.Capabilities != "null" {
+		err := encoding.Unmarshal([]byte(c.Capabilities), &capabilities)
+		if err != nil {
+			Log.Error(err)
+			defaultCapabilities, defaultErr := getMinimalUICapabilitiesFromSchema()
+			if defaultErr == nil {
+				capabilities = defaultCapabilities
+			}
+		}
+	} else {
+		defaultCapabilities, err := getMinimalUICapabilitiesFromSchema()
+		if err != nil {
+			Log.Error(err)
+		} else {
+			capabilities = defaultCapabilities
+		}
+	}
 
 	compDef.Capabilities = &capabilities
 	compDefStyles := &component.Styles{}
@@ -491,75 +464,29 @@ func getSVGForComponent(model ModelCSV, component ComponentCSV) (colorSVG string
 	return
 }
 
+
 func getMinimalUICapabilitiesFromSchema() ([]capability.Capability, error) {
-    // 临时硬编码版本，验证逻辑
-    capabilities := []capability.Capability{
-        {
-            SchemaVersion: "capability.meshery.io/v1alpha1",
-            Version:       "0.7.0",
-            DisplayName:   "Styling",
-            Description:   "Configure the visual styles for the component",
-            Kind:          "mutate",
-            Type:          "style",
-            SubType:       "",
-            Key:           "",
-            Status:        "enabled",
-            EntityState:   []capability.CapabilityEntityState{"declaration"},
-            Metadata:      nil,
-        },
-        {
-            SchemaVersion: "capability.meshery.io/v1alpha1",
-            Version:       "0.7.0",
-            DisplayName:   "Change Shape",
-            Description:   "Change the shape of the component",
-            Kind:          "mutate",
-            Type:          "style",
-            SubType:       "shape",
-            Key:           "",
-            Status:        "enabled",
-            EntityState:   []capability.CapabilityEntityState{"declaration"},
-            Metadata:      nil,
-        },
-        {
-            SchemaVersion: "capability.meshery.io/v1alpha1",
-            Version:       "0.7.0",
-            DisplayName:   "Compound Drag And Drop",
-            Description:   "Drag and Drop a component into a parent component in graph view",
-            Kind:          "interaction",
-            Type:          "graph",
-            SubType:       "compoundDnd",
-            Key:           "",
-            Status:        "enabled",
-            EntityState:   []capability.CapabilityEntityState{"declaration"},
-            Metadata:      nil,
-        },
+    schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta1/component/component.json")
+    if err != nil {
+        return nil, fmt.Errorf("failed to read component schema: %v", err)
     }
-    
-    return capabilities, nil
+
+    capabilitiesJSON, err := extractCapabilitiesJSONFromSchema(schema)
+    if err != nil {
+        return nil, fmt.Errorf("failed to extract capabilities from schema: %v", err)
+    }
+
+    var allCapabilities []capability.Capability
+    if err := json.Unmarshal(capabilitiesJSON, &allCapabilities); err != nil {
+        return nil, fmt.Errorf("failed to unmarshal capabilities: %v", err)
+    }
+
+    if len(allCapabilities) >= 3 {
+        return allCapabilities[len(allCapabilities)-3:], nil
+    }
+
+    return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allCapabilities))
 }
-
-// func getMinimalUICapabilitiesFromSchema() ([]capability.Capability, error) {
-//     schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta1/component/component.json")
-//     if err != nil {
-//         return nil, fmt.Errorf("failed to read component schema: %v", err)
-//     }
-
-//     capabilitiesJSON, err := extractCapabilitiesJSONFromSchema(schema)
-//     if err != nil {
-//         return nil, fmt.Errorf("failed to extract capabilities from schema: %v", err)
-//     }
-
-//     var allCapabilities []capability.Capability
-//     if err := json.Unmarshal(capabilitiesJSON, &allCapabilities); err != nil {
-//         return nil, fmt.Errorf("failed to unmarshal capabilities: %v", err)
-//     }
-
-//     if len(allCapabilities) >= 3 {
-//         return allCapabilities[len(allCapabilities)-3:], nil
-//     }
-
-//     return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allCapabilities))
-// }
 
 func extractCapabilitiesJSONFromSchema(schema []byte) ([]byte, error) {
     var schemaMap map[string]interface{}
