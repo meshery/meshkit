@@ -57,10 +57,14 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 		if err != nil {
 			continue
 		}
+
 		kind, err := kindCue.String()
 		if err != nil {
 			fmt.Printf("%v", err)
 			continue
+		}
+        if strings.HasSuffix(kind, "List") {
+			continue // Skip <resource>List types like PodList, DeploymentList, etc.
 		}
 
 		crd, err := fieldVal.MarshalJSON()
