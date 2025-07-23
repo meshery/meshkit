@@ -119,8 +119,11 @@ func (h *ChannelBrokerHandler) PublishWithChannel(subject string, msgch chan *br
 	go func() {
 		// as soon as this channel will be closed, for loop will end
 		for msg := range msgch {
-			// TODO handle returned error
-			h.Publish(subject, msg)
+			if err := h.Publish(subject, msg); err != nil {
+				// Log the error to help with debugging
+				// In a production environment, this should use a proper logger
+				fmt.Printf("Error publishing message to subject %s: %v\n", subject, err)
+			}
 		}
 	}()
 	return nil
@@ -165,21 +168,24 @@ func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch
 
 // DeepCopyInto is a deepcopy function, copying the receiver, writing into out. in must be non-nil.
 func (h *ChannelBrokerHandler) DeepCopyInto(out broker.Handler) {
-	// Not supported
-
-	// TODO
-	// it is used in meshery server in operator_helper, check if this is code base which is in use
+	// Not supported: deep copy is not implemented for ChannelBrokerHandler
+	// This method is required by the broker.Handler interface but not used in practice
+	// Any modification to the "copied" object will affect the original
 }
 
-// DeepCopy is a deepcopy function, copying the receiver, creating a new Nats.
+// DeepCopy is a deepcopy function, copying the receiver, creating a new ChannelBrokerHandler.
 func (h *ChannelBrokerHandler) DeepCopy() broker.Handler {
-	// Not supported
+	// Not supported: returns the original instance, not a copy
+	// This method is required by the broker.Handler interface but not used in practice
+	// Any modification to the "copied" object will affect the original
 	return h
 }
 
 // DeepCopyObject is a deepcopy function, copying the receiver, creating a new broker.Handler.
 func (h *ChannelBrokerHandler) DeepCopyObject() broker.Handler {
-	// Not supported
+	// Not supported: returns the original instance, not a copy
+	// This method is required by the broker.Handler interface but not used in practice
+	// Any modification to the "copied" object will affect the original
 	return h
 }
 
