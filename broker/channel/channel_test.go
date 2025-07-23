@@ -329,3 +329,36 @@ func TestChannelBrokerHandler_ThreadSafety(t *testing.T) {
 	assert.True(t, handler.IsEmpty())
 	assert.Empty(t, handler.ConnectedEndpoints())
 }
+
+func TestChannelBrokerHandler_Publish_Timeout(t *testing.T) {
+	handler := NewChannelBrokerHandler(
+		WithPublishToChannelDelay(1*time.Millisecond), // Very short timeout
+		WithSingleChannelBufferSize(1),                // Small buffer
+	)
+
+	// Subscribe with a channel that will block
+	msgch := make(chan *broker.Message, 1)
+	err := handler.SubscribeWithChannel("test-subject", "blocking-queue", msgch)
+	require.NoError(t, err)
+
+	// Fill the user's channel to block the goroutine
+	msgch <- &broker.Message{Object: "blocking-message"}
+
+	// Now publish multiple messages to fill the internal channel
+	// The internal channel has buffer size 1, so we need to send more than 1 message
+	for i := 0; i < 3; i++ {
+		message := &broker.Message{Object: fmt.Sprintf("message-%d", i)}
+		err = handler.Publish("test-subject", message)
+		if err != nil {
+			// We expect an error at some point
+			var pubErr *ErrChannelBrokerPublishType
+			require.ErrorAs(t, err, &pubErr, "error should be of type ErrChannelBrokerPublishType")
+			assert.Empty(t, pubErr.SuccessQueueList)
+			assert.Equal(t, []string{"blocking-queue"}, pubErr.FailedQueueList)
+			return // Test passed
+		}
+	}
+
+	// If we get here, the timeout didn't work as expected
+	t.Fatal("Expected timeout error but none occurred")
+}
