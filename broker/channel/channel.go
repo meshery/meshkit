@@ -2,6 +2,7 @@ package channel
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +16,7 @@ type ChannelBrokerHandler struct {
 	// this structure represents [subject] => [queue] => channel
 	// so there is a channel per queue per subject
 	storage map[string]map[string]chan *broker.Message
+	mu      sync.RWMutex // protects storage map from concurrent access
 }
 
 func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler {
@@ -36,6 +38,9 @@ func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler
 
 func (h *ChannelBrokerHandler) ConnectedEndpoints() (endpoints []string) {
 	// return subjects::queue list intead of connection endpoints
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
 	list := make([]string, 0, len(h.storage))
 	for subject, qstorage := range h.storage {
 		if qstorage == nil {
@@ -62,6 +67,9 @@ func (h *ChannelBrokerHandler) Info() string {
 }
 
 func (h *ChannelBrokerHandler) CloseConnection() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	for subject, qstorage := range h.storage {
 		for queue, ch := range qstorage {
 			if !utils.IsClosed(ch) {
@@ -75,6 +83,9 @@ func (h *ChannelBrokerHandler) CloseConnection() {
 
 // Publish - to publish messages
 func (h *ChannelBrokerHandler) Publish(subject string, message *broker.Message) error {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
 	if len(h.storage[subject]) <= 0 {
 		// nobody is listening => not publishing
 		return nil
@@ -129,6 +140,9 @@ func (h *ChannelBrokerHandler) Subscribe(subject, queue string, message []byte) 
 
 // SubscribeWithChannel will publish all the messages received to the given channel
 func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch chan *broker.Message) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	if h.storage[subject] == nil {
 		h.storage[subject] = make(map[string]chan *broker.Message)
 	}
@@ -171,5 +185,7 @@ func (h *ChannelBrokerHandler) DeepCopyObject() broker.Handler {
 
 // Check if the connection object is empty
 func (h *ChannelBrokerHandler) IsEmpty() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 	return len(h.storage) <= 0
 }

@@ -1,6 +1,8 @@
 package channel
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -247,4 +249,83 @@ func TestChannelBrokerHandler_Subscribe(t *testing.T) {
 	// Subscribe method is not supported and should return nil
 	err := handler.Subscribe("test-subject", "test-queue", []byte("test"))
 	assert.NoError(t, err)
+}
+
+func TestChannelBrokerHandler_ThreadSafety(t *testing.T) {
+	handler := NewChannelBrokerHandler()
+
+	// Test concurrent subscriptions
+	var wg sync.WaitGroup
+	numGoroutines := 10
+
+	// Start multiple goroutines that subscribe to different subjects/queues
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			subject := fmt.Sprintf("subject-%d", id)
+			queue := fmt.Sprintf("queue-%d", id)
+			msgch := make(chan *broker.Message, 1)
+
+			err := handler.SubscribeWithChannel(subject, queue, msgch)
+			assert.NoError(t, err)
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify all subscriptions were created
+	endpoints := handler.ConnectedEndpoints()
+	assert.Len(t, endpoints, numGoroutines)
+
+	// Test concurrent publishing
+	wg = sync.WaitGroup{}
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			subject := fmt.Sprintf("subject-%d", id)
+			message := &broker.Message{
+				ObjectType: broker.MeshSync,
+				EventType:  broker.Add,
+				Object:     fmt.Sprintf("data-%d", id),
+			}
+
+			err := handler.Publish(subject, message)
+			assert.NoError(t, err)
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Test concurrent reads
+	wg = sync.WaitGroup{}
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// These should not cause data races
+			handler.IsEmpty()
+			handler.ConnectedEndpoints()
+			handler.Info()
+		}()
+	}
+
+	wg.Wait()
+
+	// Test concurrent close
+	wg = sync.WaitGroup{}
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			handler.CloseConnection()
+		}()
+	}
+
+	wg.Wait()
+
+	// Verify everything is cleaned up
+	assert.True(t, handler.IsEmpty())
+	assert.Empty(t, handler.ConnectedEndpoints())
 }
