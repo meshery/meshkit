@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/meshery/meshkit/broker"
+	"github.com/meshery/meshkit/logger"
 	"github.com/meshery/meshkit/utils"
 )
 
@@ -17,6 +18,7 @@ type ChannelBrokerHandler struct {
 	// so there is a channel per queue per subject
 	storage map[string]map[string]chan *broker.Message
 	mu      sync.RWMutex // protects storage map from concurrent access
+	log     logger.Handler
 }
 
 func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler {
@@ -26,6 +28,21 @@ func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler
 			setOptions(&options)
 		}
 	}
+
+	// Use provided logger or create a default one
+	log := options.Logger
+	if log == nil {
+		var err error
+		log, err = logger.New("channel-broker", logger.Options{
+			Format:   logger.TerminalLogFormat,
+			LogLevel: 4, // Info level
+		})
+		if err != nil {
+			// Fallback to a simple logger if creation fails
+			log = nil
+		}
+	}
+
 	return &ChannelBrokerHandler{
 		name: fmt.Sprintf(
 			"channel-broker-handler--%s",
@@ -33,6 +50,7 @@ func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler
 		),
 		Options: options,
 		storage: make(map[string]map[string]chan *broker.Message),
+		log:     log,
 	}
 }
 
@@ -120,9 +138,12 @@ func (h *ChannelBrokerHandler) PublishWithChannel(subject string, msgch chan *br
 		// as soon as this channel will be closed, for loop will end
 		for msg := range msgch {
 			if err := h.Publish(subject, msg); err != nil {
-				// Log the error to help with debugging
-				// In a production environment, this should use a proper logger
-				fmt.Printf("Error publishing message to subject %s: %v\n", subject, err)
+				// Use proper logger if available, otherwise fallback to fmt.Printf
+				if h.log != nil {
+					h.log.Error(err)
+				} else {
+					fmt.Printf("Error publishing message to subject %s: %v\n", subject, err)
+				}
 			}
 		}
 	}()
