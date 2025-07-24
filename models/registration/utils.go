@@ -4,10 +4,11 @@ import (
 	"fmt"
 
 	"github.com/meshery/meshkit/encoding"
+	corev1beta1 "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/schemas/models/v1alpha3"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
-	"github.com/meshery/schemas/models/v1beta1"
+	schemav1beta1 "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
@@ -23,14 +24,14 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 		return nil, ErrGetEntity(fmt.Errorf("Does not contain versionmeta"))
 	}
 	switch sv.SchemaVersion {
-	case v1beta1.ComponentSchemaVersion:
+	case schemav1beta1.ComponentSchemaVersion:
 		var compDef component.ComponentDefinition
 		err := encoding.Unmarshal(byt, &compDef)
 		if err != nil {
 			return nil, ErrGetEntity(fmt.Errorf("Invalid component definition: %s", err.Error()))
 		}
 		et = &compDef
-	case v1beta1.ModelSchemaVersion:
+	case schemav1beta1.ModelSchemaVersion:
 		var model model.ModelDefinition
 		err := encoding.Unmarshal(byt, &model)
 		if err != nil {
@@ -44,8 +45,15 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 			return nil, ErrGetEntity(fmt.Errorf("Invalid relationship definition: %s", err.Error()))
 		}
 		et = &rel
+	case "connections.meshery.io/v1beta1":
+		var connDef corev1beta1.ConnectionDefinition
+		err := encoding.Unmarshal(byt, &connDef)
+		if err != nil {
+			return nil, ErrGetEntity(fmt.Errorf("Invalid connection definition: %s", err.Error()))
+		}
+		et = &connDef
 	default:
-		return nil, ErrGetEntity(fmt.Errorf("Not a valid component definition, model definition, or relationship definition"))
+		return nil, ErrGetEntity(fmt.Errorf("Not a valid component definition, model definition, relationship definition, or connection definition"))
 	}
 	return et, nil
 }
