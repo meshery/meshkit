@@ -2,13 +2,23 @@ package catalog
 
 import (
 	"fmt"
-	"github.com/meshery/meshkit/models/catalog/v1alpha1"
 	"regexp"
 	"strings"
 	"time"
 )
 
 func BuildArtifactHubPkg(name, downloadURL, user, version string, createdAt time.Time, catalogData *v1alpha1.CatalogData) *ArtifactHubMetadata {
+
+	"github.com/meshery/meshkit/models/catalog/v1alpha1"
+)
+
+func BuildArtifactHubPkg(name, downloadURL, user, version string, createdAt *time.Time, catalogData *v1alpha1.CatalogData) *ArtifactHubMetadata {
+	var createdTime time.Time
+	if createdAt != nil {
+		createdTime = *createdAt
+	} else {
+		createdTime = time.Now()
+	}
 	artifacthubPkg := &ArtifactHubMetadata{
 		Name:        toKebabCase(name),
 		DisplayName: name,
@@ -28,7 +38,7 @@ func BuildArtifactHubPkg(name, downloadURL, user, version string, createdAt time
 		},
 		HomeURL:   "https://docs.meshery.io/concepts/logical/designs",
 		Version:   valueOrElse(version, "0.0.1"),
-		CreatedAt: createdAt.Format(time.RFC3339),
+		CreatedAt: createdTime.Format(time.RFC3339),
 		License:   "Apache-2.0",
 		LogoURL:   "https://raw.githubusercontent.com/meshery/meshery.io/0b8585231c6e2b3251d38f749259360491c9ee6b/assets/images/brand/meshery-logo.svg",
 		Install:   "mesheryctl design import -f",
