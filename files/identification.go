@@ -283,7 +283,7 @@ func FindChartDir(root string) (string, error) {
 		return nil
 	})
 
-	// Move the error check here so errStopWalk is in scope
+	// The walk is expected to stop with errStopWalk if a chart is found; any other error is unexpected.
 	if err != nil && err != errStopWalk {
 		return "", fmt.Errorf("error walking directory %s: %w", root, err)
 	}
