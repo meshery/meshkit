@@ -35,7 +35,7 @@ jobs:
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_user_name: l5io
+          commit_user_name: meshery-ci
           commit_user_email: ci@meshery.io
           commit_author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           commit_options: "--signoff"
@@ -48,7 +48,7 @@ jobs:
         with:
           repository: "meshery/meshery"
           # token with write access to meshery repository
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
+          token: ${{ secrets.MESHERY_CI }}
           path: "meshery"
           ref: "master"
 
