@@ -54,7 +54,7 @@ func (u URL) GetContent() (models.Package, error) {
 	// process manifest files
 	if strings.HasSuffix(url, ".yml") || strings.HasSuffix(url, ".yaml") {
 
-		data, err := os.ReadFile(downloadfilePath)
+		data, _ := os.ReadFile(downloadfilePath)
 		_, err = w.Write(data)
 		if err != nil {
 			return nil, err

@@ -1,6 +1,7 @@
 package nats
 
 import (
+	"encoding/json"
 	"log"
 	"strings"
 	"sync"
@@ -25,7 +26,7 @@ type Options struct {
 
 // Nats will implement Nats subscribe and publish functionality
 type Nats struct {
-	ec *nats.EncodedConn
+	nc *nats.Conn
 	wg *sync.WaitGroup
 }
 
@@ -57,34 +58,33 @@ func New(opts Options) (broker.Handler, error) {
 		return nil, ErrConnect(err)
 	}
 
-	ec, err := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
-	if err != nil {
-		return nil, ErrEncodedConn(err)
-	}
-
-	return &Nats{ec: ec}, nil
+	return &Nats{nc: nc}, nil
 }
 func (n *Nats) ConnectedEndpoints() (endpoints []string) {
-	for _, server := range n.ec.Conn.Servers() {
+	for _, server := range n.nc.Servers() {
 		endpoints = append(endpoints, strings.TrimPrefix(server, "nats://"))
 	}
 	return
 }
 
 func (n *Nats) Info() string {
-	if n.ec == nil || n.ec.Conn == nil {
+	if n.nc == nil {
 		return broker.NotConnected
 	}
-	return n.ec.Conn.Opts.Name
+	return n.nc.Opts.Name
 }
 
 func (n *Nats) CloseConnection() {
-	n.ec.Close()
+	n.nc.Close()
 }
 
 // Publish - to publish messages
 func (n *Nats) Publish(subject string, message *broker.Message) error {
-	err := n.ec.Publish(subject, message)
+	data, err := json.Marshal(message)
+	if err != nil {
+		return ErrPublish(err)
+	}
+	err = n.nc.Publish(subject, data)
 	if err != nil {
 		return ErrPublish(err)
 	}
@@ -93,10 +93,20 @@ func (n *Nats) Publish(subject string, message *broker.Message) error {
 
 // PublishWithChannel - to publish messages with channel
 func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) error {
-	err := n.ec.BindSendChan(subject, msgch)
-	if err != nil {
-		return ErrPublish(err)
-	}
+	// Create a goroutine to handle publishing from the channel
+	go func() {
+		for msg := range msgch {
+			data, err := json.Marshal(msg)
+			if err != nil {
+				log.Printf("Error marshaling message: %v", err)
+				continue
+			}
+			err = n.nc.Publish(subject, data)
+			if err != nil {
+				log.Printf("Error publishing message: %v", err)
+			}
+		}
+	}()
 	return nil
 }
 
@@ -105,7 +115,7 @@ func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) er
 // TODO will the method-user just subsribe, how will it handle the received messages?
 func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 	n.wg.Add(1)
-	_, err := n.ec.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
+	_, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
 		message = msg.Data
 		n.wg.Done()
 	})
@@ -119,7 +129,14 @@ func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 
 // SubscribeWithChannel will publish all the messages received to the given channel
 func (n *Nats) SubscribeWithChannel(subject, queue string, msgch chan *broker.Message) error {
-	_, err := n.ec.BindRecvQueueChan(subject, queue, msgch)
+	_, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
+		var brokerMsg broker.Message
+		if err := json.Unmarshal(msg.Data, &brokerMsg); err != nil {
+			log.Printf("Error unmarshaling message: %v", err)
+			return
+		}
+		msgch <- &brokerMsg
+	})
 	if err != nil {
 		return ErrQueueSubscribe(err)
 	}
