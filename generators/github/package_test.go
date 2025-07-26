@@ -11,6 +11,11 @@ import (
 )
 
 func TestGenerateCompFromGitHub(t *testing.T) {
+	// Skip network-dependent tests in CI environment
+	if os.Getenv("CI") == "true" {
+		t.Skip("Skipping network-dependent test in CI environment")
+	}
+
 	var tests = []struct {
 		ghPackageManager GitHubPackageManager
 		want             int

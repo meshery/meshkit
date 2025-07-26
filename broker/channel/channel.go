@@ -175,9 +175,12 @@ func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch
 		h.storage[subject][queue] = make(chan *broker.Message, h.SingleChannelBufferSize)
 	}
 
+	// Capture the channel reference to avoid race condition
+	internalCh := h.storage[subject][queue]
+
 	go func() {
-		// this loop will terminate when the h.storage[subject][queue] is closed
-		for message := range h.storage[subject][queue] {
+		// this loop will terminate when the internalCh is closed
+		for message := range internalCh {
 			// this flow is correct as if we have more than one consumer for one queue
 			// only one will receive the message
 			msgch <- message
