@@ -64,6 +64,6 @@ func (m *PolicyDefinition) UpdateStatus(db *database.Handler, status entity.Enti
 
 func (p PolicyDefinition) WritePolicyDefinition(policyDirPath string) error {
 	policyPath := filepath.Join(policyDirPath, p.Kind+".json")
-	err := utils.WriteJSONToFile[PolicyDefinition](policyPath, p)
+	err := utils.WriteJSONToFile(policyPath, p)
 	return err
 }

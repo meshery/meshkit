@@ -1,7 +1,6 @@
 package manifests
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -19,7 +18,7 @@ const (
 
 var templateExpression *regexp.Regexp
 
-func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.Context) (string, error) {
+func getDefinitions(parsedCrd cue.Value, resource int, cfg Config) (string, error) {
 	var def v1alpha1.WorkloadDefinition
 	// get the resource identifier
 	idCueVal, _ := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
@@ -83,7 +82,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 	return string(out), nil
 }
 
-func getSchema(parsedCrd cue.Value, cfg Config, ctx context.Context) (string, error) {
+func getSchema(parsedCrd cue.Value, cfg Config) (string, error) {
 	schema := map[string]interface{}{}
 	specCueVal, _ := cfg.CrdFilter.SpecExtractor(parsedCrd)
 	marshalledJson, err := specCueVal.MarshalJSON()
