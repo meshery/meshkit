@@ -33,6 +33,8 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
+const mesheryIntegrationTemplateModel = "meshery-integration-template"
+
 var modelToCompGenerateTracker = store.NewGenericThreadSafeStore[compGenerateTracker]()
 
 type compGenerateTracker struct {
@@ -838,7 +840,7 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 	}()
 	// Iterate models from the spreadsheet
 	for _, model := range modelCSVHelper.Models {
-		if model.Model == "meshery-integration-template" {
+		if model.Model == mesheryIntegrationTemplateModel {
 			log.Info("Skipping meshery-integration-template example model")
 			continue
 		}
