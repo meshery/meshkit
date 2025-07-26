@@ -132,8 +132,10 @@ func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-if endpoint.Internal == nil || endpoint.Internal.Address == "" {
-		return "", fmt.Errorf("internal endpoint for meshery-broker is not available")
+	if endpoint.Internal == nil || endpoint.Internal.Address == "" {
+		return "", ErrGetControllerEndpointForPort(
+			fmt.Errorf("internal endpoint for meshery-broker is not available"),
+		)
 	}
 	return endpoint.Internal.String(), nil
 }
