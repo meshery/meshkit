@@ -1,15 +1,13 @@
 package manifests
 
 import (
-	"context"
-
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/encoding/json"
 	"cuelang.org/go/encoding/yaml"
 )
 
-func GenerateComponents(ctx context.Context, manifest string, resource int, cfg Config) (*Component, error) {
+func GenerateComponents(manifest string, resource int, cfg Config) (*Component, error) {
 	var crds []string
 	var c = &Component{
 		Schemas:     []string{},
