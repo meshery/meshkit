@@ -42,7 +42,11 @@ func (c *ConnectionDefinition) GetEntityDetail() string {
 }
 
 func (c *ConnectionDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
-	c.ID, _ = c.GenerateID()
+	id, idErr := c.GenerateID()
+	if idErr != nil {
+		return uuid.UUID{}, idErr
+	}
+	c.ID = id
 
 	mid, err := c.Model.Create(db, hostID)
 	if err != nil {
