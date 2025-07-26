@@ -14,7 +14,7 @@ import (
 
 var (
 	ErrValidateCode = ""
-	_      = "components.schemas"
+	_               = "components.schemas"
 	cueschema       cue.Value
 	mx              sync.Mutex
 	isSchemaLoaded  bool
@@ -30,9 +30,9 @@ func loadSchema() error {
 		return nil
 	}
 
-	file, err := schemas.Schemas.Open("schemas/constructs/v1beta1/designs.json")
+	file, err := schemas.Schemas.Open("schemas/constructs/v1beta1/design/design.json")
 	if err != nil {
-		return utils.ErrReadFile(err, "schemas/constructs/v1beta1/designs.json")
+		return utils.ErrReadFile(err, "schemas/constructs/v1beta1/design/design.json")
 	}
 
 	cueschema, err = utils.ConvertoCue(file)
