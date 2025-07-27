@@ -1,2 +1,32 @@
 run:
   timeout: 5m
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - structcheck
+    - varcheck
+    - ineffassign
+    - deadcode
+    - typecheck
+    - gosec
+    - gocyclo
+    - dupl
+    - misspell
+    - unparam
+    - nakedret
+    - prealloc
+    - gocritic
+    - goconst
+    - gomnd
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - noctx
+    - nolintlint
+    - unconvert
+    - whitespace
