@@ -9,6 +9,7 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -48,12 +49,25 @@ func (c *ConnectionDefinition) Create(db *database.Handler, hostID uuid.UUID) (u
 	}
 	c.ID = id
 
-	mid, err := c.Model.Create(db, hostID)
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-	c.ModelID = mid
-	err = db.Omit(clause.Associations).Create(&c).Error
+	// Wrap both database operations in a transaction for atomicity
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Create a new handler for the transaction scope
+		txHandler := &database.Handler{DB: tx, Mutex: db.Mutex}
+
+		// Create the Model first
+		mid, txErr := c.Model.Create(txHandler, hostID)
+		if txErr != nil {
+			return txErr
+		}
+		c.ModelID = mid
+
+		// Create the ConnectionDefinition
+		if txErr := tx.Omit(clause.Associations).Create(&c).Error; txErr != nil {
+			return txErr
+		}
+		return nil
+	})
+
 	if err != nil {
 		return uuid.UUID{}, err
 	}
