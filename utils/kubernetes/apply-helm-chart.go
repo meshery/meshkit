@@ -409,7 +409,7 @@ func checkIfInstallable(ch *chart.Chart) error {
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
 func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Configuration, error) {
 	// Set the environment variable needed by the Init methods
-	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
+	utils.SafeSetEnv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
 
 	// KubeConfig setup
 	cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)

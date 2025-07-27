@@ -317,7 +317,7 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool, modelName string)
 // </p>`
 func (m ModelCSV) CreateMarkDownForMDXStyle(componentsMetadata string) string {
 	formattedName := utils.FormatName(m.Model)
-	var template string = `---
+	template := `---
 title: %s
 subtitle: %s
 integrationIcon: icons/color/%s-color.svg

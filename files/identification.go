@@ -149,7 +149,7 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	}
 
 	if design == nil {
-		return nil, ErrEmptyOCIImage(fmt.Errorf("No design file detected in the imported OCI image"))
+		return nil, ErrEmptyOCIImage(fmt.Errorf("no design file detected in the imported OCI image"))
 	}
 
 	var patternFile pattern.PatternFile
@@ -208,7 +208,7 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 		return *parsed_design, err
 
 	default:
-		return pattern.PatternFile{}, fmt.Errorf("Invalid File extension %s", file.FileExt)
+		return pattern.PatternFile{}, fmt.Errorf("invalid file extension %s", file.FileExt)
 	}
 
 }
@@ -241,7 +241,7 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 			if err == io.EOF {
 				break // End of file
 			}
-			return nil, fmt.Errorf("Failed to decode YAML document: %v", err)
+			return nil, fmt.Errorf("failed to decode YAML document: %v", err)
 		}
 
 		if len(raw.Raw) == 0 {

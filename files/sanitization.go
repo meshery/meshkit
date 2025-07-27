@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/meshery/meshkit/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -92,7 +93,7 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 		if err != nil {
 			return err
 		}
-		defer gzipReader.Close()
+		defer utils.SafeClose(gzipReader)
 		reader = gzipReader
 	}
 
@@ -132,7 +133,7 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create file: %v", err)
 		}
-		defer file.Close()
+		defer utils.SafeClose(file)
 
 		// Copy file contents
 		if _, err := io.Copy(file, tarReader); err != nil {
@@ -178,14 +179,14 @@ func ExtractZipFromBytes(data []byte, outputDir string) error {
 		if err != nil {
 			return fmt.Errorf("failed to open file in zip: %w", err)
 		}
-		defer zipFile.Close()
+		defer utils.SafeClose(zipFile)
 
 		// Create the output file
 		outFile, err := os.Create(filePath)
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}
-		defer outFile.Close()
+		defer utils.SafeClose(outFile)
 
 		// Copy the contents of the file from the ZIP archive to the output file
 		if _, err := io.Copy(outFile, zipFile); err != nil {

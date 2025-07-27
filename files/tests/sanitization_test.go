@@ -7,6 +7,7 @@ import (
 
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
+	"github.com/meshery/meshkit/utils"
 	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
 )
 
@@ -86,14 +87,14 @@ func TestSanitizeFile(t *testing.T) {
 			name:         "Can Identify Kubernetes Manifest",
 			filePath:     "./samples/valid_manifest.yml",
 			expectedExt:  ".yml",
-expectedType: coreV1.K8sManifest,
+			expectedType: coreV1.K8sManifest,
 		},
 
 		{
 			name:         "Can Identify Kubernetes Manifest With Crds",
 			filePath:     "./samples/manifest-with-crds.yml",
 			expectedExt:  ".yml",
-expectedType: coreV1.K8sManifest,
+			expectedType: coreV1.K8sManifest,
 		},
 
 		{
@@ -147,7 +148,7 @@ expectedType: coreV1.K8sManifest,
 	}
 
 	tempDir, _ := os.MkdirTemp(" ", "temp-tests")
-	defer os.RemoveAll(tempDir)
+	defer utils.SafeRemoveAll(tempDir)
 	// tempDir := "./temp"
 
 	for _, tc := range testCases {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/meshery/meshkit/utils"
 )
 
 // Git represents the Git Walker
@@ -144,7 +145,7 @@ func clonewalk(g *Git) error {
 	var wg sync.WaitGroup
 	defer func() {
 		wg.Wait()
-		os.RemoveAll(path)
+		utils.SafeRemoveAll(path)
 	}()
 	var err error
 	cloneOptions := &git.CloneOptions{

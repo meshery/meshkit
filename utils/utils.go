@@ -184,7 +184,7 @@ func ReadRemoteFile(url string) (string, error) {
 		return " ", ErrRemoteFileNotFound(url)
 	}
 
-	defer safeClose(response.Body)
+	defer SafeClose(response.Body)
 
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, response.Body)
@@ -220,7 +220,7 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 	if err != nil {
 		return nil, ErrGettingLatestReleaseTag(err)
 	}
-	defer safeClose(resp.Body)
+	defer SafeClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, ErrGettingLatestReleaseTag(fmt.Errorf("unable to get latest release tag"))
@@ -402,12 +402,12 @@ func WriteYamlToFile[K any](outputPath string, data K) error {
 	if err != nil {
 		return ErrCreateFile(err, outputPath)
 	}
-	defer safeClose(file)
+	defer SafeClose(file)
 
 	encoder := yaml.NewEncoder(file)
 	encoder.SetIndent(2)
 
-	defer safeClose(encoder)
+	defer SafeClose(encoder)
 
 	if err := encoder.Encode(data); err != nil {
 		return ErrMarshal(err)
@@ -592,9 +592,9 @@ func ReadSVGData(baseDir, path string) (string, error) {
 }
 func Compress(src string, buf io.Writer) error {
 	zr := gzip.NewWriter(buf)
-	defer safeClose(zr)
+	defer SafeClose(zr)
 	tw := tar.NewWriter(zr)
-	defer safeClose(tw)
+	defer SafeClose(tw)
 
 	return filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -621,7 +621,7 @@ func Compress(src string, buf io.Writer) error {
 			if err != nil {
 				return err
 			}
-			defer safeClose(data)
+			defer SafeClose(data)
 
 			_, err = io.Copy(tw, data)
 			if err != nil {

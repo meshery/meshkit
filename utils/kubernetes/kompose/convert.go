@@ -47,8 +47,8 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	}
 
 	defer func() {
-		os.Remove(tempFilePath)
-		os.Remove(resultFilePath)
+		utils.SafeRemove(tempFilePath)
+		utils.SafeRemove(resultFilePath)
 	}()
 
 	formatComposeFile(&dockerCompose)
