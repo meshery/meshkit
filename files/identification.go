@@ -323,11 +323,11 @@ func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
 	}
 
 	// Search for the directory containing Chart.yaml starting from the extracted path
-	chartDir, findErr := FindChartDir(file.ExtractedContentPath)
-	if findErr != nil {
+	chartDir, err := FindChartDir(file.ExtractedContentPath)
+	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to find Helm chart in %s (Chart.yaml not found: %w)",
-			file.ExtractedContentPath, findErr,
+			file.ExtractedContentPath, err,
 		)
 	}
 
