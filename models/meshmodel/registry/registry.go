@@ -100,6 +100,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&models.PolicyDefinition{},
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
+		&models.ConnectionDefinition{},
 	)
 	if err != nil {
 		return nil, err
@@ -114,6 +115,7 @@ func (rm *RegistryManager) Cleanup() {
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
 		&relationship.RelationshipDefinition{},
+		&models.ConnectionDefinition{},
 	)
 }
 func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Entity) (bool, bool, error) {
