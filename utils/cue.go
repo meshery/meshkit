@@ -24,7 +24,7 @@ func Validate(schema cue.Value, value cue.Value) (bool, []errors.Error) {
 
 	schema.Walk(func(v cue.Value) bool {
 		val := value.LookupPath(v.Path())
-		if !(val.Err() == nil && val.IsConcrete()) {
+		if val.Err() != nil || !val.IsConcrete() {
 			cueErr := errors.Errors(errors.New(fmt.Sprintf("%v is a required field", v.Path().String())))
 			errs = append(errs, cueErr...)
 		}
