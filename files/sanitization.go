@@ -37,12 +37,27 @@ var ValidIacExtensions = map[string]bool{
 	".tgz":     true,
 }
 
+func identifyExtension(name string) string {
+
+	normalizedName := strings.ToLower(strings.TrimSpace(name))
+
+	// Prioritize longer, more specific extensions first to correctly identify ".tar.gz" over ".gz"
+	knownExtensions := []string{".tar.gz", ".tar.tgz", ".tgz", ".tar", ".zip", ".gz", ".yml", ".yaml", ".json"}
+	for _, ext := range knownExtensions {
+		if strings.HasSuffix(normalizedName, ext) {
+			return ext
+		}
+	}
+
+	return filepath.Ext(normalizedName)
+}
+
 func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[string]bool) (SanitizedFile, error) {
 
-	ext := filepath.Ext(fileName)
+	ext := identifyExtension(fileName)
 
 	// 1. Check if file has supported  extension
-	if !validExts[ext] && !validExts[filepath.Ext(strings.TrimSuffix(fileName, ".gz"))] {
+	if !validExts[ext] {
 		return SanitizedFile{}, ErrUnsupportedExtension(fileName, ext, validExts)
 	}
 	switch ext {
@@ -215,7 +230,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	outputDir, err := os.MkdirTemp(tempDir, fileName)
 
 	if err != nil {
-		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("Failed to create extraction directory %w", err))
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("failed to create extraction directory %w", err))
 	}
 
 	switch ext {
@@ -225,7 +240,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	case ".zip":
 		err = ExtractZipFromBytes(data, outputDir)
 	default:
-		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("Unsupported compression extension %s", ext))
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("unsupported compression extension %s", ext))
 	}
 
 	if err != nil {
@@ -239,7 +254,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	if err != nil {
 		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, err)
 	}
-
+	
 	return SanitizedFile{
 		FileExt:              ext,
 		FileName:             fileName,
