@@ -126,11 +126,12 @@ func (m *ModelCSV) UpdateModelDefinition(modelDef *_model.ModelDefinition) error
 			}
 		case "svgColor", "svgWhite", "svgComplete":
 			var svg string
-			if key == "svgColor" {
+			switch key {
+			case "svgColor":
 				svg = m.SVGColor
-			} else if key == "svgWhite" {
+			case "svgWhite":
 				svg = m.SVGWhite
-			} else {
+			default:
 				svg = m.SVGComplete
 			}
 			// Attempt to update the SVG string

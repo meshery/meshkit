@@ -1,12 +1,12 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"encoding/json"
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/files"
@@ -14,10 +14,10 @@ import (
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/csv"
 	"github.com/meshery/meshkit/utils/manifests"
+	"github.com/meshery/schemas"
 	"github.com/meshery/schemas/models/v1alpha1/capability"
 	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
-	"github.com/meshery/schemas"
 )
 
 const (
@@ -148,25 +148,26 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 
 	//metadata properties from csv
 	for _, key := range compMetadataValues {
-		if key == "genealogy" {
+		switch key {
+		case "genealogy":
 			genealogy, err := utils.Cast[string](compMetadata[key])
 			if err == nil {
 				compDef.Metadata.Genealogy = genealogy
 			}
-		} else if key == "isAnnotation" {
+		case "isAnnotation":
 			if strings.ToLower(c.IsAnnotation) == "true" {
 				compDef.Metadata.IsAnnotation = true
 			} else {
 				compDef.Metadata.IsAnnotation = false
 			}
-		} else if key == "styleOverrides" {
+		case "styleOverrides":
 			if c.StyleOverrides != "" {
 				err := encoding.Unmarshal([]byte(c.StyleOverrides), &compDefStyles)
 				if err != nil {
 					return err
 				}
 			}
-		} else {
+		default:
 			metadata[key] = compMetadata[key]
 		}
 	}
@@ -208,8 +209,6 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 	compDef.Metadata.AdditionalProperties = metadata
 	return nil
 }
-
-
 
 type ComponentCSVHelper struct {
 	SpreadsheetID  int64
@@ -464,43 +463,42 @@ func getSVGForComponent(model ModelCSV, component ComponentCSV) (colorSVG string
 	return
 }
 
-
 func getMinimalUICapabilitiesFromSchema() ([]capability.Capability, error) {
-    schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta1/component/component.json")
-    if err != nil {
-        return nil, fmt.Errorf("failed to read component schema: %v", err)
-    }
+	schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta1/component/component.json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read component schema: %v", err)
+	}
 
-    capabilitiesJSON, err := extractCapabilitiesJSONFromSchema(schema)
-    if err != nil {
-        return nil, fmt.Errorf("failed to extract capabilities from schema: %v", err)
-    }
+	capabilitiesJSON, err := extractCapabilitiesJSONFromSchema(schema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract capabilities from schema: %v", err)
+	}
 
-    var allCapabilities []capability.Capability
-    if err := json.Unmarshal(capabilitiesJSON, &allCapabilities); err != nil {
-        return nil, fmt.Errorf("failed to unmarshal capabilities: %v", err)
-    }
+	var allCapabilities []capability.Capability
+	if err := json.Unmarshal(capabilitiesJSON, &allCapabilities); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal capabilities: %v", err)
+	}
 
-    if len(allCapabilities) >= 3 {
-        return allCapabilities[len(allCapabilities)-3:], nil
-    }
+	if len(allCapabilities) >= 3 {
+		return allCapabilities[len(allCapabilities)-3:], nil
+	}
 
-    return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allCapabilities))
+	return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allCapabilities))
 }
 
 func extractCapabilitiesJSONFromSchema(schema []byte) ([]byte, error) {
-    var schemaMap map[string]interface{}
-    if err := json.Unmarshal(schema, &schemaMap); err != nil {
-        return nil, err
-    }
+	var schemaMap map[string]interface{}
+	if err := json.Unmarshal(schema, &schemaMap); err != nil {
+		return nil, err
+	}
 
-    if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
-        if capabilitiesSchema, ok := properties["capabilities"].(map[string]interface{}); ok {
-            if defaultValue, ok := capabilitiesSchema["default"]; ok {
-                return json.Marshal(defaultValue)
-            }
-        }
-    }
+	if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
+		if capabilitiesSchema, ok := properties["capabilities"].(map[string]interface{}); ok {
+			if defaultValue, ok := capabilitiesSchema["default"]; ok {
+				return json.Marshal(defaultValue)
+			}
+		}
+	}
 
-    return nil, fmt.Errorf("default capabilities not found in schema")
+	return nil, fmt.Errorf("default capabilities not found in schema")
 }
