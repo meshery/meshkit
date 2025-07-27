@@ -259,7 +259,7 @@ func (mch *ComponentCSVHelper) GetColumns() ([]string, error) {
 	return csvReader.ExtractCols(rowIndex)
 }
 
-func (mch *ComponentCSVHelper) ParseComponentsSheet(modelName string) error {
+func (mch *ComponentCSVHelper) ParseComponentsSheet(modelNames ...string) error {
 	ch := make(chan ComponentCSV, 1)
 	errorChan := make(chan error, 1)
 	csvReader, err := csv.NewCSVParser[ComponentCSV](mch.CSVPath, rowIndex, nil, func(_ []string, _ []string) bool {
@@ -283,9 +283,18 @@ func (mch *ComponentCSVHelper) ParseComponentsSheet(modelName string) error {
 		select {
 
 		case data := <-ch:
-			if modelName != "" && data.Model != modelName {
+			if len(modelNames) > 0 {
+			match := false
+			for _, m := range modelNames {
+				if strings.EqualFold(data.Model, m) {
+					match = true
+					break 
+				}
+			}
+			if !match {
 				continue
 			}
+		}
 			if mch.Components[data.Registrant] == nil {
 				mch.Components[data.Registrant] = make(map[string][]ComponentCSV, 0)
 			}
