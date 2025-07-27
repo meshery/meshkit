@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"sort"
 
 	"fmt"
 	"io"
@@ -212,65 +211,6 @@ func ExtractZipFromBytes(data []byte, outputDir string) error {
 	return nil
 }
 
-// SanitizeDirNames replaces spaces in directory names with hyphens recursively in the specified root directory.
-func SanitizeDirNames(root string) error {
-	var dirPaths []string
-
-	// Walk the directory tree and collect all directory paths
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			dirPaths = append(dirPaths, path)
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to scan directory tree: %w", err)
-	}
-
-	// Sort directories by depth (number of path separators) in descending order
-	// This ensures that we rename deeper directories first, avoiding issues with renaming parent directories before
-	sort.SliceStable(dirPaths, func(i, j int) bool {
-		return strings.Count(dirPaths[i], string(os.PathSeparator)) >
-			strings.Count(dirPaths[j], string(os.PathSeparator))
-	})
-
-	// Iterate through the collected directory paths and rename them if they contain spaces
-	for _, path := range dirPaths {
-		base := filepath.Base(path)
-		if strings.Contains(base, " ") {
-			safeBase := strings.ReplaceAll(base, " ", "-")
-			newPath := filepath.Join(filepath.Dir(path), safeBase)
-			if path != newPath {
-				if err := os.Rename(path, newPath); err != nil {
-					return fmt.Errorf("failed to rename %q to %q: %w", path, newPath, err)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-// removeHiddenFiles deletes .DS_Store and AppleDouble (._*) files recursively
-func removeHiddenFiles(root string) error {
-	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		base := filepath.Base(path)
-		if strings.HasPrefix(base, "._") || base == ".DS_Store" || base == "Icon\r" {
-			if remErr := os.Remove(path); remErr != nil {
-				return fmt.Errorf("failed to remove hidden macOS file %q: %w", path, remErr)
-			}
-		}
-
-		return nil
-	})
-}
-
 // get the root dir from the extractedPath
 // if multiple entries are found in the extractedPath then treat extractedPath as root
 func GetFirstTopLevelDir(extractedPath string) (string, error) {
@@ -305,15 +245,6 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 
 	if err != nil {
 		return SanitizedFile{}, err
-	}
-	// Sanitize directory names in the extracted content
-	if err := SanitizeDirNames(outputDir); err != nil {
-		return SanitizedFile{}, fmt.Errorf("failed to sanitize directories: %w", err)
-	}
-
-	// Remove hidden macOS files like .DS_Store and AppleDouble (._*)
-	if err := removeHiddenFiles(outputDir); err != nil {
-		return SanitizedFile{}, fmt.Errorf("failed to remove hidden macOS files from extractedPath: %w", err)
 	}
 
 	// jump directly into the extracted dirs toplevel dir (which is the case if a single folder is archived the extracted dir preserves that structure)
