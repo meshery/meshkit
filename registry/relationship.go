@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"path/filepath"
 
 	"github.com/meshery/meshkit/encoding"
@@ -70,7 +69,7 @@ func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID in
 		Relationships:  []RelationshipCSV{},
 	}, nil
 }
-func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelNames ...string) error {
+func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) error {
 	ch := make(chan RelationshipCSV, 1)
 	errorChan := make(chan error, 1)
 	csvReader, err := csv.NewCSVParser[RelationshipCSV](mrh.CSVPath, rowIndex, nil, func(_ []string, _ []string) bool {
@@ -96,18 +95,9 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelNames ...string) 
 	for {
 		select {
 		case data := <-ch:
-			if len(modelNames) > 0 {
-			match := false
-			for _, m := range modelNames {
-				if strings.EqualFold(data.Model, m) {
-					match = true
-					break 
-				}
-			}
-			if !match {
+			if modelName != "" && data.Model != modelName {
 				continue
 			}
-		}
 			data.RowIndex = currentRow
 			currentRow++
 			mrh.Relationships = append(mrh.Relationships, data)
