@@ -112,7 +112,7 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer safeClose(resp.Body)
+	defer SafeClose(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("failed to get the file %d status code for %s file", resp.StatusCode, url)
@@ -123,7 +123,7 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer safeClose(out)
+	defer SafeClose(out)
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
@@ -146,7 +146,7 @@ func CreateFile(contents []byte, filename string, location string) error {
 	}
 
 	if _, err = fd.Write(contents); err != nil {
-		safeClose(fd)
+		SafeClose(fd)
 		return err
 	}
 
@@ -246,9 +246,40 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 }
 
 // SafeClose is a helper function help to close the io
-func safeClose(co io.Closer) {
+// SafeClose safely closes an io.Closer and logs any error
+func SafeClose(co io.Closer) {
 	if cerr := co.Close(); cerr != nil {
 		log.Error(cerr)
+	}
+}
+
+// SafeRemoveAll safely removes a directory and logs any error
+func SafeRemoveAll(path string) {
+	if err := os.RemoveAll(path); err != nil {
+		log.Error(err)
+	}
+}
+
+// SafeRemove safely removes a file and logs any error
+func SafeRemove(path string) {
+	if err := os.Remove(path); err != nil {
+		log.Error(err)
+	}
+}
+
+// SafeSetEnv safely sets an environment variable and logs any error
+func SafeSetEnv(key, value string) {
+	if err := os.Setenv(key, value); err != nil {
+		log.Error(err)
+	}
+}
+
+// SafeFlush safely flushes a buffer and logs any error
+func SafeFlush(writer interface{}) {
+	if flusher, ok := writer.(interface{ Flush() error }); ok {
+		if err := flusher.Flush(); err != nil {
+			log.Error(err)
+		}
 	}
 }
 
