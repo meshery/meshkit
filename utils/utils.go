@@ -112,7 +112,7 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer safeClose(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("failed to get the file %d status code for %s file", resp.StatusCode, url)
@@ -123,7 +123,7 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer safeClose(out)
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
@@ -146,7 +146,7 @@ func CreateFile(contents []byte, filename string, location string) error {
 	}
 
 	if _, err = fd.Write(contents); err != nil {
-		fd.Close()
+		safeClose(fd)
 		return err
 	}
 
@@ -184,7 +184,7 @@ func ReadRemoteFile(url string) (string, error) {
 		return " ", ErrRemoteFileNotFound(url)
 	}
 
-	defer response.Body.Close()
+	defer safeClose(response.Body)
 
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, response.Body)
@@ -215,7 +215,7 @@ func ReadLocalFile(location string) (string, error) {
 
 // Gets the latest stable release tags from github for a given org name and repo name(in that org) in sorted order
 func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
-	var url string = "https://github.com/" + org + "/" + repo + "/releases"
+	url := "https://github.com/" + org + "/" + repo + "/releases"
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, ErrGettingLatestReleaseTag(err)
@@ -371,12 +371,12 @@ func WriteYamlToFile[K any](outputPath string, data K) error {
 	if err != nil {
 		return ErrCreateFile(err, outputPath)
 	}
-	defer file.Close()
+	defer safeClose(file)
 
 	encoder := yaml.NewEncoder(file)
 	encoder.SetIndent(2)
 
-	defer encoder.Close()
+	defer safeClose(encoder)
 
 	if err := encoder.Encode(data); err != nil {
 		return ErrMarshal(err)
@@ -561,9 +561,9 @@ func ReadSVGData(baseDir, path string) (string, error) {
 }
 func Compress(src string, buf io.Writer) error {
 	zr := gzip.NewWriter(buf)
-	defer zr.Close()
+	defer safeClose(zr)
 	tw := tar.NewWriter(zr)
-	defer tw.Close()
+	defer safeClose(tw)
 
 	return filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -590,7 +590,7 @@ func Compress(src string, buf io.Writer) error {
 			if err != nil {
 				return err
 			}
-			defer data.Close()
+			defer safeClose(data)
 
 			_, err = io.Copy(tw, data)
 			if err != nil {
@@ -889,7 +889,7 @@ func TruncateErrorMessage(err error, wordLimit int) error {
 	words := strings.Fields(err.Error())
 	if len(words) > wordLimit {
 		words = words[:wordLimit]
-		return fmt.Errorf("%s...", strings.Join(words, " "))
+		return fmt.Errorf("%s", strings.Join(words, " "))
 	}
 
 	return err
