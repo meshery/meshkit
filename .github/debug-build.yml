@@ -1,0 +1,25 @@
+name: Debug Linter on Push
+
+on:
+  push:
+    branches:
+      - '**' # Run on any branch
+
+jobs:
+  golangci-lint-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21' # or match your version
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run make check with extended timeout
+        run: make check GOLANGCI_LINT_EXTRA_ARGS="--timeout 30m"

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,14 +110,22 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	if err != nil {
 		return nil, utils.ErrCreateDir(err, "OCI")
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			log.Printf("error removing temp dir %s: %v", tmpDir, err)
+		}
+	}()
 
 	tmpInputDesignFile := filepath.Join(tmpDir, "design.tar")
 	file, err := os.Create(tmpInputDesignFile)
 	if err != nil {
 		return nil, utils.ErrCreateFile(err, tmpInputDesignFile)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("error closing file %s: %v", tmpInputDesignFile, err)
+		}
+	}()
 
 	reader := bytes.NewReader(artifact)
 	if _, err := io.Copy(file, reader); err != nil {
@@ -141,7 +150,7 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	}
 	var design *walker.File
 
-	// the extracted layer may contain metadata files like artifact.yml for artifacthub,etc
+	// the extracted layer may contain metadata files like artifact.yml for artifacthub, etc
 	for _, file := range files {
 		if file.Name == "design.yml" {
 			design = file
@@ -155,7 +164,6 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	var patternFile pattern.PatternFile
 
 	err = encoding.Unmarshal([]byte(design.Content), &patternFile)
-
 	if err != nil {
 		return nil, ErrDecodePattern(err)
 	}
