@@ -12,6 +12,7 @@ import (
 	meshkitFileUtils "github.com/meshery/meshkit/files"
 	"github.com/meshery/meshkit/utils"
 
+	corev1beta1 "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
@@ -206,6 +207,18 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 				return nil
 			}
 			pkg.Relationships = append(pkg.Relationships, *rel)
+		case entity.ConnectionDefinition:
+			conn, err := utils.Cast[*corev1beta1.ConnectionDefinition](e)
+			if err != nil {
+				connectionName := ""
+				if conn != nil {
+					connectionName = conn.Kind
+				}
+				regErrStore.InsertEntityRegError("", "", entityType, connectionName, ErrGetEntity(err))
+				regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
+				return nil
+			}
+			pkg.Connections = append(pkg.Connections, *conn)
 		default:
 			// Unhandled entity type
 			return nil
