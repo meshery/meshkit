@@ -15,6 +15,7 @@ type PackagingUnit struct {
 	Model         model.ModelDefinition
 	Components    []component.ComponentDefinition
 	Relationships []relationship.RelationshipDefinition
+	Connections   []v1beta1.ConnectionDefinition
 	_             []v1beta1.PolicyDefinition
 }
 
@@ -47,8 +48,8 @@ register will return an error if it is not able to register the `model`.
 If there are errors when registering other entities, they are handled properly but does not stop the registration process.
 */
 func (rh *RegistrationHelper) register(pkg PackagingUnit) {
-	if len(pkg.Components) == 0 && len(pkg.Relationships) == 0 {
-		//silently exit if the model does not conatin any components or relationships
+	if len(pkg.Components) == 0 && len(pkg.Relationships) == 0 && len(pkg.Connections) == 0 {
+		//silently exit if the model does not contain any components, relationships, or connections
 		return
 	}
 	ignored := model.ModelDefinitionStatusIgnored
@@ -100,9 +101,10 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 
 	hostname := model.Registrant.Kind
 
-	// Prepare slices to hold successfully registered components and relationships
+	// Prepare slices to hold successfully registered components, relationships, and connections
 	var registeredComponents []component.ComponentDefinition
 	var registeredRelationships []relationship.RelationshipDefinition
+	var registeredConnections []v1beta1.ConnectionDefinition
 	// 2. Register components
 	for _, comp := range pkg.Components {
 		status := *comp.Status
@@ -148,9 +150,23 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 		}
 	}
 
-	// Update pkg with only successfully registered components and relationships
+	// 4. Register connections
+	for _, conn := range pkg.Connections {
+		conn.Model = model
+		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &conn)
+		if err != nil {
+			err = ErrRegisterEntity(err, string(conn.Type()), conn.Kind)
+			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ConnectionDefinition, conn.Kind, err)
+		} else {
+			// Successful registration, add to successfulConnections
+			registeredConnections = append(registeredConnections, conn)
+		}
+	}
+
+	// Update pkg with only successfully registered components, relationships, and connections
 	pkg.Components = registeredComponents
 	pkg.Relationships = registeredRelationships
+	pkg.Connections = registeredConnections
 	pkg.Model = model
 	// Store the successfully registered PackagingUnit
 	rh.PkgUnits = append(rh.PkgUnits, pkg)
