@@ -21,9 +21,7 @@ func New(kubeconfig []byte) (*Client, error) {
 	restConfig.Burst = int(100)
 
 	// if insecure variable is kept true, allow that
-	if restConfig.Insecure {
-		restConfig.Insecure = true
-	}
+	// Note: This block was redundant and has been removed
 
 	// Configure kubeclient
 	kclient, err := kubernetes.NewForConfig(restConfig)

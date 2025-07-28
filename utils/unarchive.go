@@ -158,7 +158,9 @@ func ExtractTarGz(path, downloadfilePath string) error {
 			if _, err = io.Copy(outFile, tarReader); err != nil {
 				return ErrExtractTarXZ(err, path)
 			}
-			_ = outFile.Close()
+			if err = outFile.Close(); err != nil {
+				return ErrExtractTarXZ(err, path)
+			}
 
 		default:
 			return ErrExtractTarXZ(err, path)

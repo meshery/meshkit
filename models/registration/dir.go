@@ -66,7 +66,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 	var tempDirs []string
 	defer func() {
 		for _, tempDir := range tempDirs {
-			_ = os.RemoveAll(tempDir)
+			utils.SafeRemoveAll(tempDir)
 		}
 	}()
 
