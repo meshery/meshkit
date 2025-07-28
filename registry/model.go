@@ -137,11 +137,12 @@ func (m *ModelCSV) UpdateModelDefinition(modelDef *_model.ModelDefinition) error
 			// Attempt to update the SVG string
 			updatedSvg, err := utils.UpdateSVGString(svg, SVG_WIDTH, SVG_HEIGHT, false)
 			if err == nil {
-				if key == "svgColor" {
+				switch key {
+				case "svgColor":
 					metadata.SvgColor = updatedSvg
-				} else if key == "svgWhite" {
+				case "svgWhite":
 					metadata.SvgWhite = updatedSvg
-				} else {
+				default:
 					metadata.SvgComplete = &updatedSvg
 				}
 			} else {
@@ -417,7 +418,8 @@ func (m ModelCSV) CreateMarkDownForMDStyle(componentsMetadata, relationshipMetad
 	formattedName := utils.FormatName(m.Model)
 	var template, markdown string
 
-	if outputFor == "mesherydocs" {
+	switch outputFor {
+	case "mesherydocs":
 		template = `---
 layout: integration
 title: %s
@@ -467,7 +469,7 @@ category: integrations
 			m.HowItWorks,
 			m.HowItWorksDetails,
 		)
-	} else if outputFor == "mesheryio" {
+	case "mesheryio":
 		template = `---
 layout: single-page-model
 item-type: model

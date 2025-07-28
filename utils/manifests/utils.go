@@ -40,7 +40,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 	}
 	//getting defintions for different native resources
 	def.Spec.DefinitionRef.Name = definitionRef
-	def.ObjectMeta.Name = resourceId
+	def.Name = resourceId
 	def.APIVersion = "core.oam.dev/v1alpha1"
 	def.Kind = "WorkloadDefinition"
 	k8sAPIVersion := apiVersion
@@ -58,7 +58,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 		}
 		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId)
 		if cfg.Type != "" {
-			def.ObjectMeta.Name += "." + cfg.Type
+			def.Name += "." + cfg.Type
 			def.Spec.DefinitionRef.Name += "." + cfg.Type
 		}
 		def.Spec.DefinitionRef.Name += ".meshery.layer5.io"
@@ -69,7 +69,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 			"k8sKind":       resourceId,
 			"version":       cfg.K8sVersion,
 		}
-		def.ObjectMeta.Name += ".K8s"
+		def.Name += ".K8s"
 		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId) + ".k8s.meshery.layer5.io"
 	case MESHERY:
 		def.Spec.Metadata = map[string]string{
@@ -381,35 +381,35 @@ func NewCueCrdFilter(ep ExtractorPaths, isJson bool) CueCrdFilter {
 		IdentifierExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
 			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.IdPath))
 			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
+				return res, fmt.Errorf("could not find the value")
 			}
 			return res.Value(), nil
 		},
 		NameExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
 			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.NamePath))
 			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
+				return res, fmt.Errorf("could not find the value")
 			}
 			return res.Value(), nil
 		},
 		VersionExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
 			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.VersionPath))
 			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
+				return res, fmt.Errorf("could not find the value")
 			}
 			return res.Value(), nil
 		},
 		GroupExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
 			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.GroupPath))
 			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
+				return res, fmt.Errorf("could not find the value")
 			}
 			return res.Value(), nil
 		},
 		SpecExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
 			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.SpecPath))
 			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
+				return res, fmt.Errorf("could not find the value")
 			}
 			return res.Value(), nil
 		},

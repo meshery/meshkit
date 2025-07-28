@@ -7,7 +7,6 @@ import (
 
 	"github.com/meshery/meshkit/utils"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -20,7 +19,7 @@ func TestGetServiceEndpoint(t *testing.T) {
 		opts   *ServiceOptions
 	}
 
-	svc := &v1.Service{
+	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test_service",
 			Namespace:   "default",
@@ -165,7 +164,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "10.10.10.10:1000",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -221,7 +220,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "10.10.10.10:1001",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -278,7 +277,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "20.20.20.20:2000",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -335,7 +334,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "20.20.20.20:2000",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -391,7 +390,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "localhost:2001",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -438,7 +437,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "test_name.com:1001",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
@@ -493,7 +492,7 @@ func TestGetEndpoint(t *testing.T) {
 						DesiredEndpoint: "1.1.1.1:1001",
 					},
 				},
-				obj: &v1.Service{
+				obj: &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test_service",
 						Namespace:   "default",
