@@ -14,7 +14,7 @@ import (
 )
 
 // TODO: refactor this and use CUE
-func getEntity(byt []byte) (et entity.Entity, _ error) {
+func GetEntity(byt []byte) (et entity.Entity, _ error) {
 	type schemaVersion struct {
 		SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
 	}

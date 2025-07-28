@@ -496,6 +496,8 @@ func FindEntityType(content []byte) (entity.EntityType, error) {
 		return entity.Model, nil
 	case "policies.meshery.io":
 		return entity.PolicyDefinition, nil
+	case "connections.meshery.io":
+		return entity.ConnectionDefinition, nil
 	}
 	return "", ErrInvalidSchemaVersion
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
-	models "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
+	corev1beta1 "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/category"
@@ -97,9 +97,10 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&connection.Connection{},
 		&component.ComponentDefinition{},
 		&relationship.RelationshipDefinition{},
-		&models.PolicyDefinition{},
+		&corev1beta1.PolicyDefinition{},
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
+		&corev1beta1.ConnectionDefinition{},
 	)
 	if err != nil {
 		return nil, err
@@ -173,8 +174,8 @@ func (rm *RegistryManager) GetRegistrant(e entity.Entity) connection.Connection 
 }
 
 // to be removed
-func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshModelHostsWithEntitySummary, int64, error) {
-	var result []models.MesheryHostSummaryDB
+func (rm *RegistryManager) GetRegistrants(f *corev1beta1.HostFilter) ([]corev1beta1.MeshModelHostsWithEntitySummary, int64, error) {
+	var result []corev1beta1.MesheryHostSummaryDB
 	var totalConnectionsCount int64
 	db := rm.db
 
@@ -213,7 +214,7 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 		return nil, 0, err
 	}
 
-	var response []models.MeshModelHostsWithEntitySummary
+	var response []corev1beta1.MeshModelHostsWithEntitySummary
 	nonRegistantCount := int64(0)
 	for _, r := range result {
 
@@ -222,9 +223,9 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 			continue
 		}
 
-		res := models.MeshModelHostsWithEntitySummary{
+		res := corev1beta1.MeshModelHostsWithEntitySummary{
 			Connection: r.Connection,
-			Summary: models.EntitySummary{
+			Summary: corev1beta1.EntitySummary{
 				Models:        r.Models,
 				Components:    r.Components,
 				Relationships: r.Relationships,
