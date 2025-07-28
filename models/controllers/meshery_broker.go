@@ -132,7 +132,12 @@ func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return endpoint.External.String(), nil
+	if endpoint.Internal == nil || endpoint.Internal.Address == "" {
+		return "", ErrGetControllerEndpointForPort(
+			fmt.Errorf("internal endpoint for meshery-broker is not available"),
+		)
+	}
+	return endpoint.Internal.String(), nil
 }
 
 func getImageVersionOfContainer(container v1.PodTemplateSpec, containerName string) string {

@@ -5,9 +5,10 @@ import (
 )
 
 var (
-	ErrGetControllerStatusCode         = "meshkit-11141"
-	ErrDeployControllerCode            = "meshkit-11142"
-	ErrGetControllerPublicEndpointCode = "meshkit-11143"
+	ErrGetControllerStatusCode          = "meshkit-11141"
+	ErrDeployControllerCode             = "meshkit-11142"
+	ErrGetControllerPublicEndpointCode  = "meshkit-11143"
+	ErrGetControllerEndpointForPortCode = "meshkit-11319"
 )
 
 func ErrGetControllerStatus(err error) error {
@@ -20,4 +21,8 @@ func ErrDeployController(err error) error {
 
 func ErrGetControllerPublicEndpoint(err error) error {
 	return errors.New(ErrGetControllerPublicEndpointCode, errors.Alert, []string{"Could not get the public endpoint of the controller"}, []string{err.Error()}, []string{"Client configuration may not be valid"}, []string{"Make sure the client configuration is valid"})
+}
+
+func ErrGetControllerEndpointForPort(err error) error {
+	return errors.New(ErrGetControllerEndpointForPortCode, errors.Alert, []string{"Could not get endpoint for port of the controller"}, []string{err.Error()}, []string{"Client configuration may not be valid"}, []string{"Make sure the client configuration is valid"})
 }
