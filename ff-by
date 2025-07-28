@@ -1,0 +1,10 @@
+[33m74c9134[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeat/connection-definition-core-entity[m[33m, [m[1;31morigin/feat/connection-definition-core-entity[m[33m)[m fix: address remaining linter issues - Fix error message capitalization in models/controllers/meshery_broker.go, files/identification.go, files/sanitization.go, generators/github/git_repo.go - Fix De Morgan's law issues in cmd/errorutil/internal/coder/errorsnew_test.go - Fix tagged switch issues in models/meshmodel/registry/v1beta1/component_filter.go, models/meshmodel/registry/v1beta1/model_filter.go, registry/component.go, registry/model.go - Reduce total linter issues from 35 to 12 (only deprecated API usage remains)
+[33m80017bd[m fix: address remaining linter issues - Fix error message capitalization in models/controllers/meshery_broker.go, files/identification.go, files/sanitization.go, generators/github/git_repo.go - Fix De Morgan's law issues in cmd/errorutil/internal/coder/errorsnew_test.go - Fix tagged switch issues in models/meshmodel/registry/v1beta1/component_filter.go, models/meshmodel/registry/v1beta1/model_filter.go, registry/component.go, registry/model.go - Reduce total linter issues from 35 to 12 (only deprecated API usage remains)
+[33m11fb416[m Fix remaining linter errors: errcheck, staticcheck, and ineffassign issues
+[33md80140e[m fix: add utility functions for safe error handling and fix some errcheck issues
+[33md7240ab[m fix: resolve remaining staticcheck issues in utils package
+[33me0680ed[m fix: resolve critical linting issues in utils package
+[33m77412b3[m Merge branch 'feat/connection-definition-core-entity' of https://github.com/HeerakKashyap/meshkit into feat/connection-definition-core-entity
+[33m9a9581d[m fix: resolve linting issues in connection definition implementation
+[33m8a0ca86[m Merge branch 'master' into feat/connection-definition-core-entity
+[33m5f8d353[m Merge pull request #774 from n2h9/revert-2a055d0
