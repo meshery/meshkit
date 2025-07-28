@@ -86,7 +86,7 @@ func IsOCIArtifact(data []byte) bool {
 	var tr *archiveTar.Reader
 
 	if gzr, err := gzip.NewReader(reader); err == nil {
-		defer gzr.Close()
+		defer utils.SafeClose(gzr)
 		tr = archiveTar.NewReader(gzr)
 	} else {
 		_, err := reader.Seek(0, io.SeekStart)
@@ -118,7 +118,7 @@ func ExtractAndValidateManifest(data []byte) error {
 	var tr *archiveTar.Reader
 
 	if gzr, err := gzip.NewReader(reader); err == nil {
-		defer gzr.Close()
+		defer utils.SafeClose(gzr)
 		tr = archiveTar.NewReader(gzr)
 	} else {
 		_, err := reader.Seek(0, io.SeekStart)

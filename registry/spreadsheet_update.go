@@ -220,7 +220,7 @@ func appendSheet(srv *sheets.Service, cred, sheetId, appendRange string, values 
 		if err != nil {
 			return err
 		}
-		defer file.Close()
+		defer utils.SafeClose(file)
 		// Create a new CSV writer
 		writer := csv.NewWriter(file)
 
@@ -331,7 +331,7 @@ func getCSVHeader(filePath string) (headers, secondRow []string, err error) {
 		err = utils.ErrOpenFile(filePath)
 		return headers, secondRow, err
 	}
-	defer file.Close()
+	defer utils.SafeClose(file)
 
 	reader := csv.NewReader(file)
 	headers, err = reader.Read()

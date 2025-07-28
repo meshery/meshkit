@@ -17,6 +17,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 
+	"github.com/meshery/meshkit/utils"
 	oras "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/registry/remote"
@@ -94,7 +95,7 @@ func createLayer(path string, layerType LayerType, opts layerOptions) (gcrv1.Lay
 		if err != nil {
 			return nil, err
 		}
-		defer os.RemoveAll(tmpDir)
+		defer utils.SafeRemoveAll(tmpDir)
 		tmpFile := filepath.Join(tmpDir, "artifact.tgz")
 		defaultOpts := client.DefaultOptions()
 		ociClient := client.NewClient(defaultOpts)
@@ -198,7 +199,7 @@ func PullFromOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username
 		return ErrFileNotFound(err, dirPath)
 	}
 
-	defer fs.Close()
+	defer utils.SafeClose(fs)
 	ctx := context.Background()
 
 	// Connect to remote registry

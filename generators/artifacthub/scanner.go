@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/manifests"
 )
 
@@ -47,7 +48,7 @@ func GetAhPackagesWithName(name string) ([]AhPackage, error) {
 		err = fmt.Errorf("status code %d for %s", resp.StatusCode, finalURL)
 		return nil, ErrGetAhPackage(err)
 	}
-	defer resp.Body.Close()
+	defer utils.SafeClose(resp.Body)
 	var res map[string]([]map[string]interface{})
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {

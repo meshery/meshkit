@@ -122,9 +122,10 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 			finder = finder.Where("model_dbs.display_name = ?", mf.DisplayName)
 		}
 	}
-	if mf.Annotations == "true" {
+	switch mf.Annotations {
+	case "true":
 		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
-	} else if mf.Annotations == "false" {
+	case "false":
 		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
 	}
 	if mf.Version != "" {
@@ -136,9 +137,10 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 	if mf.Registrant != "" {
 		finder = finder.Where("connections.kind = ?", mf.Registrant)
 	}
-	if mf.Annotations == "true" {
+	switch mf.Annotations {
+	case "true":
 		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = true")
-	} else if mf.Annotations == "false" {
+	case "false":
 		finder = finder.Where("model_dbs.metadata->>'isAnnotation' = false")
 	}
 	if mf.Id != "" {

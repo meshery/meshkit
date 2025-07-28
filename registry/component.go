@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/csv"
 	"github.com/meshery/meshkit/utils/manifests"
+	"github.com/meshery/schemas"
 	"github.com/meshery/schemas/models/v1alpha1/capability"
 	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
@@ -118,10 +120,21 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 		return err
 	}
 	var capabilities []capability.Capability
-	if c.Capabilities != "" {
+	if c.Capabilities != "" && c.Capabilities != "null" {
 		err := encoding.Unmarshal([]byte(c.Capabilities), &capabilities)
 		if err != nil {
 			Log.Error(err)
+			defaultCapabilities, defaultErr := getMinimalUICapabilitiesFromSchema()
+			if defaultErr == nil {
+				capabilities = defaultCapabilities
+			}
+		}
+	} else {
+		defaultCapabilities, err := getMinimalUICapabilitiesFromSchema()
+		if err != nil {
+			Log.Error(err)
+		} else {
+			capabilities = defaultCapabilities
 		}
 	}
 
@@ -135,25 +148,26 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 
 	//metadata properties from csv
 	for _, key := range compMetadataValues {
-		if key == "genealogy" {
+		switch key {
+		case "genealogy":
 			genealogy, err := utils.Cast[string](compMetadata[key])
 			if err == nil {
 				compDef.Metadata.Genealogy = genealogy
 			}
-		} else if key == "isAnnotation" {
+		case "isAnnotation":
 			if strings.ToLower(c.IsAnnotation) == "true" {
 				compDef.Metadata.IsAnnotation = true
 			} else {
 				compDef.Metadata.IsAnnotation = false
 			}
-		} else if key == "styleOverrides" {
+		case "styleOverrides":
 			if c.StyleOverrides != "" {
 				err := encoding.Unmarshal([]byte(c.StyleOverrides), &compDefStyles)
 				if err != nil {
 					return err
 				}
 			}
-		} else {
+		default:
 			metadata[key] = compMetadata[key]
 		}
 	}
@@ -447,4 +461,44 @@ func getSVGForComponent(model ModelCSV, component ComponentCSV) (colorSVG string
 		whiteSVG = model.SVGWhite
 	}
 	return
+}
+
+func getMinimalUICapabilitiesFromSchema() ([]capability.Capability, error) {
+	schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta1/component/component.json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read component schema: %v", err)
+	}
+
+	capabilitiesJSON, err := extractCapabilitiesJSONFromSchema(schema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract capabilities from schema: %v", err)
+	}
+
+	var allCapabilities []capability.Capability
+	if err := json.Unmarshal(capabilitiesJSON, &allCapabilities); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal capabilities: %v", err)
+	}
+
+	if len(allCapabilities) >= 3 {
+		return allCapabilities[len(allCapabilities)-3:], nil
+	}
+
+	return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allCapabilities))
+}
+
+func extractCapabilitiesJSONFromSchema(schema []byte) ([]byte, error) {
+	var schemaMap map[string]interface{}
+	if err := json.Unmarshal(schema, &schemaMap); err != nil {
+		return nil, err
+	}
+
+	if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
+		if capabilitiesSchema, ok := properties["capabilities"].(map[string]interface{}); ok {
+			if defaultValue, ok := capabilitiesSchema["default"]; ok {
+				return json.Marshal(defaultValue)
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("default capabilities not found in schema")
 }

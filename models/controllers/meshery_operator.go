@@ -77,7 +77,7 @@ func (mo *mesheryOperator) Deploy(force bool) error {
 		return nil
 	}
 	if status == Deploying {
-		return ErrDeployController(fmt.Errorf("Already a Meshery Operator is being deployed."))
+		return ErrDeployController(fmt.Errorf("already a Meshery Operator is being deployed"))
 	}
 	err := applyOperatorHelmChart(mo.deploymentConf.HelmChartRepo, *mo.client, mo.deploymentConf.MesheryReleaseVersion, false, mo.deploymentConf.GetHelmOverrides(false))
 	if err != nil {

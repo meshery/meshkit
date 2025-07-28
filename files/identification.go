@@ -109,14 +109,14 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	if err != nil {
 		return nil, utils.ErrCreateDir(err, "OCI")
 	}
-	defer os.RemoveAll(tmpDir)
+	defer utils.SafeRemoveAll(tmpDir)
 
 	tmpInputDesignFile := filepath.Join(tmpDir, "design.tar")
 	file, err := os.Create(tmpInputDesignFile)
 	if err != nil {
 		return nil, utils.ErrCreateFile(err, tmpInputDesignFile)
 	}
-	defer file.Close()
+	defer utils.SafeClose(file)
 
 	reader := bytes.NewReader(artifact)
 	if _, err := io.Copy(file, reader); err != nil {
@@ -149,7 +149,7 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	}
 
 	if design == nil {
-		return nil, ErrEmptyOCIImage(fmt.Errorf("No design file detected in the imported OCI image"))
+		return nil, ErrEmptyOCIImage(fmt.Errorf("no design file detected in the imported OCI image"))
 	}
 
 	var patternFile pattern.PatternFile
@@ -208,7 +208,7 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 		return *parsed_design, err
 
 	default:
-		return pattern.PatternFile{}, fmt.Errorf("Invalid File extension %s", file.FileExt)
+		return pattern.PatternFile{}, fmt.Errorf("invalid file extension %s", file.FileExt)
 	}
 
 }
@@ -241,7 +241,7 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 			if err == io.EOF {
 				break // End of file
 			}
-			return nil, fmt.Errorf("Failed to decode YAML document: %v", err)
+			return nil, fmt.Errorf("failed to decode YAML document: %v", err)
 		}
 
 		if len(raw.Raw) == 0 {
@@ -254,7 +254,7 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 			// Fallback: Convert to Unstructured object for unknown API types
 			unstructuredObj := &unstructured.Unstructured{}
 			if err := json.Unmarshal(raw.Raw, unstructuredObj); err != nil {
-				return nil, fmt.Errorf("Failed to decode YAML into Kubernetes object \n %v", utils.TruncateErrorMessage(err, 20))
+				return nil, fmt.Errorf("failed to decode YAML into Kubernetes object \n %v", utils.TruncateErrorMessage(err, 20))
 			}
 			objects = append(objects, unstructuredObj)
 		}
@@ -301,7 +301,7 @@ var ValidKustomizeFileExtensions = map[string]bool{
 func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
 
 	if !ValidHelmChartFileExtensions[file.FileExt] {
-		return nil, fmt.Errorf("Invalid file extension %s", file.FileExt)
+		return nil, fmt.Errorf("invalid file extension %s", file.FileExt)
 	}
 
 	// Use Helm's loader.LoadDir to load the chart

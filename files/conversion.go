@@ -11,7 +11,7 @@ import (
 func ConvertHelmChartToKubernetesManifest(file IdentifiedFile) (string, error) {
 	chart, ok := file.ParsedFile.(*chart.Chart)
 	if chart != nil && !ok {
-		return "", fmt.Errorf("Failed to get *chart.Chart from identified file")
+		return "", fmt.Errorf("failed to get *chart.Chart from identified file")
 	}
 	// empty kubernetes version because helm should figure it out
 	manifest, err := helm.DryRunHelmChart(chart, "")
@@ -24,7 +24,7 @@ func ConvertHelmChartToKubernetesManifest(file IdentifiedFile) (string, error) {
 func ConvertDockerComposeToKubernetesManifest(file IdentifiedFile) (string, error) {
 	parsedCompose, ok := file.ParsedFile.(ParsedCompose)
 	if !ok {
-		return "", fmt.Errorf("Failed to get *chart.Chart from identified file")
+		return "", fmt.Errorf("failed to get *chart.Chart from identified file")
 	}
 
 	return parsedCompose.manifest, nil
@@ -34,7 +34,7 @@ func ConvertKustomizeToKubernetesManifest(file IdentifiedFile) (string, error) {
 	parsedKustomize, ok := file.ParsedFile.(resmap.ResMap)
 
 	if !ok {
-		return "", fmt.Errorf("Failed to get *resmap.ResMap from identified file")
+		return "", fmt.Errorf("failed to get *resmap.ResMap from identified file")
 	}
 
 	yamlBytes, err := parsedKustomize.AsYaml()

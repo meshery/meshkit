@@ -43,14 +43,14 @@ func UpdateSVGString(svgStr string, width, height int, skipHeader bool) (string,
 				updatedW := false
 				xmlnsindex := -1
 				for i, a := range se.Attr {
-					if a.Name.Local == "width" {
+					switch a.Name.Local {
+					case "width":
 						se.Attr[i].Value = strconv.Itoa(width)
 						updatedW = true
-					} else if a.Name.Local == "height" {
+					case "height":
 						se.Attr[i].Value = strconv.Itoa(height)
 						updatedH = true
-					}
-					if a.Name.Local == "xmlns" {
+					case "xmlns":
 						xmlnsindex = i
 					}
 				}

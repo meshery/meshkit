@@ -101,19 +101,19 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	}
 	entries, ok := out["entries"].(map[interface{}]interface{})
 	if entries == nil || !ok {
-		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+		return ErrGetChartUrl(fmt.Errorf("cannot extract chartUrl from repository helm index"))
 	}
 	pkgEntry, ok := entries[pkg.Name]
 	if pkgEntry == nil || !ok {
-		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+		return ErrGetChartUrl(fmt.Errorf("cannot extract chartUrl from repository helm index"))
 	}
 	urls, ok := pkgEntry.([]interface{})[0].(map[interface{}]interface{})["urls"]
 	if urls == nil || !ok {
-		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+		return ErrGetChartUrl(fmt.Errorf("cannot extract chartUrl from repository helm index"))
 	}
 	chartUrl, ok := urls.([]interface{})[0].(string)
 	if !ok || chartUrl == "" {
-		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+		return ErrGetChartUrl(fmt.Errorf("cannot extract chartUrl from repository helm index"))
 	}
 	if !strings.HasPrefix(chartUrl, "http") {
 		if !strings.HasSuffix(pkg.RepoUrl, "/") {
@@ -140,7 +140,7 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 		err = fmt.Errorf("status code %d for %s", resp.StatusCode, AhHelmExporterEndpoint)
 		return nil, ErrGetAllHelmPackages(err)
 	}
-	defer resp.Body.Close()
+	defer utils.SafeClose(resp.Body)
 	var res []map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
@@ -160,7 +160,7 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 			fmt.Println(err)
 			continue
 		}
-		defer resp.Body.Close()
+		defer utils.SafeClose(resp.Body)
 		var res map[string]interface{}
 		err = json.NewDecoder(resp.Body).Decode(&res)
 		if err != nil {

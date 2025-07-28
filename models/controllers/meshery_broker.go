@@ -106,7 +106,7 @@ func (mb *mesheryBroker) GetPublicEndpoint() (string, error) {
 	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), MesheryBroker, metav1.GetOptions{})
 	if broker.Status.Endpoint.External == "" {
 		if err == nil {
-			err = fmt.Errorf("Could not get the External endpoint for meshery-broker")
+			err = fmt.Errorf("could not get the external endpoint for meshery-broker")
 		}
 		// broker is not available
 		return "", ErrGetControllerPublicEndpoint(err)
@@ -132,7 +132,12 @@ func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return endpoint.External.String(), nil
+	if endpoint.Internal == nil || endpoint.Internal.Address == "" {
+		return "", ErrGetControllerEndpointForPort(
+			fmt.Errorf("internal endpoint for meshery-broker is not available"),
+		)
+	}
+	return endpoint.Internal.String(), nil
 }
 
 func getImageVersionOfContainer(container v1.PodTemplateSpec, containerName string) string {

@@ -72,7 +72,7 @@ func IncludeComponentBasedOnGroup(resource string, groupFilter string) (bool, er
 	group, err := extractCueValueFromPath(crdCue, DefaultPathConfig.GroupPath)
 
 	if err != nil {
-		logrus.Info("Failed to extract group from crd %v", err)
+		logrus.Infof("Failed to extract group from crd %v", err)
 	}
 
 	return group == groupFilter, nil
@@ -115,9 +115,10 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 		cmp.Metadata.AdditionalProperties = make(map[string]interface{})
 	}
 	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
-	if scope == "Cluster" {
+	switch scope {
+	case "Cluster":
 		cmp.Metadata.IsNamespaced = false
-	} else if scope == "Namespaced" {
+	case "Namespaced":
 		cmp.Metadata.IsNamespaced = true
 	}
 	cmp.Component.Kind = name

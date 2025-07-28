@@ -53,10 +53,10 @@ func cleanup(s string) string {
 		s = strings.TrimPrefix(s, "stable")
 		s += "stable"
 	}
-	s = strings.Replace(s, "alpha", ".0", -1)
-	s = strings.Replace(s, "beta", ".1", -1)
-	s = strings.Replace(s, "rc", ".2", -1)
-	s = strings.Replace(s, "stable", ".4", -1)
+	s = strings.ReplaceAll(s, "alpha", ".0")
+	s = strings.ReplaceAll(s, "beta", ".1")
+	s = strings.ReplaceAll(s, "rc", ".2")
+	s = strings.ReplaceAll(s, "stable", ".4")
 	s1 := ""
 	for _, s := range s {
 		if (s >= 48 && s <= 57) || s == 46 {

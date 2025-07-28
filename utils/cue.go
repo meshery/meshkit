@@ -24,7 +24,7 @@ func Validate(schema cue.Value, value cue.Value) (bool, []errors.Error) {
 
 	schema.Walk(func(v cue.Value) bool {
 		val := value.LookupPath(v.Path())
-		if !(val.Err() == nil && val.IsConcrete()) {
+		if val.Err() != nil || !val.IsConcrete() {
 			cueErr := errors.Errors(errors.New(fmt.Sprintf("%v is a required field", v.Path().String())))
 			errs = append(errs, cueErr...)
 		}
@@ -111,7 +111,7 @@ func Lookup(rootVal cue.Value, path string) (cue.Value, error) {
 		return res, ErrCueLookup(res.Err())
 	}
 	if !res.Exists() {
-		return res, ErrCueLookup(fmt.Errorf("Could not find the value at the path: %s", path))
+		return res, ErrCueLookup(fmt.Errorf("could not find the value at the path: %s", path))
 	}
 
 	return res.Value(), nil

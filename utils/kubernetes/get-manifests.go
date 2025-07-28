@@ -14,7 +14,7 @@ func GetManifestsFromHelm(url string) (string, error) {
 	if err != nil {
 		return "", ErrApplyHelmChart(err)
 	}
-	var manifests string = ""
+	manifests := ""
 	for _, crdobject := range chart.CRDObjects() {
 		manifests += "\n---\n"
 		manifests += string(crdobject.File.Data)

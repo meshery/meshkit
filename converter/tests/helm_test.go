@@ -11,22 +11,23 @@ import (
 
 	"github.com/meshery/meshkit/converter"
 	meshkiterr "github.com/meshery/meshkit/errors"
+	"github.com/meshery/meshkit/utils"
 )
 
 func TestHelmConverter_Convert(t *testing.T) {
 	testCases := []struct {
-		name              string
-		filePath          string
-		expectError       bool
-		expectedErrCode   string
-		checkManifest     bool
+		name               string
+		filePath           string
+		expectError        bool
+		expectedErrCode    string
+		checkManifest      bool
 		wantManifestSubstr string
 	}{
 		{
-			name:              "Valid Edge Firewall Relationship Deployment",
-			filePath:          "./samples/edge-firewall-relationship.yml",
-			expectError:       false,
-			checkManifest:     true,
+			name:               "Valid Edge Firewall Relationship Deployment",
+			filePath:           "./samples/edge-firewall-relationship.yml",
+			expectError:        false,
+			checkManifest:      true,
 			wantManifestSubstr: "apiVersion",
 		},
 		{
@@ -60,10 +61,10 @@ func TestHelmConverter_Convert(t *testing.T) {
 			expectedErrCode: "meshkit-11315",
 		},
 		{
-			name:              "No Components",
-			filePath:          "./samples/no-components.yaml",
-			expectError:       false,
-			checkManifest:     true,
+			name:               "No Components",
+			filePath:           "./samples/no-components.yaml",
+			expectError:        false,
+			checkManifest:      true,
 			wantManifestSubstr: "",
 		},
 		{
@@ -79,19 +80,19 @@ func TestHelmConverter_Convert(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var data []byte
-        	var err error
-        	if _, err = os.Stat(tc.filePath); err == nil {
-            	data, err = os.ReadFile(tc.filePath)
-            	if err != nil {
-                	t.Fatalf("Failed to read test file: %v", err)
-            	}
-        	} else {
-            	data = nil
-        	}
+			var err error
+			if _, err = os.Stat(tc.filePath); err == nil {
+				data, err = os.ReadFile(tc.filePath)
+				if err != nil {
+					t.Fatalf("Failed to read test file: %v", err)
+				}
+			} else {
+				data = nil
+			}
 
-        chartData, err := hc.Convert(string(data))
+			chartData, err := hc.Convert(string(data))
 
-						if tc.expectError {
+			if tc.expectError {
 				if err == nil {
 					t.Fatalf("Expected error, got nil")
 				}
@@ -127,7 +128,7 @@ func extractManifestFromChart(chartData []byte) (bool, string) {
 	if err != nil {
 		return false, ""
 	}
-	defer gr.Close()
+	defer utils.SafeClose(gr)
 	tr := tar.NewReader(gr)
 	for {
 		hdr, err := tr.Next()
@@ -139,7 +140,9 @@ func extractManifestFromChart(chartData []byte) (bool, string) {
 		}
 		if strings.HasSuffix(hdr.Name, "templates/manifest.yaml") {
 			buf := new(bytes.Buffer)
-			io.Copy(buf, tr)
+			if _, err := io.Copy(buf, tr); err != nil {
+				return false, ""
+			}
 			return true, buf.String()
 		}
 	}
