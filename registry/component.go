@@ -58,11 +58,18 @@ type ComponentCSV struct {
 // The Component Definition generated assumes or is only for components which have registrant as "meshery"
 func (c *ComponentCSV) CreateComponentDefinition(isModelPublished bool, defVersion string) (component.ComponentDefinition, error) {
 	status := entity.Enabled
+
+	if strings.HasSuffix(c.Component, "List") {
+		status = entity.Ignored
+	}
+
 	if c.Status != "" {
-		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "false" {
+		normalized := utils.ReplaceSpacesAndConvertToLowercase(c.Status)
+		if normalized == "false" || normalized == "ignored" {
 			status = entity.Ignored
 		}
 	}
+
 	componentDefinition := &component.ComponentDefinition{
 		SchemaVersion: schmeaVersion.ComponentSchemaVersion,
 		DisplayName:   c.Component,
