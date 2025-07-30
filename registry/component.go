@@ -101,11 +101,19 @@ var compStyleValues = []string{
 
 func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefinition) error {
 	status := entity.Enabled
+
+	if strings.HasSuffix(c.Component, "List") {
+		status = entity.Ignored
+	}
+
 	if c.Status != "" {
-		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "false" {
+		normalized := utils.ReplaceSpacesAndConvertToLowercase(c.Status)
+		if normalized == "false" || normalized == "ignored" {
 			status = entity.Ignored
 		}
 	}
+	Log.Info(fmt.Sprintf("Component [%s]: Status from CSV = [%s], Final status = [%s]", c.Component, c.Status, status))
+
 	compDef.Status = (*component.ComponentDefinitionStatus)(&status)
 	var existingAddditionalProperties map[string]interface{}
 	if c.Description != "" {
