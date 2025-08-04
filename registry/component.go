@@ -59,7 +59,7 @@ type ComponentCSV struct {
 func (c *ComponentCSV) CreateComponentDefinition(isModelPublished bool, defVersion string) (component.ComponentDefinition, error) {
 	status := entity.Enabled
 	if c.Status != "" {
-		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "false" {
+		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "ignore" {
 			status = entity.Ignored
 		}
 	}
@@ -95,7 +95,7 @@ var compStyleValues = []string{
 func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefinition) error {
 	status := entity.Enabled
 	if c.Status != "" {
-		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "false" {
+		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "ignore" {
 			status = entity.Ignored
 		}
 	}

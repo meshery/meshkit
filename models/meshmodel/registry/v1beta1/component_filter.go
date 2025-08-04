@@ -72,14 +72,11 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id").
 		Joins("JOIN connections ON connections.id = model_dbs.connection_id")
 
-	// TODO(@MUzairS15): Refactor this once Status is made a first class field in ComponentFilter
-	status := "enabled"
-
 	if componentFilter.Status != "" {
-		status = componentFilter.Status
+		finder = finder.Where("component_definition_dbs.status = ?", componentFilter.Status)
+	} else {
+		finder = finder.Where("component_definition_dbs.status = ?", "enabled")
 	}
-
-	finder = finder.Where("model_dbs.status = ?", status)
 	if componentFilter.Greedy {
 		if componentFilter.Name != "" && componentFilter.DisplayName != "" {
 			finder = finder.Where("component_definition_dbs.component->>'kind' LIKE ? OR display_name LIKE ?", "%"+componentFilter.Name+"%", componentFilter.DisplayName+"%")
