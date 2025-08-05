@@ -166,7 +166,6 @@ func (h *ChannelBrokerHandler) Subscribe(subject, queue string, message []byte) 
 func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch chan *broker.Message) error {
 	h.mu.Lock()
 
-
 	if h.storage[subject] == nil {
 		h.storage[subject] = make(map[string]chan *broker.Message)
 	}
@@ -176,15 +175,15 @@ func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch
 	}
 	// a local copy of the channel before starting the goroutine. That way the goroutine never touches the shared map directly
 	ch := h.storage[subject][queue]
-    h.mu.Unlock()
+	h.mu.Unlock()
 
-    go func(c chan *broker.Message) {
-        for message := range c {
+	go func(c chan *broker.Message) {
+		for message := range c {
 			// this flow is correct as if we have more than one consumer for one queue
 			// only one will receive the message
-            msgch <- message
-        }
-    }(ch)
+			msgch <- message
+		}
+	}(ch)
 
 	return nil
 }
