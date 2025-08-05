@@ -179,8 +179,8 @@ func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch
 
 	go func(c chan *broker.Message) {
 		for message := range c {
-			// this flow is correct as if we have more than one consumer for one queue
-			// only one will receive the message
+		// this flow is correct as if we have more than one consumer for one queue
+		// only one will receive the message
 			msgch <- message
 		}
 	}(ch)
