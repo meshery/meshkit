@@ -35,7 +35,7 @@ func NewK8sManifestsFromPatternfile(patternFile *pattern.PatternFile) (string, e
 			return "", err
 		}
 	}
-	return buf.String(), nil
+	return buf.String(),nil
 }
 
 func CreateK8sResourceStructure(comp *component.ComponentDefinition) map[string]interface{} {
