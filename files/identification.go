@@ -170,46 +170,41 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 
 	var parsed pattern.PatternFile
 
-	switch file.FileExt {
+	ext := strings.ToLower(file.FileExt)
 
-	case ".yml", ".yaml":
-
+	if ext == ".yaml" || ext == ".yml" {
 		decoder := yaml.NewDecoder(bytes.NewReader(file.RawData))
 		err := decoder.Decode(&parsed)
 		if err != nil {
 			return pattern.PatternFile{}, err
 		}
 		if parsed.SchemaVersion == v1beta1.DesignSchemaVersion {
-			return parsed, err
-		} else {
-			return pattern.PatternFile{}, utils.ErrInvalidConstructSchemaVersion("design", parsed.SchemaVersion, v1beta1.DesignSchemaVersion)
+			return parsed, nil
 		}
+		return pattern.PatternFile{}, utils.ErrInvalidConstructSchemaVersion("design", parsed.SchemaVersion, v1beta1.DesignSchemaVersion)
 
-	case ".json":
-
+	} else if ext == ".json" {
 		decoder := json.NewDecoder(bytes.NewReader(file.RawData))
-
 		err := decoder.Decode(&parsed)
-
 		if err != nil {
 			return pattern.PatternFile{}, err
 		}
 		if parsed.SchemaVersion == v1beta1.DesignSchemaVersion {
-			return parsed, err
+			return parsed, nil
 		}
 		return pattern.PatternFile{}, utils.ErrInvalidConstructSchemaVersion("design", parsed.SchemaVersion, v1beta1.DesignSchemaVersion)
 
-	case ".tgz", ".tar", ".tar.gz", ".zip": // try to parse oci artifacts
-		parsed_design, err := ParseCompressedOCIArtifactIntoDesign(file.RawData)
-		if parsed_design == nil || err != nil {
+	} else if strings.HasPrefix(ext, ".tar") || strings.HasSuffix(ext, ".tgz") || strings.HasSuffix(ext, ".zip") {
+		parsedDesign, err := ParseCompressedOCIArtifactIntoDesign(file.RawData)
+		if parsedDesign == nil || err != nil {
 			return pattern.PatternFile{}, err
 		}
+		return *parsedDesign, nil
 
-		return *parsed_design, err
-
-	default:
-		return pattern.PatternFile{}, fmt.Errorf("Invalid File extension %s", file.FileExt)
+	} else {
+		return pattern.PatternFile{}, fmt.Errorf("Invalid File extension %s", ext)
 	}
+
 
 }
 

@@ -165,7 +165,7 @@ func (h *ChannelBrokerHandler) Subscribe(subject, queue string, message []byte) 
 // SubscribeWithChannel will publish all the messages received to the given channel
 func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch chan *broker.Message) error {
 	h.mu.Lock()
-	defer h.mu.Unlock()
+
 
 	if h.storage[subject] == nil {
 		h.storage[subject] = make(map[string]chan *broker.Message)
@@ -174,15 +174,17 @@ func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch
 	if h.storage[subject][queue] == nil {
 		h.storage[subject][queue] = make(chan *broker.Message, h.SingleChannelBufferSize)
 	}
+	
+	ch := h.storage[subject][queue]
+    h.mu.Unlock()
 
-	go func() {
-		// this loop will terminate when the h.storage[subject][queue] is closed
-		for message := range h.storage[subject][queue] {
-			// this flow is correct as if we have more than one consumer for one queue
+    go func(c chan *broker.Message) {
+        for message := range c {
+		// this flow is correct as if we have more than one consumer for one queue
 			// only one will receive the message
-			msgch <- message
-		}
-	}()
+            msgch <- message
+        }
+    }(ch)
 
 	return nil
 }
