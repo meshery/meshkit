@@ -2,6 +2,7 @@ package manifests
 
 import (
 	"context"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -36,6 +37,18 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 			}
 			parsedCrd = cueCtx.BuildExpr(expr)
 		}
+kindVal, err := cfg.CrdFilter.NameExtractor(parsedCrd)
+if err == nil {
+	kindStr, strErr := kindVal.String()
+	if strErr != nil {
+		// TODO: Add logging for this error to aid debugging.
+		continue // skip if unable to convert to string
+	}
+	if strings.HasSuffix(kindStr, "List") {
+		continue // skip List kinds
+	}
+}
+
 		outDef, err := getDefinitions(parsedCrd, resource, cfg, ctx)
 		if err != nil {
 			// inability to generate component for a single crd should not affect the rest
