@@ -3,7 +3,7 @@ include build/Makefile.show-help.mk
 
 ## Run suite of Golang lint checks
 check:
-	golangci-lint run -c .golangci.yml -v ./...
+	golangci-lint run -c .golangci.yml -v $(GOLANGCI_LINT_EXTRA_ARGS) ./...
 
 ## Run Golang tests
 test:

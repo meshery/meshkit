@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"log"
 
 	"fmt"
 	"io"
@@ -92,7 +93,11 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 		if err != nil {
 			return err
 		}
-		defer gzipReader.Close()
+		defer func() {
+			if cerr := gzipReader.Close(); cerr != nil {
+				log.Printf("error closing gzipReader: %v", cerr)
+			}
+		}()
 		reader = gzipReader
 	}
 
@@ -132,7 +137,11 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create file: %v", err)
 		}
-		defer file.Close()
+		defer func(f *os.File) {
+			if cerr := f.Close(); cerr != nil {
+				log.Printf("error closing file %s: %v", targetPath, cerr)
+			}
+		}(file)
 
 		// Copy file contents
 		if _, err := io.Copy(file, tarReader); err != nil {
@@ -178,16 +187,22 @@ func ExtractZipFromBytes(data []byte, outputDir string) error {
 		if err != nil {
 			return fmt.Errorf("failed to open file in zip: %w", err)
 		}
-		defer zipFile.Close()
+		defer func(zf io.Closer, name string) {
+			if cerr := zf.Close(); cerr != nil {
+				log.Printf("error closing zip file %s: %v", name, cerr)
+			}
+		}(zipFile, file.Name)
 
-		// Create the output file
 		outFile, err := os.Create(filePath)
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}
-		defer outFile.Close()
+		defer func(f *os.File) {
+			if cerr := f.Close(); cerr != nil {
+				log.Printf("error closing output file %s: %v", filePath, cerr)
+			}
+		}(outFile)
 
-		// Copy the contents of the file from the ZIP archive to the output file
 		if _, err := io.Copy(outFile, zipFile); err != nil {
 			return fmt.Errorf("failed to copy file contents: %w", err)
 		}

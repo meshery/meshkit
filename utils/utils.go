@@ -112,7 +112,11 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			log.Printf("error closing response body from %s: %v", url, cerr)
+		}
+	}()
 
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("failed to get the file %d status code for %s file", resp.StatusCode, url)
@@ -123,7 +127,11 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() {
+		if cerr := out.Close(); cerr != nil {
+			log.Printf("error closing file %s: %v", filepath, cerr)
+		}
+	}()
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
@@ -311,16 +319,17 @@ func WriteToFile(path string, content string) error {
 	if err != nil {
 		return ErrCreateFile(err, path)
 	}
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			log.Printf("error closing file %s: %v", path, cerr)
+		}
+	}()
 
 	_, err = file.WriteString(content)
 	if err != nil {
 		return ErrWriteFile(err, path)
 	}
-	// Close the file to save the changes.
-	err = file.Close()
-	if err != nil {
-		return ErrWriteFile(err, path)
-	}
+
 	return nil
 }
 
@@ -371,12 +380,19 @@ func WriteYamlToFile[K any](outputPath string, data K) error {
 	if err != nil {
 		return ErrCreateFile(err, outputPath)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			log.Printf("error closing YAML file %s: %v", outputPath, cerr)
+		}
+	}()
 
 	encoder := yaml.NewEncoder(file)
 	encoder.SetIndent(2)
-
-	defer encoder.Close()
+	defer func() {
+		if cerr := encoder.Close(); cerr != nil {
+			log.Printf("error closing YAML encoder for file %s: %v", outputPath, cerr)
+		}
+	}()
 
 	if err := encoder.Encode(data); err != nil {
 		return ErrMarshal(err)
@@ -561,9 +577,17 @@ func ReadSVGData(baseDir, path string) (string, error) {
 }
 func Compress(src string, buf io.Writer) error {
 	zr := gzip.NewWriter(buf)
-	defer zr.Close()
+	defer func() {
+		if cerr := zr.Close(); cerr != nil {
+			log.Printf("error closing gzip writer: %v", cerr)
+		}
+	}()
 	tw := tar.NewWriter(zr)
-	defer tw.Close()
+	defer func() {
+		if cerr := tw.Close(); cerr != nil {
+			log.Printf("error closing tar writer: %v", cerr)
+		}
+	}()
 
 	return filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -590,7 +614,11 @@ func Compress(src string, buf io.Writer) error {
 			if err != nil {
 				return err
 			}
-			defer data.Close()
+			defer func() {
+				if cerr := data.Close(); cerr != nil {
+					log.Printf("error closing file %s: %v", file, cerr)
+				}
+			}()
 
 			_, err = io.Copy(tw, data)
 			if err != nil {
