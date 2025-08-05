@@ -1,50 +1,50 @@
 package validator
 
 import (
-	"encoding/json"
-	"sync"
-	"fmt"
 	"cuelang.org/go/cue"
 	cueerrors "cuelang.org/go/cue/errors"
+	"encoding/json"
+	"fmt"
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/utils"
-	"github.com/meshery/schemas"
+	// "github.com/meshery/schemas"
+	// "sync"
 )
 
 var (
 	ErrValidateCode = ""
-	_      = "components.schemas"
-	cueschema       cue.Value
-	mx              sync.Mutex
-	isSchemaLoaded  bool
+	_               = "components.schemas"
+	// cueschema       cue.Value
+	// mx              sync.Mutex
+	// isSchemaLoaded  bool
 )
 
-func loadSchema() error {
-	mx.Lock()
-	defer func() {
-		mx.Unlock()
-	}()
+// func loadSchema() error {
+// 	mx.Lock()
+// 	defer func() {
+// 		mx.Unlock()
+// 	}()
 
-	if isSchemaLoaded {
-		return nil
-	}
+// 	if isSchemaLoaded {
+// 		return nil
+// 	}
 
-	file, err := schemas.Schemas.Open("schemas/constructs/v1beta1/design/design.json")
-	if err != nil {
-		return utils.ErrReadFile(err, "schemas/constructs/v1beta1/design/design.json")
-	}
+// 	file, err := schemas.Schemas.Open("schemas/constructs/v1beta1/design/design.json")
+// 	if err != nil {
+// 		return utils.ErrReadFile(err, "schemas/constructs/v1beta1/design/design.json")
+// 	}
 
-	cueschema, err = utils.ConvertoCue(file)
-	if err == nil {
-		isSchemaLoaded = true
-	}
-	return err
-}
+// 	cueschema, err = utils.ConvertoCue(file)
+// 	if err == nil {
+// 		isSchemaLoaded = true
+// 	}
+// 	return err
+// }
 
 func GetSchemaFor(resourceName string) (cue.Value, error) {
 	var schema cue.Value
 	var schemaJSON string
-	
+
 	// Use simplified schemas for testing without external references
 	switch resourceName {
 	case "design":

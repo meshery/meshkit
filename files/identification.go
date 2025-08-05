@@ -205,7 +205,6 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 		return pattern.PatternFile{}, fmt.Errorf("Invalid File extension %s", ext)
 	}
 
-
 }
 
 func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error) {
