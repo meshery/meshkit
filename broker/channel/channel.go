@@ -174,7 +174,7 @@ func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch
 	if h.storage[subject][queue] == nil {
 		h.storage[subject][queue] = make(chan *broker.Message, h.SingleChannelBufferSize)
 	}
-	
+	// a local copy of the channel before starting the goroutine. That way the goroutine never touches the shared map directly
 	ch := h.storage[subject][queue]
     h.mu.Unlock()
 
