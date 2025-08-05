@@ -294,30 +294,30 @@ func RemoveHelmPlaceholders(data []byte) []byte {
 // Helm chart names must be lowercase and can only contain alphanumeric characters, dashes, and underscores
 // Example: "My Chart" -> "my-chart"
 func SanitizeHelmName(name string) string {
-    if name == "" {
-        return "meshery-design"
-    }
+	if name == "" {
+		return "meshery-design"
+	}
 
-    result := strings.ToLower(name)
-    reg := regexp.MustCompile(`[^a-z0-9-]+`)
-    result = reg.ReplaceAllString(result, "-")
+	result := strings.ToLower(name)
+	reg := regexp.MustCompile(`[^a-z0-9-]+`)
+	result = reg.ReplaceAllString(result, "-")
 
-    for strings.Contains(result, "--") {
-        result = strings.ReplaceAll(result, "--", "-")
-    }
+	for strings.Contains(result, "--") {
+		result = strings.ReplaceAll(result, "--", "-")
+	}
 
-    result = strings.Trim(result, "-")
+	result = strings.Trim(result, "-")
 
-    if result == "" {
-        return "meshery-design"
-    }
+	if result == "" {
+		return "meshery-design"
+	}
 
-    const maxLength = 40
-    if len(result) > maxLength {
-        result = result[:maxLength]
+	const maxLength = 40
+	if len(result) > maxLength {
+		result = result[:maxLength]
 
-        result = strings.Trim(result, "-")
-    }
+		result = strings.Trim(result, "-")
+	}
 
-    return result
+	return result
 }
