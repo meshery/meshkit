@@ -41,7 +41,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 		{ // Source pointing to a directly downloadable file (not a repo per se)
 			ghPackageManager: GitHubPackageManager{
 				PackageName: "k8s-config-connector",
-				SourceURL:   "https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-config-connector/master/crds/alloydb_v1beta1_alloydbbackup.yaml/1.113.0",
+				SourceURL:   "https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-config-connector/master/crds/alloydb_v1beta1_alloydbbackup.yaml",
 			},
 			want: 1,
 		},
@@ -56,7 +56,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 		{ // Source pointing to a zip containing manifests but no CRDs
 			ghPackageManager: GitHubPackageManager{
 				PackageName: "acm-controller",
-				SourceURL:   "https://github.com/MUzairS15/WASM-filters/raw/main/test.tar.gz/v0.7.12",
+				SourceURL:   "https://github.com/MUzairS15/WASM-filters/raw/main/test.tar.gz",
 			},
 			want: 0,
 		},
