@@ -12,6 +12,7 @@ import (
 	meshkitFileUtils "github.com/meshery/meshkit/files"
 	"github.com/meshery/meshkit/utils"
 
+	corev1beta1 "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
@@ -65,7 +66,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 	var tempDirs []string
 	defer func() {
 		for _, tempDir := range tempDirs {
-			os.RemoveAll(tempDir)
+			utils.SafeRemoveAll(tempDir)
 		}
 	}()
 
@@ -161,7 +162,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 
 		// Get the entity
 		var e entity.Entity
-		e, err = getEntity(content)
+		e, err = GetEntity(content)
 		if err != nil {
 			regErrStore.InsertEntityRegError("", "", entityType, filepath.Base(path), fmt.Errorf("could not get entity: %w", err))
 			regErrStore.AddInvalidDefinition(path, fmt.Errorf("could not get entity: %w", err))
@@ -206,6 +207,18 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 				return nil
 			}
 			pkg.Relationships = append(pkg.Relationships, *rel)
+		case entity.ConnectionDefinition:
+			conn, err := utils.Cast[*corev1beta1.ConnectionDefinition](e)
+			if err != nil {
+				connectionName := ""
+				if conn != nil {
+					connectionName = conn.Kind
+				}
+				regErrStore.InsertEntityRegError("", "", entityType, connectionName, ErrGetEntity(err))
+				regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
+				return nil
+			}
+			pkg.Connections = append(pkg.Connections, *conn)
 		default:
 			// Unhandled entity type
 			return nil
