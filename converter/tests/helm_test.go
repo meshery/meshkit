@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
-
+	"fmt"
 	"github.com/meshery/meshkit/converter"
 	meshkiterr "github.com/meshery/meshkit/errors"
 )
@@ -139,7 +139,9 @@ func extractManifestFromChart(chartData []byte) (bool, string) {
 		}
 		if strings.HasSuffix(hdr.Name, "templates/manifest.yaml") {
 			buf := new(bytes.Buffer)
-			io.Copy(buf, tr)
+			if _, err := io.Copy(buf, tr); err != nil {
+				return false, fmt.Sprintf("failed to copy manifest content: %v", err)
+			}
 			return true, buf.String()
 		}
 	}
