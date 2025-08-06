@@ -86,14 +86,14 @@ func TestSanitizeFile(t *testing.T) {
 			name:         "Can Identify Kubernetes Manifest",
 			filePath:     "./samples/valid_manifest.yml",
 			expectedExt:  ".yml",
-expectedType: coreV1.K8sManifest,
+			expectedType: coreV1.K8sManifest,
 		},
 
 		{
 			name:         "Can Identify Kubernetes Manifest With Crds",
 			filePath:     "./samples/manifest-with-crds.yml",
 			expectedExt:  ".yml",
-expectedType: coreV1.K8sManifest,
+			expectedType: coreV1.K8sManifest,
 		},
 
 		{
