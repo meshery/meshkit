@@ -58,7 +58,7 @@ func SetupLogger(name string, debugLevel bool, output io.Writer) logger.Handler 
 }
 
 // Downloads CSV file using spreadsheet URL
-func DownloadCSVAndGetDownloadURL(sheetURL ,csvPath string, spreadsheetID int64)  (string ,error){
+func DownloadCSVAndGetDownloadURL(sheetURL, csvPath string, spreadsheetID int64) (string, error) {
 	newSheetURL := sheetURL + defaultURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
 	err := utils.DownloadFile(csvPath, newSheetURL)
 
@@ -68,14 +68,14 @@ func DownloadCSVAndGetDownloadURL(sheetURL ,csvPath string, spreadsheetID int64)
 	// if the default format (defaultURLPathAndQueryParams) fails.
 	// Additionally, the `/export?format=csv` format has the advantage of not requiring the sheet to be explicitly
 	// published to the web, unlike the default format which requires the sheet to be published in CSV format.
-	
-	if err !=nil{
+
+	if err != nil {
 		newSheetURL = sheetURL + overridedURLPathAndQueryParams + strconv.FormatInt(spreadsheetID, 10)
 		err = utils.DownloadFile(csvPath, newSheetURL)
-		if err !=nil{
-			return "",utils.ErrReadingRemoteFile(err)
+		if err != nil {
+			return "", utils.ErrReadingRemoteFile(err)
 		}
 	}
 	Log.Info("Downloaded CSV from: ", newSheetURL)
-	return newSheetURL,nil
+	return newSheetURL, nil
 }

@@ -48,14 +48,14 @@ func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID in
 	if localCsvPath == "" {
 		dirPath := filepath.Join(utils.GetHome(), ".meshery", "content")
 		err := os.MkdirAll(dirPath, 0755)
-		if err != nil{
+		if err != nil {
 			return nil, utils.ErrCreateDir(err, dirPath)
 		}
 		csvPath = filepath.Join(dirPath, "relationships.csv")
 
-		sheetURL,err = DownloadCSVAndGetDownloadURL(sheetURL,csvPath,spreadsheetID)
-		if err !=nil{
-			return nil,err
+		sheetURL, err = DownloadCSVAndGetDownloadURL(sheetURL, csvPath, spreadsheetID)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		csvPath = localCsvPath

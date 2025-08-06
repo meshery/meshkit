@@ -1,6 +1,7 @@
 package nats
 
 import (
+	"encoding/json"
 	"log"
 	"strings"
 	"sync"
@@ -25,7 +26,7 @@ type Options struct {
 
 // Nats will implement Nats subscribe and publish functionality
 type Nats struct {
-	ec *nats.EncodedConn
+	nc *nats.Conn
 	wg *sync.WaitGroup
 }
 
@@ -57,82 +58,83 @@ func New(opts Options) (broker.Handler, error) {
 		return nil, ErrConnect(err)
 	}
 
-	ec, err := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
-	if err != nil {
-		return nil, ErrEncodedConn(err)
-	}
-
-	return &Nats{ec: ec}, nil
+	return &Nats{nc: nc, wg: &sync.WaitGroup{}}, nil
 }
+
 func (n *Nats) ConnectedEndpoints() (endpoints []string) {
-	for _, server := range n.ec.Conn.Servers() {
+	for _, server := range n.nc.Servers() {
 		endpoints = append(endpoints, strings.TrimPrefix(server, "nats://"))
 	}
 	return
 }
 
 func (n *Nats) Info() string {
-	if n.ec == nil || n.ec.Conn == nil {
+	if n.nc == nil {
 		return broker.NotConnected
 	}
-	return n.ec.Conn.Opts.Name
+	return n.nc.Opts.Name
 }
 
 func (n *Nats) CloseConnection() {
-	n.ec.Close()
+	n.nc.Close()
 }
 
 // Publish - to publish messages
 func (n *Nats) Publish(subject string, message *broker.Message) error {
-	err := n.ec.Publish(subject, message)
+	data, err := json.Marshal(message)
 	if err != nil {
 		return ErrPublish(err)
 	}
-	return nil
+	return n.nc.Publish(subject, data)
 }
 
-// PublishWithChannel - to publish messages with channel
+// PublishWithChannel - publishes all messages from channel
 func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) error {
-	err := n.ec.BindSendChan(subject, msgch)
-	if err != nil {
-		return ErrPublish(err)
-	}
+	go func() {
+		for msg := range msgch {
+			if err := n.Publish(subject, msg); err != nil {
+				log.Printf("failed to publish message: %v", err)
+			}
+		}
+	}()
 	return nil
 }
 
-// Subscribe - for subscribing messages
-// TODO Ques: Do we want to unsubscribe
-// TODO will the method-user just subsribe, how will it handle the received messages?
+// Subscribe - for subscribing messages (blocking)
 func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 	n.wg.Add(1)
-	_, err := n.ec.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
-		message = msg.Data
+	_, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
+		copy(message, msg.Data)
 		n.wg.Done()
 	})
 	if err != nil {
 		return ErrQueueSubscribe(err)
 	}
 	n.wg.Wait()
-
 	return nil
 }
 
-// SubscribeWithChannel will publish all the messages received to the given channel
+// SubscribeWithChannel - for subscribing and forwarding to channel
 func (n *Nats) SubscribeWithChannel(subject, queue string, msgch chan *broker.Message) error {
-	_, err := n.ec.BindRecvQueueChan(subject, queue, msgch)
+	_, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
+		var parsed broker.Message
+		err := json.Unmarshal(msg.Data, &parsed)
+		if err != nil {
+			log.Printf("failed to decode message: %v", err)
+			return
+		}
+		msgch <- &parsed
+	})
 	if err != nil {
 		return ErrQueueSubscribe(err)
 	}
-
 	return nil
 }
 
-// DeepCopyInto is a deepcopy function, copying the receiver, writing into out. in must be non-nil.
 func (in *Nats) DeepCopyInto(out broker.Handler) {
 	*out.(*Nats) = *in
 }
 
-// DeepCopy is a deepcopy function, copying the receiver, creating a new Nats.
 func (in *Nats) DeepCopy() *Nats {
 	if in == nil {
 		return nil
@@ -142,7 +144,6 @@ func (in *Nats) DeepCopy() *Nats {
 	return out
 }
 
-// DeepCopyObject is a deepcopy function, copying the receiver, creating a new broker.Handler.
 func (in *Nats) DeepCopyObject() broker.Handler {
 	if c := in.DeepCopy(); c != nil {
 		return c
@@ -150,7 +151,6 @@ func (in *Nats) DeepCopyObject() broker.Handler {
 	return nil
 }
 
-// Check if the connection object is empty
 func (in *Nats) IsEmpty() bool {
 	empty := &Nats{}
 	if in == nil || *in == *empty {

@@ -2,13 +2,13 @@ package walker
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
-	"errors"
-	"github.com/sirupsen/logrus"
 )
 
 // GithubContentAPI represents Github API v3 response
