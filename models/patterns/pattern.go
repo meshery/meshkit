@@ -50,11 +50,13 @@ func ProcessAnnotations(pattern *pattern.PatternFile) {
 
 func ProcessComponentStatus(pattern *pattern.PatternFile) {
 	components := []*component.ComponentDefinition{}
+
+	hasComponentStatus := func(component *component.ComponentDefinition) bool {
+		return component != nil && component.Status != nil
+	}
+
 	for _, component := range pattern.Components {
-		if component == nil {
-			continue
-		}
-		if component.Status != nil && string(*component.Status) == "ignored" {
+		if hasComponentStatus(component) && string(*component.Status) == "ignored" {
 			continue
 		}
 		components = append(components, component)
