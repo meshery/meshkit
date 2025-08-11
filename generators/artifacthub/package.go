@@ -53,6 +53,11 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 	if pkg.ChartUrl == "" {
 		return components, ErrChartUrlEmpty(pkg.Name, "ArtifactHub")
 	}
+	if strings.HasPrefix(pkg.ChartUrl, "oci://") {
+		// Skip OCI charts for now - return empty components
+		// TODO: Implement OCI chart support
+		return components, nil
+	}
 	crds, err := manifests.GetCrdsFromHelm(pkg.ChartUrl)
 	if err != nil {
 		return components, ErrComponentGenerate(err)
@@ -115,7 +120,12 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	if !ok || chartUrl == "" {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
-	if !strings.HasPrefix(chartUrl, "http") {
+
+	if strings.HasPrefix(chartUrl, "http") || strings.HasPrefix(chartUrl, "oci://") {
+		// URL is already complete (HTTP/HTTPS or OCI)
+		pkg.ChartUrl = chartUrl
+	} else {
+		// Relative URL, prepend the repository URL
 		if !strings.HasSuffix(pkg.RepoUrl, "/") {
 			pkg.RepoUrl = pkg.RepoUrl + "/"
 		}
