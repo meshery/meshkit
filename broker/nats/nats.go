@@ -1,6 +1,7 @@
 package nats
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"strings"
@@ -26,8 +27,10 @@ type Options struct {
 
 // Nats will implement Nats subscribe and publish functionality
 type Nats struct {
-	nc *nats.Conn
-	wg *sync.WaitGroup
+	nc     *nats.Conn
+	wg     *sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // New - constructor
@@ -57,8 +60,9 @@ func New(opts Options) (broker.Handler, error) {
 	if err != nil {
 		return nil, ErrConnect(err)
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Nats{nc: nc, wg: &sync.WaitGroup{}}, nil
+	return &Nats{nc: nc, wg: &sync.WaitGroup{}, ctx: ctx, cancel: cancel}, nil
 }
 
 func (n *Nats) ConnectedEndpoints() (endpoints []string) {
@@ -76,6 +80,8 @@ func (n *Nats) Info() string {
 }
 
 func (n *Nats) CloseConnection() {
+	// Cancel background go routines first
+	n.cancel()
 	n.nc.Close()
 }
 
@@ -83,17 +89,28 @@ func (n *Nats) CloseConnection() {
 func (n *Nats) Publish(subject string, message *broker.Message) error {
 	data, err := json.Marshal(message)
 	if err != nil {
+		return err
+	}
+	if err := n.nc.Publish(subject, data); err != nil {
 		return ErrPublish(err)
 	}
-	return n.nc.Publish(subject, data)
+	return nil
 }
 
 // PublishWithChannel - publishes all messages from channel
 func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) error {
 	go func() {
-		for msg := range msgch {
-			if err := n.Publish(subject, msg); err != nil {
-				log.Printf("failed to publish message: %v", err)
+		for {
+			select {
+			case <-n.ctx.Done():
+				return
+			case msg, ok := <-msgch:
+				if !ok {
+					return
+				}
+				if err := n.Publish(subject, msg); err != nil {
+					log.Printf("failed to publish message: %v", err)
+				}
 			}
 		}
 	}()
@@ -104,7 +121,10 @@ func (n *Nats) PublishWithChannel(subject string, msgch chan *broker.Message) er
 func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 	n.wg.Add(1)
 	_, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
-		copy(message, msg.Data)
+		copied := copy(message, msg.Data)
+		if copied < len(msg.Data) {
+			log.Printf("warning: message truncated in Subscribe. buffer size: %d, message size: %d", len(message), len(msg.Data))
+		}
 		n.wg.Done()
 	})
 	if err != nil {
@@ -152,9 +172,8 @@ func (in *Nats) DeepCopyObject() broker.Handler {
 }
 
 func (in *Nats) IsEmpty() bool {
-	empty := &Nats{}
-	if in == nil || *in == *empty {
-		return true
-	}
-	return false
+    if in == nil {
+        return true
+    }
+    return in.nc == nil && in.wg == nil && in.ctx == nil && in.cancel == nil
 }
