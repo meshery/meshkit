@@ -73,7 +73,6 @@ type ComponentUpdateActionPayload struct {
 func (r *Rego) RegoPolicyHandler(
 	design pattern.PatternFile,
 	query string,
-	rels ...string,
 ) (pattern.EvaluationResponse, error) {
 	var resp pattern.EvaluationResponse
 	if r == nil || r.store == nil {
