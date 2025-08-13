@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -139,7 +140,9 @@ func extractManifestFromChart(chartData []byte) (bool, string) {
 		}
 		if strings.HasSuffix(hdr.Name, "templates/manifest.yaml") {
 			buf := new(bytes.Buffer)
-			io.Copy(buf, tr)
+			if _, err := io.Copy(buf, tr); err != nil {
+				return false, fmt.Sprintf("failed to copy manifest content: %v", err)
+			}
 			return true, buf.String()
 		}
 	}
