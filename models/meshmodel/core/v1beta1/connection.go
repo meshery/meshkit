@@ -7,12 +7,11 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
+	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 	"gorm.io/gorm/clause"
-
-	"github.com/meshery/meshkit/models/meshmodel/entity"
 )
 
 // swagger:response ConnectionDefinition
@@ -33,7 +32,11 @@ func (c ConnectionDefinition) GetID() uuid.UUID {
 }
 
 func (c *ConnectionDefinition) GenerateID() (uuid.UUID, error) {
-	return uuid.NewV4()
+	id, err := uuid.NewV4()
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	return id, nil
 }
 
 func (c ConnectionDefinition) Type() entity.EntityType {
@@ -45,7 +48,11 @@ func (c *ConnectionDefinition) GetEntityDetail() string {
 }
 
 func (c *ConnectionDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
-	c.ID, _ = c.GenerateID()
+	id, err := c.GenerateID()
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	c.ID = id
 
 	mid, err := c.Model.Create(db, hostID)
 	if err != nil {
