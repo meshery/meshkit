@@ -8,12 +8,12 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/registry"
 	"github.com/meshery/meshkit/models/meshmodel/registry/v1alpha3"
 	"github.com/meshery/meshkit/utils"
-	"github.com/meshery/meshkit/utils/patching"
+	patch "github.com/meshery/meshkit/utils/patching"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/rego"          //nolint:staticcheck // SA1019: deprecated package, migration to v1 API requires extensive changes
+	"github.com/open-policy-agent/opa/storage"       //nolint:staticcheck // SA1019: deprecated package, migration to v1 API requires extensive changes
+	"github.com/open-policy-agent/opa/storage/inmem" //nolint:staticcheck // SA1019: deprecated package, migration to v1 API requires extensive changes
+	"github.com/open-policy-agent/opa/topdown/print" //nolint:staticcheck // SA1019: deprecated package, migration to v1 API requires extensive changes
 	"github.com/sirupsen/logrus"
 )
 
