@@ -210,11 +210,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 		case entity.ConnectionDefinition:
 			conn, err := utils.Cast[*corev1beta1.ConnectionDefinition](e)
 			if err != nil {
-				connectionName := ""
-				if conn != nil {
-					connectionName = conn.Kind
-				}
-				regErrStore.InsertEntityRegError("", "", entityType, connectionName, ErrGetEntity(err))
+				regErrStore.InsertEntityRegError("", "", entityType, "", ErrGetEntity(err))
 				regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
 				return nil
 			}

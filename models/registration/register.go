@@ -152,14 +152,15 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 
 	// 4. Register connections
 	for _, conn := range pkg.Connections {
-		conn.Model = model
-		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &conn)
+		c := conn // Create a new variable for each iteration
+		c.Model = model
+		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &c)
 		if err != nil {
-			err = ErrRegisterEntity(err, string(conn.Type()), conn.Kind)
-			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ConnectionDefinition, conn.Kind, err)
+			err = ErrRegisterEntity(err, string(c.Type()), c.Kind)
+			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ConnectionDefinition, c.Kind, err)
 		} else {
 			// Successful registration, add to successfulConnections
-			registeredConnections = append(registeredConnections, conn)
+			registeredConnections = append(registeredConnections, c)
 		}
 	}
 
