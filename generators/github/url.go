@@ -3,7 +3,7 @@ package github
 import (
 	"bufio"
 	"io"
-
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -55,6 +55,9 @@ func (u URL) GetContent() (models.Package, error) {
 	if strings.HasSuffix(url, ".yml") || strings.HasSuffix(url, ".yaml") {
 
 		data, err := os.ReadFile(downloadfilePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file %s: %w", downloadfilePath, err)
+		}
 		_, err = w.Write(data)
 		if err != nil {
 			return nil, err

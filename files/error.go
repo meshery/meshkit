@@ -90,7 +90,7 @@ func ErrUnsupportedExtension(fileName string, fileExt string, supportedExtension
 		"Convert the file to a supported format before attempting to process it.",
 	}
 
-	return errors.New(ErrSanitizingFileCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
+	return errors.New(ErrUnsupportedExtensionCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
 }
 
 func ErrInvalidYaml(fileName string, err error) error {
