@@ -412,16 +412,20 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
 
 	// KubeConfig setup
-	cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)
-	if err != nil {
-		return nil, err
-	}
-	cafilename := cafile.Name()
-
 	kubeConfig := genericclioptions.NewConfigFlags(false)
 	kubeConfig.APIServer = &c.RestConfig.Host
-	kubeConfig.CAFile = &cafilename
 	kubeConfig.BearerToken = &c.RestConfig.BearerToken
+	kubeConfig.Insecure = &c.RestConfig.TLSClientConfig.Insecure
+
+	// Only set CA file if not running in insecure mode
+	if !c.RestConfig.TLSClientConfig.Insecure {
+		cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)
+		if err != nil {
+			return nil, err
+		}
+		cafilename := cafile.Name()
+		kubeConfig.CAFile = &cafilename
+	}
 
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
