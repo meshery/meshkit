@@ -417,14 +417,44 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	kubeConfig.BearerToken = &c.RestConfig.BearerToken
 	kubeConfig.Insecure = &c.RestConfig.TLSClientConfig.Insecure
 
+	// Set username and password for basic auth if available
+	if c.RestConfig.Username != "" {
+		kubeConfig.Username = &c.RestConfig.Username
+	}
+	if c.RestConfig.Password != "" {
+		kubeConfig.Password = &c.RestConfig.Password
+	}
+
 	// Only set CA file if not running in insecure mode
 	if !c.RestConfig.TLSClientConfig.Insecure {
-		cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)
+		if len(c.RestConfig.CAData) > 0 {
+			cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)
+			if err != nil {
+				return nil, err
+			}
+			cafilename := cafile.Name()
+			kubeConfig.CAFile = &cafilename
+		}
+	}
+
+	// Set client certificate data if available
+	if len(c.RestConfig.CertData) > 0 {
+		certfile, err := setDataAndReturnFileHandler(c.RestConfig.CertData)
 		if err != nil {
 			return nil, err
 		}
-		cafilename := cafile.Name()
-		kubeConfig.CAFile = &cafilename
+		certfilename := certfile.Name()
+		kubeConfig.CertFile = &certfilename
+	}
+
+	// Set client key data if available
+	if len(c.RestConfig.KeyData) > 0 {
+		keyfile, err := setDataAndReturnFileHandler(c.RestConfig.KeyData)
+		if err != nil {
+			return nil, err
+		}
+		keyfilename := keyfile.Name()
+		kubeConfig.KeyFile = &keyfilename
 	}
 
 	actionConfig := new(action.Configuration)
