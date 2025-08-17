@@ -14,6 +14,9 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// ConnectionSchemaVersion is the schema version for connection definitions
+const ConnectionSchemaVersion = "connections.meshery.io/v1beta1"
+
 // swagger:response ConnectionDefinition
 type ConnectionDefinition struct {
 	ID         uuid.UUID               `json:"-" gorm:"primaryKey"`

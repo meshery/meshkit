@@ -162,7 +162,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 
 		// Get the entity
 		var e entity.Entity
-		e, err = GetEntity(content)
+		e, err = getEntity(content)
 		if err != nil {
 			regErrStore.InsertEntityRegError("", "", entityType, filepath.Base(path), fmt.Errorf("could not get entity: %w", err))
 			regErrStore.AddInvalidDefinition(path, fmt.Errorf("could not get entity: %w", err))

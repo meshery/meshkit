@@ -13,11 +13,8 @@ import (
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
-// ConnectionSchemaVersion is the schema version for connection definitions
-const ConnectionSchemaVersion = "connections.meshery.io/v1beta1"
-
 // TODO: refactor this and use CUE
-func GetEntity(byt []byte) (et entity.Entity, _ error) {
+func getEntity(byt []byte) (et entity.Entity, _ error) {
 	type schemaVersion struct {
 		SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
 	}
@@ -48,7 +45,7 @@ func GetEntity(byt []byte) (et entity.Entity, _ error) {
 			return nil, ErrGetEntity(fmt.Errorf("invalid relationship definition: %s", err.Error()))
 		}
 		et = &rel
-	case ConnectionSchemaVersion:
+	case schemav1beta1.ConnectionSchemaVersion:
 		var connDef corev1beta1.ConnectionDefinition
 		err := encoding.Unmarshal(byt, &connDef)
 		if err != nil {
