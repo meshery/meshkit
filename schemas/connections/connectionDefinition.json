@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://meshery.io/schemas/constructs/v1beta1/connection_definition.json",
+  "title": "ConnectionDefinition",
+  "description": "A connection definition that can be registered in the MeshKit registry",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "title": "Kind",
+      "description": "The kind of connection definition",
+      "example": "kubernetes"
+    },
+    "version": {
+      "type": "string",
+      "title": "Version",
+      "description": "The version of the connection definition",
+      "example": "v1beta1"
+    },
+    "model": {
+      "$ref": "https://meshery.io/schemas/constructs/v1beta1/model.json",
+      "title": "Model",
+      "description": "The associated model definition"
+    },
+    "subType": {
+      "type": "string",
+      "title": "SubType",
+      "description": "The subtype of the connection",
+      "example": "cluster"
+    },
+    "connection": {
+      "$ref": "https://meshery.io/schemas/constructs/v1beta1/connection.json",
+      "title": "Connection",
+      "description": "The connection details"
+    }
+  },
+  "required": ["kind", "version", "model", "connection"]
+} 

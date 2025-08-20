@@ -15,6 +15,7 @@ import (
 )
 
 // ConnectionSchemaVersion is the schema version for connection definitions
+// This should match the schema version defined in the JSON schema
 const ConnectionSchemaVersion = "connections.meshery.io/v1beta1"
 
 // swagger:response ConnectionDefinition

@@ -6,6 +6,7 @@ import (
 	"github.com/meshery/meshkit/encoding"
 	corev1beta1 "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/utils/schema"
 	"github.com/meshery/schemas/models/v1alpha3"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	schemav1beta1 "github.com/meshery/schemas/models/v1beta1"
@@ -46,6 +47,11 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 		}
 		et = &rel
 	case schemav1beta1.ConnectionSchemaVersion:
+		// Validate connection definition against schema first
+		if err := schema.ValidateConnectionDefinitionWithStruct(byt); err != nil {
+			return nil, ErrGetEntity(fmt.Errorf("connection definition validation failed: %s", err.Error()))
+		}
+
 		var connDef corev1beta1.ConnectionDefinition
 		err := encoding.Unmarshal(byt, &connDef)
 		if err != nil {
