@@ -428,33 +428,30 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	// Only set CA file if not running in insecure mode
 	if !c.RestConfig.TLSClientConfig.Insecure {
 		if len(c.RestConfig.CAData) > 0 {
-			cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)
+			caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
 			if err != nil {
 				return nil, err
 			}
-			cafilename := cafile.Name()
-			kubeConfig.CAFile = &cafilename
+			kubeConfig.CAFile = &caFileName
 		}
 	}
 
 	// Set client certificate data if available
 	if len(c.RestConfig.CertData) > 0 {
-		certfile, err := setDataAndReturnFileHandler(c.RestConfig.CertData)
+		certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
 		if err != nil {
 			return nil, err
 		}
-		certfilename := certfile.Name()
-		kubeConfig.CertFile = &certfilename
+		kubeConfig.CertFile = &certFileName
 	}
 
 	// Set client key data if available
 	if len(c.RestConfig.KeyData) > 0 {
-		keyfile, err := setDataAndReturnFileHandler(c.RestConfig.KeyData)
+		keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
 		if err != nil {
 			return nil, err
 		}
-		keyfilename := keyfile.Name()
-		kubeConfig.KeyFile = &keyfilename
+		kubeConfig.KeyFile = &keyFileName
 	}
 
 	actionConfig := new(action.Configuration)
@@ -464,17 +461,21 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	return actionConfig, nil
 }
 
-// Populates a file in temp directory with the passed data and returns the data handler
-func setDataAndReturnFileHandler(data []byte) (*os.File, error) {
+// Populates a file in temp directory with the passed data and returns the filename
+func setDataAndReturnFilename(data []byte) (string, error) {
 	f, err := os.CreateTemp("", "")
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+	defer f.Close() // Close file immediately after writing
+	
 	_, err = f.Write(data)
 	if err != nil {
-		return nil, err
+		os.Remove(f.Name()) // Clean up on write error
+		return "", err
 	}
-	return f, nil
+	
+	return f.Name(), nil
 }
 
 // generateAction generates an action function using action.Configuration
