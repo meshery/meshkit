@@ -134,17 +134,13 @@ func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
 		return "", ErrGetControllerEndpointForPort(err)
 	}
 
-	// Try external endpoint first if available
-	if endpoint.External != nil && endpoint.External.Address != "" {
-		if utils.TcpCheck(endpoint.External, nil) {
-			return endpoint.External.String(), nil
-		}
-	}
-
-	// Fallback to internal endpoint
-	if endpoint.Internal != nil && endpoint.Internal.Address != "" {
-		if utils.TcpCheck(endpoint.Internal, nil) {
-			return endpoint.Internal.String(), nil
+	// Try endpoints in order of preference: external first, then internal
+	endpoints := []*utils.HostPort{endpoint.External, endpoint.Internal}
+	for _, ep := range endpoints {
+		if ep != nil && ep.Address != "" {
+			if utils.TcpCheck(ep, nil) {
+				return ep.String(), nil
+			}
 		}
 	}
 
