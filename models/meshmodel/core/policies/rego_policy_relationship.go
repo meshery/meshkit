@@ -8,167 +8,148 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/registry"
 	"github.com/meshery/meshkit/models/meshmodel/registry/v1alpha3"
 	"github.com/meshery/meshkit/utils"
-	"github.com/meshery/meshkit/utils/patching"
+	patching "github.com/meshery/meshkit/utils/patching"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/v1/rego"
+	storagepkg "github.com/open-policy-agent/opa/v1/storage"
+	inmem "github.com/open-policy-agent/opa/v1/storage/inmem"
+	printpkg "github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/sirupsen/logrus"
 )
 
 var SyncRelationship sync.Mutex
 
 type Rego struct {
-	store       storage.Store
+	store       storagepkg.Store
+	txn         storagepkg.Transaction
 	ctx         context.Context
-	transaction storage.Transaction
 	policyDir   string
 }
 
+// NewRegoInstance creates a new Rego evaluator with relationships loaded
 func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*Rego, error) {
-	var txn storage.Transaction
-	var store storage.Store
-
 	ctx := context.Background()
-	registeredRelationships, _, _, err := regManager.GetEntities(&v1alpha3.RelationshipFilter{})
+
+	registeredRels, _, _, err := regManager.GetEntities(&v1alpha3.RelationshipFilter{})
 	if err != nil {
 		return nil, err
 	}
 
-	if len(registeredRelationships) > 0 {
-		data := map[string]interface{}{
-			"relationships": registeredRelationships,
-		}
-		store = inmem.NewFromObject(data)
-		txn, _ = store.NewTransaction(ctx, storage.WriteParams)
-
+	// initialize in-memory store with relationships
+	data := map[string]interface{}{"relationships": registeredRels}
+	store := inmem.NewFromObject(data)
+	txn, err := store.NewTransaction(ctx, storagepkg.WriteParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", err)
 	}
+
 	return &Rego{
-		store:       store,
-		ctx:         ctx,
-		transaction: txn,
-		policyDir:   policyDir,
+		store:     store,
+		txn:       txn,
+		ctx:       ctx,
+		policyDir: policyDir,
 	}, nil
 }
 
-// CustomPrintHook implements the print.Hook interface
-type CustomPrintHook struct {
+// CustomPrint implements the print.Hook interface to capture print statements
+type CustomPrint struct{
 	Messages []string
 }
 
-// Print captures print messages from policy evaluation
-// Implements print.Hook interface
-func (h *CustomPrintHook) Print(ctx print.Context, s string) error {
-	h.Messages = append(h.Messages, s)
-	logrus.Info("[OPA] ", s)
+func (cp *CustomPrint) Print(ctx printpkg.Context, msg string) error {
+	cp.Messages = append(cp.Messages, msg)
+	logrus.Info("[OPA] ", msg)
 	return nil
 }
 
+// ComponentUpdateActionPayload describes patch action from policy
 type ComponentUpdateActionPayload struct {
 	Id    string      `json:"id"`
 	Value interface{} `json:"value"`
 	Path  []string    `json:"path"`
 }
 
-// RegoPolicyHandler takes the required inputs and run the query against all the policy files provided
-func (r *Rego) RegoPolicyHandler(designFile pattern.PatternFile, regoQueryString string, relationshipsToEvalaute ...string) (pattern.EvaluationResponse, error) {
-	var evaluationResponse pattern.EvaluationResponse
-	if r == nil {
-		return evaluationResponse, ErrEval(fmt.Errorf("policy engine is not yet ready"))
+// RegoPolicyHandler evaluates the given policy query against the design
+func (r *Rego) RegoPolicyHandler(
+	design pattern.PatternFile,
+	query string,
+) (pattern.EvaluationResponse, error) {
+	var resp pattern.EvaluationResponse
+	if r == nil || r.store == nil {
+		return resp, fmt.Errorf("policy engine is not initialized")
 	}
-	// Create custom print hook
-	printHook := &CustomPrintHook{
-		Messages: make([]string, 0),
-	}
-	regoEngine, err := rego.New(
-		rego.PrintHook(printHook),
-		rego.EnablePrintStatements(true), // Explicitly enable print statements
-		rego.Transaction(r.transaction),
-		rego.Query(regoQueryString),
+
+	// Prepare Rego evaluation
+	printHook := &CustomPrint{}
+	rg, err := rego.New(
+		rego.Query(query),
 		rego.Load([]string{r.policyDir}, nil),
 		rego.Store(r.store),
+		rego.Transaction(r.txn),
+		rego.PrintHook(printHook),
+		rego.EnablePrintStatements(true),
 	).PrepareForEval(r.ctx)
 	if err != nil {
-		logrus.Error("error preparing for evaluation", err)
-		return evaluationResponse, ErrPrepareForEval(err)
+		logrus.Error("error preparing Rego evaluation:", err)
+		return resp, err
 	}
 
-	eval_result, err := regoEngine.Eval(r.ctx, rego.EvalInput(designFile))
-
+	// Execute evaluation
+	evalResult, err := rg.Eval(r.ctx, rego.EvalInput(design))
 	if err != nil {
-		return evaluationResponse, ErrEval(err)
+		return resp, err
+	}
+	if len(evalResult) == 0 || len(evalResult[0].Expressions) == 0 {
+		return resp, fmt.Errorf("evaluation returned no results")
 	}
 
-	if len(eval_result) == 0 {
-		return evaluationResponse, ErrEval(fmt.Errorf("evaluation results are empty"))
-	}
-
-	if len(eval_result[0].Expressions) == 0 {
-		return evaluationResponse, ErrEval(fmt.Errorf("evaluation results are empty"))
-	}
-
-	result, err := utils.Cast[map[string]interface{}](eval_result[0].Expressions[0].Value)
+	// Extract `evaluate` key
+	outMap, err := utils.Cast[map[string]interface{}](evalResult[0].Expressions[0].Value)
 	if err != nil {
-		return evaluationResponse, ErrEval(err)
+		return resp, err
 	}
-
-	evalResults, ok := result["evaluate"]
+	rawEval, ok := outMap["evaluate"]
 	if !ok {
-		return evaluationResponse, ErrEval(fmt.Errorf("evaluation results are empty"))
+		return resp, fmt.Errorf("evaluate key missing in result")
 	}
 
-	evaluationResponse, err = utils.MarshalAndUnmarshal[interface{}, pattern.EvaluationResponse](evalResults)
-
+	// Unmarshal into EvaluationResponse
+	resp, err = utils.MarshalAndUnmarshal[interface{}, pattern.EvaluationResponse](rawEval)
 	if err != nil {
-		return evaluationResponse, err
+		return resp, err
 	}
 
-	componentConfigurationUpdates := []ComponentUpdateActionPayload{}
-
-	for _, action := range evaluationResponse.Actions {
+	// Gather component configuration updates
+	var updates []ComponentUpdateActionPayload
+	for _, action := range resp.Actions {
 		if action.Op == "update_component_configuration" {
-			payload, err := utils.MarshalAndUnmarshal[map[string]interface{}, ComponentUpdateActionPayload](action.Value)
-
+			pl, err := utils.MarshalAndUnmarshal[map[string]interface{}, ComponentUpdateActionPayload](action.Value)
 			if err != nil {
-				fmt.Println("failed to parse payload", err)
+				logrus.Warn("failed to parse payload:", err)
 				continue
 			}
-			componentConfigurationUpdates = append(componentConfigurationUpdates, payload)
+			updates = append(updates, pl)
 		}
 	}
 
-	// apply patches to components
-	for _, component := range evaluationResponse.Design.Components {
-
-		componentPatches := []patch.Patch{}
-
-		for _, payload := range componentConfigurationUpdates {
-
-			if payload.Id == component.Id.String() {
-
-				// remove "configuration" i.e first index from path as we are directly updating that
-				componentPatches = append(componentPatches, patch.Patch{
-					Path:  payload.Path[1:],
-					Value: payload.Value,
-				})
+	// Apply patches to components
+	for _, comp := range resp.Design.Components {
+		var patches []patching.Patch
+		for _, up := range updates {
+			if up.Id == comp.Id.String() {
+				patches = append(patches, patching.Patch{Path: up.Path[1:], Value: up.Value})
 			}
 		}
-
-		if len(componentPatches) == 0 {
+		if len(patches) == 0 {
 			continue
 		}
-
-		updated, err := patch.ApplyPatches(component.Configuration, componentPatches)
-
+		updatedConfig, err := patching.ApplyPatches(comp.Configuration, patches)
 		if err != nil {
-			fmt.Println(fmt.Errorf("error patching %v", err))
-		} else {
-			component.Configuration = updated
+			logrus.Errorf("error applying patches: %v", err)
+			continue
 		}
-
+		comp.Configuration = updatedConfig
 	}
 
-	return evaluationResponse, nil
-
+	return resp, nil
 }
