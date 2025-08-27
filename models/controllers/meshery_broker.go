@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	opClient "github.com/layer5io/meshery-operator/pkg/client"
+	"github.com/meshery/meshkit/utils"
 	mesherykube "github.com/meshery/meshkit/utils/kubernetes"
 	v1 "k8s.io/api/core/v1"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
@@ -130,14 +131,22 @@ func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
 		PortSelector: portName,
 	})
 	if err != nil {
-		return "", err
+		return "", ErrGetControllerEndpointForPort(err)
 	}
-	if endpoint.Internal == nil || endpoint.Internal.Address == "" {
-		return "", ErrGetControllerEndpointForPort(
-			fmt.Errorf("internal endpoint for meshery-broker is not available"),
-		)
+
+	// Try endpoints in order of preference: external first, then internal
+	endpoints := []*utils.HostPort{endpoint.External, endpoint.Internal}
+	for _, ep := range endpoints {
+		if ep != nil && ep.Address != "" {
+			if utils.TcpCheck(ep, nil) {
+				return ep.String(), nil
+			}
+		}
 	}
-	return endpoint.Internal.String(), nil
+
+	return "", ErrGetControllerEndpointForPort(
+		fmt.Errorf("neither external not internal endpoint is reachable for meshery-broker port %s", portName),
+	)
 }
 
 func getImageVersionOfContainer(container v1.PodTemplateSpec, containerName string) string {
