@@ -100,7 +100,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&corev1beta1.PolicyDefinition{},
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
-		&corev1beta1.ConnectionDefinition{},
+		&connection.Connection{},
 	)
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Ent
 		ID:           id,
 		RegistrantID: registrantID,
 		Entity:       entityID,
-		Type:         en.EntityType(),
+		Type:         en.Type(),
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

@@ -12,7 +12,6 @@ import (
 	meshkitFileUtils "github.com/meshery/meshkit/files"
 	"github.com/meshery/meshkit/utils"
 
-	corev1beta1 "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
@@ -170,7 +169,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 		}
 
 		// Add the entity to the packaging unit
-		switch e.EntityType() {
+		switch e.Type() {
 		case entity.Model:
 			model, err := utils.Cast[*model.ModelDefinition](e)
 			if err != nil {
@@ -208,13 +207,9 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 			}
 			pkg.Relationships = append(pkg.Relationships, *rel)
 		case entity.ConnectionDefinition:
-			conn, err := utils.Cast[*corev1beta1.ConnectionDefinition](e)
-			if err != nil {
-				regErrStore.InsertEntityRegError("", "", entityType, "", ErrGetEntity(err))
-				regErrStore.AddInvalidDefinition(path, ErrGetEntity(err))
-				return nil
-			}
-			pkg.Connections = append(pkg.Connections, *conn)
+			// Connections are handled separately and don't implement Entity interface
+			// They will be processed in a different way
+			return nil
 		default:
 			// Unhandled entity type
 			return nil

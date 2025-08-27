@@ -9,7 +9,7 @@ replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
 
-	github.com/meshery/schemas => ../schemas
+// github.com/meshery/schemas v0.8.30 => ../schemas
 )
 
 require (
