@@ -132,7 +132,7 @@ func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Ent
 		ID:           id,
 		RegistrantID: registrantID,
 		Entity:       entityID,
-		Type:         en.Type(),
+		Type:         en.EntityType(),
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

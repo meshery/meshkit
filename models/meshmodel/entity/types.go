@@ -26,7 +26,7 @@ type Filter interface {
 type Entity interface {
 	// Entity is referred as any type of schema managed by the registry
 	// ComponentDefinitions and PolicyDefinitions are examples of entities
-	Type() EntityType
+	EntityType() EntityType
 	GetEntityDetail() string
 	GenerateID() (uuid.UUID, error)
 	GetID() uuid.UUID

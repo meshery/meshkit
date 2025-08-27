@@ -35,12 +35,12 @@ func (p *PolicyDefinition) GenerateID() (uuid.UUID, error) {
 	return uuid.NewV4()
 }
 
-func (p PolicyDefinition) Type() entity.EntityType {
+func (p PolicyDefinition) EntityType() entity.EntityType {
 	return entity.PolicyDefinition
 }
 
 func (p *PolicyDefinition) GetEntityDetail() string {
-	return fmt.Sprintf("type: %s, definition version: %s, name: %s, model: %s, version: %s", p.Type(), p.Version, p.Kind, p.Model.Name, p.Model.Version)
+	return fmt.Sprintf("type: %s, definition version: %s, name: %s, model: %s, version: %s", p.EntityType(), p.Version, p.Kind, p.Model.Name, p.Model.Version)
 }
 
 func (p *PolicyDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {

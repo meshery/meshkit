@@ -170,7 +170,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 		}
 
 		// Add the entity to the packaging unit
-		switch e.Type() {
+		switch e.EntityType() {
 		case entity.Model:
 			model, err := utils.Cast[*model.ModelDefinition](e)
 			if err != nil {

@@ -94,7 +94,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 
 	// If model cannot be registered, don't register anything else
 	if err != nil {
-		err = ErrRegisterEntity(err, string(model.Type()), model.DisplayName)
+		err = ErrRegisterEntity(err, string(model.EntityType()), model.DisplayName)
 		rh.regErrStore.InsertEntityRegError(model.Registrant.Kind, "", entity.Model, model.Name, err)
 		return
 	}
@@ -129,7 +129,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &comp)
 		if err != nil {
-			err = ErrRegisterEntity(err, string(comp.Type()), comp.DisplayName)
+			err = ErrRegisterEntity(err, string(comp.EntityType()), comp.DisplayName)
 			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ComponentDefinition, comp.DisplayName, err)
 		} else {
 			// Successful registration, add to successfulComponents
@@ -142,7 +142,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 		rel.Model = model
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
 		if err != nil {
-			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
+			err = ErrRegisterEntity(err, string(rel.EntityType()), string(rel.Kind))
 			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.RelationshipDefinition, rel.Id.String(), err)
 		} else {
 			// Successful registration, add to successfulRelationships
@@ -156,7 +156,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 		c.Model = model
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &c)
 		if err != nil {
-			err = ErrRegisterEntity(err, string(c.Type()), c.Kind)
+			err = ErrRegisterEntity(err, string(c.EntityType()), c.Kind)
 			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ConnectionDefinition, c.Kind, err)
 		} else {
 			// Successful registration, add to successfulConnections

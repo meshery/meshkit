@@ -9,26 +9,24 @@ import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/utils"
+	schemav1beta1 "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 	"gorm.io/gorm/clause"
 )
 
-// ConnectionSchemaVersion is the schema version for connection definitions
-// This should match the schema version defined in the JSON schema
-const ConnectionSchemaVersion = "connections.meshery.io/v1beta1"
+// ConnectionSchemaVersion is imported from the schemas repo
+// This ensures consistency with the schema definition
+const ConnectionSchemaVersion = schemav1beta1.ConnectionSchemaVersion
 
-// swagger:response ConnectionDefinition
+// ConnectionDefinition wraps the Connection from schemas to implement the Entity interface
+// This allows us to use Connection entities directly in PackagingUnit as requested by maintainer
 type ConnectionDefinition struct {
-	ID         uuid.UUID               `json:"-" gorm:"primaryKey"`
-	Kind       string                  `json:"kind,omitempty" yaml:"kind"`
-	Version    string                  `json:"version,omitempty" yaml:"version"`
-	ModelID    uuid.UUID               `json:"-" gorm:"column:modelID"`
-	Model      v1beta1.ModelDefinition `json:"model"`
-	SubType    string                  `json:"subType" yaml:"subType"`
-	Connection connection.Connection   `json:"connection" yaml:"connection"`
-	CreatedAt  time.Time               `json:"-"`
-	UpdatedAt  time.Time               `json:"-"`
+	connection.Connection
+	ModelID   uuid.UUID               `json:"-" gorm:"column:modelID"`
+	Model     v1beta1.ModelDefinition `json:"model"`
+	CreatedAt time.Time               `json:"-"`
+	UpdatedAt time.Time               `json:"-"`
 }
 
 func (c ConnectionDefinition) GetID() uuid.UUID {
@@ -43,12 +41,12 @@ func (c *ConnectionDefinition) GenerateID() (uuid.UUID, error) {
 	return id, nil
 }
 
-func (c ConnectionDefinition) Type() entity.EntityType {
+func (c ConnectionDefinition) EntityType() entity.EntityType {
 	return entity.ConnectionDefinition
 }
 
 func (c *ConnectionDefinition) GetEntityDetail() string {
-	return fmt.Sprintf("type: %s, definition version: %s, name: %s, model: %s, version: %s", c.Type(), c.Version, c.Kind, c.Model.Name, c.Model.Version)
+	return fmt.Sprintf("type: %s, name: %s, kind: %s, model: %s, version: %s", c.EntityType(), c.Name, c.Kind, c.Model.Name, c.Model.Version)
 }
 
 func (c *ConnectionDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
