@@ -151,10 +151,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	}
 
 	// 4. Store connections (they don't implement Entity interface, so we just store them)
-	for _, conn := range pkg.Connections {
-		// Connections are stored directly without Entity registration
-		registeredConnections = append(registeredConnections, conn)
-	}
+	registeredConnections = append(registeredConnections, pkg.Connections...)
 
 	// Update pkg with only successfully registered components, relationships, and connections
 	pkg.Components = registeredComponents
