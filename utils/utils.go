@@ -112,7 +112,7 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer SafeClose(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("failed to get the file %d status code for %s file", resp.StatusCode, url)
@@ -123,7 +123,7 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer SafeClose(out)
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
@@ -146,7 +146,7 @@ func CreateFile(contents []byte, filename string, location string) error {
 	}
 
 	if _, err = fd.Write(contents); err != nil {
-		fd.Close()
+		SafeClose(fd)
 		return err
 	}
 
@@ -184,7 +184,7 @@ func ReadRemoteFile(url string) (string, error) {
 		return " ", ErrRemoteFileNotFound(url)
 	}
 
-	defer response.Body.Close()
+	defer SafeClose(response.Body)
 
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, response.Body)
@@ -215,12 +215,12 @@ func ReadLocalFile(location string) (string, error) {
 
 // Gets the latest stable release tags from github for a given org name and repo name(in that org) in sorted order
 func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
-	var url string = "https://github.com/" + org + "/" + repo + "/releases"
+	url := "https://github.com/" + org + "/" + repo + "/releases"
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, ErrGettingLatestReleaseTag(err)
 	}
-	defer safeClose(resp.Body)
+	defer SafeClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, ErrGettingLatestReleaseTag(fmt.Errorf("unable to get latest release tag"))
@@ -246,9 +246,40 @@ func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
 }
 
 // SafeClose is a helper function help to close the io
-func safeClose(co io.Closer) {
+// SafeClose safely closes an io.Closer and logs any error
+func SafeClose(co io.Closer) {
 	if cerr := co.Close(); cerr != nil {
 		log.Error(cerr)
+	}
+}
+
+// SafeRemoveAll safely removes a directory and logs any error
+func SafeRemoveAll(path string) {
+	if err := os.RemoveAll(path); err != nil {
+		log.Error(err)
+	}
+}
+
+// SafeRemove safely removes a file and logs any error
+func SafeRemove(path string) {
+	if err := os.Remove(path); err != nil {
+		log.Error(err)
+	}
+}
+
+// SafeSetEnv safely sets an environment variable and logs any error
+func SafeSetEnv(key, value string) {
+	if err := os.Setenv(key, value); err != nil {
+		log.Error(err)
+	}
+}
+
+// SafeFlush safely flushes a buffer and logs any error
+func SafeFlush(writer interface{}) {
+	if flusher, ok := writer.(interface{ Flush() error }); ok {
+		if err := flusher.Flush(); err != nil {
+			log.Error(err)
+		}
 	}
 }
 
@@ -371,12 +402,12 @@ func WriteYamlToFile[K any](outputPath string, data K) error {
 	if err != nil {
 		return ErrCreateFile(err, outputPath)
 	}
-	defer file.Close()
+	defer SafeClose(file)
 
 	encoder := yaml.NewEncoder(file)
 	encoder.SetIndent(2)
 
-	defer encoder.Close()
+	defer SafeClose(encoder)
 
 	if err := encoder.Encode(data); err != nil {
 		return ErrMarshal(err)
@@ -465,6 +496,8 @@ func FindEntityType(content []byte) (entity.EntityType, error) {
 		return entity.Model, nil
 	case "policies.meshery.io":
 		return entity.PolicyDefinition, nil
+	case "connections.meshery.io":
+		return entity.ConnectionDefinition, nil
 	}
 	return "", ErrInvalidSchemaVersion
 }
@@ -561,9 +594,9 @@ func ReadSVGData(baseDir, path string) (string, error) {
 }
 func Compress(src string, buf io.Writer) error {
 	zr := gzip.NewWriter(buf)
-	defer zr.Close()
+	defer SafeClose(zr)
 	tw := tar.NewWriter(zr)
-	defer tw.Close()
+	defer SafeClose(tw)
 
 	return filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -590,7 +623,7 @@ func Compress(src string, buf io.Writer) error {
 			if err != nil {
 				return err
 			}
-			defer data.Close()
+			defer SafeClose(data)
 
 			_, err = io.Copy(tw, data)
 			if err != nil {
@@ -889,7 +922,7 @@ func TruncateErrorMessage(err error, wordLimit int) error {
 	words := strings.Fields(err.Error())
 	if len(words) > wordLimit {
 		words = words[:wordLimit]
-		return fmt.Errorf("%s...", strings.Join(words, " "))
+		return fmt.Errorf("%s", strings.Join(words, " "))
 	}
 
 	return err

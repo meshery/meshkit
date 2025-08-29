@@ -6,15 +6,16 @@ import (
 
 func getSchemaMap() map[string]string {
 	return map[string]string{
-		"application": "configuration/applicationImport.json",
-		"filter":      "configuration/filterImport.json",
-		"design":      "configuration/designImport.json",
-		"publish":     "configuration/publishCatalogItem.json",
-		"helmRepo":    "connections/helmConnection/helmRepoConnection.json",
-		"environment": "configuration/environment.json",
-		"workspace":   "configuration/workspace.json",
-		"model":       "configuration/modelImport.json",
-		"generate":    "configuration/generate.json",
+		"application":          "configuration/applicationImport.json",
+		"filter":               "configuration/filterImport.json",
+		"design":               "configuration/designImport.json",
+		"publish":              "configuration/publishCatalogItem.json",
+		"helmRepo":             "connections/helmConnection/helmRepoConnection.json",
+		"connectionDefinition": "connections/connectionDefinition.json",
+		"environment":          "configuration/environment.json",
+		"workspace":            "configuration/workspace.json",
+		"model":                "configuration/modelImport.json",
+		"generate":             "configuration/generate.json",
 	}
 }
 

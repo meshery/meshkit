@@ -7,7 +7,7 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/schemas/models/v1alpha3"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
-	"github.com/meshery/schemas/models/v1beta1"
+	schemav1beta1 "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
@@ -20,32 +20,35 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 	var sv schemaVersion
 	err := encoding.Unmarshal(byt, &sv)
 	if err != nil || sv.SchemaVersion == "" {
-		return nil, ErrGetEntity(fmt.Errorf("Does not contain versionmeta"))
+		return nil, ErrGetEntity(fmt.Errorf("does not contain versionmeta"))
 	}
 	switch sv.SchemaVersion {
-	case v1beta1.ComponentSchemaVersion:
+	case schemav1beta1.ComponentSchemaVersion:
 		var compDef component.ComponentDefinition
 		err := encoding.Unmarshal(byt, &compDef)
 		if err != nil {
-			return nil, ErrGetEntity(fmt.Errorf("Invalid component definition: %s", err.Error()))
+			return nil, ErrGetEntity(fmt.Errorf("invalid component definition: %s", err.Error()))
 		}
 		et = &compDef
-	case v1beta1.ModelSchemaVersion:
+	case schemav1beta1.ModelSchemaVersion:
 		var model model.ModelDefinition
 		err := encoding.Unmarshal(byt, &model)
 		if err != nil {
-			return nil, ErrGetEntity(fmt.Errorf("Invalid model definition: %s", err.Error()))
+			return nil, ErrGetEntity(fmt.Errorf("invalid model definition: %s", err.Error()))
 		}
 		et = &model
 	case v1alpha3.RelationshipSchemaVersion:
 		var rel relationship.RelationshipDefinition
 		err := encoding.Unmarshal(byt, &rel)
 		if err != nil {
-			return nil, ErrGetEntity(fmt.Errorf("Invalid relationship definition: %s", err.Error()))
+			return nil, ErrGetEntity(fmt.Errorf("invalid relationship definition: %s", err.Error()))
 		}
 		et = &rel
+	case schemav1beta1.ConnectionSchemaVersion:
+		// Connections are handled separately and don't implement Entity interface
+		return nil, ErrGetEntity(fmt.Errorf("connection definitions are not processed as entities"))
 	default:
-		return nil, ErrGetEntity(fmt.Errorf("Not a valid component definition, model definition, or relationship definition"))
+		return nil, ErrGetEntity(fmt.Errorf("not a valid component definition, model definition, relationship definition, or connection definition"))
 	}
 	return et, nil
 }
