@@ -47,3 +47,19 @@ func ProcessAnnotations(pattern *pattern.PatternFile) {
 	}
 	pattern.Components = components
 }
+
+func ProcessComponentStatus(pattern *pattern.PatternFile) {
+	components := []*component.ComponentDefinition{}
+
+	hasComponentStatus := func(component *component.ComponentDefinition) bool {
+		return component != nil && component.Status != nil
+	}
+
+	for _, component := range pattern.Components {
+		if hasComponentStatus(component) && string(*component.Status) == "ignored" {
+			continue
+		}
+		components = append(components, component)
+	}
+	pattern.Components = components
+}
