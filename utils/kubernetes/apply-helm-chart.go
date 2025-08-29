@@ -412,16 +412,55 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
 
 	// KubeConfig setup
-	cafile, err := setDataAndReturnFileHandler(c.RestConfig.CAData)
-	if err != nil {
-		return nil, err
-	}
-	cafilename := cafile.Name()
-
 	kubeConfig := genericclioptions.NewConfigFlags(false)
 	kubeConfig.APIServer = &c.RestConfig.Host
-	kubeConfig.CAFile = &cafilename
 	kubeConfig.BearerToken = &c.RestConfig.BearerToken
+	kubeConfig.Insecure = &c.RestConfig.TLSClientConfig.Insecure
+
+	// Set username and password for basic auth if available
+	if c.RestConfig.Username != "" {
+		kubeConfig.Username = &c.RestConfig.Username
+	}
+	if c.RestConfig.Password != "" {
+		kubeConfig.Password = &c.RestConfig.Password
+	}
+
+	// Only set CA file if not running in insecure mode
+	if !c.RestConfig.TLSClientConfig.Insecure {
+		if len(c.RestConfig.CAData) > 0 {
+			caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
+			if err != nil {
+				return nil, err
+			}
+			kubeConfig.CAFile = &caFileName
+		}
+	}
+
+	// TODO:
+	// during `mesheryctl start -p kubernetes` this block causes error:
+	// [client-cert-data and client-cert are both specified for [cluster-name] client-cert-data will override., client-key-data and client-key are both specified for [cluster-name]; client-key-data will override]
+	// but this block is necessary to deploy out of cluster operator
+	// figure out the issue and uncomment if necessary
+	// --
+	// // Set client certificate data if available
+	// if len(c.RestConfig.CertData) > 0 {
+	// 	certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	kubeConfig.CertFile = &certFileName
+	// }
+
+	// TODO: same as above
+	// --
+	// // Set client key data if available
+	// if len(c.RestConfig.KeyData) > 0 {
+	// 	keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	kubeConfig.KeyFile = &keyFileName
+	// }
 
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
@@ -430,17 +469,21 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	return actionConfig, nil
 }
 
-// Populates a file in temp directory with the passed data and returns the data handler
-func setDataAndReturnFileHandler(data []byte) (*os.File, error) {
+// Populates a file in temp directory with the passed data and returns the filename
+func setDataAndReturnFilename(data []byte) (string, error) {
 	f, err := os.CreateTemp("", "")
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+	defer f.Close() // Close file immediately after writing
+
 	_, err = f.Write(data)
 	if err != nil {
-		return nil, err
+		os.Remove(f.Name()) // Clean up on write error
+		return "", err
 	}
-	return f, nil
+
+	return f.Name(), nil
 }
 
 // generateAction generates an action function using action.Configuration
