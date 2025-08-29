@@ -436,23 +436,31 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 		}
 	}
 
-	// Set client certificate data if available
-	if len(c.RestConfig.CertData) > 0 {
-		certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
-		if err != nil {
-			return nil, err
-		}
-		kubeConfig.CertFile = &certFileName
-	}
+	// TODO:
+	// during `mesheryctl start -p kubernetes` this block causes error:
+	// [client-cert-data and client-cert are both specified for [cluster-name] client-cert-data will override., client-key-data and client-key are both specified for [cluster-name]; client-key-data will override]
+	// but this block is necessary to deploy out of cluster operator
+	// figure out the issue and uncomment if necessary
+	// --
+	// // Set client certificate data if available
+	// if len(c.RestConfig.CertData) > 0 {
+	// 	certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	kubeConfig.CertFile = &certFileName
+	// }
 
-	// Set client key data if available
-	if len(c.RestConfig.KeyData) > 0 {
-		keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
-		if err != nil {
-			return nil, err
-		}
-		kubeConfig.KeyFile = &keyFileName
-	}
+	// TODO: same as above
+	// --
+	// // Set client key data if available
+	// if len(c.RestConfig.KeyData) > 0 {
+	// 	keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	kubeConfig.KeyFile = &keyFileName
+	// }
 
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
@@ -468,13 +476,13 @@ func setDataAndReturnFilename(data []byte) (string, error) {
 		return "", err
 	}
 	defer f.Close() // Close file immediately after writing
-	
+
 	_, err = f.Write(data)
 	if err != nil {
 		os.Remove(f.Name()) // Clean up on write error
 		return "", err
 	}
-	
+
 	return f.Name(), nil
 }
 
