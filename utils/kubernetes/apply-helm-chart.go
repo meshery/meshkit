@@ -421,7 +421,7 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	kubeConfig.KubeConfig = &devNull
 	kubeConfig.APIServer = &c.RestConfig.Host
 	kubeConfig.BearerToken = &c.RestConfig.BearerToken
-	kubeConfig.Insecure = &c.RestConfig.TLSClientConfig.Insecure
+	kubeConfig.Insecure = &c.RestConfig.Insecure
 
 	// Set username and password for basic auth if available
 	if c.RestConfig.Username != "" {
@@ -432,7 +432,7 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	}
 
 	// Only set CA file if not running in insecure mode
-	if !c.RestConfig.TLSClientConfig.Insecure {
+	if !c.RestConfig.Insecure {
 		if len(c.RestConfig.CAData) > 0 {
 			caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
 			if err != nil {
