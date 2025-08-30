@@ -242,21 +242,6 @@ type ApplyHelmChartConfig struct {
 //		OverrideValues: vals,
 //	})
 func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
-	// Set KUBECONFIG to /dev/null to prevent conflicts between data and files properties (cert and key)
-	// ConfigFlags only allows setting file paths, not data directly. When the library reads the original
-	// kubeconfig containing cert data/key data AND we specify cert file/key file, these configurations conflict
-	{
-		originalKubeConfig := os.Getenv("KUBECONFIG")
-		os.Setenv("KUBECONFIG", os.DevNull)
-		defer func() {
-			if originalKubeConfig != "" {
-				os.Setenv("KUBECONFIG", originalKubeConfig)
-			} else {
-				os.Unsetenv("KUBECONFIG")
-			}
-		}()
-	}
-
 	setupDefaults(&cfg)
 
 	if err := setupChartVersion(&cfg); err != nil {
@@ -428,6 +413,12 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 
 	// KubeConfig setup
 	kubeConfig := genericclioptions.NewConfigFlags(false)
+	// Set KubeConfig to DevNull to prevent read from local kubeconfig
+	// to prevent conflicts between "data" and "files" properties (CAFile, CAData and KeyFile, KeyData)
+	// ConfigFlags only allows setting CAFile, KeyFile but not CAData, KeyData.
+	// When the library reads the original kubeconfig containing cert data / key data AND we specify cert file / key file, these configurations conflict
+	devNull := os.DevNull
+	kubeConfig.KubeConfig = &devNull
 	kubeConfig.APIServer = &c.RestConfig.Host
 	kubeConfig.BearerToken = &c.RestConfig.BearerToken
 	kubeConfig.Insecure = &c.RestConfig.TLSClientConfig.Insecure
