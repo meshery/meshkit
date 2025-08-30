@@ -413,9 +413,15 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 
 	// KubeConfig setup
 	kubeConfig := genericclioptions.NewConfigFlags(false)
+	// Set KubeConfig to DevNull to prevent read from local kubeconfig
+	// to prevent conflicts between "data" and "files" properties (CAFile, CAData and KeyFile, KeyData)
+	// ConfigFlags only allows setting CAFile, KeyFile but not CAData, KeyData.
+	// When the library reads the original kubeconfig containing cert data / key data AND we specify cert file / key file, these configurations conflict
+	devNull := os.DevNull
+	kubeConfig.KubeConfig = &devNull
 	kubeConfig.APIServer = &c.RestConfig.Host
 	kubeConfig.BearerToken = &c.RestConfig.BearerToken
-	kubeConfig.Insecure = &c.RestConfig.TLSClientConfig.Insecure
+	kubeConfig.Insecure = &c.RestConfig.Insecure
 
 	// Set username and password for basic auth if available
 	if c.RestConfig.Username != "" {
@@ -426,7 +432,7 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	}
 
 	// Only set CA file if not running in insecure mode
-	if !c.RestConfig.TLSClientConfig.Insecure {
+	if !c.RestConfig.Insecure {
 		if len(c.RestConfig.CAData) > 0 {
 			caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
 			if err != nil {
@@ -436,31 +442,23 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 		}
 	}
 
-	// TODO:
-	// during `mesheryctl start -p kubernetes` this block causes error:
-	// [client-cert-data and client-cert are both specified for [cluster-name] client-cert-data will override., client-key-data and client-key are both specified for [cluster-name]; client-key-data will override]
-	// but this block is necessary to deploy out of cluster operator
-	// figure out the issue and uncomment if necessary
-	// --
-	// // Set client certificate data if available
-	// if len(c.RestConfig.CertData) > 0 {
-	// 	certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	kubeConfig.CertFile = &certFileName
-	// }
+	// Set client certificate data if available
+	if len(c.RestConfig.CertData) > 0 {
+		certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
+		if err != nil {
+			return nil, err
+		}
+		kubeConfig.CertFile = &certFileName
+	}
 
-	// TODO: same as above
-	// --
-	// // Set client key data if available
-	// if len(c.RestConfig.KeyData) > 0 {
-	// 	keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	kubeConfig.KeyFile = &keyFileName
-	// }
+	// Set client key data if available
+	if len(c.RestConfig.KeyData) > 0 {
+		keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
+		if err != nil {
+			return nil, err
+		}
+		kubeConfig.KeyFile = &keyFileName
+	}
 
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
