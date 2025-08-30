@@ -264,10 +264,11 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	actionConfig, err := createHelmActionConfig(client, cfg)
+	actionConfig, cleanup, err := createHelmActionConfig(client, cfg)
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
+	defer cleanup()
 
 	// Before installing a helm chart, check if it already exists in the cluster
 	// this is a workaround make the helm chart installation idempotent
@@ -407,9 +408,16 @@ func checkIfInstallable(ch *chart.Chart) error {
 }
 
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
-func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Configuration, error) {
+func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Configuration, func(), error) {
 	// Set the environment variable needed by the Init methods
 	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
+
+	var tempFiles []string
+	cleanup := func() {
+		for _, f := range tempFiles {
+			_ = os.Remove(f)
+		}
+	}
 
 	// KubeConfig setup
 	kubeConfig := genericclioptions.NewConfigFlags(false)
@@ -436,8 +444,10 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 		if len(c.RestConfig.CAData) > 0 {
 			caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
 			if err != nil {
-				return nil, err
+				cleanup() // Clean up any files created so far
+				return nil, nil, err
 			}
+			tempFiles = append(tempFiles, caFileName)
 			kubeConfig.CAFile = &caFileName
 		}
 	}
@@ -446,8 +456,10 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	if len(c.RestConfig.CertData) > 0 {
 		certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
 		if err != nil {
-			return nil, err
+			cleanup()
+			return nil, nil, err
 		}
+		tempFiles = append(tempFiles, certFileName)
 		kubeConfig.CertFile = &certFileName
 	}
 
@@ -455,16 +467,20 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	if len(c.RestConfig.KeyData) > 0 {
 		keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
 		if err != nil {
-			return nil, err
+			cleanup() // Clean up any files created so far
+			return nil, nil, err
 		}
+		tempFiles = append(tempFiles, keyFileName)
 		kubeConfig.KeyFile = &keyFileName
 	}
 
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
-		return nil, ErrApplyHelmChart(err)
+		cleanup() // Clean up any files created so far
+		return nil, nil, ErrApplyHelmChart(err)
 	}
-	return actionConfig, nil
+
+	return actionConfig, cleanup, nil
 }
 
 // Populates a file in temp directory with the passed data and returns the filename
