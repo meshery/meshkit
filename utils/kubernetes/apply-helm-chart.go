@@ -443,7 +443,7 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	}
 
 	// Set client certificate data if available
-	if len(c.RestConfig.TLSClientConfig.CertData) > 0 {
+	if len(c.RestConfig.CertData) > 0 {
 		certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
 		if err != nil {
 			return nil, err
@@ -452,7 +452,7 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 	}
 
 	// Set client key data if available
-	if len(c.RestConfig.TLSClientConfig.KeyData) > 0 {
+	if len(c.RestConfig.KeyData) > 0 {
 		keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
 		if err != nil {
 			return nil, err
