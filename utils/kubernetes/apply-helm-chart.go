@@ -242,6 +242,21 @@ type ApplyHelmChartConfig struct {
 //		OverrideValues: vals,
 //	})
 func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
+	// Set KUBECONFIG to /dev/null to prevent conflicts between data and files properties (cert and key)
+	// ConfigFlags only allows setting file paths, not data directly. When the library reads the original
+	// kubeconfig containing cert data/key data AND we specify cert file/key file, these configurations conflict
+	{
+		originalKubeConfig := os.Getenv("KUBECONFIG")
+		os.Setenv("KUBECONFIG", os.DevNull)
+		defer func() {
+			if originalKubeConfig != "" {
+				os.Setenv("KUBECONFIG", originalKubeConfig)
+			} else {
+				os.Unsetenv("KUBECONFIG")
+			}
+		}()
+	}
+
 	setupDefaults(&cfg)
 
 	if err := setupChartVersion(&cfg); err != nil {
@@ -436,31 +451,23 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 		}
 	}
 
-	// TODO:
-	// during `mesheryctl start -p kubernetes` this block causes error:
-	// [client-cert-data and client-cert are both specified for [cluster-name] client-cert-data will override., client-key-data and client-key are both specified for [cluster-name]; client-key-data will override]
-	// but this block is necessary to deploy out of cluster operator
-	// figure out the issue and uncomment if necessary
-	// --
-	// // Set client certificate data if available
-	// if len(c.RestConfig.CertData) > 0 {
-	// 	certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	kubeConfig.CertFile = &certFileName
-	// }
+	// Set client certificate data if available
+	if len(c.RestConfig.TLSClientConfig.CertData) > 0 {
+		certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
+		if err != nil {
+			return nil, err
+		}
+		kubeConfig.CertFile = &certFileName
+	}
 
-	// TODO: same as above
-	// --
-	// // Set client key data if available
-	// if len(c.RestConfig.KeyData) > 0 {
-	// 	keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	kubeConfig.KeyFile = &keyFileName
-	// }
+	// Set client key data if available
+	if len(c.RestConfig.TLSClientConfig.KeyData) > 0 {
+		keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
+		if err != nil {
+			return nil, err
+		}
+		kubeConfig.KeyFile = &keyFileName
+	}
 
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
