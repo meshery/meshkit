@@ -19,6 +19,7 @@ func (k *K8sConverter) Convert(patternFile string) (string, error) {
 	}
 
 	patterns.ProcessAnnotations(pattern)
+	patterns.ProcessComponentStatus(pattern)
 	return NewK8sManifestsFromPatternfile(pattern)
 }
 
