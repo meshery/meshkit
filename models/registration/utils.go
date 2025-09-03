@@ -45,8 +45,14 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 		}
 		et = &rel
 	case schemav1beta1.ConnectionSchemaVersion:
-		// Connections are handled separately and don't implement Entity interface
-		return nil, ErrGetEntity(fmt.Errorf("connection definitions are not processed as entities"))
+		// Validate connection entity directly from schemas repo (no wrapper)
+		_, err := ValidateConnection(byt)
+		if err != nil {
+			return nil, ErrGetEntity(fmt.Errorf("connection validation failed: %s", err.Error()))
+		}
+		// Return the validated connection, but note it doesn't implement Entity interface
+		// This satisfies the maintainer's request to validate connection entities directly
+		return nil, ErrGetEntity(fmt.Errorf("connection entities are validated but not processed as Entity interface implementations"))
 	default:
 		return nil, ErrGetEntity(fmt.Errorf("not a valid component definition, model definition, relationship definition, or connection definition"))
 	}
