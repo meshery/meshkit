@@ -36,7 +36,7 @@ func shouldSkipFrame(file string) bool {
 // Fire adds caller information to the log entry
 func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 	// Skip frames to get to the real caller (outside skipped packages)
-	for i := 0; ; i++ {
+	for i := range 16 {
 		pc, file, line, ok := runtime.Caller(i)
 		if !ok {
 			break
