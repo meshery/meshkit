@@ -13,7 +13,8 @@ const (
 type Format int
 
 type Options struct {
-	Format   Format
-	LogLevel int
-	Output   io.Writer
+	Format        Format
+	LogLevel      int
+	Output        io.Writer
+	LogCallerInfo bool
 }
