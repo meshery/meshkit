@@ -32,7 +32,6 @@ type Logger struct {
 	handler *logrus.Entry
 }
 
-
 // TerminalFormatter is exported
 type TerminalFormatter struct{}
 
@@ -43,12 +42,12 @@ func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-msg := entry.Message
-if caller, exists := entry.Data["caller"]; exists {
-	if callerStr, ok := caller.(string); ok {
-		msg = fmt.Sprintf("[%s] %s", callerStr, entry.Message)
+	msg := entry.Message
+	if caller, exists := entry.Data["caller"]; exists {
+		if callerStr, ok := caller.(string); ok {
+			msg = fmt.Sprintf("[%s] %s", callerStr, entry.Message)
+		}
 	}
-}
 	return append([]byte(msg), '\n'), nil
 }
 
