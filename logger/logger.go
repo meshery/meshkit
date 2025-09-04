@@ -70,7 +70,7 @@ func New(appname string, opts Options) (Handler, error) {
 	}
 
 	// Add caller hook if enabled
-	if opts.LogCallerInfo {
+	if opts.EnableCallerInfo {
 		log.AddHook(&CallerHook{})
 	}
 

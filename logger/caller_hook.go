@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -48,7 +49,8 @@ func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 				funcName = fn.Name()
 			}
 
-			entry.Data["caller"] = fmt.Sprintf("%s:%d %s", file, line, funcName)
+			filename := filepath.Base(file)
+			entry.Data["caller"] = fmt.Sprintf("%s %s:%d", funcName, filename, line)
 			break
 		}
 	}
