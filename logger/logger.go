@@ -43,12 +43,12 @@ func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	var msg string
-	if caller, exists := entry.Data["caller"]; exists {
-		msg = fmt.Sprintf("[%s] %s", caller, entry.Message)
-	} else {
-		msg = entry.Message
+msg := entry.Message
+if caller, exists := entry.Data["caller"]; exists {
+	if callerStr, ok := caller.(string); ok {
+		msg = fmt.Sprintf("[%s] %s", callerStr, entry.Message)
 	}
+}
 	return append([]byte(msg), '\n'), nil
 }
 
