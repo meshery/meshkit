@@ -32,6 +32,7 @@ type Logger struct {
 	handler *logrus.Entry
 }
 
+
 // TerminalFormatter is exported
 type TerminalFormatter struct{}
 
@@ -41,10 +42,10 @@ func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	if entry == nil {
 		return []byte{}, nil
 	}
-	
+
 	var msg string
-	if entry.HasCaller() {
-		msg = fmt.Sprintf("[%s:%d %s] %s", entry.Caller.File, entry.Caller.Line, entry.Caller.Function, entry.Message)
+	if caller, exists := entry.Data["caller"]; exists {
+		msg = fmt.Sprintf("[%s] %s", caller, entry.Message)
 	} else {
 		msg = entry.Message
 	}
@@ -68,7 +69,11 @@ func New(appname string, opts Options) (Handler, error) {
 		log.SetFormatter(new(TerminalFormatter))
 	}
 
-	log.SetReportCaller(opts.LogCallerInfo)
+	// Add caller hook if enabled
+	if opts.LogCallerInfo {
+		log.AddHook(&CallerHook{})
+	}
+
 	log.SetOutput(os.Stdout)
 	if opts.Output != nil {
 		log.SetOutput(opts.Output)
