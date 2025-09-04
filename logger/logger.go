@@ -38,6 +38,10 @@ type TerminalFormatter struct{}
 // Format defined the format of output for Logrus logs
 // Format is exported
 func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	if entry == nil {
+		return []byte{}, nil
+	}
+	
 	var msg string
 	if entry.HasCaller() {
 		msg = fmt.Sprintf("[%s:%d %s] %s", entry.Caller.File, entry.Caller.Line, entry.Caller.Function, entry.Message)
