@@ -65,7 +65,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 	var tempDirs []string
 	defer func() {
 		for _, tempDir := range tempDirs {
-			os.RemoveAll(tempDir)
+			utils.SafeRemoveAll(tempDir)
 		}
 	}()
 
@@ -206,6 +206,10 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 				return nil
 			}
 			pkg.Relationships = append(pkg.Relationships, *rel)
+		case entity.ConnectionDefinition:
+			// Connections are handled separately and don't implement Entity interface
+			// They will be processed in a different way
+			return nil
 		default:
 			// Unhandled entity type
 			return nil
