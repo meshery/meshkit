@@ -255,7 +255,7 @@ func TestShouldSkipFrame(t *testing.T) {
 		{"should skip meshkit/logger path", "/some/path/meshkit/logger/logger.go", true},
 		{"should skip meshkit/logger path", "/some/path/meshkit/logger/caller_hook.go", true},
 		{"should skip sirupsen/logrus path", "/some/path/sirupsen/logrus/entry.go", true},
-		{"should not skip meshkit/logger test files", "/some/path/meshkit/logger/caller_hook_test.go", true}, // This will be skipped with default paths
+		{"should skip meshkit/logger test files", "/some/path/meshkit/logger/caller_hook_test.go", true}, // This will be skipped with default paths
 		{"should not skip regular application path", "/some/path/myapp/main.go", false},
 		{"should not skip empty path", "", false},
 		{"should not skip partial match", "/some/path/logger-test/file.go", false},
