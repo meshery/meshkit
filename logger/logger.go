@@ -70,7 +70,12 @@ func New(appname string, opts Options) (Handler, error) {
 
 	// Add caller hook if enabled
 	if opts.EnableCallerInfo {
-		log.AddHook(&CallerHook{})
+		// Use provided skipped paths or default ones
+		skippedPaths := opts.CallerSkippedPaths
+		if len(skippedPaths) == 0 {
+			skippedPaths = defaultCallerSkippedPaths
+		}
+		log.AddHook(&CallerHook{skippedPaths: skippedPaths})
 	}
 
 	log.SetOutput(os.Stdout)

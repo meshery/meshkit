@@ -10,12 +10,19 @@ import (
 )
 
 // CallerHook adds real caller information to log entries
-type CallerHook struct{}
+type CallerHook struct {
+	skippedPaths []string
+}
 
-// skippedPaths contains path patterns to skip when finding the real caller
-var skippedPaths = []string{
+// defaultCallerSkippedPaths contains the default path patterns to skip when finding the real caller
+var defaultCallerSkippedPaths = []string{
 	"meshkit/logger",
 	"sirupsen/logrus",
+}
+
+// SetDefaultCallerSkippedPaths sets the default skipped paths on a package level
+func SetDefaultCallerSkippedPaths(paths []string) {
+	defaultCallerSkippedPaths = paths
 }
 
 // Levels returns the levels this hook should be applied to
@@ -24,8 +31,8 @@ func (hook *CallerHook) Levels() []logrus.Level {
 }
 
 // shouldSkipFrame checks if a file path should be skipped
-func shouldSkipFrame(file string) bool {
-	for _, path := range skippedPaths {
+func (hook *CallerHook) shouldSkipFrame(file string) bool {
+	for _, path := range hook.skippedPaths {
 		if strings.Contains(file, path) {
 			return true
 		}
@@ -42,7 +49,7 @@ func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 			break
 		}
 
-		if !shouldSkipFrame(file) {
+		if !hook.shouldSkipFrame(file) {
 			fn := runtime.FuncForPC(pc)
 			funcName := "unknown"
 			if fn != nil {

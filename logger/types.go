@@ -13,8 +13,9 @@ const (
 type Format int
 
 type Options struct {
-	Format           Format
-	LogLevel         int
-	Output           io.Writer
-	EnableCallerInfo bool
+	Format             Format
+	LogLevel           int
+	Output             io.Writer
+	EnableCallerInfo   bool
+	CallerSkippedPaths []string
 }
