@@ -15,13 +15,18 @@ type CallerHook struct {
 }
 
 // defaultCallerSkippedPaths contains the default path patterns to skip when finding the real caller
-var defaultCallerSkippedPaths = []string{
-	"meshkit/logger",
-	"sirupsen/logrus",
-}
+var (
+	defaultCallerSkippedPaths = []string{
+		"meshkit/logger",
+		"sirupsen/logrus",
+	}
+	defaultCallerSkippedPathsMu sync.RWMutex
+)
 
 // SetDefaultCallerSkippedPaths sets the default skipped paths on a package level
 func SetDefaultCallerSkippedPaths(paths []string) {
+	defaultCallerSkippedPathsMu.Lock()
+	defer defaultCallerSkippedPathsMu.Unlock()
 	defaultCallerSkippedPaths = paths
 }
 
