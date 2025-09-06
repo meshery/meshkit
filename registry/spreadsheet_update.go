@@ -202,14 +202,30 @@ func updateModelsSheet(srv *sheets.Service, cred, sheetId string, values []*Mode
 }
 
 func updateComponentsSheet(srv *sheets.Service, cred, sheetId string, values []*ComponentCSV, csvPath string) error {
+    if len(values) == 0 {
+        Log.Info("No components to append, skipping update")
+        return nil
+    }
+
 	marshalledValues, err := marshalStructToCSValues[ComponentCSV](values)
-	Log.Info("Appending", len(marshalledValues), "in the components sheet")
 	if err != nil {
 		return err
 	}
-	err = appendSheet(srv, cred, sheetId, ComponentsSheetAppendRange, marshalledValues, csvPath)
 
-	return err
+	err = appendSheet(srv, cred, sheetId, ComponentsSheetAppendRange, marshalledValues, csvPath)
+    if err != nil {
+        return err
+    }
+
+	componentNames := make([]string, 0, len(values))
+    modelName := values[0].Model
+    for _, comp := range values {
+        componentNames = append(componentNames, comp.Component)
+    }
+    Log.Infof("Successfully appended %d components for model [%s]: %s",
+        len(values), modelName, strings.Join(componentNames, ", "))
+    
+    return nil  
 }
 
 func appendSheet(srv *sheets.Service, cred, sheetId, appendRange string, values [][]interface{}, csvPaths ...string) error {
