@@ -15,11 +15,11 @@ type CallerHook struct {
 	skippedPaths []string
 }
 
-// defaultCallerSkippedPaths contains the default path patterns to skip when finding the real caller
+// defaultCallerSkippedPaths contains the default function name patterns to skip when finding the real caller
 var (
 	defaultCallerSkippedPaths = []string{
-		"meshkit/logger",
-		"sirupsen/logrus",
+		"github.com/meshery/meshkit/logger",
+		"github.com/sirupsen/logrus",
 	}
 	defaultCallerSkippedPathsMu sync.RWMutex
 )
@@ -36,10 +36,16 @@ func (hook *CallerHook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
-// shouldSkipFrame checks if a file path should be skipped
-func (hook *CallerHook) shouldSkipFrame(file string) bool {
+// shouldSkipFrame checks if a function should be skipped based on function name
+func (hook *CallerHook) shouldSkipFrame(pc uintptr) bool {
+	fn := runtime.FuncForPC(pc)
+	if fn == nil {
+		return false
+	}
+	
+	funcName := fn.Name()
 	for _, path := range hook.skippedPaths {
-		if strings.Contains(file, path) {
+		if strings.Contains(funcName, path) {
 			return true
 		}
 	}
@@ -55,7 +61,7 @@ func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 			break
 		}
 
-		if !hook.shouldSkipFrame(file) {
+		if !hook.shouldSkipFrame(pc) {
 			fn := runtime.FuncForPC(pc)
 			funcName := "unknown"
 			if fn != nil {
