@@ -145,13 +145,15 @@ func CreateFile(contents []byte, filename string, location string) error {
 		return err
 	}
 
+	// Write contents to the file
 	if _, err = fd.Write(contents); err != nil {
-		fd.Close()
+		fd.Close() // Close the file before returning the error
 		return err
 	}
 
-	if err = fd.Close(); err != nil {
-		return err
+	// Check error while closing the file
+	if err := fd.Close(); err != nil {
+		return fmt.Errorf("failed to close file descriptor: %w", err)
 	}
 
 	return nil

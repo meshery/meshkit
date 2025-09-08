@@ -47,9 +47,15 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	br := bufio.NewWriter(fd)
 
 	defer func() {
-		br.Flush()
-		fd.Close()
+		if err := br.Flush(); err != nil {
+			fmt.Printf("Warning: failed to flush writer: %v\n", err)
+		}
+
+		if err := fd.Close(); err != nil {
+			fmt.Printf("Warning: failed to close file: %v\n", err)
+		}
 	}()
+
 	gw := gitWalker.
 		Owner(owner).
 		Repo(repo).

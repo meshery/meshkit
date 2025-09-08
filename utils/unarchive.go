@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -149,6 +150,7 @@ func ExtractTarGz(path, downloadfilePath string) error {
 				return ErrExtractTarXZ(err, path)
 			}
 		case tar.TypeReg:
+			// Ensure that the directory for the file exists
 			_ = os.MkdirAll(filepath.Join(path, filepath.Dir(header.Name)), 0755)
 			var outFile *os.File
 			outFile, err = os.Create(filepath.Join(path, header.Name))
@@ -156,15 +158,20 @@ func ExtractTarGz(path, downloadfilePath string) error {
 				return ErrExtractTarXZ(err, path)
 			}
 			if _, err = io.Copy(outFile, tarReader); err != nil {
+				outFile.Close()
 				return ErrExtractTarXZ(err, path)
 			}
-			outFile.Close()
+
+			// Close the file and check for errors
+			if err := outFile.Close(); err != nil {
+				return fmt.Errorf("failed to close output file %s: %w", header.Name, err)
+			}
 
 		default:
 			return ErrExtractTarXZ(err, path)
 		}
-
 	}
+
 	return nil
 }
 

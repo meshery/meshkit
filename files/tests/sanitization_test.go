@@ -146,9 +146,17 @@ func TestSanitizeFile(t *testing.T) {
 		".zip":    true,
 	}
 
-	tempDir, _ := os.MkdirTemp(" ", "temp-tests")
-	defer os.RemoveAll(tempDir)
-	// tempDir := "./temp"
+	// Create a temporary directory for the tests and handle potential errors.
+	tempDir, err := os.MkdirTemp(" ", "temp-tests")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %v", err)
+	}
+	// Defer cleanup and log any error that occurs during cleanup.
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Warning: failed to remove temporary directory %s: %v", tempDir, err)
+		}
+	}()
 
 	for _, tc := range testCases {
 
