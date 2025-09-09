@@ -145,7 +145,6 @@ func CreateFile(contents []byte, filename string, location string) error {
 		return err
 	}
 
-	// Write contents to the file
 	if _, err = fd.Write(contents); err != nil {
 		fd.Close() // Close the file before returning the error
 		return err
