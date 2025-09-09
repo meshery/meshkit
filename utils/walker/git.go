@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/meshery/meshkit/logger"
 )
 
 // Git represents the Git Walker
@@ -136,6 +137,11 @@ func (g *Git) RegisterDirInterceptor(i DirInterceptor) *Git {
 	return g
 }
 func clonewalk(g *Git) error {
+	log, err := logger.New("walker-git", logger.Options{})
+	if err != nil {
+		return err
+	}
+
 	if g.maxFileSizeInBytes == 0 {
 		return ErrInvalidSizeFile(errors.New("max file size passed as 0. Will not read any file"))
 	}
@@ -145,10 +151,9 @@ func clonewalk(g *Git) error {
 	defer func() {
 		wg.Wait()
 		if err := os.RemoveAll(path); err != nil {
-			fmt.Println(fmt.Errorf("failed to remove path %s: %w", path, err))
+			log.Error(fmt.Errorf("failed to remove path %s: %w", path, err))
 		}
 	}()
-	var err error
 	cloneOptions := &git.CloneOptions{
 		URL:          fmt.Sprintf("%s/%s/%s", g.baseURL, g.owner, g.repo),
 		SingleBranch: true,
@@ -177,7 +182,7 @@ func clonewalk(g *Git) error {
 	}
 
 	if !info.IsDir() {
-		err = g.readFile(info, rootPath)
+		err = g.readFile(info, rootPath, log)
 		if err != nil {
 			return ErrCloningRepo(err)
 		}
@@ -199,7 +204,7 @@ func clonewalk(g *Git) error {
 			if err != nil {
 				return errInfo
 			}
-			return g.readFile(f, path)
+			return g.readFile(f, path, log)
 		})
 		if err != nil {
 			return ErrCloningRepo(err)
@@ -233,7 +238,7 @@ func clonewalk(g *Git) error {
 					Path: fPath,
 				})
 				if err != nil {
-					fmt.Println(err.Error())
+					log.Error(err)
 				}
 			}(name, fPath, f.Name())
 			continue
@@ -241,16 +246,16 @@ func clonewalk(g *Git) error {
 		if f.IsDir() {
 			continue
 		}
-		err := g.readFile(f, fPath)
+		err := g.readFile(f, fPath, log)
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Error(err)
 		}
 	}
 
 	return nil
 }
 
-func (g *Git) readFile(f fs.FileInfo, path string) error {
+func (g *Git) readFile(f fs.FileInfo, path string, log logger.Handler) error {
 	if f.Size() > g.maxFileSizeInBytes {
 		return ErrInvalidSizeFile(errors.New("File exceeding size limit"))
 	}
@@ -258,6 +263,7 @@ func (g *Git) readFile(f fs.FileInfo, path string) error {
 	if err != nil {
 		return err
 	}
+	defer filename.Close()
 	content, err := io.ReadAll(filename)
 	if err != nil {
 		return err
@@ -268,7 +274,7 @@ func (g *Git) readFile(f fs.FileInfo, path string) error {
 		Content: string(content),
 	})
 	if err != nil {
-		fmt.Println("Could not intercept the file ", f.Name())
+		log.Warnf("Could not intercept the file %s: %v", f.Name(), err)
 	}
 	return err
 }

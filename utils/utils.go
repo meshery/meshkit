@@ -136,23 +136,33 @@ func GetHome() string {
 	return usr.HomeDir
 }
 
-// CreateFile creates a file with the given content on the given location with
-// the given filename
+// CreateFile creates a file with the given content at the specified location.
 func CreateFile(contents []byte, filename string, location string) error {
-	// Create file in -rw-r--r-- mode
-	fd, err := os.OpenFile(filepath.Join(location, filename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	log, err := logger.New("utils", logger.Options{})
 	if err != nil {
+		// Cannot create logger, return the underlying error.
 		return err
+	}
+
+	filePath := filepath.Join(location, filename)
+	fd, err := os.Create(filePath)
+	if err != nil {
+		return err // Or a meshkit-style error wrapper
 	}
 
 	if _, err = fd.Write(contents); err != nil {
-		fd.Close() // Close the file before returning the error
+		// Attempt to close the file descriptor, but prioritize the original write error.
+		// Log the closing error if it occurs, so the information is not lost.
+		if closeErr := fd.Close(); closeErr != nil {
+			log.Warn(fmt.Errorf("failed to close file descriptor for %s after a write error: %w", filename, closeErr))
+		}
 		return err
 	}
 
-	// Check error while closing the file
+	// Check for an error while closing the file.
 	if err := fd.Close(); err != nil {
-		return fmt.Errorf("failed to close file descriptor: %w", err)
+		// Return a standardized meshkit-style error.
+		return ErrFileClose(err, filename)
 	}
 
 	return nil
@@ -890,7 +900,7 @@ func TruncateErrorMessage(err error, wordLimit int) error {
 	words := strings.Fields(err.Error())
 	if len(words) > wordLimit {
 		words = words[:wordLimit]
-		return fmt.Errorf("%s...", strings.Join(words, " "))
+		return fmt.Errorf("%s", strings.Join(words, " "))
 	}
 
 	return err
