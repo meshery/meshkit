@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -72,24 +73,23 @@ func readData(name string) (buffer []byte, err error) {
 
 func ExtractZip(path, artifactPath string) error {
 	zipReader, err := zip.OpenReader(artifactPath)
+	if err != nil {
+		return ErrExtractZip(err, path)
+	}
 	defer func() {
 		_ = zipReader.Close()
 	}()
 
-	if err != nil {
-		return ErrExtractZip(err, path)
-	}
 	buffer := make([]byte, 1<<4)
 	for _, file := range zipReader.File {
 
 		fd, err := file.Open()
-		defer func() {
-			_ = fd.Close()
-		}()
-
 		if err != nil {
 			return ErrExtractZip(err, path)
 		}
+		defer func() {
+			_ = fd.Close()
+		}()
 
 		filePath := filepath.Join(path, file.Name)
 
@@ -105,16 +105,16 @@ func ExtractZip(path, artifactPath string) error {
 			}
 			_, err = io.CopyBuffer(openedFile, fd, buffer)
 			if err != nil {
+				// We need to close the file, but the error from CopyBuffer is more important.
+				_ = openedFile.Close()
 				return ErrExtractZip(err, path)
 			}
-			defer func() {
-				_ = openedFile.Close()
-			}()
+			if err := openedFile.Close(); err != nil {
+				return ErrExtractZip(err, path)
+			}
 		}
-
 	}
 	return nil
-
 }
 
 func ExtractTarGz(path, downloadfilePath string) error {
@@ -122,14 +122,13 @@ func ExtractTarGz(path, downloadfilePath string) error {
 	if err != nil {
 		return ErrReadFile(err, downloadfilePath)
 	}
+	defer gzipStream.Close()
+
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
 		return ErrExtractTarXZ(err, path)
 	}
-	defer func() {
-		_ = uncompressedStream.Close()
-		_ = gzipStream.Close()
-	}()
+	defer uncompressedStream.Close()
 
 	tarReader := tar.NewReader(uncompressedStream)
 
@@ -149,6 +148,7 @@ func ExtractTarGz(path, downloadfilePath string) error {
 				return ErrExtractTarXZ(err, path)
 			}
 		case tar.TypeReg:
+			// Ensure that the directory for the file exists
 			_ = os.MkdirAll(filepath.Join(path, filepath.Dir(header.Name)), 0755)
 			var outFile *os.File
 			outFile, err = os.Create(filepath.Join(path, header.Name))
@@ -156,16 +156,33 @@ func ExtractTarGz(path, downloadfilePath string) error {
 				return ErrExtractTarXZ(err, path)
 			}
 			if _, err = io.Copy(outFile, tarReader); err != nil {
+				// The subsequent Close() call will handle closing the file.
+				// Return the more critical I/O error immediately.
+				_ = outFile.Close() // Attempt to close, but ignore error as we are returning the copy error.
 				return ErrExtractTarXZ(err, path)
 			}
-			outFile.Close()
+
+			// Close the file and check for errors
+			if err := outFile.Close(); err != nil {
+				return ErrFileClose(err, header.Name)
+			}
 
 		default:
-			return ErrExtractTarXZ(err, path)
+			return ErrUnsupportedTarHeaderType(header.Typeflag, header.Name)
 		}
-
 	}
+
 	return nil
+}
+
+// ErrFileClose creates a standardized error for file closing failures.
+func ErrFileClose(err error, filename string) error {
+	return fmt.Errorf("failed to close file %s: %w", filename, err)
+}
+
+// ErrUnsupportedTarHeaderType creates an error for unsupported tar header types.
+func ErrUnsupportedTarHeaderType(typeflag byte, name string) error {
+	return fmt.Errorf("unsupported tar header type %v for file %s", typeflag, name)
 }
 
 func ProcessContent(filePath string, f func(path string) error) error {

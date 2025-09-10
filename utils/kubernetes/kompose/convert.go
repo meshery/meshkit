@@ -1,6 +1,7 @@
 package kompose
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -42,52 +43,93 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	tempFilePath := filepath.Join(mesheryDir, "temp.data")
 	resultFilePath := filepath.Join(mesheryDir, "result.yaml")
 
+	// Create the temp file
 	if err := utils.CreateFile(dockerCompose, "temp.data", mesheryDir); err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
-	defer func() {
-		os.Remove(tempFilePath)
-		os.Remove(resultFilePath)
-	}()
+	// Format Docker Compose file for Kompose
+	err = formatComposeFile(&dockerCompose)
+	if err != nil {
+		return "", ErrCvrtKompose(err)
+	}
 
-	formatComposeFile(&dockerCompose)
+	// Check version compatibility
 	err = versionCheck(dockerCompose)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
+	// Initialize Kompose client
 	komposeClient, err := client.NewClient()
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
+	// Set up Convert options
 	ConvertOpt := client.ConvertOptions{
 		InputFiles:              []string{tempFilePath},
 		OutFile:                 resultFilePath,
 		GenerateNetworkPolicies: true,
 	}
 
+	// Convert using Kompose client
 	_, err = komposeClient.Convert(ConvertOpt)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
+	// Read the result file
 	result, err := os.ReadFile(resultFilePath)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
+	// Clean up temporary files
+	cleanupErr := cleanup(tempFilePath, resultFilePath)
+	if cleanupErr != nil {
+		return "", cleanupErr
+	}
+
 	return string(result), nil
 }
 
-type composeFile struct {
-	Version string `yaml:"version,omitempty"`
+// cleanup removes temporary files
+func cleanup(tempFilePath, resultFilePath string) error {
+	// Try to remove tempFilePath
+	if err := os.Remove(tempFilePath); err != nil {
+		return fmt.Errorf("failed to remove temp file %s: %w", tempFilePath, err)
+	}
+
+	// Try to remove resultFilePath
+	if err := os.Remove(resultFilePath); err != nil {
+		return fmt.Errorf("failed to remove result file %s: %w", resultFilePath, err)
+	}
+
+	return nil // No errors
 }
 
-// checks if the version is compatible with `kompose`
-// expects a valid docker compose yaml
-// error = nil means it is compatible
+// formatComposeFile takes in a pointer to the compose file byte array and formats it
+// so that it is compatible with Kompose. It expects a validated Docker Compose file.
+func formatComposeFile(yamlManifest *DockerComposeFile) error {
+	data := composeFile{}
+	err := yaml.Unmarshal(*yamlManifest, &data)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal compose file: %w", err)
+	}
+
+	// Marshal it again to ensure it is in the correct format for Kompose
+	out, err := yaml.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal compose file: %w", err)
+	}
+
+	*yamlManifest = out
+	return nil
+}
+
+// versionCheck checks if the version in the Docker Compose file is compatible with Kompose.
+// It expects a valid Docker Compose YAML and returns an error if the version is not supported.
 func versionCheck(dc DockerComposeFile) error {
 	cf := composeFile{}
 	err := yaml.Unmarshal(dc, &cf)
@@ -108,18 +150,7 @@ func versionCheck(dc DockerComposeFile) error {
 	return nil
 }
 
-// formatComposeFile takes in a pointer to the compose file byte array and formats it so that it is compatible with `Kompose`
-// it expects a validated docker compose file and does not validate
-func formatComposeFile(yamlManifest *DockerComposeFile) {
-	data := composeFile{}
-	err := yaml.Unmarshal(*yamlManifest, &data)
-	if err != nil {
-		return
-	}
-	// so that "3.3" and 3.3 are treated differently by `Kompose`
-	out, err := yaml.Marshal(data)
-	if err != nil {
-		return
-	}
-	*yamlManifest = out
+// composeFile represents the structure of the Docker Compose file version.
+type composeFile struct {
+	Version string `yaml:"version,omitempty"`
 }
