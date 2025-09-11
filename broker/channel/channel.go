@@ -36,7 +36,7 @@ func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler
 		var err error
 		log, err = logger.New("channel-broker", logger.Options{
 			Format:   logger.TerminalLogFormat,
-			LogLevel: int(logrus.InfoLevel), // Info level
+			LogLevel: int(logrus.InfoLevel), // Info level is updated
 		})
 		if err != nil {
 			// Fallback to a simple logger if creation fails
