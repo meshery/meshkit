@@ -9,6 +9,7 @@ import (
 	"github.com/meshery/meshkit/broker"
 	"github.com/meshery/meshkit/logger"
 	"github.com/meshery/meshkit/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type ChannelBrokerHandler struct {
@@ -35,7 +36,7 @@ func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler
 		var err error
 		log, err = logger.New("channel-broker", logger.Options{
 			Format:   logger.TerminalLogFormat,
-			LogLevel: 4, // Info level
+			LogLevel: int(logrus.InfoLevel), // Info level
 		})
 		if err != nil {
 			// Fallback to a simple logger if creation fails
