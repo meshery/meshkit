@@ -38,7 +38,17 @@ type TerminalFormatter struct{}
 // Format defined the format of output for Logrus logs
 // Format is exported
 func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	return append([]byte(entry.Message), '\n'), nil
+	if entry == nil {
+		return []byte{}, nil
+	}
+
+	msg := entry.Message
+	if caller, exists := entry.Data["caller"]; exists {
+		if callerStr, ok := caller.(string); ok {
+			msg = fmt.Sprintf("[%s] %s", callerStr, entry.Message)
+		}
+	}
+	return append([]byte(msg), '\n'), nil
 }
 
 func New(appname string, opts Options) (Handler, error) {
@@ -58,7 +68,16 @@ func New(appname string, opts Options) (Handler, error) {
 		log.SetFormatter(new(TerminalFormatter))
 	}
 
-	// log.SetReportCaller(true)
+	// Add caller hook if enabled
+	if opts.EnableCallerInfo {
+		// Use provided skipped paths or default ones
+		skippedPaths := opts.CallerSkippedPaths
+		if skippedPaths == nil {
+			skippedPaths = defaultCallerSkippedPaths
+		}
+		log.AddHook(&CallerHook{skippedPaths: skippedPaths})
+	}
+
 	log.SetOutput(os.Stdout)
 	if opts.Output != nil {
 		log.SetOutput(opts.Output)
