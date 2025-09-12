@@ -12,6 +12,7 @@ import (
 	"github.com/meshery/meshkit/broker"
 	"github.com/meshery/meshkit/logger"
 	nats "github.com/nats-io/nats.go"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -98,7 +99,7 @@ func New(opts Options) (broker.Handler, error) {
 		var lerr error
 		lg, lerr = logger.New("nats-handler", logger.Options{
 			Format:   logger.TerminalLogFormat,
-			LogLevel: 4, // Info
+			LogLevel: int(logrus.InfoLevel), // InfoLevel=4
 		})
 		if lerr != nil {
 			// fallback to nil; we'll use std log where necessary
