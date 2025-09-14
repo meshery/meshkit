@@ -99,7 +99,7 @@ func New(opts Options) (broker.Handler, error) {
 		var lerr error
 		lg, lerr = logger.New("nats-handler", logger.Options{
 			Format:   logger.TerminalLogFormat,
-			LogLevel: int(logrus.InfoLevel), // InfoLevel=4
+			LogLevel: int(logrus.InfoLevel),
 		})
 		if lerr != nil {
 			// fallback to nil; we'll use std log where necessary
