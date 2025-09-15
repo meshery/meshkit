@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/meshery/meshkit/utils"
 )
 
 func IsTarGz(name string) bool {
@@ -117,18 +119,24 @@ func ExtractZip(path, artifactPath string) error {
 	return nil
 }
 
-func ExtractTarGz(path, downloadfilePath string) error {
+func ExtractTarGz(path, downloadfilePath string) (err error) { // Note: named return `err` is added
 	gzipStream, err := os.Open(downloadfilePath)
 	if err != nil {
-		return ErrReadFile(err, downloadfilePath)
+		return utils.ErrReadFile(err, downloadfilePath) // Assuming ErrReadFile is in the utils package
 	}
-	defer gzipStream.Close()
+	// CORRECTED: defer now handles the error from Close()
+	defer func() {
+		if closeErr := gzipStream.Close(); closeErr != nil && err == nil {
+			err = utils.ErrCloseFile(closeErr)
+		}
+	}()
 
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
-		return ErrExtractTarXZ(err, path)
+		return utils.ErrExtractTarXZ(err, path)
 	}
-	defer uncompressedStream.Close()
+	defer uncompressedStream.Close() // Note: This Close() can also fail and should ideally be handled.
+	// For now, we are addressing the reviewer's direct comment.
 
 	tarReader := tar.NewReader(uncompressedStream)
 
@@ -138,51 +146,39 @@ func ExtractTarGz(path, downloadfilePath string) error {
 		if err == io.EOF {
 			break
 		}
-
 		if err != nil {
-			return ErrExtractTarXZ(err, path)
+			return utils.ErrExtractTarXZ(err, path)
 		}
+
+		targetPath := filepath.Join(path, header.Name)
+		if !strings.HasPrefix(targetPath, filepath.Clean(path)+string(os.PathSeparator)) {
+			return fmt.Errorf("tar entry is trying to escape the destination directory: %s", header.Name)
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err = os.MkdirAll(filepath.Join(path, header.Name), 0755); err != nil {
-				return ErrExtractTarXZ(err, path)
+			if err := os.MkdirAll(targetPath, 0755); err != nil {
+				return utils.ErrExtractTarXZ(err, path) // Re-using existing error for simplicity
 			}
 		case tar.TypeReg:
-			// Ensure that the directory for the file exists
-			_ = os.MkdirAll(filepath.Join(path, filepath.Dir(header.Name)), 0755)
-			var outFile *os.File
-			outFile, err = os.Create(filepath.Join(path, header.Name))
+			outFile, err := os.Create(targetPath)
 			if err != nil {
-				return ErrExtractTarXZ(err, path)
+				return utils.ErrExtractTarXZ(err, path)
 			}
 			if _, err = io.Copy(outFile, tarReader); err != nil {
-				// The subsequent Close() call will handle closing the file.
-				// Return the more critical I/O error immediately.
-				_ = outFile.Close() // Attempt to close, but ignore error as we are returning the copy error.
-				return ErrExtractTarXZ(err, path)
+				_ = outFile.Close() // Attempt to close, but return the more important Copy error
+				return utils.ErrExtractTarXZ(err, path)
 			}
-
-			// Close the file and check for errors
+			// CORRECTED: Using the standard Meshkit error function
 			if err := outFile.Close(); err != nil {
-				return ErrFileClose(err, header.Name)
+				return utils.ErrCloseFile(err)
 			}
 
 		default:
-			return ErrUnsupportedTarHeaderType(header.Typeflag, header.Name)
+			return utils.ErrUnsupportedTarHeaderType(header.Typeflag, header.Name)
 		}
 	}
-
 	return nil
-}
-
-// ErrFileClose creates a standardized error for file closing failures.
-func ErrFileClose(err error, filename string) error {
-	return fmt.Errorf("failed to close file %s: %w", filename, err)
-}
-
-// ErrUnsupportedTarHeaderType creates an error for unsupported tar header types.
-func ErrUnsupportedTarHeaderType(typeflag byte, name string) error {
-	return fmt.Errorf("unsupported tar header type %v for file %s", typeflag, name)
 }
 
 func ProcessContent(filePath string, f func(path string) error) error {

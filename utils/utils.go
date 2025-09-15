@@ -25,6 +25,7 @@ import (
 
 	"github.com/meshery/meshkit/logger"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/utils"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 
@@ -147,7 +148,7 @@ func CreateFile(contents []byte, filename string, location string) error {
 	filePath := filepath.Join(location, filename)
 	fd, err := os.Create(filePath)
 	if err != nil {
-		return err // Or a meshkit-style error wrapper
+		return err // Or a meshkit-style error wrapper for Create
 	}
 
 	if _, err = fd.Write(contents); err != nil {
@@ -156,13 +157,12 @@ func CreateFile(contents []byte, filename string, location string) error {
 		if closeErr := fd.Close(); closeErr != nil {
 			log.Warn(fmt.Errorf("failed to close file descriptor for %s after a write error: %w", filename, closeErr))
 		}
-		return err
+		return err // Return the original, more important write error
 	}
 
-	// Check for an error while closing the file.
+	// CORRECTED: Check for an error while closing the file using the standard Meshkit error.
 	if err := fd.Close(); err != nil {
-		// Return a standardized meshkit-style error.
-		return ErrFileClose(err, filename)
+		return utils.ErrCloseFile(err)
 	}
 
 	return nil
