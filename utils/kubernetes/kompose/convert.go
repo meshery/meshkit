@@ -43,6 +43,18 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	tempFilePath := filepath.Join(mesheryDir, "temp.data")
 	resultFilePath := filepath.Join(mesheryDir, "result.yaml")
 
+	// Defer cleanup to ensure temp files are removed even on error.
+	defer func() {
+		// We log cleanup errors but do not return them, as the primary function error is more important.
+		if err := os.Remove(tempFilePath); err != nil && !os.IsNotExist(err) {
+			// A logger should be used here to warn about the failed cleanup.
+			// e.g., log.Warnf("failed to remove temporary file %s: %v", tempFilePath, err)
+		}
+		if err := os.Remove(resultFilePath); err != nil && !os.IsNotExist(err) {
+			// e.g., log.Warnf("failed to remove result file %s: %v", resultFilePath, err)
+		}
+	}()
+
 	// Create the temp file
 	if err := utils.CreateFile(dockerCompose, "temp.data", mesheryDir); err != nil {
 		return "", ErrCvrtKompose(err)
@@ -83,12 +95,6 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	result, err := os.ReadFile(resultFilePath)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
-	}
-
-	// Clean up temporary files
-	cleanupErr := cleanup(tempFilePath, resultFilePath)
-	if cleanupErr != nil {
-		return "", cleanupErr
 	}
 
 	return string(result), nil
