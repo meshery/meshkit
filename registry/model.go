@@ -105,10 +105,7 @@ var modelMetadataValues = []string{
 func (m *ModelCSV) UpdateModelDefinition(modelDef *_model.ModelDefinition) error {
 	metadata := modelDef.Metadata
 	if metadata == nil {
-		now := time.Now()
-		metadata = &_model.ModelDefinition_Metadata{
-			CreatedAt: &now,
-		}
+		metadata = _model.NewModelDefinition_Metadata()
 	}
 	if metadata.AdditionalProperties == nil {
 		metadata.AdditionalProperties = make(map[string]interface{})
@@ -629,10 +626,7 @@ func GenerateComponentsFromPkg(pkg models.Package, compDirPath string, defVersio
 	for _, comp := range comps {
 		comp.Version = defVersion
 		if modelDef.Metadata == nil {
-			now := time.Now()
-			modelDef.Metadata = &_model.ModelDefinition_Metadata{
-				CreatedAt: &now,
-			}
+			modelDef.Metadata = _model.NewModelDefinition_Metadata()
 		}
 		if modelDef.Metadata.AdditionalProperties == nil {
 			modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
@@ -924,10 +918,7 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 				// i.e., If model is enabled, comps are also "enabled". Ultimately, all individual comps will have the ability to control their status.
 				// The status "enabled" indicates that the component will be registered inside the registry.
 				if modelDef.Metadata == nil {
-					now := time.Now()
-					modelDef.Metadata = &_model.ModelDefinition_Metadata{
-						CreatedAt: &now,
-					}
+					modelDef.Metadata = _model.NewModelDefinition_Metadata()
 				}
 				if modelDef.Metadata.AdditionalProperties == nil {
 					modelDef.Metadata.AdditionalProperties = make(map[string]interface{})

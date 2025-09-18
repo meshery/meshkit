@@ -9,7 +9,7 @@ replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
 
-// github.com/meshery/schemas => ../schemas
+	github.com/meshery/schemas => ../schemas
 )
 
 require (
@@ -44,7 +44,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/driver/sqlite v1.5.7
-	gorm.io/gorm v1.30.0
+	gorm.io/gorm v1.30.1
 	helm.sh/helm/v3 v3.18.4
 	k8s.io/api v0.33.2
 	k8s.io/apimachinery v0.33.2

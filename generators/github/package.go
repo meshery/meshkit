@@ -74,10 +74,7 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 				continue
 			}
 			if comp.Model.Metadata == nil {
-				now := time.Now()
-				comp.Model.Metadata = &model.ModelDefinition_Metadata{
-					CreatedAt: &now,
-				}
+				comp.Model.Metadata = model.NewModelDefinition_Metadata()
 			}
 			if comp.Model.Metadata.AdditionalProperties == nil {
 				comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
