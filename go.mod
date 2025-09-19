@@ -10,8 +10,6 @@ replace (
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
 )
 
-//github.com/meshery/schemas => ../schemas
-
 require (
 	cuelang.org/go v0.11.2
 	github.com/Masterminds/semver/v3 v3.3.1
