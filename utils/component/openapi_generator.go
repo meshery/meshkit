@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -121,6 +122,11 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 			}
 		}
 
+		metadata := model.NewModelDefinition_Metadata()
+		if metadata.AdditionalProperties == nil {
+			metadata.AdditionalProperties = make(map[string]interface{})
+		}
+		metadata.AdditionalProperties["source_uri"] = pkg.GetSourceURL()
 		c := component.ComponentDefinition{
 			SchemaVersion: v1beta1.ComponentSchemaVersion,
 			Format:        component.JSON,
@@ -140,11 +146,7 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 				},
 				Name:        pkg.GetName(),
 				DisplayName: manifests.FormatToReadableString(pkg.GetName()),
-				Metadata: &model.ModelDefinition_Metadata{
-					AdditionalProperties: map[string]interface{}{
-						"source_uri": pkg.GetSourceURL(),
-					},
-				},
+				Metadata:    metadata,
 			},
 		}
 

@@ -3,6 +3,7 @@ package github
 import (
 	"bytes"
 	"os"
+	"time"
 
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/component"
@@ -73,7 +74,7 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 				continue
 			}
 			if comp.Model.Metadata == nil {
-				comp.Model.Metadata = &model.ModelDefinition_Metadata{}
+				comp.Model.Metadata = model.NewModelDefinition_Metadata()
 			}
 			if comp.Model.Metadata.AdditionalProperties == nil {
 				comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
