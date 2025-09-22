@@ -66,7 +66,6 @@ func TestValidator(t *testing.T) {
 			} else if !test.ShouldPass && err == nil {
 				t.Errorf("test failed for %s, got %t, want %t error: %v", test.Path, true, !test.ShouldPass, err)
 			}
-
 		})
 	}
 }
