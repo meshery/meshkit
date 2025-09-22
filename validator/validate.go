@@ -37,7 +37,7 @@ func GetSchemaFor(resourceName string) (cue.Value, error) {
 	if err != nil {
 		return schema, err
 	}
-	val, err := utils.JsonToCue(byt)
+val, err := utils.JsonSchemaToCue(string(byt))
 	if err != nil {
 		return schema, err
 	}
