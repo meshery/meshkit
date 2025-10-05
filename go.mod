@@ -25,7 +25,7 @@ require (
 	github.com/google/go-containerregistry v0.20.3
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.35.0
-	github.com/layer5io/meshery-operator v0.8.1
+	github.com/meshery/meshery-operator v0.8.11
 	github.com/meshery/schemas v0.8.34
 	github.com/nats-io/nats.go v1.38.0
 	github.com/open-policy-agent/opa v1.7.1
