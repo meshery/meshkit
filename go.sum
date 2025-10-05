@@ -357,8 +357,6 @@ github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 h1:SOEGU9fKiNWd/HOJuq
 github.com/lann/builder v0.0.0-20180802200727-47ae307949d0/go.mod h1:dXGbAdH5GtBTC4WfIxhKZfyBF/HBFgRZSWwZ9g/He9o=
 github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 h1:P6pPBnrTSX3DEVR4fDembhRWSsG5rVo6hYhAB/ADZrk=
 github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0/go.mod h1:vmVJ0l/dxyfGW6FmdpVm2joNMFikkuWg0EoCKLGUMNw=
-github.com/layer5io/meshery-operator v0.8.1 h1:AP6BTQ8fi5re4+o71vJ3NoQBuwfn+33EIYjabHU0Kxg=
-github.com/layer5io/meshery-operator v0.8.1/go.mod h1:Wi9ODHppoq8ODtzdfiplWYJXYpqsHOJfkJyTMQeNXk4=
 github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
 github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de h1:9TO3cAIGXtEhnIaL+V+BEER86oLrvS+kWobKpbJuye0=
@@ -378,6 +376,8 @@ github.com/mattn/go-shellwords v1.0.12/go.mod h1:EZzvwXDESEeg03EKmM+RmDnNOPKG4lL
 github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/mattn/go-sqlite3 v1.14.24 h1:tpSp2G2KyMnnQu99ngJ47EIkWVmliIizyZBfPrBWDRM=
 github.com/mattn/go-sqlite3 v1.14.24/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
+github.com/meshery/meshery-operator v0.8.11 h1:eDo2Sw0jjVrXsvvhF8LenADM58pK+7Z68ROPVIejTPc=
+github.com/meshery/meshery-operator v0.8.11/go.mod h1:hQEtFKKa5Fr/Mskk6bV5ip3bQ0+3F0u1voYS3XisBp4=
 github.com/meshery/schemas v0.8.34 h1:RiD5JWWQE92d8nkEWy7Lt0guZRAG3XQstX07spfPw7w=
 github.com/meshery/schemas v0.8.34/go.mod h1:6BxRPapEnbH4ATuneUVLb7lOAWSdr8gyvNp1zAgmyKA=
 github.com/miekg/dns v1.1.57 h1:Jzi7ApEIzwEPLHWRcafCN9LZSBbqQpxjt/wpgvg7wcM=
