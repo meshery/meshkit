@@ -1,99 +1,47 @@
 package validator
 
 import (
-	"cuelang.org/go/cue"
-	cueerrors "cuelang.org/go/cue/errors"
 	"encoding/json"
 	"fmt"
+	"io"
+
+	"cuelang.org/go/cue"
+	cueerrors "cuelang.org/go/cue/errors"
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/utils"
-	// "github.com/meshery/schemas"
-	// "sync"
+	"github.com/meshery/schemas"
 )
 
 var (
 	ErrValidateCode = ""
-	_               = "components.schemas"
-	// cueschema       cue.Value
-	// mx              sync.Mutex
-	// isSchemaLoaded  bool
 )
-
-// func loadSchema() error {
-// 	mx.Lock()
-// 	defer func() {
-// 		mx.Unlock()
-// 	}()
-
-// 	if isSchemaLoaded {
-// 		return nil
-// 	}
-
-// 	file, err := schemas.Schemas.Open("schemas/constructs/v1beta1/design/design.json")
-// 	if err != nil {
-// 		return utils.ErrReadFile(err, "schemas/constructs/v1beta1/design/design.json")
-// 	}
-
-// 	cueschema, err = utils.ConvertoCue(file)
-// 	if err == nil {
-// 		isSchemaLoaded = true
-// 	}
-// 	return err
-// }
 
 func GetSchemaFor(resourceName string) (cue.Value, error) {
 	var schema cue.Value
-	var schemaJSON string
-
-	// Use simplified schemas for testing without external references
+	var sch string
 	switch resourceName {
 	case "design":
-		schemaJSON = `{
-			"type": "object",
-			"properties": {
-				"name": {"type": "string"},
-				"services": {"type": "object"},
-				"schemaVersion": {"type": "string"}
-			},
-			"required": ["name"]
-		}`
+		sch = "constructs/v1beta1/design/design.json"
 	case "catalog_data":
-		schemaJSON = `{
-			"type": "object",
-			"properties": {
-				"publishedVersion": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"},
-				"contentClass": {"type": "string"},
-				"compatibility": {"type": "array"},
-				"patternCaveats": {"type": "string"},
-				"patternInfo": {"type": "string"},
-				"type": {"type": "string", "enum": ["Deployment", "Service", "ConfigMap"]}
-			},
-			"required": ["publishedVersion", "contentClass", "compatibility", "patternCaveats", "patternInfo", "type"]
-		}`
+		sch = "constructs/v1alpha1/catalog_data.json"
 	case "models":
-		schemaJSON = `{
-			"type": "object",
-			"properties": {
-				"schemaVersion": {"type": "string"},
-				"version": {"type": "string"},
-				"category": {"type": "object"},
-				"model": {"type": "object"},
-				"status": {"type": "string"},
-				"displayName": {"type": "string"},
-				"description": {"type": "string"}
-			},
-			"required": ["schemaVersion", "version", "displayName", "description"]
-		}`
+		sch = "constructs/v1beta1/model/model.json"
 	default:
 		return schema, fmt.Errorf("no schema defined for resource: %s", resourceName)
 	}
-
-	schema, err := utils.JsonSchemaToCue(schemaJSON)
+	file, err := schemas.Schemas.Open(fmt.Sprintf("schemas/%s", sch))
 	if err != nil {
 		return schema, err
 	}
-
-	return schema, nil
+	byt, err := io.ReadAll(file)
+	if err != nil {
+		return schema, err
+	}
+	val, err := utils.JsonToCue(byt)
+	if err != nil {
+		return schema, err
+	}
+	return val, nil
 }
 
 func Validate(schema cue.Value, resourceValue interface{}) error {
