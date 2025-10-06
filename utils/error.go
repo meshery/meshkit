@@ -36,16 +36,17 @@ var (
 	ErrCreateDirCode                 = "meshkit-11182"
 	// ErrDecodeYamlCode represents the error which is generated when yaml
 	// decode process fails
-	ErrDecodeYamlCode           = "meshkit-11183"
-	ErrExtractTarXZCode         = "meshkit-11184"
-	ErrExtractZipCode           = "meshkit-11185"
-	ErrReadDirCode              = "meshkit-11186"
-	ErrInvalidSchemaVersionCode = "meshkit-11273"
-	ErrFileWalkDirCode          = "meshkit-11274"
-	ErrRelPathCode              = "meshkit-11275"
-	ErrCopyFileCode             = "meshkit-11276"
-	ErrCloseFileCode            = "meshkit-11277"
-	ErrCompressToTarGZCode      = "meshkit-11248"
+	ErrDecodeYamlCode               = "meshkit-11183"
+	ErrExtractTarXZCode             = "meshkit-11184"
+	ErrExtractZipCode               = "meshkit-11185"
+	ErrReadDirCode                  = "meshkit-11186"
+	ErrInvalidSchemaVersionCode     = "meshkit-11273"
+	ErrFileWalkDirCode              = "meshkit-11274"
+	ErrRelPathCode                  = "meshkit-11275"
+	ErrCopyFileCode                 = "meshkit-11276"
+	ErrCloseFileCode                = "meshkit-11277"
+	ErrCompressToTarGZCode          = "meshkit-11248"
+	ErrUnsupportedTarHeaderTypeCode = "meshkit-11282"
 
 	ErrConvertToByteCode = "meshkit-11187"
 
@@ -64,9 +65,9 @@ func ErrInvalidConstructSchemaVersion(contruct string, version string, supported
 		ErrInvalidSchemaVersionCode,
 		errors.Critical,
 		[]string{"Invalid schema version " + version},
-		[]string{"The `schemaVersion` key is either empty or has an incorrect value."},
+		[]string{"The schemaVersion key is either empty or has an incorrect value."},
 		[]string{fmt.Sprintf("The schema is not of type '%s'", contruct)},
-		[]string{"Verify that `schemaVersion` key should be '%s'", supportedVersion},
+		[]string{"Verify that schemaVersion key should be '%s'", supportedVersion},
 	)
 }
 
@@ -75,17 +76,17 @@ var (
 		ErrUnmarshalTypeCode,
 		errors.Alert,
 		[]string{"Invalid extraction type"},
-		[]string{"The file type to be extracted is neither `tar.gz` nor `zip`."},
-		[]string{"Invalid object format. The file is not of type `zip` or `tar.gz`."},
-		[]string{"Make sure to check that the file type is `zip` or `tar.gz`."},
+		[]string{"The file type to be extracted is neither tar.gz nor zip."},
+		[]string{"Invalid object format. The file is not of type zip or tar.gz."},
+		[]string{"Make sure to check that the file type is zip or tar.gz."},
 	)
 	ErrInvalidSchemaVersion = errors.New(
 		ErrInvalidSchemaVersionCode,
 		errors.Alert,
 		[]string{"Invalid schema version"},
-		[]string{"The `schemaVersion` key is either empty or has an incorrect value."},
+		[]string{"The schemaVersion key is either empty or has an incorrect value."},
 		[]string{"The schema is not of type 'relationship', 'component', 'model' , 'policy'."},
-		[]string{"Verify that `schemaVersion` key should be either `relationships.meshery.io`, `component.meshery.io`, `model.meshery.io` or `policy.meshery.io`."},
+		[]string{"Verify that schemaVersion key should be either relationships.meshery.io, component.meshery.io, model.meshery.io or policy.meshery.io."},
 	)
 )
 
@@ -271,4 +272,15 @@ func ErrGoogleSheetSRV(err error) error {
 
 func ErrWritingIntoFile(err error, obj string) error {
 	return errors.New(ErrWritingIntoFileCode, errors.Alert, []string{fmt.Sprintf("failed to write into file %s", obj)}, []string{err.Error()}, []string{"Insufficient permissions to write into file", "file might be corrupted"}, []string{"check if sufficient permissions are givent to the file", "check if the file is corrupted"})
+}
+
+func ErrUnsupportedTarHeaderType(typeflag byte, name string) error {
+	return errors.New(
+		ErrUnsupportedTarHeaderTypeCode,
+		errors.Alert,
+		[]string{"Unsupported tar header type encountered during extraction"},
+		[]string{fmt.Sprintf("The tar archive contains an entry '%s' with an unsupported type flag '%c'.", name, typeflag)},
+		[]string{"The tar archive is malformed or contains an entry type that this utility cannot handle (e.g., special device files)."},
+		[]string{"Ensure the tar archive was created with standard file types (directories, regular files, symlinks).", "Check the integrity of the archive file."},
+	)
 }

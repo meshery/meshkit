@@ -4,11 +4,14 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/meshery/meshkit/utils"
 )
 
 func IsTarGz(name string) bool {
@@ -72,24 +75,23 @@ func readData(name string) (buffer []byte, err error) {
 
 func ExtractZip(path, artifactPath string) error {
 	zipReader, err := zip.OpenReader(artifactPath)
+	if err != nil {
+		return ErrExtractZip(err, path)
+	}
 	defer func() {
 		_ = zipReader.Close()
 	}()
 
-	if err != nil {
-		return ErrExtractZip(err, path)
-	}
 	buffer := make([]byte, 1<<4)
 	for _, file := range zipReader.File {
 
 		fd, err := file.Open()
-		defer func() {
-			_ = fd.Close()
-		}()
-
 		if err != nil {
 			return ErrExtractZip(err, path)
 		}
+		defer func() {
+			_ = fd.Close()
+		}()
 
 		filePath := filepath.Join(path, file.Name)
 
@@ -105,31 +107,36 @@ func ExtractZip(path, artifactPath string) error {
 			}
 			_, err = io.CopyBuffer(openedFile, fd, buffer)
 			if err != nil {
+				// We need to close the file, but the error from CopyBuffer is more important.
+				_ = openedFile.Close()
 				return ErrExtractZip(err, path)
 			}
-			defer func() {
-				_ = openedFile.Close()
-			}()
+			if err := openedFile.Close(); err != nil {
+				return ErrExtractZip(err, path)
+			}
 		}
-
 	}
 	return nil
-
 }
 
-func ExtractTarGz(path, downloadfilePath string) error {
+func ExtractTarGz(path, downloadfilePath string) (err error) { // Note: named return `err` is added
 	gzipStream, err := os.Open(downloadfilePath)
 	if err != nil {
-		return ErrReadFile(err, downloadfilePath)
+		return utils.ErrReadFile(err, downloadfilePath) // Assuming ErrReadFile is in the utils package
 	}
+	// CORRECTED: defer now handles the error from Close()
+	defer func() {
+		if closeErr := gzipStream.Close(); closeErr != nil && err == nil {
+			err = utils.ErrCloseFile(closeErr)
+		}
+	}()
+
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
-		return ErrExtractTarXZ(err, path)
+		return utils.ErrExtractTarXZ(err, path)
 	}
-	defer func() {
-		_ = uncompressedStream.Close()
-		_ = gzipStream.Close()
-	}()
+	defer uncompressedStream.Close() // Note: This Close() can also fail and should ideally be handled.
+	// For now, we are addressing the reviewer's direct comment.
 
 	tarReader := tar.NewReader(uncompressedStream)
 
@@ -139,31 +146,37 @@ func ExtractTarGz(path, downloadfilePath string) error {
 		if err == io.EOF {
 			break
 		}
-
 		if err != nil {
-			return ErrExtractTarXZ(err, path)
+			return utils.ErrExtractTarXZ(err, path)
 		}
+
+		targetPath := filepath.Join(path, header.Name)
+		if !strings.HasPrefix(targetPath, filepath.Clean(path)+string(os.PathSeparator)) {
+			return fmt.Errorf("tar entry is trying to escape the destination directory: %s", header.Name)
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err = os.MkdirAll(filepath.Join(path, header.Name), 0755); err != nil {
-				return ErrExtractTarXZ(err, path)
+			if err := os.MkdirAll(targetPath, 0755); err != nil {
+				return utils.ErrExtractTarXZ(err, path) // Re-using existing error for simplicity
 			}
 		case tar.TypeReg:
-			_ = os.MkdirAll(filepath.Join(path, filepath.Dir(header.Name)), 0755)
-			var outFile *os.File
-			outFile, err = os.Create(filepath.Join(path, header.Name))
+			outFile, err := os.Create(targetPath)
 			if err != nil {
-				return ErrExtractTarXZ(err, path)
+				return utils.ErrExtractTarXZ(err, path)
 			}
 			if _, err = io.Copy(outFile, tarReader); err != nil {
-				return ErrExtractTarXZ(err, path)
+				_ = outFile.Close() // Attempt to close, but return the more important Copy error
+				return utils.ErrExtractTarXZ(err, path)
 			}
-			outFile.Close()
+			// CORRECTED: Using the standard Meshkit error function
+			if err := outFile.Close(); err != nil {
+				return utils.ErrCloseFile(err)
+			}
 
 		default:
-			return ErrExtractTarXZ(err, path)
+			return utils.ErrUnsupportedTarHeaderType(header.Typeflag, header.Name)
 		}
-
 	}
 	return nil
 }

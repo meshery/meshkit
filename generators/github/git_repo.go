@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/meshery/meshkit/generators/models"
+	"github.com/meshery/meshkit/logger"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/helm"
 	"github.com/meshery/meshkit/utils/walker"
@@ -16,7 +17,7 @@ import (
 
 type GitRepo struct {
 	// <git://github.com/owner/repo/branch/versiontag/root(path to the directory/file)>
-	URL         *url.URL
+	URL       *url.URL
 	PackageName string
 }
 
@@ -24,6 +25,12 @@ type GitRepo struct {
 // 2. Unzipped/unarchived File type
 
 func (gr GitRepo) GetContent() (models.Package, error) {
+	log, err := logger.New("generators-github", logger.Options{})
+	if err != nil {
+		// If logger fails to initialize, we can't proceed without logging capabilities.
+		// Alternatively, one could fall back to fmt.Println and continue.
+		return nil, err
+	}
 	gitWalker := walker.NewGit()
 
 	owner, repo, branch, root, err := gr.extractRepoDetailsFromSourceURL()
@@ -47,9 +54,15 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	br := bufio.NewWriter(fd)
 
 	defer func() {
-		br.Flush()
-		fd.Close()
+		if err := br.Flush(); err != nil {
+			log.Warnf("failed to flush writer: %v", err)
+		}
+
+		if err := fd.Close(); err != nil {
+			log.Warnf("failed to close file: %v", err)
+		}
 	}()
+
 	gw := gitWalker.
 		Owner(owner).
 		Repo(repo).
