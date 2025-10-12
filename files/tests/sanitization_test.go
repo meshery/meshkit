@@ -1,6 +1,8 @@
 package files_test
 
 import (
+	"archive/tar"
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -190,5 +192,54 @@ func TestSanitizeFile(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+// Test that providing an uncompressed .tar containing a Helm chart yields the
+// helpful ErrUncompressedTarProvided (which uses ErrInvalidHelmChartCode).
+func TestUncompressedHelmTarError(t *testing.T) {
+	// Build an in-memory uncompressed tar with a Chart.yaml
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	chartYAML := []byte("apiVersion: v2\nname: test-chart\nversion: 0.1.0\n")
+	hdr := &tar.Header{
+		Name: "Chart.yaml",
+		Mode: 0600,
+		Size: int64(len(chartYAML)),
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("failed to write tar header: %v", err)
+	}
+	if _, err := tw.Write(chartYAML); err != nil {
+		t.Fatalf("failed to write chart content: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("failed to close tar writer: %v", err)
+	}
+
+	tempDir, _ := os.MkdirTemp("", "temp-tests")
+	defer os.RemoveAll(tempDir)
+
+	validExts := map[string]bool{
+		".json": true,
+		".yml":  true,
+		".yaml": true,
+		".tar":  true,
+		".tgz":  true,
+		".gz":   true,
+		".zip":  true,
+	}
+
+	sanitized, err := files.SanitizeFile(buf.Bytes(), "uncompressed-helm.tar", tempDir, validExts)
+	if err != nil {
+		t.Fatalf("unexpected sanitize error: %v", err)
+	}
+
+	_, err = files.ParseFileAsHelmChart(sanitized)
+	if err == nil {
+		t.Fatalf("expected error when parsing uncompressed tar as helm chart, got nil")
+	}
+	if errors.GetCode(err) != files.ErrInvalidHelmChartCode {
+		t.Fatalf("expected error code %s, got %s (err: %v)", files.ErrInvalidHelmChartCode, errors.GetCode(err), err)
 	}
 }
