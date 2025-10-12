@@ -3,11 +3,13 @@ package files
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"compress/gzip"
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/models/oci"
@@ -304,7 +306,7 @@ func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
 	if err != nil {
 		// If the file extension was an uncompressed .tar and the loader failed
 		// due to gzip/invalid header, provide a human friendly hint.
-		if file.FileExt == ".tar" && strings.Contains(err.Error(), "gzip: invalid header") {
+		if file.FileExt == ".tar" && errors.Is(err, gzip.ErrHeader) {
 			return nil, ErrUncompressedTarProvided(file.FileName, err)
 		}
 		return nil, fmt.Errorf("failed to load Helm chart  %v", err)

@@ -217,7 +217,10 @@ func TestUncompressedHelmTarError(t *testing.T) {
 		t.Fatalf("failed to close tar writer: %v", err)
 	}
 
-	tempDir, _ := os.MkdirTemp("", "temp-tests")
+	tempDir, err := os.MkdirTemp("", "temp-tests")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
 	defer os.RemoveAll(tempDir)
 
 	validExts := map[string]bool{
