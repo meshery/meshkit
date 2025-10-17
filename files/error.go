@@ -38,6 +38,7 @@ var (
 	ErrInvalidHelmChartCode                        = "meshkit-11292"
 	ErrInvalidDockerComposeCode                    = "meshkit-11293"
 	ErrInvalidKustomizationCode                    = "meshkit-11294"
+	ErrUncompressedTarCode                         = "meshkit-11305"
 	ErrFileTypeNotSupportedForDesignConversionCode = "meshkit-11300"
 )
 
@@ -260,27 +261,20 @@ func ErrInvalidHelmChart(fileName string, err error) error {
 	return errors.New(ErrInvalidHelmChartCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
 }
 
-// ErrUncompressedTarProvided returns an error explaining that Helm requires
+// ErrUncompressedTar returns an error explaining that Helm requires
 // compressed tarballs (tgz / tar.gz) and that an uncompressed .tar was provided.
-func ErrUncompressedTarProvided(fileName string, err error) error {
-	sdescription := []string{
-		fmt.Sprintf("The file '%s' appears to be an uncompressed TAR archive.", fileName),
-	}
-
-	ldescription := []string{
-		fmt.Sprintf("Helm expects chart archives to be compressed (e.g., .tgz or .tar.gz). Error details: %s", err.Error()),
-	}
-
-	probableCause := []string{
-		"The archive was created as an uncompressed .tar, but Helm requires compressed archives.",
-	}
-
-	remedy := []string{
-		"Compress the .tar file to .tgz or .tar.gz and try again.",
-		"Create the Helm chart archive using 'helm package' or gzip the archive before uploading.",
-	}
-
-	return errors.New(ErrInvalidHelmChartCode, errors.Critical, sdescription, ldescription, probableCause, remedy)
+func ErrUncompressedTar(fileName string, err error) error {
+	return errors.New(
+		ErrUncompressedTarCode,
+		errors.Critical,
+		[]string{fmt.Sprintf("The file '%s' appears to be an uncompressed TAR archive.", fileName)},
+		[]string{fmt.Sprintf("Helm expects chart archives to be compressed (e.g., .tgz or .tar.gz). Error details: %s", err.Error())},
+		[]string{"The archive was created as an uncompressed .tar, but Helm requires compressed archives."},
+		[]string{
+			"Compress the .tar file to .tgz or .tar.gz and try again.",
+			"Create the Helm chart archive using 'helm package' or gzip the archive before uploading.",
+		},
+	)
 }
 
 func ErrInvalidDockerCompose(fileName string, err error) error {

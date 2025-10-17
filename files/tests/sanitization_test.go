@@ -242,7 +242,7 @@ func TestUncompressedHelmTarError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error when parsing uncompressed tar as helm chart, got nil")
 	}
-	if errors.GetCode(err) != files.ErrInvalidHelmChartCode {
-		t.Fatalf("expected error code %s, got %s (err: %v)", files.ErrInvalidHelmChartCode, errors.GetCode(err), err)
+	if errors.GetCode(err) != files.ErrUncompressedTarCode {
+		t.Fatalf("expected error code %s, got %s (err: %v)", files.ErrUncompressedTarCode, errors.GetCode(err), err)
 	}
 }

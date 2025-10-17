@@ -307,9 +307,9 @@ func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
 		// If the file extension was an uncompressed .tar and the loader failed
 		// due to gzip/invalid header, provide a human friendly hint.
 		if file.FileExt == ".tar" && errors.Is(err, gzip.ErrHeader) {
-			return nil, ErrUncompressedTarProvided(file.FileName, err)
+			return nil, ErrUncompressedTar(file.FileName, err)
 		}
-		return nil, fmt.Errorf("failed to load Helm chart  %v", err)
+		return nil, ErrInvalidHelmChart(file.FileName, err)
 	}
 
 	// Validate the chart (optional but recommended)
