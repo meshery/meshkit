@@ -3,11 +3,13 @@ package files
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"compress/gzip"
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/models/oci"
@@ -298,11 +300,16 @@ func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
 		return nil, fmt.Errorf("Invalid file extension %s", file.FileExt)
 	}
 
-	// Use Helm's loader.LoadDir to load the chart
-	// This function automatically handles nested directories and locates Chart.yaml
+	// Use Helm's loader.LoadArchive to load the chart
+	// This function expects a gzipped tar archive for charts (tgz / tar.gz)
 	chart, err := loader.LoadArchive(bytes.NewReader(file.RawData))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load Helm chart  %v", err)
+		// If the file extension was an uncompressed .tar and the loader failed
+		// due to gzip/invalid header, provide a human friendly hint.
+		if file.FileExt == ".tar" && errors.Is(err, gzip.ErrHeader) {
+			return nil, ErrUncompressedTar(file.FileName, err)
+		}
+		return nil, ErrInvalidHelmChart(file.FileName, err)
 	}
 
 	// Validate the chart (optional but recommended)
