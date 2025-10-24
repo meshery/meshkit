@@ -155,3 +155,32 @@ func TestGenerate(t *testing.T) {
 		})
 	}
 }
+
+func TestGroupToModel_WithGroup(t *testing.T) {
+	name, display := GroupToModel("monitor.azure.com", "fallback")
+	if name != "monitor.azure.com" {
+		t.Fatalf("expected model name 'monitor.azure.com', got '%s'", name)
+	}
+	if display != "Monitor Azure Com" {
+		t.Fatalf("expected display name 'Monitor Azure Com', got '%s'", display)
+	}
+}
+
+func TestGroupToModel_EmptyGroup(t *testing.T) {
+	name, display := GroupToModel("", "fooBarBaz")
+	if name != "fooBarBaz" {
+		t.Fatalf("expected fallback model name 'fooBarBaz', got '%s'", name)
+	}
+	if display != "Foo Bar Baz" {
+		t.Fatalf("expected display name 'Foo Bar Baz', got '%s'", display)
+	}
+}
+
+func TestExtractGroupFromAPIVersion(t *testing.T) {
+	if g := ExtractGroupFromAPIVersion("apps/v1"); g != "apps" {
+		t.Fatalf("expected 'apps', got '%s'", g)
+	}
+	if g := ExtractGroupFromAPIVersion("v1"); g != "" {
+		t.Fatalf("expected '', got '%s'", g)
+	}
+}

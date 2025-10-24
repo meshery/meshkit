@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"github.com/meshery/meshkit/utils"
@@ -57,6 +58,34 @@ var OpenAPISpecPathConfig = CuePathConfig{
 }
 
 var Configs = []CuePathConfig{DefaultPathConfig, DefaultPathConfig2}
+
+// GroupToModel determines the model name and display name from a CRD/OpenAPI group value.
+// - If group is non-empty, model name is the exact group (e.g., "monitor.azure.com").
+//   Display name is a title-cased, dot-separated host converted to words (e.g., "Monitor Azure Com").
+// - If group is empty, fallbackName and its formatted variant are used.
+func GroupToModel(group, fallbackName string) (modelName, displayName string) {
+	if strings.TrimSpace(group) != "" {
+		// Title case each dot-separated part and join with space for display name
+		parts := strings.Split(group, ".")
+		for i := range parts {
+			if parts[i] == "" {
+				continue
+			}
+			parts[i] = strings.ToUpper(parts[i][:1]) + strings.ToLower(parts[i][1:])
+		}
+		return group, strings.Join(parts, " ")
+	}
+	return fallbackName, manifests.FormatToReadableString(fallbackName)
+}
+
+// ExtractGroupFromAPIVersion returns the API group from a k8s apiVersion string like "group/version".
+// If apiVersion does not contain '/', it returns an empty string.
+func ExtractGroupFromAPIVersion(apiVersion string) string {
+	if strings.Contains(apiVersion, "/") {
+		return strings.SplitN(apiVersion, "/", 2)[0]
+	}
+	return ""
+}
 
 func IncludeComponentBasedOnGroup(resource string, groupFilter string) (bool, error) {
 	if groupFilter == "" {

@@ -76,11 +76,21 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 		}
 		comp.Model.Metadata.AdditionalProperties["source_uri"] = pkg.ChartUrl
 		comp.Model.Version = pkg.Version
-		comp.Model.Name = pkg.Name
+
+		// Derive model from the CRD's API group when available; otherwise, fallback to package name
+		group := component.ExtractGroupFromAPIVersion(comp.Component.Version)
+		modelName, displayName := component.GroupToModel(group, pkg.Name)
+		if strings.TrimSpace(modelName) == "" {
+			modelName = pkg.Name
+		}
+		if strings.TrimSpace(displayName) == "" {
+			displayName = manifests.FormatToReadableString(modelName)
+		}
+		comp.Model.Name = modelName
 		comp.Model.Category = category.CategoryDefinition{
 			Name: "",
 		}
-		comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)
+		comp.Model.DisplayName = displayName
 		components = append(components, comp)
 	}
 	return components, nil
