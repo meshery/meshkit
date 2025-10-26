@@ -156,23 +156,39 @@ func TestGenerate(t *testing.T) {
 	}
 }
 
-func TestGroupToModel_WithGroup(t *testing.T) {
-	name, display := GroupToModel("monitor.azure.com", "fallback")
-	if name != "monitor.azure.com" {
-		t.Fatalf("expected model name 'monitor.azure.com', got '%s'", name)
+func TestGroupToModel(t *testing.T) {
+	cases := []struct {
+		name          string
+		group         string
+		fallback      string
+		expectName    string
+		expectDisplay string
+	}{
+		{
+			name:          "with group",
+			group:         "monitor.azure.com",
+			fallback:      "ignored",
+			expectName:    "monitor.azure.com",
+			expectDisplay: "Monitor Azure Com",
+		},
+		{
+			name:          "empty group uses fallback",
+			group:         "",
+			fallback:      "fooBarBaz",
+			expectName:    "fooBarBaz",
+			expectDisplay: "Foo Bar Baz",
+		},
 	}
-	if display != "Monitor Azure Com" {
-		t.Fatalf("expected display name 'Monitor Azure Com', got '%s'", display)
-	}
-}
-
-func TestGroupToModel_EmptyGroup(t *testing.T) {
-	name, display := GroupToModel("", "fooBarBaz")
-	if name != "fooBarBaz" {
-		t.Fatalf("expected fallback model name 'fooBarBaz', got '%s'", name)
-	}
-	if display != "Foo Bar Baz" {
-		t.Fatalf("expected display name 'Foo Bar Baz', got '%s'", display)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			name, display := GroupToModel(tc.group, tc.fallback)
+			if name != tc.expectName {
+				t.Fatalf("expected model name '%s', got '%s'", tc.expectName, name)
+			}
+			if display != tc.expectDisplay {
+				t.Fatalf("expected display name '%s', got '%s'", tc.expectDisplay, display)
+			}
+		})
 	}
 }
 

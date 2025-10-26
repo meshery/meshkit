@@ -75,7 +75,12 @@ func GroupToModel(group, fallbackName string) (modelName, displayName string) {
 		}
 		return group, strings.Join(parts, " ")
 	}
-	return fallbackName, manifests.FormatToReadableString(fallbackName)
+	// Fallback: format and ensure leading character is capitalized for display
+	display := manifests.FormatToReadableString(fallbackName)
+	if display != "" {
+		display = strings.ToUpper(display[:1]) + display[1:]
+	}
+	return fallbackName, display
 }
 
 // ExtractGroupFromAPIVersion returns the API group from a k8s apiVersion string like "group/version".
