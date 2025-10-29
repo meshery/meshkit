@@ -179,14 +179,14 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 	db := rm.db
 
 	query := db.Table("connections c").
-		Count(&totalConnectionsCount).
-		Select("c.*, " +
-			"COUNT(CASE WHEN r.type = 'component' THEN 1 END)  AS components, " +
-			"COUNT(CASE WHEN r.type = 'model' THEN 1 END) AS models," +
-			"COUNT(CASE WHEN r.type = 'relationship' THEN 1 END) AS relationships, " +
-			"COUNT(CASE WHEN r.type = 'policy' THEN 1 END) AS policies").
-		Joins("LEFT JOIN registries r ON c.id = r.registrant_id").
-		Group("c.id")
+    Count(&totalConnectionsCount).
+    Select("MIN(c.id) as id, c.kind, MIN(c.name) as name, MIN(c.type) as type, MIN(c.status) as status, " +
+        "COUNT(CASE WHEN r.type = 'component' THEN 1 END) as components, " +
+        "COUNT(CASE WHEN r.type = 'model' THEN 1 END) as models, " +
+        "COUNT(CASE WHEN r.type = 'relationship' THEN 1 END) as relationships, " +
+        "COUNT(CASE WHEN r.type = 'policy' THEN 1 END) as policies").
+    Joins("LEFT JOIN registries r ON c.id = r.registrant_id").
+    Group("c.kind")
 
 	if f.DisplayName != "" {
 		query = query.Where("kind LIKE ?", "%"+f.DisplayName+"%")
