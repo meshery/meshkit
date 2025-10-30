@@ -2,6 +2,7 @@ package github
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 
 	"github.com/meshery/meshkit/utils"
@@ -70,6 +71,10 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 
 			comp, err := component.Generate(string(crd))
 			if err != nil {
+				continue
+			}
+			if comp.Model == nil {
+				fmt.Printf("Error: component %s has nil Model\n", comp.Component.Kind)
 				continue
 			}
 			if comp.Model.Metadata == nil {

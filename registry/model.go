@@ -631,10 +631,10 @@ func GenerateComponentsFromPkg(pkg models.Package, compDirPath string, defVersio
 		if modelDef.Metadata.AdditionalProperties == nil {
 			modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
 		}
-		if comp.Model.Metadata.AdditionalProperties != nil {
+		if comp.Model != nil && comp.Model.Metadata != nil && comp.Model.Metadata.AdditionalProperties != nil {
 			modelDef.Metadata.AdditionalProperties["source_uri"] = comp.Model.Metadata.AdditionalProperties["source_uri"]
 		}
-		comp.Model = modelDef
+		comp.Model = &modelDef
 
 		AssignDefaultsForCompDefs(&comp, &modelDef)
 		alreadyExists, err := comp.WriteComponentDefinition(compDirPath, "json")
@@ -924,10 +924,10 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 					modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
 				}
 
-				if comp.Model.Metadata.AdditionalProperties != nil {
+				if comp.Model != nil && comp.Model.Metadata != nil && comp.Model.Metadata.AdditionalProperties != nil {
 					modelDef.Metadata.AdditionalProperties["source_uri"] = comp.Model.Metadata.AdditionalProperties["source_uri"]
 				}
-				comp.Model = *modelDef
+				comp.Model = modelDef
 
 				AssignDefaultsForCompDefs(&comp, modelDef)
 				compAlreadyExist, err := comp.WriteComponentDefinition(compDirPath, "json")
@@ -1041,7 +1041,7 @@ func GenerateDefsForCoreRegistrant(model ModelCSV, ComponentCSVHelper *Component
 					continue
 				}
 				componentDef.Status = &_status
-				componentDef.Model = *modelDef
+				componentDef.Model = modelDef
 				alreadyExists, err = componentDef.WriteComponentDefinition(compDirPath, "json")
 				if err != nil {
 					err = ErrGenerateComponent(err, comp.Model, componentDef.DisplayName)

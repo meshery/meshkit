@@ -151,7 +151,7 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 			rel.EvaluationQuery = &relationship.EvalPolicy
 
 			rel.Version = "v1.0.0"
-			rel.Model = model.ModelDefinition{
+			rel.Model = model.ModelReference{
 				Name:  relationship.Model,
 				Model: model.Model{Version: version},
 			}

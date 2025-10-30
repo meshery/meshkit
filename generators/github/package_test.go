@@ -92,6 +92,10 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			}
 			for _, comp := range comps {
 				currentDirectory, _ := os.Getwd()
+				if comp.Model == nil {
+					t.Errorf("component %s has nil Model", comp.Component.Kind)
+					continue
+				}
 				dirName := filepath.Join(currentDirectory, comp.Model.Name)
 				_, err := os.Stat(dirName)
 				if errors.Is(err, os.ErrNotExist) {
