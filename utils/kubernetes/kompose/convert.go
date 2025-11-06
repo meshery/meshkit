@@ -42,6 +42,15 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	tempFilePath := filepath.Join(mesheryDir, "temp.data")
 	resultFilePath := filepath.Join(mesheryDir, "result.yaml")
 
+	// Format the compose file before creating the temporary file
+	// This includes removing env_file references that won't be available
+	formatComposeFile(&dockerCompose)
+	err = versionCheck(dockerCompose)
+	if err != nil {
+		return "", ErrCvrtKompose(err)
+	}
+
+	// Create the temporary file with the formatted compose content
 	if err := utils.CreateFile(dockerCompose, "temp.data", mesheryDir); err != nil {
 		return "", ErrCvrtKompose(err)
 	}
@@ -50,12 +59,6 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 		os.Remove(tempFilePath)
 		os.Remove(resultFilePath)
 	}()
-
-	formatComposeFile(&dockerCompose)
-	err = versionCheck(dockerCompose)
-	if err != nil {
-		return "", ErrCvrtKompose(err)
-	}
 
 	komposeClient, err := client.NewClient()
 	if err != nil {
@@ -82,7 +85,12 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 }
 
 type composeFile struct {
-	Version string `yaml:"version,omitempty"`
+	Version  string                            `yaml:"version,omitempty"`
+	Services map[string]map[string]interface{} `yaml:"services,omitempty"`
+	Networks map[string]interface{}            `yaml:"networks,omitempty"`
+	Volumes  map[string]interface{}            `yaml:"volumes,omitempty"`
+	Configs  map[string]interface{}            `yaml:"configs,omitempty"`
+	Secrets  map[string]interface{}            `yaml:"secrets,omitempty"`
 }
 
 // checks if the version is compatible with `kompose`
@@ -110,12 +118,28 @@ func versionCheck(dc DockerComposeFile) error {
 
 // formatComposeFile takes in a pointer to the compose file byte array and formats it so that it is compatible with `Kompose`
 // it expects a validated docker compose file and does not validate
+// This function:
+// 1. Ensures version is treated as a string (so "3.3" and 3.3 are handled correctly)
+// 2. Removes env_file references from services since the env files won't be available in the temporary location
 func formatComposeFile(yamlManifest *DockerComposeFile) {
 	data := composeFile{}
 	err := yaml.Unmarshal(*yamlManifest, &data)
 	if err != nil {
 		return
 	}
+	
+	// Remove env_file references from all services
+	// This prevents errors when kompose tries to load env files that aren't available
+	if data.Services != nil {
+		for serviceName, service := range data.Services {
+			if service != nil {
+				// Remove env_file field if it exists
+				delete(service, "env_file")
+				data.Services[serviceName] = service
+			}
+		}
+	}
+	
 	// so that "3.3" and 3.3 are treated differently by `Kompose`
 	out, err := yaml.Marshal(data)
 	if err != nil {
