@@ -26,7 +26,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.35.0
 	github.com/meshery/meshery-operator v0.8.11
-	github.com/meshery/schemas v0.8.34
+	github.com/meshery/schemas v0.8.91
 	github.com/nats-io/nats.go v1.38.0
 	github.com/open-policy-agent/opa v1.7.1
 	github.com/opencontainers/image-spec v1.1.1
@@ -34,7 +34,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/sjson v1.2.5
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sync v0.16.0
@@ -43,8 +43,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.5.11
-	gorm.io/driver/sqlite v1.5.7
-	gorm.io/gorm v1.30.1
+	gorm.io/driver/sqlite v1.6.0
+	gorm.io/gorm v1.31.0
 	helm.sh/helm/v3 v3.18.4
 	k8s.io/api v0.33.2
 	k8s.io/apimachinery v0.33.2
