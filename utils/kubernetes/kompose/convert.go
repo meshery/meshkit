@@ -31,6 +31,8 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
 // converts a given docker-compose file into kubernetes manifests
 // expects a validated docker-compose file
 func Convert(dockerCompose DockerComposeFile) (string, error) {
+
+
 	// Get user's home directory
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -40,6 +42,10 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	// Construct path to .meshery directory
 	mesheryDir := filepath.Join(homeDir, ".meshery")
 	tempFilePath := filepath.Join(mesheryDir, "temp.data")
+	envFilePath := filepath.Join(mesheryDir, ".env")
+
+	// create a empty .env file to avoid fatal error from kompose while reading env file
+	_ = utils.CreateFile([]byte{}, ".env", mesheryDir)
 	resultFilePath := filepath.Join(mesheryDir, "result.yaml")
 
 	// create env file
@@ -52,6 +58,7 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	}
 
 	defer func() {
+		os.Remove(envFilePath)
 		os.Remove(tempFilePath)
 		os.Remove(resultFilePath)
 	}()
