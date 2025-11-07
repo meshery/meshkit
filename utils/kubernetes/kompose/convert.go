@@ -99,8 +99,9 @@ func versionCheck(dc DockerComposeFile) error {
 	if err != nil {
 		return utils.ErrUnmarshal(err)
 	}
+	// assume compatible if version is not specified
 	if cf.Version == "" {
-		return ErrNoVersion()
+		return nil	
 	}
 	versionFloatVal, err := strconv.ParseFloat(cf.Version, 64)
 	if err != nil {
