@@ -43,9 +43,15 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	resultFilePath := filepath.Join(mesheryDir, "result.yaml")
 
 	// Format the compose file before creating the temporary file
-	// This includes removing env_file references that won't be available
 	formatComposeFile(&dockerCompose)
 	err = versionCheck(dockerCompose)
+	if err != nil {
+		return "", ErrCvrtKompose(err)
+	}
+
+	// Extract env_file references and create empty files to prevent errors
+	envFiles := extractEnvFileReferences(dockerCompose)
+	createdEnvFiles, err := createEmptyEnvFiles(mesheryDir, envFiles)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
@@ -58,6 +64,10 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	defer func() {
 		os.Remove(tempFilePath)
 		os.Remove(resultFilePath)
+		// Clean up created env files
+		for _, envFile := range createdEnvFiles {
+			os.Remove(envFile)
+		}
 	}()
 
 	komposeClient, err := client.NewClient()
@@ -118,26 +128,12 @@ func versionCheck(dc DockerComposeFile) error {
 
 // formatComposeFile takes in a pointer to the compose file byte array and formats it so that it is compatible with `Kompose`
 // it expects a validated docker compose file and does not validate
-// This function:
-// 1. Ensures version is treated as a string (so "3.3" and 3.3 are handled correctly)
-// 2. Removes env_file references from services since the env files won't be available in the temporary location
+// This function ensures version is treated as a string (so "3.3" and 3.3 are handled correctly)
 func formatComposeFile(yamlManifest *DockerComposeFile) {
 	data := composeFile{}
 	err := yaml.Unmarshal(*yamlManifest, &data)
 	if err != nil {
 		return
-	}
-	
-	// Remove env_file references from all services
-	// This prevents errors when kompose tries to load env files that aren't available
-	if data.Services != nil {
-		for serviceName, service := range data.Services {
-			if service != nil {
-				// Remove env_file field if it exists
-				delete(service, "env_file")
-				data.Services[serviceName] = service
-			}
-		}
 	}
 	
 	// so that "3.3" and 3.3 are treated differently by `Kompose`
@@ -146,4 +142,66 @@ func formatComposeFile(yamlManifest *DockerComposeFile) {
 		return
 	}
 	*yamlManifest = out
+}
+
+// extractEnvFileReferences parses the compose file and extracts all env_file references
+func extractEnvFileReferences(yamlManifest DockerComposeFile) []string {
+	data := composeFile{}
+	err := yaml.Unmarshal(yamlManifest, &data)
+	if err != nil {
+		return []string{}
+	}
+	
+	envFiles := []string{}
+	if data.Services != nil {
+		for _, service := range data.Services {
+			if service != nil {
+				if envFileValue, exists := service["env_file"]; exists {
+					// env_file can be a string or an array of strings
+					switch v := envFileValue.(type) {
+					case string:
+						envFiles = append(envFiles, v)
+					case []interface{}:
+						for _, item := range v {
+							if str, ok := item.(string); ok {
+								envFiles = append(envFiles, str)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return envFiles
+}
+
+// createEmptyEnvFiles creates empty env files at the specified locations relative to mesheryDir
+// Returns the list of created file paths for cleanup
+func createEmptyEnvFiles(mesheryDir string, envFiles []string) ([]string, error) {
+	createdFiles := []string{}
+	
+	for _, envFile := range envFiles {
+		// Resolve the path relative to mesheryDir
+		fullPath := filepath.Join(mesheryDir, envFile)
+		
+		// Create parent directories if they don't exist
+		dir := filepath.Dir(fullPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return createdFiles, err
+		}
+		
+		// Check if file already exists
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			// Create empty file
+			file, err := os.Create(fullPath)
+			if err != nil {
+				return createdFiles, err
+			}
+			file.Close()
+			createdFiles = append(createdFiles, fullPath)
+		}
+	}
+	
+	return createdFiles, nil
 }

@@ -1,12 +1,14 @@
 package kompose
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gopkg.in/yaml.v3"
 )
 
-func TestFormatComposeFile_RemovesEnvFile(t *testing.T) {
+func TestExtractEnvFileReferences_String(t *testing.T) {
 	// Test case 1: Docker compose with env_file as string
 	composeWithEnvFileString := []byte(`
 version: "3.8"
@@ -23,46 +25,31 @@ services:
       POSTGRES_USER: admin
 `)
 
-	var result DockerComposeFile = composeWithEnvFileString
-	formatComposeFile(&result)
-
-	// Unmarshal to verify env_file was removed
-	var parsed map[string]interface{}
-	err := yaml.Unmarshal(result, &parsed)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal formatted compose file: %v", err)
+	envFiles := extractEnvFileReferences(composeWithEnvFileString)
+	
+	if len(envFiles) != 2 {
+		t.Errorf("Expected 2 env files, got %d", len(envFiles))
 	}
-
-	// Check services exist
-	services, ok := parsed["services"].(map[string]interface{})
-	if !ok {
-		t.Fatal("Services not found in formatted compose file")
+	
+	expectedFiles := map[string]bool{
+		".env":          false,
+		"./config/.env": false,
 	}
-
-	// Check env_file was removed from web service
-	webService, ok := services["web"].(map[string]interface{})
-	if !ok {
-		t.Fatal("Web service not found")
+	
+	for _, file := range envFiles {
+		if _, exists := expectedFiles[file]; exists {
+			expectedFiles[file] = true
+		}
 	}
-	if _, exists := webService["env_file"]; exists {
-		t.Error("env_file should be removed from web service")
-	}
-	// Verify environment is still present
-	if _, exists := webService["environment"]; !exists {
-		t.Error("environment should still be present in web service")
-	}
-
-	// Check env_file was removed from db service
-	dbService, ok := services["db"].(map[string]interface{})
-	if !ok {
-		t.Fatal("DB service not found")
-	}
-	if _, exists := dbService["env_file"]; exists {
-		t.Error("env_file should be removed from db service")
+	
+	for file, found := range expectedFiles {
+		if !found {
+			t.Errorf("Expected env file %s not found", file)
+		}
 	}
 }
 
-func TestFormatComposeFile_RemovesEnvFileArray(t *testing.T) {
+func TestExtractEnvFileReferences_Array(t *testing.T) {
 	// Test case 2: Docker compose with env_file as array
 	composeWithEnvFileArray := []byte(`
 version: "3.8"
@@ -77,10 +64,136 @@ services:
       NODE_ENV: production
 `)
 
-	var result DockerComposeFile = composeWithEnvFileArray
+	envFiles := extractEnvFileReferences(composeWithEnvFileArray)
+	
+	if len(envFiles) != 3 {
+		t.Errorf("Expected 3 env files, got %d", len(envFiles))
+	}
+	
+	expectedFiles := map[string]bool{
+		".env":               false,
+		".env.local":         false,
+		"./config/.env.prod": false,
+	}
+	
+	for _, file := range envFiles {
+		if _, exists := expectedFiles[file]; exists {
+			expectedFiles[file] = true
+		}
+	}
+	
+	for file, found := range expectedFiles {
+		if !found {
+			t.Errorf("Expected env file %s not found", file)
+		}
+	}
+}
+
+func TestExtractEnvFileReferences_NoEnvFile(t *testing.T) {
+	// Test case 3: Compose file without env_file
+	composeWithoutEnvFile := []byte(`
+version: "3.8"
+services:
+  web:
+    image: nginx:latest
+    environment:
+      APP_ENV: production
+`)
+
+	envFiles := extractEnvFileReferences(composeWithoutEnvFile)
+	
+	if len(envFiles) != 0 {
+		t.Errorf("Expected 0 env files, got %d", len(envFiles))
+	}
+}
+
+func TestCreateEmptyEnvFiles(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "test-meshery-")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+	
+	envFiles := []string{
+		".env",
+		"config/.env.prod",
+		"nested/dir/.env.local",
+	}
+	
+	createdFiles, err := createEmptyEnvFiles(tempDir, envFiles)
+	if err != nil {
+		t.Fatalf("Failed to create empty env files: %v", err)
+	}
+	
+	if len(createdFiles) != 3 {
+		t.Errorf("Expected 3 created files, got %d", len(createdFiles))
+	}
+	
+	// Verify files were created
+	for _, envFile := range envFiles {
+		fullPath := filepath.Join(tempDir, envFile)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			t.Errorf("Expected file %s to exist", fullPath)
+		}
+	}
+}
+
+func TestCreateEmptyEnvFiles_ExistingFiles(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "test-meshery-")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+	
+	// Pre-create one env file
+	existingFile := filepath.Join(tempDir, ".env")
+	if err := os.WriteFile(existingFile, []byte("EXISTING=true"), 0644); err != nil {
+		t.Fatalf("Failed to create existing file: %v", err)
+	}
+	
+	envFiles := []string{
+		".env",
+		"config/.env.prod",
+	}
+	
+	createdFiles, err := createEmptyEnvFiles(tempDir, envFiles)
+	if err != nil {
+		t.Fatalf("Failed to create empty env files: %v", err)
+	}
+	
+	// Should only create the one that didn't exist
+	if len(createdFiles) != 1 {
+		t.Errorf("Expected 1 created file (skipping existing), got %d", len(createdFiles))
+	}
+	
+	// Verify existing file content wasn't overwritten
+	content, err := os.ReadFile(existingFile)
+	if err != nil {
+		t.Fatalf("Failed to read existing file: %v", err)
+	}
+	if string(content) != "EXISTING=true" {
+		t.Error("Existing file content was overwritten")
+	}
+}
+
+func TestFormatComposeFile_PreservesEnvFile(t *testing.T) {
+	// Test that env_file references are preserved
+	composeWithEnvFile := []byte(`
+version: "3.8"
+services:
+  web:
+    image: nginx:latest
+    env_file: .env
+    environment:
+      APP_ENV: production
+`)
+
+	var result DockerComposeFile = composeWithEnvFile
 	formatComposeFile(&result)
 
-	// Unmarshal to verify env_file was removed
+	// Unmarshal to verify env_file is preserved
 	var parsed map[string]interface{}
 	err := yaml.Unmarshal(result, &parsed)
 	if err != nil {
@@ -92,21 +205,24 @@ services:
 		t.Fatal("Services not found in formatted compose file")
 	}
 
-	appService, ok := services["app"].(map[string]interface{})
+	webService, ok := services["web"].(map[string]interface{})
 	if !ok {
-		t.Fatal("App service not found")
+		t.Fatal("Web service not found")
 	}
-	if _, exists := appService["env_file"]; exists {
-		t.Error("env_file array should be removed from app service")
+	
+	// Verify env_file is still present
+	if _, exists := webService["env_file"]; !exists {
+		t.Error("env_file should be preserved in web service")
 	}
+	
 	// Verify environment is still present
-	if _, exists := appService["environment"]; !exists {
-		t.Error("environment should still be present in app service")
+	if _, exists := webService["environment"]; !exists {
+		t.Error("environment should still be present in web service")
 	}
 }
 
 func TestFormatComposeFile_PreservesOtherFields(t *testing.T) {
-	// Test case 3: Ensure other fields are preserved
+	// Ensure other fields are preserved
 	composeWithVariousFields := []byte(`
 version: "3.8"
 services:
@@ -150,12 +266,10 @@ volumes:
 		t.Fatal("Web service not found")
 	}
 
-	// Verify env_file is removed
-	if _, exists := webService["env_file"]; exists {
-		t.Error("env_file should be removed")
+	// Verify all fields are preserved
+	if _, exists := webService["env_file"]; !exists {
+		t.Error("env_file should be preserved")
 	}
-
-	// Verify other fields are preserved
 	if _, exists := webService["ports"]; !exists {
 		t.Error("ports should be preserved")
 	}
@@ -175,59 +289,5 @@ volumes:
 	}
 	if _, exists := parsed["volumes"]; !exists {
 		t.Error("top-level volumes should be preserved")
-	}
-}
-
-func TestFormatComposeFile_NoEnvFile(t *testing.T) {
-	// Test case 4: Compose file without env_file (should work normally)
-	composeWithoutEnvFile := []byte(`
-version: "3.8"
-services:
-  web:
-    image: nginx:latest
-    environment:
-      APP_ENV: production
-`)
-
-	var result DockerComposeFile = composeWithoutEnvFile
-	formatComposeFile(&result)
-
-	var parsed map[string]interface{}
-	err := yaml.Unmarshal(result, &parsed)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal formatted compose file: %v", err)
-	}
-
-	services, ok := parsed["services"].(map[string]interface{})
-	if !ok {
-		t.Fatal("Services not found")
-	}
-
-	webService, ok := services["web"].(map[string]interface{})
-	if !ok {
-		t.Fatal("Web service not found")
-	}
-
-	// Verify environment is preserved
-	if _, exists := webService["environment"]; !exists {
-		t.Error("environment should be preserved")
-	}
-}
-
-func TestFormatComposeFile_EmptyServices(t *testing.T) {
-	// Test case 5: Compose file with no services
-	composeEmptyServices := []byte(`
-version: "3.8"
-services:
-`)
-
-	var result DockerComposeFile = composeEmptyServices
-	formatComposeFile(&result)
-
-	// Should not panic and should complete successfully
-	var parsed map[string]interface{}
-	err := yaml.Unmarshal(result, &parsed)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal formatted compose file: %v", err)
 	}
 }
