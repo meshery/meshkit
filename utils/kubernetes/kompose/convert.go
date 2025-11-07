@@ -1,6 +1,7 @@
 package kompose
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -192,7 +193,7 @@ func createEmptyEnvFiles(mesheryDir string, envFiles []string) ([]string, error)
 		}
 		
 		// Check if file already exists
-		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		if _, err := os.Stat(fullPath); errors.Is(err, os.ErrNotExist) {
 			// Create empty file
 			file, err := os.Create(fullPath)
 			if err != nil {

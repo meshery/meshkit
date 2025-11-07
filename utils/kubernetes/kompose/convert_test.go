@@ -26,7 +26,6 @@ services:
 `)
 
 	envFiles := extractEnvFileReferences(composeWithEnvFileString)
-	
 	if len(envFiles) != 2 {
 		t.Errorf("Expected 2 env files, got %d", len(envFiles))
 	}
@@ -65,7 +64,6 @@ services:
 `)
 
 	envFiles := extractEnvFileReferences(composeWithEnvFileArray)
-	
 	if len(envFiles) != 3 {
 		t.Errorf("Expected 3 env files, got %d", len(envFiles))
 	}
@@ -101,7 +99,6 @@ services:
 `)
 
 	envFiles := extractEnvFileReferences(composeWithoutEnvFile)
-	
 	if len(envFiles) != 0 {
 		t.Errorf("Expected 0 env files, got %d", len(envFiles))
 	}
