@@ -44,8 +44,6 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	tempFilePath := filepath.Join(mesheryDir, "temp.data")
 	envFilePath := filepath.Join(mesheryDir, ".env")
 
-	// create a empty .env file to avoid fatal error from kompose while reading env file
-	_ = utils.CreateFile([]byte{}, ".env", mesheryDir)
 	resultFilePath := filepath.Join(mesheryDir, "result.yaml")
 
 	// create a empty .env file to avoid fatal error from kompose while reading env file
