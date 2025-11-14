@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 
+	"github.com/meshery/meshkit/files"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/component"
 	"github.com/meshery/meshkit/utils/kubernetes"
@@ -46,7 +47,9 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 	errs := []error{}
 
 	for _, crd := range manifestBytes {
-		resource := string(crd)
+		// Strip leading comments (like copyright headers) from each YAML document
+		cleanedCrd := files.StripLeadingComments(crd)
+		resource := string(cleanedCrd)
 		include, err := component.IncludeComponentBasedOnGroup(resource, group)
 
 		if err != nil {
@@ -57,10 +60,10 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 			continue
 		}
 
-		isCrd := kubernetes.IsCRD(string(crd))
+		isCrd := kubernetes.IsCRD(resource)
 		if !isCrd {
 
-			comps, err := component.GenerateFromOpenAPI(string(crd), gp)
+			comps, err := component.GenerateFromOpenAPI(resource, gp)
 			if err != nil {
 				errs = append(errs, component.ErrGetSchema(err))
 				continue
@@ -68,7 +71,7 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 			components = append(components, comps...)
 		} else {
 
-			comp, err := component.Generate(string(crd))
+			comp, err := component.Generate(resource)
 			if err != nil {
 				continue
 			}

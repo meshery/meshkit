@@ -258,3 +258,25 @@ func IsValidJson(data []byte) error {
 	var unMarshalled interface{}
 	return json.Unmarshal(data, &unMarshalled)
 }
+
+// StripLeadingComments removes leading comment lines (starting with #) and empty lines from YAML content.
+func StripLeadingComments(yamlContent []byte) []byte {
+	lines := strings.Split(string(yamlContent), "\n")
+
+	// Find the first non-comment, non-empty line
+	startIdx := 0
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Skip empty lines and comment lines
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		// Found the first non-comment, non-empty line
+		startIdx = i
+		break
+	}
+
+	// Return the content starting from the first non-comment line
+	result := strings.Join(lines[startIdx:], "\n")
+	return []byte(result)
+}
