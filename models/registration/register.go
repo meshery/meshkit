@@ -110,7 +110,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 			continue
 		}
 
-		comp.Model = model
+		comp.Model = &model
 
 		if comp.Styles != nil {
 			// Write SVG for components
@@ -137,7 +137,8 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 
 	// 3. Register relationships
 	for _, rel := range pkg.Relationships {
-		rel.Model = model
+		rel.Model = model.ToReference()
+		rel.ModelId = model.Id
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
