@@ -68,8 +68,7 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 			continue
 		}
 		if comp.Model == nil {
-			fmt.Printf("Error: component %s has nil Model\n", comp.Component.Kind)
-			continue
+			comp.Model = &model.ModelDefinition{}
 		}
 		if comp.Model.Metadata == nil {
 			comp.Model.Metadata = &model.ModelDefinition_Metadata{}
