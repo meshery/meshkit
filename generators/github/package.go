@@ -1,8 +1,8 @@
 package github
 
 import (
-	"bytes"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/meshery/meshkit/utils"
@@ -12,6 +12,7 @@ import (
 	"github.com/meshery/schemas/models/v1beta1/category"
 	_component "github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
+	"gopkg.in/yaml.v3"
 )
 
 type GitHubPackage struct {
@@ -38,30 +39,46 @@ func (gp GitHubPackage) GetName() string {
 func (gp GitHubPackage) GenerateComponents(group string) ([]_component.ComponentDefinition, error) {
 	components := make([]_component.ComponentDefinition, 0)
 
-	data, err := os.ReadFile(gp.filePath)
+	file, err := os.Open(gp.filePath)
 	if err != nil {
 		return nil, ErrGenerateGitHubPackage(err, gp.Name)
 	}
 
-	manifestBytes := bytes.Split(data, []byte("\n---\n"))
+	// parse yaml and break into pages
+	decoder := yaml.NewDecoder(file)
+
 	errs := []error{}
 
-	for _, crd := range manifestBytes {
-		resource := string(crd)
+	for {
+		var crd map[string]any
+		if err := decoder.Decode(&crd); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, ErrGenerateGitHubPackage(fmt.Errorf("error decoding yaml: %w", err), gp.Name)
+		}
+
+		resourceBytes, err := yaml.Marshal(crd)
+		if err != nil {
+			return nil, ErrGenerateGitHubPackage(fmt.Errorf("error marshaling yaml: %w", err), gp.Name)
+		}
+
+		resource := string(resourceBytes)
+
 		include, err := component.IncludeComponentBasedOnGroup(resource, group)
 
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("error filtering component by group: %w", err))
 		}
 
 		if !include {
 			continue
 		}
 
-		isCrd := kubernetes.IsCRD(string(crd))
+		isCrd := kubernetes.IsCRD(resource)
 		if !isCrd {
 
-			comps, err := component.GenerateFromOpenAPI(string(crd), gp)
+			comps, err := component.GenerateFromOpenAPI(resource, gp)
 			if err != nil {
 				errs = append(errs, component.ErrGetSchema(err))
 				continue
@@ -69,13 +86,12 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 			components = append(components, comps...)
 		} else {
 
-			comp, err := component.Generate(string(crd))
+			comp, err := component.Generate(resource)
 			if err != nil {
 				continue
 			}
 			if comp.Model == nil {
-				fmt.Printf("Error: component %s has nil Model\n", comp.Component.Kind)
-				continue
+				comp.Model = &model.ModelDefinition{}
 			}
 			if comp.Model.Metadata == nil {
 				comp.Model.Metadata = &model.ModelDefinition_Metadata{}
