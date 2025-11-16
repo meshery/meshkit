@@ -57,13 +57,12 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 				break
 			}
 			// log the error and skip this particular resource
-			errs = append(errs, ErrGenerateGitHubPackage(fmt.Errorf("error decoding yaml: %w , fileName %s", err, gp.filePath), gp.Name))
-			continue
+			return components, ErrGenerateGitHubPackage(fmt.Errorf("error decoding yaml: %w , fileName %s", err, gp.filePath), gp.Name)
 		}
 
 		resourceBytes, err := yaml.Marshal(crd)
 		if err != nil {
-			return nil, ErrGenerateGitHubPackage(fmt.Errorf("error marshaling yaml: %w", err), gp.Name)
+			return components, ErrGenerateGitHubPackage(fmt.Errorf("error marshaling yaml: %w", err), gp.Name)
 		}
 
 		resource := string(resourceBytes)
