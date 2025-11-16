@@ -56,7 +56,9 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 			if err == io.EOF {
 				break
 			}
-			return nil, ErrGenerateGitHubPackage(fmt.Errorf("error decoding yaml: %w", err), gp.Name)
+			// log the error and skip this particular resource
+			errs = append(errs, ErrGenerateGitHubPackage(fmt.Errorf("error decoding yaml: %w , fileName %s", err, gp.filePath), gp.Name))
+			continue
 		}
 
 		resourceBytes, err := yaml.Marshal(crd)
