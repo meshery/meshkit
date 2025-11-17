@@ -35,6 +35,7 @@ type RelationshipCSV struct {
 	Type              string `json:"type" csv:"type"`
 	SubType           string `json:"subType" csv:"subType"`
 	PublishToRegistry string `json:"PublishToRegistry" csv:"PublishToRegistry"`
+	AddToRegistry     string `json:"AddToRegistry" csv:"AddToRegistry"`
 	Description       string `json:"metadata.description" csv:"metadata.description"`
 	IsAnnotation      string `json:"metadata.isAnnotation" csv:"metadata.isAnnotation"`
 	Styles            string `json:"metadata.styles" csv:"metadata.styles"`
@@ -156,7 +157,9 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 				Model: model.Model{Version: version},
 			}
 
-			if utils.ReplaceSpacesAndConvertToLowercase(relationship.PublishToRegistry) == "false" {
+			publishToRegistry := utils.ReplaceSpacesAndConvertToLowercase(relationship.PublishToRegistry) != "false"
+			addToRegistry := utils.ReplaceSpacesAndConvertToLowercase(relationship.AddToRegistry) == "true"
+			if !(publishToRegistry && addToRegistry) {
 				status := _rel.Ignored
 				rel.Status = &status
 			} else {
