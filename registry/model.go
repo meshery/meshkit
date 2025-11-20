@@ -623,17 +623,22 @@ func GenerateComponentsFromPkg(pkg models.Package, compDirPath string, defVersio
 		return 0, 0, err
 	}
 	lengthOfComps := len(comps)
+	
+	// Set the source_uri in the model metadata to the actual package URL
+	if modelDef.Metadata == nil {
+		modelDef.Metadata = &_model.ModelDefinition_Metadata{}
+	}
+	if modelDef.Metadata.AdditionalProperties == nil {
+		modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
+	}
+	// Get the actual source URL from the package
+	actualSourceURL := pkg.GetSourceURL()
+	if actualSourceURL != "" {
+		modelDef.Metadata.AdditionalProperties["source_uri"] = actualSourceURL
+	}
+	
 	for _, comp := range comps {
 		comp.Version = defVersion
-		if modelDef.Metadata == nil {
-			modelDef.Metadata = &_model.ModelDefinition_Metadata{}
-		}
-		if modelDef.Metadata.AdditionalProperties == nil {
-			modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
-		}
-		if comp.Model != nil && comp.Model.Metadata != nil && comp.Model.Metadata.AdditionalProperties != nil {
-			modelDef.Metadata.AdditionalProperties["source_uri"] = comp.Model.Metadata.AdditionalProperties["source_uri"]
-		}
 		comp.Model = &modelDef
 
 		AssignDefaultsForCompDefs(&comp, &modelDef)
@@ -865,7 +870,34 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 				return
 			}
 
-			generator, err := generators.NewGenerator(model.Registrant, model.SourceURL, model.Model)
+			// Check if we have an existing model definition with a source_uri to use for updates
+			sourceURL := model.SourceURL
+			if utils.ReplaceSpacesAndConvertToLowercase(model.Registrant) == "artifacthub" {
+				// Try to read existing model definition to get the actual package URL
+				existingModelPath := filepath.Join(path, model.Model)
+				if entries, err := os.ReadDir(existingModelPath); err == nil && len(entries) > 0 {
+					// Find the latest version directory
+					for _, entry := range entries {
+						if entry.IsDir() {
+							modelDefPath := filepath.Join(existingModelPath, entry.Name(), defVersion, "model.json")
+							if existingData, err := os.ReadFile(modelDefPath); err == nil {
+								var existingModelDef _model.ModelDefinition
+								if err := encoding.Unmarshal(existingData, &existingModelDef); err == nil {
+									if existingModelDef.Metadata != nil && existingModelDef.Metadata.AdditionalProperties != nil {
+										if existingSourceURI, ok := existingModelDef.Metadata.AdditionalProperties["source_uri"].(string); ok && existingSourceURI != "" {
+											// Use the existing source_uri for updates
+											sourceURL = existingSourceURI
+											break
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			generator, err := generators.NewGenerator(model.Registrant, sourceURL, model.Model)
 			if err != nil {
 				err = ErrGenerateModel(err, model.Model)
 				LogError.Error(err)
@@ -912,21 +944,25 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 			if alreadyExist {
 				totalAvailableModels--
 			}
+			
+			// Set the source_uri in the model metadata to the actual package URL
+			if modelDef.Metadata == nil {
+				modelDef.Metadata = &_model.ModelDefinition_Metadata{}
+			}
+			if modelDef.Metadata.AdditionalProperties == nil {
+				modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
+			}
+			// Get the actual source URL from the package
+			actualSourceURL := pkg.GetSourceURL()
+			if actualSourceURL != "" {
+				modelDef.Metadata.AdditionalProperties["source_uri"] = actualSourceURL
+			}
+
 			for _, comp := range comps {
 				comp.Version = defVersion
 				// Assign the component status corresponding to model status.
 				// i.e., If model is enabled, comps are also "enabled". Ultimately, all individual comps will have the ability to control their status.
 				// The status "enabled" indicates that the component will be registered inside the registry.
-				if modelDef.Metadata == nil {
-					modelDef.Metadata = &_model.ModelDefinition_Metadata{}
-				}
-				if modelDef.Metadata.AdditionalProperties == nil {
-					modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
-				}
-
-				if comp.Model != nil && comp.Model.Metadata != nil && comp.Model.Metadata.AdditionalProperties != nil {
-					modelDef.Metadata.AdditionalProperties["source_uri"] = comp.Model.Metadata.AdditionalProperties["source_uri"]
-				}
 				comp.Model = modelDef
 
 				AssignDefaultsForCompDefs(&comp, modelDef)
@@ -940,6 +976,13 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 					return
 				}
 			}
+			
+			// Write the updated model definition with the correct source_uri back to the file system
+			modelFilePath := filepath.Join(modelDirPath, "model.json")
+			if err := modelDef.WriteModelDefinition(modelFilePath, "json"); err != nil {
+				LogError.Error(ErrGenerateModel(err, model.Model))
+			}
+			
 			if !alreadyExist {
 				if len(comps) == 0 {
 					err = ErrGenerateModel(fmt.Errorf("no components found for model"), model.Model)

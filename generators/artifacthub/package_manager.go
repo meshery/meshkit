@@ -2,6 +2,7 @@ package artifacthub
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/meshery/meshkit/generators/models"
 )
@@ -12,7 +13,20 @@ type ArtifactHubPackageManager struct {
 }
 
 func (ahpm ArtifactHubPackageManager) GetPackage() (models.Package, error) {
-	// get relevant packages
+	// Check if SourceURL is an actual URL (from a previous generation)
+	// If so, create a package directly from it instead of searching
+	if ahpm.SourceURL != "" && (strings.HasPrefix(ahpm.SourceURL, "http://") || strings.HasPrefix(ahpm.SourceURL, "https://") || strings.HasPrefix(ahpm.SourceURL, "oci://")) {
+		// SourceURL is an actual URL, use it directly
+		pkg := AhPackage{
+			Name:     ahpm.PackageName,
+			ChartUrl: ahpm.SourceURL,
+		}
+		// Try to extract version from the URL or fetch it
+		_ = pkg.UpdatePackageData() // This might fail but that's okay, ChartUrl is already set
+		return pkg, nil
+	}
+	
+	// get relevant packages by searching with package name
 	pkgs, err := GetAhPackagesWithName(ahpm.PackageName)
 	if err != nil {
 		return nil, err
