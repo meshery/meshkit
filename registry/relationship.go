@@ -33,6 +33,7 @@ type RelationshipCSV struct {
 	Version           string `json:"Version" csv:"Version"`
 	KIND              string `json:"kind" csv:"kind"`
 	Type              string `json:"type" csv:"type"`
+	Status            string `json:"status" csv:"status"`
 	SubType           string `json:"subType" csv:"subType"`
 	PublishToRegistry string `json:"PublishToRegistry" csv:"PublishToRegistry"`
 	Description       string `json:"metadata.description" csv:"metadata.description"`
@@ -48,14 +49,14 @@ func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID in
 	if localCsvPath == "" {
 		dirPath := filepath.Join(utils.GetHome(), ".meshery", "content")
 		err := os.MkdirAll(dirPath, 0755)
-		if err != nil{
+		if err != nil {
 			return nil, utils.ErrCreateDir(err, dirPath)
 		}
 		csvPath = filepath.Join(dirPath, "relationships.csv")
 
-		sheetURL,err = DownloadCSVAndGetDownloadURL(sheetURL,csvPath,spreadsheetID)
-		if err !=nil{
-			return nil,err
+		sheetURL, err = DownloadCSVAndGetDownloadURL(sheetURL, csvPath, spreadsheetID)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		csvPath = localCsvPath
@@ -143,25 +144,24 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 			if relationship.Model == "" {
 				continue
 			}
+			// skip relationships that are not ready to be published
+			if utils.ReplaceSpacesAndConvertToLowercase(relationship.PublishToRegistry) == "false" {
+				Log.Infof("Skipping relationship %s as it is not ready to be published", path)
+				continue
+			}
+
 			var rel _rel.RelationshipDefinition
 			rel.SchemaVersion = v1alpha3.RelationshipSchemaVersion
 			rel.Kind = _rel.RelationshipDefinitionKind(utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.KIND))
 			rel.RelationshipType = utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.Type)
 			rel.SubType = utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.SubType)
 			rel.EvaluationQuery = &relationship.EvalPolicy
+			rel.Status = (*_rel.RelationshipDefinitionStatus)(&relationship.Status)
 
 			rel.Version = "v1.0.0"
 			rel.Model = model.ModelReference{
 				Name:  relationship.Model,
 				Model: model.Model{Version: version},
-			}
-
-			if utils.ReplaceSpacesAndConvertToLowercase(relationship.PublishToRegistry) == "false" {
-				status := _rel.Ignored
-				rel.Status = &status
-			} else {
-				status := _rel.Enabled
-				rel.Status = &status
 			}
 
 			var styles _rel.RelationshipDefinitionMetadataStyles
