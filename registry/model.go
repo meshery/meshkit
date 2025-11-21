@@ -956,6 +956,8 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 			actualSourceURL := pkg.GetSourceURL()
 			if actualSourceURL != "" {
 				modelDef.Metadata.AdditionalProperties["source_uri"] = actualSourceURL
+				// Update the CSV model's SourceURL to the actual package URL for spreadsheet updates
+				model.SourceURL = actualSourceURL
 			}
 
 			for _, comp := range comps {
