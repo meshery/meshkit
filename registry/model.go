@@ -870,34 +870,8 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 				return
 			}
 
-			// Check if we have an existing model definition with a source_uri to use for updates
-			sourceURL := model.SourceURL
-			if utils.ReplaceSpacesAndConvertToLowercase(model.Registrant) == "artifacthub" {
-				// Try to read existing model definition to get the actual package URL
-				existingModelPath := filepath.Join(path, model.Model)
-				if entries, err := os.ReadDir(existingModelPath); err == nil && len(entries) > 0 {
-					// Find the latest version directory
-					for _, entry := range entries {
-						if entry.IsDir() {
-							modelDefPath := filepath.Join(existingModelPath, entry.Name(), defVersion, "model.json")
-							if existingData, err := os.ReadFile(modelDefPath); err == nil {
-								var existingModelDef _model.ModelDefinition
-								if err := encoding.Unmarshal(existingData, &existingModelDef); err == nil {
-									if existingModelDef.Metadata != nil && existingModelDef.Metadata.AdditionalProperties != nil {
-										if existingSourceURI, ok := existingModelDef.Metadata.AdditionalProperties["source_uri"].(string); ok && existingSourceURI != "" {
-											// Use the existing source_uri for updates
-											sourceURL = existingSourceURI
-											break
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			generator, err := generators.NewGenerator(model.Registrant, sourceURL, model.Model)
+			// Use the SourceURL from the CSV, which now contains the actual package URL after first generation
+			generator, err := generators.NewGenerator(model.Registrant, model.SourceURL, model.Model)
 			if err != nil {
 				err = ErrGenerateModel(err, model.Model)
 				LogError.Error(err)
