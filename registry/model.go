@@ -98,7 +98,7 @@ type ModelCSV struct {
 }
 
 var modelMetadataValues = []string{
-	"primaryColor", "secondaryColor", "svgColor", "svgWhite", "svgComplete", "styleOverrides", "capabilities", "isAnnotation", "shape",
+	"primaryColor", "secondaryColor", "svgColor", "svgWhite", "svgComplete", "styleOverrides", "capabilities", "isAnnotation", "shape", "sourceURL",
 }
 
 // keep
@@ -162,6 +162,11 @@ func (m *ModelCSV) UpdateModelDefinition(modelDef *_model.ModelDefinition) error
 				isAnnotation = true
 			}
 			metadata.IsAnnotation = &isAnnotation
+		case "sourceURL":
+			// Store SourceURL as source_uri in metadata for tracking the actual package URL
+			if m.SourceURL != "" {
+				metadata.AdditionalProperties["source_uri"] = m.SourceURL
+			}
 		default:
 			// For keys that do not have a direct mapping, store them in AdditionalProperties
 			metadata.AdditionalProperties[key] = modelMetadata[key]
@@ -909,6 +914,15 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 				LogError.Error(err)
 				return
 			}
+			
+			// Get the actual source URL from the package and update the CSV model's SourceURL
+			// This needs to happen before writeModelDefToFileSystem so the model is written with the correct source_uri
+			actualSourceURL := pkg.GetSourceURL()
+			if actualSourceURL != "" {
+				// Update the CSV model's SourceURL to the actual package URL for spreadsheet updates
+				model.SourceURL = actualSourceURL
+			}
+			
 			modelDef, alreadyExist, err := writeModelDefToFileSystem(&model, version, modelDirPath)
 			if err != nil {
 				err = ErrGenerateModel(err, model.Model)
@@ -917,21 +931,6 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 			}
 			if alreadyExist {
 				totalAvailableModels--
-			}
-			
-			// Set the source_uri in the model metadata to the actual package URL
-			if modelDef.Metadata == nil {
-				modelDef.Metadata = &_model.ModelDefinition_Metadata{}
-			}
-			if modelDef.Metadata.AdditionalProperties == nil {
-				modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
-			}
-			// Get the actual source URL from the package
-			actualSourceURL := pkg.GetSourceURL()
-			if actualSourceURL != "" {
-				modelDef.Metadata.AdditionalProperties["source_uri"] = actualSourceURL
-				// Update the CSV model's SourceURL to the actual package URL for spreadsheet updates
-				model.SourceURL = actualSourceURL
 			}
 
 			for _, comp := range comps {
@@ -951,12 +950,6 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 					LogError.Error(err)
 					return
 				}
-			}
-			
-			// Write the updated model definition with the correct source_uri back to the file system
-			modelFilePath := filepath.Join(modelDirPath, "model.json")
-			if err := modelDef.WriteModelDefinition(modelFilePath, "json"); err != nil {
-				LogError.Error(ErrGenerateModel(err, model.Model))
 			}
 			
 			if !alreadyExist {
