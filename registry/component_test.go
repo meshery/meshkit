@@ -1,10 +1,13 @@
 package registry
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/meshery/meshkit/utils"
+	"github.com/meshery/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/stretchr/testify/assert"
 )
@@ -193,8 +196,9 @@ func TestCreateRelationshipsMetadataAndCreateSVGsForMDXStyle(t *testing.T) {
 	assert.Contains(t, metadata, "hierarchical")
 	assert.Contains(t, metadata, "Test relationship")
 
-	// Verify SVG files were created
-	relnshipName := "edge-binding"
+	// Verify SVG files were created - derive name the same way as implementation
+	rel := relationships[0]
+	relnshipName := utils.FormatName(manifests.FormatToReadableString(fmt.Sprintf("%s-%s", rel.KIND, rel.SubType)))
 	colorSVGPath := filepath.Join(tmpDir, svgDir, relnshipName, "icons", "color", relnshipName+"-color.svg")
 	whiteSVGPath := filepath.Join(tmpDir, svgDir, relnshipName, "icons", "white", relnshipName+"-white.svg")
 
@@ -240,8 +244,9 @@ func TestCreateRelationshipsMetadataAndCreateSVGsForMDStyle(t *testing.T) {
 	assert.Contains(t, metadata, "hierarchical")
 	assert.Contains(t, metadata, "Test relationship")
 
-	// Verify SVG files were created
-	relnshipName := "edge-binding"
+	// Verify SVG files were created - derive name the same way as implementation
+	rel := relationships[0]
+	relnshipName := utils.FormatName(manifests.FormatToReadableString(fmt.Sprintf("%s-%s", rel.KIND, rel.SubType)))
 	colorSVGPath := filepath.Join(tmpDir, relnshipName, "icons", "color", relnshipName+"-color.svg")
 	whiteSVGPath := filepath.Join(tmpDir, relnshipName, "icons", "white", relnshipName+"-white.svg")
 
