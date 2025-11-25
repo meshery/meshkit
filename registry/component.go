@@ -1,12 +1,12 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"encoding/json"
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/files"
@@ -14,10 +14,10 @@ import (
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/csv"
 	"github.com/meshery/meshkit/utils/manifests"
+	"github.com/meshery/schemas"
 	"github.com/meshery/schemas/models/v1alpha1/capability"
 	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
-	"github.com/meshery/schemas"
 )
 
 const (
@@ -209,8 +209,6 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 	return nil
 }
 
-
-
 type ComponentCSVHelper struct {
 	SpreadsheetID  int64
 	SpreadsheetURL string
@@ -377,6 +375,146 @@ func CreateRelationshipsMetadata(model ModelCSV, relationships []RelationshipCSV
 
 }
 
+// CreateRelationshipsMetadataAndCreateSVGsForMDXStyle creates relationship metadata and writes SVGs for MDX style docs
+func CreateRelationshipsMetadataAndCreateSVGsForMDXStyle(model ModelCSV, relationships []RelationshipCSV, path, svgDir string) (string, error) {
+	err := os.MkdirAll(filepath.Join(path, svgDir), 0777)
+	if err != nil {
+		return "", err
+	}
+	relationshipMetadata := `[`
+	for idx, relnship := range relationships {
+		relationshipTemplate := `
+{
+"type": "%s",
+"kind": "%s",
+"colorIcon": "%s",
+"whiteIcon": "%s",
+"description": "%s"
+}`
+
+		// add comma if not last relationship
+		if idx != len(relationships)-1 {
+			relationshipTemplate += ","
+		}
+
+		relnshipName := utils.FormatName(manifests.FormatToReadableString(fmt.Sprintf("%s-%s", relnship.KIND, relnship.SubType)))
+		colorIconDir := filepath.Join(svgDir, relnshipName, "icons", "color")
+		whiteIconDir := filepath.Join(svgDir, relnshipName, "icons", "white")
+
+		relationshipMetadata += fmt.Sprintf(relationshipTemplate, relnship.Type, relnship.KIND, fmt.Sprintf("%s/%s-color.svg", colorIconDir, relnshipName), fmt.Sprintf("%s/%s-white.svg", whiteIconDir, relnshipName), relnship.Description)
+
+		// Get SVGs for relationship
+		colorSVG, whiteSVG := getSVGForRelationship(model, relnship)
+
+		// Only create directories and write SVGs if they exist
+		if colorSVG != "" {
+			// create color svg dir
+			err = os.MkdirAll(filepath.Join(path, colorIconDir), 0777)
+			if err != nil {
+				return "", err
+			}
+			err = utils.WriteToFile(filepath.Join(path, colorIconDir, relnshipName+"-color.svg"), colorSVG)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		if whiteSVG != "" {
+			// create white svg dir
+			err = os.MkdirAll(filepath.Join(path, whiteIconDir), 0777)
+			if err != nil {
+				return "", err
+			}
+			err = utils.WriteToFile(filepath.Join(path, whiteIconDir, relnshipName+"-white.svg"), whiteSVG)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	relationshipMetadata += `]`
+
+	return relationshipMetadata, nil
+}
+
+// CreateRelationshipsMetadataAndCreateSVGsForMDStyle creates relationship metadata and writes SVGs for MD style docs
+func CreateRelationshipsMetadataAndCreateSVGsForMDStyle(model ModelCSV, relationships []RelationshipCSV, path, svgDir string) (string, error) {
+	err := os.MkdirAll(filepath.Join(path), 0777)
+	if err != nil {
+		return "", err
+	}
+	relationshipMetadata := ""
+	for _, relnship := range relationships {
+		relationshipTemplate := `
+- type: %s
+  kind: %s
+  colorIcon: %s
+  whiteIcon: %s
+  description: %s`
+
+		relnshipName := utils.FormatName(manifests.FormatToReadableString(fmt.Sprintf("%s-%s", relnship.KIND, relnship.SubType)))
+		colorIconDir := filepath.Join(svgDir, relnshipName, "icons", "color")
+		whiteIconDir := filepath.Join(svgDir, relnshipName, "icons", "white")
+
+		relationshipMetadata += fmt.Sprintf(relationshipTemplate, relnship.Type, relnship.KIND, fmt.Sprintf("%s/%s-color.svg", colorIconDir, relnshipName), fmt.Sprintf("%s/%s-white.svg", whiteIconDir, relnshipName), relnship.Description)
+
+		// Get SVGs for relationship
+		colorSVG, whiteSVG := getSVGForRelationship(model, relnship)
+
+		// Only create directories and write SVGs if they exist
+		if colorSVG != "" {
+			// create color svg dir
+			err = os.MkdirAll(filepath.Join(path, relnshipName, "icons", "color"), 0777)
+			if err != nil {
+				return "", err
+			}
+			err = utils.WriteToFile(filepath.Join(path, relnshipName, "icons", "color", relnshipName+"-color.svg"), colorSVG)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		if whiteSVG != "" {
+			// create white svg dir
+			err = os.MkdirAll(filepath.Join(path, relnshipName, "icons", "white"), 0777)
+			if err != nil {
+				return "", err
+			}
+			err = utils.WriteToFile(filepath.Join(path, relnshipName, "icons", "white", relnshipName+"-white.svg"), whiteSVG)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	return relationshipMetadata, nil
+}
+
+// getSVGForRelationship extracts SVG data from a relationship's styles, falling back to model SVGs if not present
+func getSVGForRelationship(model ModelCSV, relationship RelationshipCSV) (colorSVG string, whiteSVG string) {
+	// Try to extract SVGs from the relationship's Styles JSON
+	if relationship.Styles != "" {
+		var styles struct {
+			SvgColor string `json:"svgColor"`
+			SvgWhite string `json:"svgWhite"`
+		}
+		if err := encoding.Unmarshal([]byte(relationship.Styles), &styles); err == nil {
+			colorSVG = styles.SvgColor
+			whiteSVG = styles.SvgWhite
+		}
+	}
+
+	// Fall back to model SVGs if relationship doesn't have its own
+	if colorSVG == "" {
+		colorSVG = model.SVGColor
+	}
+
+	if whiteSVG == "" {
+		whiteSVG = model.SVGWhite
+	}
+	return
+}
+
 func CreateComponentsMetadataAndCreateSVGsForMDStyle(model ModelCSV, components []ComponentCSV, path, svgDir string) (string, error) {
 	err := os.MkdirAll(filepath.Join(path), 0777)
 	if err != nil {
@@ -464,43 +602,42 @@ func getSVGForComponent(model ModelCSV, component ComponentCSV) (colorSVG string
 	return
 }
 
-
 func getMinimalUICapabilitiesFromSchema() ([]capability.Capability, error) {
-    schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta1/component/component.json")
-    if err != nil {
-        return nil, fmt.Errorf("failed to read component schema: %v", err)
-    }
+	schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta1/component/component.json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read component schema: %v", err)
+	}
 
-    capabilitiesJSON, err := extractCapabilitiesJSONFromSchema(schema)
-    if err != nil {
-        return nil, fmt.Errorf("failed to extract capabilities from schema: %v", err)
-    }
+	capabilitiesJSON, err := extractCapabilitiesJSONFromSchema(schema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract capabilities from schema: %v", err)
+	}
 
-    var allCapabilities []capability.Capability
-    if err := json.Unmarshal(capabilitiesJSON, &allCapabilities); err != nil {
-        return nil, fmt.Errorf("failed to unmarshal capabilities: %v", err)
-    }
+	var allCapabilities []capability.Capability
+	if err := json.Unmarshal(capabilitiesJSON, &allCapabilities); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal capabilities: %v", err)
+	}
 
-    if len(allCapabilities) >= 3 {
-        return allCapabilities[len(allCapabilities)-3:], nil
-    }
+	if len(allCapabilities) >= 3 {
+		return allCapabilities[len(allCapabilities)-3:], nil
+	}
 
-    return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allCapabilities))
+	return nil, fmt.Errorf("insufficient default capabilities in schema, found %d", len(allCapabilities))
 }
 
 func extractCapabilitiesJSONFromSchema(schema []byte) ([]byte, error) {
-    var schemaMap map[string]interface{}
-    if err := json.Unmarshal(schema, &schemaMap); err != nil {
-        return nil, err
-    }
+	var schemaMap map[string]interface{}
+	if err := json.Unmarshal(schema, &schemaMap); err != nil {
+		return nil, err
+	}
 
-    if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
-        if capabilitiesSchema, ok := properties["capabilities"].(map[string]interface{}); ok {
-            if defaultValue, ok := capabilitiesSchema["default"]; ok {
-                return json.Marshal(defaultValue)
-            }
-        }
-    }
+	if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
+		if capabilitiesSchema, ok := properties["capabilities"].(map[string]interface{}); ok {
+			if defaultValue, ok := capabilitiesSchema["default"]; ok {
+				return json.Marshal(defaultValue)
+			}
+		}
+	}
 
-    return nil, fmt.Errorf("default capabilities not found in schema")
+	return nil, fmt.Errorf("default capabilities not found in schema")
 }

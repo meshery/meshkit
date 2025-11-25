@@ -139,6 +139,30 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	for _, rel := range pkg.Relationships {
 		rel.Model = model.ToReference()
 		rel.ModelId = model.Id
+
+		if rel.Metadata != nil && rel.Metadata.Styles != nil {
+			svgComplete := ""
+			if rel.Metadata.Styles.SvgComplete != nil {
+				svgComplete = *rel.Metadata.Styles.SvgComplete
+			}
+
+			var svgCompletePath string
+
+			// Write SVG for relationships
+			rel.Metadata.Styles.SvgColor, rel.Metadata.Styles.SvgWhite, svgCompletePath = WriteAndReplaceSVGWithFileSystemPath(
+				rel.Metadata.Styles.SvgColor,
+				rel.Metadata.Styles.SvgWhite,
+				svgComplete,
+				rh.svgBaseDir,
+				model.Name,
+				string(rel.Kind),
+				false,
+			)
+			if svgCompletePath != "" {
+				rel.Metadata.Styles.SvgComplete = &svgCompletePath
+			}
+		}
+
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
