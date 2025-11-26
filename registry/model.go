@@ -837,8 +837,8 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 	}()
 	// Iterate models from the spreadsheet
 	for _, model := range modelCSVHelper.Models {
-		if model.Model == "meshery-integration-template"{
-			log.Info("Skipping meshery-integration-template model")
+		if model.Model == mesheryIntegrationTemplateModel{
+			log.Info("Skipping model: %s",mesheryIntegrationTemplateModel)
 			continue
 		}
 		if modelName != "" && modelName != model.Model {
