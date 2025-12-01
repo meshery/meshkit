@@ -106,5 +106,5 @@ func HydratePattern(pattern *pattern.PatternFile, registryManager *registry.Regi
 		comp.Component.Schema = componentDef.Component.Schema
 		comp.Capabilities = componentDef.Capabilities
 	}
-	return errors
+	return nil
 }
