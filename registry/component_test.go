@@ -165,54 +165,6 @@ func TestGetSVGForRelationship(t *testing.T) {
 	}
 }
 
-func TestCreateRelationshipsMetadataAndCreateSVGsForMDXStyle(t *testing.T) {
-	// Create a temporary directory for the test
-	tmpDir, err := os.MkdirTemp("", "relationship-svg-test")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	model := ModelCSV{
-		SVGColor: "<svg>model-color</svg>",
-		SVGWhite: "<svg>model-white</svg>",
-	}
-
-	relationships := []RelationshipCSV{
-		{
-			KIND:        "edge",
-			SubType:     "binding",
-			Type:        "hierarchical",
-			Description: "Test relationship",
-			Styles:      `{"svgColor": "<svg>rel-color</svg>", "svgWhite": "<svg>rel-white</svg>"}`,
-		},
-	}
-
-	svgDir := "icons"
-	metadata, err := CreateRelationshipsMetadataAndCreateSVGsForMDXStyle(model, relationships, tmpDir, svgDir)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, metadata)
-
-	// Verify metadata structure
-	assert.Contains(t, metadata, "edge")
-	assert.Contains(t, metadata, "hierarchical")
-	assert.Contains(t, metadata, "Test relationship")
-
-	// Verify SVG files were created - derive name the same way as implementation
-	rel := relationships[0]
-	relnshipName := utils.FormatName(manifests.FormatToReadableString(fmt.Sprintf("%s-%s", rel.KIND, rel.SubType)))
-	colorSVGPath := filepath.Join(tmpDir, svgDir, relnshipName, "icons", "color", relnshipName+"-color.svg")
-	whiteSVGPath := filepath.Join(tmpDir, svgDir, relnshipName, "icons", "white", relnshipName+"-white.svg")
-
-	// Check color SVG exists and has correct content
-	colorContent, err := os.ReadFile(colorSVGPath)
-	assert.NoError(t, err)
-	assert.Equal(t, "<svg>rel-color</svg>", string(colorContent))
-
-	// Check white SVG exists and has correct content
-	whiteContent, err := os.ReadFile(whiteSVGPath)
-	assert.NoError(t, err)
-	assert.Equal(t, "<svg>rel-white</svg>", string(whiteContent))
-}
-
 func TestCreateRelationshipsMetadataAndCreateSVGsForMDStyle(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir, err := os.MkdirTemp("", "relationship-svg-test-md")

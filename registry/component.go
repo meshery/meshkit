@@ -375,68 +375,6 @@ func CreateRelationshipsMetadata(model ModelCSV, relationships []RelationshipCSV
 
 }
 
-// CreateRelationshipsMetadataAndCreateSVGsForMDXStyle creates relationship metadata and writes SVGs for MDX style docs
-func CreateRelationshipsMetadataAndCreateSVGsForMDXStyle(model ModelCSV, relationships []RelationshipCSV, path, svgDir string) (string, error) {
-	err := os.MkdirAll(filepath.Join(path, svgDir), 0777)
-	if err != nil {
-		return "", err
-	}
-	relationshipMetadata := `[`
-	for idx, relnship := range relationships {
-		relationshipTemplate := `
-{
-"type": "%s",
-"kind": "%s",
-"colorIcon": "%s",
-"whiteIcon": "%s",
-"description": "%s"
-}`
-
-		// add comma if not last relationship
-		if idx != len(relationships)-1 {
-			relationshipTemplate += ","
-		}
-
-		relnshipName := utils.FormatName(manifests.FormatToReadableString(fmt.Sprintf("%s-%s", relnship.KIND, relnship.SubType)))
-		colorIconDir := filepath.Join(svgDir, relnshipName, "icons", "color")
-		whiteIconDir := filepath.Join(svgDir, relnshipName, "icons", "white")
-
-		relationshipMetadata += fmt.Sprintf(relationshipTemplate, relnship.Type, relnship.KIND, fmt.Sprintf("%s/%s-color.svg", colorIconDir, relnshipName), fmt.Sprintf("%s/%s-white.svg", whiteIconDir, relnshipName), relnship.Description)
-
-		// Get SVGs for relationship
-		colorSVG, whiteSVG := getSVGForRelationship(model, relnship)
-
-		// Only create directories and write SVGs if they exist
-		if colorSVG != "" {
-			// create color svg dir
-			err = os.MkdirAll(filepath.Join(path, colorIconDir), 0777)
-			if err != nil {
-				return "", err
-			}
-			err = utils.WriteToFile(filepath.Join(path, colorIconDir, relnshipName+"-color.svg"), colorSVG)
-			if err != nil {
-				return "", err
-			}
-		}
-
-		if whiteSVG != "" {
-			// create white svg dir
-			err = os.MkdirAll(filepath.Join(path, whiteIconDir), 0777)
-			if err != nil {
-				return "", err
-			}
-			err = utils.WriteToFile(filepath.Join(path, whiteIconDir, relnshipName+"-white.svg"), whiteSVG)
-			if err != nil {
-				return "", err
-			}
-		}
-	}
-
-	relationshipMetadata += `]`
-
-	return relationshipMetadata, nil
-}
-
 // CreateRelationshipsMetadataAndCreateSVGsForMDStyle creates relationship metadata and writes SVGs for MD style docs
 func CreateRelationshipsMetadataAndCreateSVGsForMDStyle(model ModelCSV, relationships []RelationshipCSV, path, svgDir string) (string, error) {
 	err := os.MkdirAll(filepath.Join(path), 0777)
