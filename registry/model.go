@@ -31,7 +31,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/api/sheets/v4"
 )
-const mesheryIntegrationTemplateModel = "meshery-integration-template"
+
 var modelToCompGenerateTracker = store.NewGenericThreadSafeStore[compGenerateTracker]()
 
 type compGenerateTracker struct {
