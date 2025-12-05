@@ -269,7 +269,7 @@ func ErrUncompressedTar(fileName string, err error) error {
 		errors.Critical,
 		[]string{fmt.Sprintf("The file '%s' appears to be an uncompressed TAR archive.", fileName)},
 		[]string{fmt.Sprintf("Expected archives to be compressed (e.g., .tgz or .tar.gz). Error details: %s", err.Error())},
-		[]string{"The archive was created as an uncompressed .tar, but Helm requires compressed archives."},
+		[]string{"The archive was created as an uncompressed .tar, but archives required to be compressed."},
 		[]string{
 			"Compress the .tar file to .tgz or .tar.gz and try again.",
 			"If it is a Helm chart archive, create using 'helm package' or gzip the archive before uploading.",
