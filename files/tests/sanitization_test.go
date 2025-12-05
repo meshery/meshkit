@@ -1,12 +1,15 @@
 package files_test
 
 import (
+	"archive/tar"
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
+	"github.com/stretchr/testify/assert"
 	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
 )
 
@@ -191,4 +194,52 @@ func TestSanitizeFile(t *testing.T) {
 
 		})
 	}
+}
+
+// Test that providing an uncompressed .tar containing a Helm chart yields the
+// helpful ErrUncompressedTar (which uses ErrInvalidHelmChartCode).
+func TestUncompressedHelmTarError(t *testing.T) {
+	// Build an in-memory uncompressed tar with a Chart.yaml
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	chartYAML := []byte("apiVersion: v2\nname: test-chart\nversion: 0.1.0\n")
+	hdr := &tar.Header{
+		Name: "Chart.yaml",
+		Mode: 0600,
+		Size: int64(len(chartYAML)),
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("failed to write tar header: %v", err)
+	}
+	if _, err := tw.Write(chartYAML); err != nil {
+		t.Fatalf("failed to write chart content: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("failed to close tar writer: %v", err)
+	}
+
+	tempDir, err := os.MkdirTemp("", "temp-tests")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	validExts := map[string]bool{
+		".json": true,
+		".yml":  true,
+		".yaml": true,
+		".tar":  true,
+		".tgz":  true,
+		".gz":   true,
+		".zip":  true,
+	}
+
+	sanitized, err := files.SanitizeFile(buf.Bytes(), "uncompressed-helm.tar", tempDir, validExts)
+	if err != nil {
+		t.Fatalf("unexpected sanitize error: %v", err)
+	}
+
+	_, err = files.ParseFileAsHelmChart(sanitized)
+	assert.NotNil(t, err)
+	assert.Equal(t, files.ErrUncompressedTarCode, errors.GetCode(err))
 }
