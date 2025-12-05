@@ -196,7 +196,7 @@ func TestSanitizeFile(t *testing.T) {
 }
 
 // Test that providing an uncompressed .tar containing a Helm chart yields the
-// helpful ErrUncompressedTarProvided (which uses ErrInvalidHelmChartCode).
+// helpful ErrUncompressedTar (which uses ErrInvalidHelmChartCode).
 func TestUncompressedHelmTarError(t *testing.T) {
 	// Build an in-memory uncompressed tar with a Chart.yaml
 	var buf bytes.Buffer
