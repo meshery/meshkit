@@ -272,7 +272,7 @@ func ErrUncompressedTar(fileName string, err error) error {
 		[]string{"The archive was created as an uncompressed .tar, but Helm requires compressed archives."},
 		[]string{
 			"Compress the .tar file to .tgz or .tar.gz and try again.",
-			"Create the Helm chart archive using 'helm package' or gzip the archive before uploading.",
+			"If it is a Helm chart archive, create using 'helm package' or gzip the archive before uploading.",
 		},
 	)
 }
