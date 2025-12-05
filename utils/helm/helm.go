@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/utils"
+	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -110,11 +110,16 @@ func writeToFile(w io.Writer, path string) error {
 		return utils.ErrReadFile(err, path)
 	}
 
-	byt, err := encoding.ToYaml(data)
+	var manifest map[string]any
+	err = yaml.Unmarshal(data, &manifest)
 	if err != nil {
 		return utils.ErrWriteFile(err, path)
 	}
+	byt, err := yaml.Marshal(manifest)
 
+	if err != nil {
+		return utils.ErrWriteFile(err, path)
+	}
 	_, err = w.Write(byt)
 	if err != nil {
 		return utils.ErrWriteFile(err, path)
@@ -294,30 +299,30 @@ func RemoveHelmPlaceholders(data []byte) []byte {
 // Helm chart names must be lowercase and can only contain alphanumeric characters, dashes, and underscores
 // Example: "My Chart" -> "my-chart"
 func SanitizeHelmName(name string) string {
-    if name == "" {
-        return "meshery-design"
-    }
+	if name == "" {
+		return "meshery-design"
+	}
 
-    result := strings.ToLower(name)
-    reg := regexp.MustCompile(`[^a-z0-9-]+`)
-    result = reg.ReplaceAllString(result, "-")
+	result := strings.ToLower(name)
+	reg := regexp.MustCompile(`[^a-z0-9-]+`)
+	result = reg.ReplaceAllString(result, "-")
 
-    for strings.Contains(result, "--") {
-        result = strings.ReplaceAll(result, "--", "-")
-    }
+	for strings.Contains(result, "--") {
+		result = strings.ReplaceAll(result, "--", "-")
+	}
 
-    result = strings.Trim(result, "-")
+	result = strings.Trim(result, "-")
 
-    if result == "" {
-        return "meshery-design"
-    }
+	if result == "" {
+		return "meshery-design"
+	}
 
-    const maxLength = 40
-    if len(result) > maxLength {
-        result = result[:maxLength]
+	const maxLength = 40
+	if len(result) > maxLength {
+		result = result[:maxLength]
 
-        result = strings.Trim(result, "-")
-    }
+		result = strings.Trim(result, "-")
+	}
 
-    return result
+	return result
 }

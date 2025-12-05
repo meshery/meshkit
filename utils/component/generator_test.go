@@ -8,6 +8,11 @@ import (
 )
 
 var istioCrd = `
+# This is a sample CRD with comments
+# The parser should be able to handle this
+
+# The parser should be able to handle comments and line breaks
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:

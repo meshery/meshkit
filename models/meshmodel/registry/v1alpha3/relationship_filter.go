@@ -47,8 +47,7 @@ func (rf *RelationshipFilter) GetById(db *database.Handler) (entity.Entity, erro
 func (relationshipFilter *RelationshipFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 
 	var relationshipDefinitionsWithModel []relationship.RelationshipDefinition
-	finder := db.Model(&relationship.RelationshipDefinition{}).Preload("Model").Preload("Model.Category").
-		Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id").
+	finder := db.Model(&relationship.RelationshipDefinition{}).Joins("JOIN model_dbs ON relationship_definition_dbs.model_id = model_dbs.id").
 		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id")
 
 	status := "enabled"

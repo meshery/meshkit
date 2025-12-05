@@ -67,6 +67,9 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 		if err != nil {
 			continue
 		}
+		if comp.Model == nil {
+			comp.Model = &model.ModelDefinition{}
+		}
 		if comp.Model.Metadata == nil {
 			comp.Model.Metadata = &model.ModelDefinition_Metadata{}
 		}

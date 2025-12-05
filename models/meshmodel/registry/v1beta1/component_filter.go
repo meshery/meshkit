@@ -149,9 +149,11 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 
 		reg := cm.ConnectionDB
 		cd := cm.ComponentDefinitionDB
-		cd.Model = cm.ModelDB
-		cd.Model.Category = cm.CategoryDB
-		cd.Model.Registrant = reg
+		cd.Model = &cm.ModelDB
+		if cd.Model != nil {
+			cd.Model.Category = cm.CategoryDB
+			cd.Model.Registrant = reg
+		}
 		defs = append(defs, &cd)
 	}
 
