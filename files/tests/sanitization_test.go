@@ -9,6 +9,7 @@ import (
 
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
+	"github.com/stretchr/testify/assert"
 	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
 )
 
@@ -239,10 +240,6 @@ func TestUncompressedHelmTarError(t *testing.T) {
 	}
 
 	_, err = files.ParseFileAsHelmChart(sanitized)
-	if err == nil {
-		t.Fatalf("expected error when parsing uncompressed tar as helm chart, got nil")
-	}
-    assert.NotNil(t, err) // to replace previous if 
-    assert.Equal(t, files.ErrUncompressedTarCode, errors.GetCode(err))
-	}
+	assert.NotNil(t, err)
+	assert.Equal(t, files.ErrUncompressedTarCode, errors.GetCode(err))
 }
