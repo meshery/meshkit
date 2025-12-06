@@ -160,3 +160,48 @@ func TestGenerate(t *testing.T) {
 		})
 	}
 }
+
+func TestGroupToModel(t *testing.T) {
+	cases := []struct {
+		name          string
+		group         string
+		fallback      string
+		expectName    string
+		expectDisplay string
+	}{
+		{
+			name:          "with group",
+			group:         "monitor.azure.com",
+			fallback:      "ignored",
+			expectName:    "monitor.azure.com",
+			expectDisplay: "Monitor Azure Com",
+		},
+		{
+			name:          "empty group uses fallback",
+			group:         "",
+			fallback:      "fooBarBaz",
+			expectName:    "fooBarBaz",
+			expectDisplay: "Foo Bar Baz",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			name, display := GroupToModel(tc.group, tc.fallback)
+			if name != tc.expectName {
+				t.Fatalf("expected model name '%s', got '%s'", tc.expectName, name)
+			}
+			if display != tc.expectDisplay {
+				t.Fatalf("expected display name '%s', got '%s'", tc.expectDisplay, display)
+			}
+		})
+	}
+}
+
+func TestExtractGroupFromAPIVersion(t *testing.T) {
+	if g := ExtractGroupFromAPIVersion("apps/v1"); g != "apps" {
+		t.Fatalf("expected 'apps', got '%s'", g)
+	}
+	if g := ExtractGroupFromAPIVersion("v1"); g != "" {
+		t.Fatalf("expected '', got '%s'", g)
+	}
+}
