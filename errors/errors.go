@@ -247,18 +247,10 @@ func GetRemedy(err error) string {
 }
 
 func GetLDescription(err error) string {
-	var description string
-	defer func() {
-		if r := recover(); r != nil {
-			description = strings.Join(NoneString[:], "")
-		}
-	}()
-	if obj := err.(*Error); obj != nil {
-		description = strings.Join(obj.LongDescription[:], ".")
-	} else {
-		description = strings.Join(NoneString[:], "")
+	if e, ok := err.(*Error); ok && e != nil {
+		return strings.Join(e.LongDescription, ".")
 	}
-	return description
+	return strings.Join(NoneString, "")
 }
 
 func Is(err error) (*Error, bool) {
