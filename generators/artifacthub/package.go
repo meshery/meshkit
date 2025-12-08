@@ -51,6 +51,7 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 	// TODO: Move this to the configuration
 
 	if pkg.ChartUrl == "" {
+		fmt.Printf("WARN: Skipping package %q due to empty chart URL\n", pkg.Name)
 		return components, nil
 	}
 	if strings.HasPrefix(pkg.ChartUrl, "oci://") {
