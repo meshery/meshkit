@@ -51,7 +51,7 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 	// TODO: Move this to the configuration
 
 	if pkg.ChartUrl == "" {
-		return components, ErrChartUrlEmpty(pkg.Name, "ArtifactHub")
+		return components, nil
 	}
 	if strings.HasPrefix(pkg.ChartUrl, "oci://") {
 		// Skip OCI charts for now - return empty components
