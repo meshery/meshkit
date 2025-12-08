@@ -37,6 +37,7 @@
 package errors
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -97,7 +98,74 @@ func NewV2(code string, severity Severity, sdescription []string, ldescription [
 	}
 }
 
-func (e *Error) Error() string { return strings.Join(e.LongDescription[:], ".") }
+func (e *Error) Error() string {
+	var parts []string
+
+	// Add long description as the primary message
+	if len(e.LongDescription) > 0 && strings.Join(e.LongDescription, "") != "None" {
+		parts = append(parts, strings.Join(e.LongDescription, "."))
+	}
+
+	// Add short description if different from long description
+	shortDesc := strings.Join(e.ShortDescription, ".")
+	longDesc := strings.Join(e.LongDescription, ".")
+	if len(e.ShortDescription) > 0 && shortDesc != "None" && shortDesc != longDesc {
+		parts = append(parts, "Short Description: "+shortDesc)
+	}
+
+	// Add probable cause
+	if len(e.ProbableCause) > 0 && strings.Join(e.ProbableCause, "") != "None" {
+		parts = append(parts, "Probable Cause: "+strings.Join(e.ProbableCause, "."))
+	}
+
+	// Add suggested remediation
+	if len(e.SuggestedRemediation) > 0 && strings.Join(e.SuggestedRemediation, "") != "None" {
+		parts = append(parts, "Suggested Remediation: "+strings.Join(e.SuggestedRemediation, "."))
+	}
+
+	if len(parts) == 0 {
+		return "Unknown error"
+	}
+
+	return strings.Join(parts, " | ")
+}
+
+func (e *ErrorV2) Error() string {
+	var parts []string
+
+	// Add long description as the primary message
+	if len(e.LongDescription) > 0 && strings.Join(e.LongDescription, "") != "None" {
+		parts = append(parts, strings.Join(e.LongDescription, "."))
+	}
+
+	// Add short description if different from long description
+	shortDesc := strings.Join(e.ShortDescription, ".")
+	longDesc := strings.Join(e.LongDescription, ".")
+	if len(e.ShortDescription) > 0 && shortDesc != "None" && shortDesc != longDesc {
+		parts = append(parts, "Short Description: "+shortDesc)
+	}
+
+	// Add probable cause
+	if len(e.ProbableCause) > 0 && strings.Join(e.ProbableCause, "") != "None" {
+		parts = append(parts, "Probable Cause: "+strings.Join(e.ProbableCause, "."))
+	}
+
+	// Add suggested remediation
+	if len(e.SuggestedRemediation) > 0 && strings.Join(e.SuggestedRemediation, "") != "None" {
+		parts = append(parts, "Suggested Remediation: "+strings.Join(e.SuggestedRemediation, "."))
+	}
+
+	// Add additional info if present
+	if e.AdditionalInfo != nil {
+		parts = append(parts, "Additional Info: "+fmt.Sprintf("%v", e.AdditionalInfo))
+	}
+
+	if len(parts) == 0 {
+		return "Unknown error"
+	}
+
+	return strings.Join(parts, " | ")
+}
 
 func (e *Error) ErrorV2(additionalInfo interface{}) ErrorV2 {
 	return ErrorV2{Code: e.Code, Severity: e.Severity, ShortDescription: e.ShortDescription, LongDescription: e.LongDescription, ProbableCause: e.ProbableCause, SuggestedRemediation: e.SuggestedRemediation, AdditionalInfo: additionalInfo}
@@ -176,6 +244,21 @@ func GetRemedy(err error) string {
 		remedy = strings.Join(NoneString[:], "")
 	}
 	return remedy
+}
+
+func GetLDescription(err error) string {
+	var description string
+	defer func() {
+		if r := recover(); r != nil {
+			description = strings.Join(NoneString[:], "")
+		}
+	}()
+	if obj := err.(*Error); obj != nil {
+		description = strings.Join(obj.LongDescription[:], ".")
+	} else {
+		description = strings.Join(NoneString[:], "")
+	}
+	return description
 }
 
 func Is(err error) (*Error, bool) {
