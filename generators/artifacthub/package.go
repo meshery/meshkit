@@ -78,7 +78,7 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 			comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
 		}
 		comp.Model.Metadata.AdditionalProperties["source_uri"] = pkg.ChartUrl
-		comp.Model.Version = pkg.Version
+		comp.Model.Version = strings.TrimPrefix(pkg.Version, "v")
 		comp.Model.Name = pkg.Name
 		comp.Model.Category = category.CategoryDefinition{
 			Name: "",
