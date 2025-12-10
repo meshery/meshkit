@@ -1,3 +1,4 @@
+no-duplicate-categories: true
 name-template: 'MeshKit v$NEXT_PATCH_VERSION'
 tag-template: 'v$NEXT_PATCH_VERSION'
 categories:
