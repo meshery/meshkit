@@ -121,6 +121,13 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 			}
 		}
 
+		// Decide model name/display based on group when present
+		modelName := pkg.GetName()
+		displayModelName := manifests.FormatToReadableString(pkg.GetName())
+		if g, _ := groupCue.String(); g != "" {
+			modelName, displayModelName = GroupToModel(g, pkg.GetName())
+		}
+
 		c := component.ComponentDefinition{
 			SchemaVersion: v1beta1.ComponentSchemaVersion,
 			Format:        component.JSON,
@@ -138,8 +145,8 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 				Model: model.Model{
 					Version: pkg.GetVersion(),
 				},
-				Name:        pkg.GetName(),
-				DisplayName: manifests.FormatToReadableString(pkg.GetName()),
+				Name:        modelName,
+				DisplayName: displayModelName,
 				Metadata: &model.ModelDefinition_Metadata{
 					AdditionalProperties: map[string]interface{}{
 						"source_uri": pkg.GetSourceURL(),

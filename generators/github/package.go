@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/component"
@@ -104,11 +105,22 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 
 			comp.Model.Metadata.AdditionalProperties["source_uri"] = gp.SourceURL
 			comp.Model.Version = gp.version
-			comp.Model.Name = gp.Name
+
+			// Derive model from the CRD's API group when available; otherwise, fallback to package name
+			group := component.ExtractGroupFromAPIVersion(comp.Component.Version)
+			modelName, displayName := component.GroupToModel(group, gp.Name)
+			// Avoid empty names
+			if strings.TrimSpace(modelName) == "" {
+				modelName = gp.Name
+			}
+			if strings.TrimSpace(displayName) == "" {
+				displayName = manifests.FormatToReadableString(modelName)
+			}
+			comp.Model.Name = modelName
 			comp.Model.Category = category.CategoryDefinition{
 				Name: "",
 			}
-			comp.Model.DisplayName = manifests.FormatToReadableString(comp.Model.Name)
+			comp.Model.DisplayName = displayName
 			components = append(components, comp)
 		}
 
