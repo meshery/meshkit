@@ -142,7 +142,7 @@ func (pkg *AhPackage) Validator() {
 
 }
 
-// GetAllAhHelmPackages returns a list of all AhPackages and is super slow to avoid rate limits.
+// GetAllAhHelmPackages returns a list of all AhPackages, using exponential backoff to handle rate limits.
 func GetAllAhHelmPackages() ([]AhPackage, error) {
 	pkgs := make([]AhPackage, 0)
 	resp, err := http.Get(AhHelmExporterEndpoint)
@@ -154,35 +154,59 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 		return nil, ErrGetAllHelmPackages(err)
 	}
 	defer resp.Body.Close()
+
 	var res []map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, p := range res {
 		name := p["name"].(string)
 		repo := p["repository"].(map[string]interface{})["name"].(string)
 		url := fmt.Sprintf("https://artifacthub.io/api/v1/packages/helm/%s/%s", repo, name)
-		resp, err := http.Get(url)
-		if err != nil {
-			fmt.Println(err)
-			continue
+
+		var resp *http.Response
+		var err error
+
+		for i := 0; i < 5; i++ {
+			resp, err = http.Get(url)
+			if err != nil {
+				break
+			}
+			if resp.StatusCode == 429 {
+				resp.Body.Close()
+				time.Sleep(time.Duration(1<<i) * time.Second)
+				continue
+			}
+			break
 		}
-		if resp.StatusCode != 200 {
-			err = fmt.Errorf("status code %d for %s", resp.StatusCode, url)
-			fmt.Println(err)
-			continue
-		}
-		defer resp.Body.Close()
-		var res map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&res)
+
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
 
-		pkgs = append(pkgs, *parseArtifacthubResponse(res))
-		time.Sleep(500 * time.Millisecond)
+		if resp.StatusCode != 200 {
+			err = fmt.Errorf("status code %d for %s", resp.StatusCode, url)
+			fmt.Println(err)
+			resp.Body.Close()
+			continue
+		}
+
+		var pkgRes map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&pkgRes)
+		resp.Body.Close()
+
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		parsedPkg := parseArtifacthubResponse(pkgRes)
+		if parsedPkg != nil {
+			pkgs = append(pkgs, *parsedPkg)
+		}
 	}
 	return pkgs, nil
 }
