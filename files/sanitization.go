@@ -84,8 +84,7 @@ func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[st
 
 // ExtractTar extracts a .tar, .tar.gz, or .tgz file into a temporary directory and returns the directory.
 func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
-	// Open the archive file
-
+	//Open the archive file
 	// Determine if the file is compressed (gzip)
 	if strings.HasSuffix(archiveFile, ".gz") || strings.HasSuffix(archiveFile, ".tgz") {
 		gzipReader, err := gzip.NewReader(reader)
@@ -113,30 +112,36 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 		// Construct the full path for the file/directory
 		targetPath := filepath.Join(outputDir, header.Name)
 
-		// Ensure the parent directory exists
-		parentDir := filepath.Dir(targetPath)
-		if err := os.MkdirAll(parentDir, os.ModePerm); err != nil {
-			return fmt.Errorf("failed to create parent directory: %v", err)
-		}
-
-		// Handle directories
-		if header.FileInfo().IsDir() {
-			if err := os.MkdirAll(targetPath, os.ModePerm); err != nil {
-				return fmt.Errorf("failed to create directory: %v", err)
+		// Use an anonymous function to ensure file descriptors are closed immediately
+		if err := func() error {
+			// Ensure the parent directory exists
+			parentDir := filepath.Dir(targetPath)
+			if err := os.MkdirAll(parentDir, os.ModePerm); err != nil {
+				return fmt.Errorf("failed to create parent directory: %v", err)
 			}
-			continue
-		}
 
-		// Handle regular files
-		file, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
-		if err != nil {
-			return fmt.Errorf("failed to create file: %v", err)
-		}
-		defer file.Close()
+			// Handle directories
+			if header.FileInfo().IsDir() {
+				if err := os.MkdirAll(targetPath, os.ModePerm); err != nil {
+					return fmt.Errorf("failed to create directory: %v", err)
+				}
+				return nil
+			}
 
-		// Copy file contents
-		if _, err := io.Copy(file, tarReader); err != nil {
-			return fmt.Errorf("failed to copy file contents: %v", err)
+			// Handle regular files
+			file, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			if err != nil {
+				return fmt.Errorf("failed to create file: %v", err)
+			}
+			defer file.Close()
+
+			// Copy file contents
+			if _, err := io.Copy(file, tarReader); err != nil {
+				return fmt.Errorf("failed to copy file contents: %v", err)
+			}
+			return nil
+		}(); err != nil {
+			return err
 		}
 	}
 
@@ -159,37 +164,43 @@ func ExtractZipFromBytes(data []byte, outputDir string) error {
 		// Construct the output file path
 		filePath := filepath.Join(outputDir, file.Name)
 
-		// Check if the file is a directory
-		if file.FileInfo().IsDir() {
-			// Create the directory
-			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
-				return fmt.Errorf("failed to create directory: %w", err)
+		// Use an anonymous function to ensure file descriptors are closed immediately
+		if err := func() error {
+			// Check if the file is a directory
+			if file.FileInfo().IsDir() {
+				// Create the directory
+				if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+					return fmt.Errorf("failed to create directory: %w", err)
+				}
+				return nil
 			}
-			continue
-		}
 
-		// Create the parent directories if they don't exist
-		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			return fmt.Errorf("failed to create parent directories: %w", err)
-		}
+			// Create the parent directories if they don't exist
+			if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+				return fmt.Errorf("failed to create parent directories: %w", err)
+			}
 
-		// Open the file in the ZIP archive
-		zipFile, err := file.Open()
-		if err != nil {
-			return fmt.Errorf("failed to open file in zip: %w", err)
-		}
-		defer zipFile.Close()
+			// Open the file in the ZIP archive
+			zipFile, err := file.Open()
+			if err != nil {
+				return fmt.Errorf("failed to open file in zip: %w", err)
+			}
+			defer zipFile.Close()
 
-		// Create the output file
-		outFile, err := os.Create(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
-		}
-		defer outFile.Close()
+			// Create the output file
+			outFile, err := os.Create(filePath)
+			if err != nil {
+				return fmt.Errorf("failed to create output file: %w", err)
+			}
+			defer outFile.Close()
 
-		// Copy the contents of the file from the ZIP archive to the output file
-		if _, err := io.Copy(outFile, zipFile); err != nil {
-			return fmt.Errorf("failed to copy file contents: %w", err)
+			// Copy the contents of the file from the ZIP archive to the output file
+			if _, err := io.Copy(outFile, zipFile); err != nil {
+				return fmt.Errorf("failed to copy file contents: %w", err)
+			}
+			return nil
+		}(); err != nil {
+			return err
 		}
 	}
 
