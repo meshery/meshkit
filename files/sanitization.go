@@ -84,7 +84,7 @@ func SanitizeFile(data []byte, fileName string, tempDir string, validExts map[st
 
 // ExtractTar extracts a .tar, .tar.gz, or .tgz file into a temporary directory and returns the directory.
 func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
-	//Open the archive file
+	// Open the archive file
 	// Determine if the file is compressed (gzip)
 	if strings.HasSuffix(archiveFile, ".gz") || strings.HasSuffix(archiveFile, ".tgz") {
 		gzipReader, err := gzip.NewReader(reader)
@@ -97,6 +97,12 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 
 	// Create a tar reader
 	tarReader := tar.NewReader(reader)
+
+	// Get the absolute path of allowed directory
+	absOutputDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return err
+	}
 
 	// Iterate through the tar archive
 	for {
@@ -111,6 +117,18 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 
 		// Construct the full path for the file/directory
 		targetPath := filepath.Join(outputDir, header.Name)
+
+		// Security check: Zip Slip / Path Traversal
+		absTargetPath, err := filepath.Abs(targetPath)
+		if err != nil {
+			return fmt.Errorf("failed to resolve absolute path: %v", err)
+		}
+		// Ensure the absolute target path is within the absolute output directory
+		if !strings.HasPrefix(absTargetPath, absOutputDir+string(filepath.Separator)) {
+			return fmt.Errorf("zip slip attempt: path %q is outside output directory", header.Name)
+		}
+		// Use the resolved absolute path safely
+		targetPath = absTargetPath
 
 		// Use an anonymous function to ensure file descriptors are closed immediately
 		if err := func() error {
@@ -159,10 +177,28 @@ func ExtractZipFromBytes(data []byte, outputDir string) error {
 		return fmt.Errorf("failed to open zip reader: %w", err)
 	}
 
+	// Get the absolute path of allowed directory
+	absOutputDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve absolute output path: %w", err)
+	}
+
 	// Iterate through the files in the ZIP archive
 	for _, file := range zipReader.File {
 		// Construct the output file path
 		filePath := filepath.Join(outputDir, file.Name)
+
+		// Security check: Zip Slip / Path Traversal
+		absFilePath, err := filepath.Abs(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to resolve absolute path: %w", err)
+		}
+		// Ensure the absolute file path is within the absolute output directory
+		if !strings.HasPrefix(absFilePath, absOutputDir+string(filepath.Separator)) {
+			return fmt.Errorf("zip slip attempt: path %q is outside output directory", file.Name)
+		}
+		// Use the resolved absolute path safely
+		filePath = absFilePath
 
 		// Use an anonymous function to ensure file descriptors are closed immediately
 		if err := func() error {
