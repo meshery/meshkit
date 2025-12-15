@@ -1,8 +1,6 @@
 module github.com/meshery/meshkit
 
-go 1.24.6
-
-toolchain go1.24.11
+go 1.25.5
 
 replace (
 	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.9.3
