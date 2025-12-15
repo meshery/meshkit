@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"archive/zip"
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
-	"github.com/stretchr/testify/assert"
 	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSanitizeFile(t *testing.T) {
@@ -242,4 +243,79 @@ func TestUncompressedHelmTarError(t *testing.T) {
 	_, err = files.ParseFileAsHelmChart(sanitized)
 	assert.NotNil(t, err)
 	assert.Equal(t, files.ErrUncompressedTarCode, errors.GetCode(err))
+}
+
+func TestZipSlipVulnerability(t *testing.T) {
+	// Helper to create a temporary directory for extraction
+	tempDir, err := os.MkdirTemp("", "zip-slip-tests")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	validExts := map[string]bool{
+		".tar": true,
+		".zip": true,
+	}
+
+	t.Run("Malicious Tar Archive (Tar Slip)", func(t *testing.T) {
+		// 1. Create a malicious tar archive in memory
+		var buf bytes.Buffer
+		tw := tar.NewWriter(&buf)
+
+		// Create a header with a path traversal filename
+		header := &tar.Header{
+			Name: "../../evil_file.txt",
+			Mode: 0600,
+			Size: int64(len("malicious content")),
+		}
+
+		if err := tw.WriteHeader(header); err != nil {
+			t.Fatalf("failed to write tar header: %v", err)
+		}
+		if _, err := tw.Write([]byte("malicious content")); err != nil {
+			t.Fatalf("failed to write tar body: %v", err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("failed to close tar writer: %v", err)
+		}
+
+		// 2. Attempt to sanitize/extract it
+		_, err := files.SanitizeFile(buf.Bytes(), "attack.tar", tempDir, validExts)
+
+		// 3. Assert that it failed with the expected security error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "zip slip attempt")
+	})
+
+	t.Run("Malicious Zip Archive (Zip Slip)", func(t *testing.T) {
+		// 1. Create a malicious zip archive in memory
+		var buf bytes.Buffer
+		zw := zip.NewWriter(&buf)
+
+		// Create a file header with a path traversal filename
+		// Note: zip.Writer.Create usually cleans paths, so we use CreateHeader to force the name
+		header := &zip.FileHeader{
+			Name:   "../../evil_file.txt",
+			Method: zip.Store,
+		}
+
+		writer, err := zw.CreateHeader(header)
+		if err != nil {
+			t.Fatalf("failed to create zip entry: %v", err)
+		}
+		if _, err := writer.Write([]byte("malicious content")); err != nil {
+			t.Fatalf("failed to write zip body: %v", err)
+		}
+		if err := zw.Close(); err != nil {
+			t.Fatalf("failed to close zip writer: %v", err)
+		}
+
+		// 2. Attempt to sanitize/extract it
+		_, err = files.SanitizeFile(buf.Bytes(), "attack.zip", tempDir, validExts)
+
+		// 3. Assert that it failed with the expected security error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "zip slip attempt")
+	})
 }
