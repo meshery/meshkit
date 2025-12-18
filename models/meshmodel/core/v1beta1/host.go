@@ -64,6 +64,12 @@ type ArtifactHub struct{}
 const MesheryAnnotationPrefix = "design.meshery.io"
 
 func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
+	if comp.Model == nil {
+		return summary, fmt.Errorf("component model is nil")
+	}
+	if comp.Model.Metadata == nil {
+		return summary, fmt.Errorf("component model metadata is nil")
+	}
 	sourceURI, ok := comp.Model.Metadata.AdditionalProperties["source_uri"] // should be part of registrant data(?)
 	if !ok {
 		return summary, err

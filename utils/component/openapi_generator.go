@@ -133,7 +133,7 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 			Metadata: component.ComponentDefinition_Metadata{
 				IsNamespaced: isNamespaced,
 			},
-			Model: model.ModelDefinition{
+			Model: &model.ModelDefinition{
 				SchemaVersion: v1beta1.ModelSchemaVersion,
 				Model: model.Model{
 					Version: pkg.GetVersion(),

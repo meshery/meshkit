@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/layer5io/meshery-operator/api/v1alpha1"
+	"github.com/meshery/meshery-operator/api/v1alpha1"
 	"github.com/meshery/meshkit/utils"
 	mesherykube "github.com/meshery/meshkit/utils/kubernetes"
 )

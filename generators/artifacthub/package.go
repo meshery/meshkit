@@ -51,7 +51,8 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 	// TODO: Move this to the configuration
 
 	if pkg.ChartUrl == "" {
-		return components, ErrChartUrlEmpty(pkg.Name, "ArtifactHub")
+		fmt.Printf("WARN: Skipping package %q due to empty chart URL\n", pkg.Name)
+		return components, nil
 	}
 	if strings.HasPrefix(pkg.ChartUrl, "oci://") {
 		// Skip OCI charts for now - return empty components
@@ -66,6 +67,9 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 		comp, err := component.Generate(crd)
 		if err != nil {
 			continue
+		}
+		if comp.Model == nil {
+			comp.Model = &model.ModelDefinition{}
 		}
 		if comp.Model.Metadata == nil {
 			comp.Model.Metadata = &model.ModelDefinition_Metadata{}

@@ -1,13 +1,17 @@
 package files_test
 
 import (
+	"archive/tar"
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"archive/zip"
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
 	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSanitizeFile(t *testing.T) {
@@ -191,4 +195,127 @@ func TestSanitizeFile(t *testing.T) {
 
 		})
 	}
+}
+
+// Test that providing an uncompressed .tar containing a Helm chart yields the
+// helpful ErrUncompressedTar (which uses ErrInvalidHelmChartCode).
+func TestUncompressedHelmTarError(t *testing.T) {
+	// Build an in-memory uncompressed tar with a Chart.yaml
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	chartYAML := []byte("apiVersion: v2\nname: test-chart\nversion: 0.1.0\n")
+	hdr := &tar.Header{
+		Name: "Chart.yaml",
+		Mode: 0600,
+		Size: int64(len(chartYAML)),
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("failed to write tar header: %v", err)
+	}
+	if _, err := tw.Write(chartYAML); err != nil {
+		t.Fatalf("failed to write chart content: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("failed to close tar writer: %v", err)
+	}
+
+	tempDir, err := os.MkdirTemp("", "temp-tests")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	validExts := map[string]bool{
+		".json": true,
+		".yml":  true,
+		".yaml": true,
+		".tar":  true,
+		".tgz":  true,
+		".gz":   true,
+		".zip":  true,
+	}
+
+	sanitized, err := files.SanitizeFile(buf.Bytes(), "uncompressed-helm.tar", tempDir, validExts)
+	if err != nil {
+		t.Fatalf("unexpected sanitize error: %v", err)
+	}
+
+	_, err = files.ParseFileAsHelmChart(sanitized)
+	assert.NotNil(t, err)
+	assert.Equal(t, files.ErrUncompressedTarCode, errors.GetCode(err))
+}
+
+func TestZipSlipVulnerability(t *testing.T) {
+	// Helper to create a temporary directory for extraction
+	tempDir, err := os.MkdirTemp("", "zip-slip-tests")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	validExts := map[string]bool{
+		".tar": true,
+		".zip": true,
+	}
+
+	t.Run("Malicious Tar Archive (Tar Slip)", func(t *testing.T) {
+		// 1. Create a malicious tar archive in memory
+		var buf bytes.Buffer
+		tw := tar.NewWriter(&buf)
+
+		// Create a header with a path traversal filename
+		header := &tar.Header{
+			Name: "../../evil_file.txt",
+			Mode: 0600,
+			Size: int64(len("malicious content")),
+		}
+
+		if err := tw.WriteHeader(header); err != nil {
+			t.Fatalf("failed to write tar header: %v", err)
+		}
+		if _, err := tw.Write([]byte("malicious content")); err != nil {
+			t.Fatalf("failed to write tar body: %v", err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("failed to close tar writer: %v", err)
+		}
+
+		// 2. Attempt to sanitize/extract it
+		_, err := files.SanitizeFile(buf.Bytes(), "attack.tar", tempDir, validExts)
+
+		// 3. Assert that it failed with the expected security error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "zip slip attempt")
+	})
+
+	t.Run("Malicious Zip Archive (Zip Slip)", func(t *testing.T) {
+		// 1. Create a malicious zip archive in memory
+		var buf bytes.Buffer
+		zw := zip.NewWriter(&buf)
+
+		// Create a file header with a path traversal filename
+		// Note: zip.Writer.Create usually cleans paths, so we use CreateHeader to force the name
+		header := &zip.FileHeader{
+			Name:   "../../evil_file.txt",
+			Method: zip.Store,
+		}
+
+		writer, err := zw.CreateHeader(header)
+		if err != nil {
+			t.Fatalf("failed to create zip entry: %v", err)
+		}
+		if _, err := writer.Write([]byte("malicious content")); err != nil {
+			t.Fatalf("failed to write zip body: %v", err)
+		}
+		if err := zw.Close(); err != nil {
+			t.Fatalf("failed to close zip writer: %v", err)
+		}
+
+		// 2. Attempt to sanitize/extract it
+		_, err = files.SanitizeFile(buf.Bytes(), "attack.zip", tempDir, validExts)
+
+		// 3. Assert that it failed with the expected security error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "zip slip attempt")
+	})
 }

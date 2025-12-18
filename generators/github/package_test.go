@@ -74,6 +74,13 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 		// 	},
 		// 	want: 2,
 		// },
+		{ // Source pointing to a directly downloadable file (not a repo per se), this package contains a single CRD with comments
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "channels",
+				SourceURL:   "https://raw.githubusercontent.com/knative/eventing/refs/heads/main/config/core/resources/channel.yaml",
+			},
+			want: 1,
+		},
 	}
 
 	for _, test := range tests {
@@ -92,6 +99,10 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			}
 			for _, comp := range comps {
 				currentDirectory, _ := os.Getwd()
+				if comp.Model == nil {
+					t.Errorf("component %s has nil Model", comp.Component.Kind)
+					continue
+				}
 				dirName := filepath.Join(currentDirectory, comp.Model.Name)
 				_, err := os.Stat(dirName)
 				if errors.Is(err, os.ErrNotExist) {

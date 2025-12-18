@@ -47,6 +47,10 @@ func TestGetChartUrl(t *testing.T) {
 				return
 			}
 			for _, comp := range comps {
+				if comp.Model == nil {
+					t.Errorf("component %s has nil Model", comp.Component.Kind)
+					continue
+				}
 				dirName := "./" + comp.Model.Name
 				_, err := os.Stat(dirName)
 				if errors.Is(err, os.ErrNotExist) {

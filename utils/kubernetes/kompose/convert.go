@@ -31,6 +31,8 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
 // converts a given docker-compose file into kubernetes manifests
 // expects a validated docker-compose file
 func Convert(dockerCompose DockerComposeFile) (string, error) {
+
+
 	// Get user's home directory
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -40,13 +42,23 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	// Construct path to .meshery directory
 	mesheryDir := filepath.Join(homeDir, ".meshery")
 	tempFilePath := filepath.Join(mesheryDir, "temp.data")
+	envFilePath := filepath.Join(mesheryDir, ".env")
+
+	// create a empty .env file to avoid fatal error from kompose while reading env file
+	_ = utils.CreateFile([]byte{}, ".env", mesheryDir)
 	resultFilePath := filepath.Join(mesheryDir, "result.yaml")
+
+	// create a empty .env file to avoid fatal error from kompose while reading env file
+	if err := utils.CreateFile([]byte(""), ".env", mesheryDir); err != nil {
+		return "", ErrCvrtKompose(err)
+	}
 
 	if err := utils.CreateFile(dockerCompose, "temp.data", mesheryDir); err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
 	defer func() {
+		os.Remove(envFilePath)
 		os.Remove(tempFilePath)
 		os.Remove(resultFilePath)
 	}()
@@ -94,8 +106,9 @@ func versionCheck(dc DockerComposeFile) error {
 	if err != nil {
 		return utils.ErrUnmarshal(err)
 	}
+	// assume compatible if version is not specified
 	if cf.Version == "" {
-		return ErrNoVersion()
+		return nil	
 	}
 	versionFloatVal, err := strconv.ParseFloat(cf.Version, 64)
 	if err != nil {
