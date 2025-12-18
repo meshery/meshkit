@@ -52,8 +52,10 @@ func InitTracer(ctx context.Context, cfg Config) (*sdktrace.TracerProvider, erro
 	}
 
 	// Create resource with service identification
-	res, err := newResource(cfg)
+	res, err := newResource(ctx, cfg)
 	if err != nil {
+		// Ensure exporter is properly cleaned up if resource creation fails
+		_ = exporter.Shutdown(ctx)
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
@@ -77,7 +79,7 @@ func InitTracer(ctx context.Context, cfg Config) (*sdktrace.TracerProvider, erro
 }
 
 // newResource creates a resource with service identification attributes
-func newResource(cfg Config) (*resource.Resource, error) {
+func newResource(ctx context.Context, cfg Config) (*resource.Resource, error) {
 	attrs := []resource.Option{
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(cfg.ServiceName),
@@ -99,7 +101,7 @@ func newResource(cfg Config) (*resource.Resource, error) {
 	}
 
 	return resource.New(
-		context.Background(),
+		ctx,
 		attrs...,
 	)
 }

@@ -28,7 +28,7 @@ func main() {
         ServiceVersion: "v0.6.0",
         Environment:    "production",
         Endpoint:       "localhost:4317",  // OTLP collector endpoint
-        Insecure:       true,              // Use false in production with TLS
+        Insecure:       false,             // Use false in production with TLS
     }
 
     tp, err := tracing.InitTracer(ctx, cfg)
@@ -88,7 +88,7 @@ func makeRequest() {
 - **ServiceVersion** (optional): Version of your service
 - **Environment** (optional): Deployment environment (e.g., "production", "staging", "development")
 - **Endpoint** (required): OTLP collector endpoint (e.g., "localhost:4317")
-- **Insecure** (required): Set to true for non-TLS connections (development only)
+- **Insecure** (optional, defaults to false): Set to true for non-TLS connections (development only). When false (default), TLS is used for secure connections.
 
 ## Integration Examples
 

@@ -17,7 +17,7 @@ func ExampleInitTracer() {
 	cfg := tracing.Config{
 		ServiceName:    "meshery-server",
 		ServiceVersion: "v0.6.0",
-		Environment:    "production",
+		Environment:    "development",
 		Endpoint:       "localhost:4317",
 		Insecure:       true, // Use true for local development, false for production
 	}

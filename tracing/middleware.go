@@ -8,8 +8,8 @@ import (
 
 // HTTPMiddleware wraps an HTTP handler with OpenTelemetry tracing
 // It automatically creates spans for incoming HTTP requests and propagates trace context
-func HTTPMiddleware(handler http.Handler, serviceName string) http.Handler {
-	return otelhttp.NewHandler(handler, serviceName)
+func HTTPMiddleware(handler http.Handler, operation string) http.Handler {
+	return otelhttp.NewHandler(handler, operation)
 }
 
 // HTTPHandler wraps an HTTP handler function with OpenTelemetry tracing
