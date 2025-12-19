@@ -889,7 +889,7 @@ func TruncateErrorMessage(err error, wordLimit int) error {
 	words := strings.Fields(err.Error())
 	if len(words) > wordLimit {
 		words = words[:wordLimit]
-		return fmt.Errorf(strings.Join(words, " ") + "...")
+		return errors.New(strings.Join(words, " ") + "...")
 	}
 
 	return err
