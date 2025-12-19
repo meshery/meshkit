@@ -7,7 +7,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -189,8 +188,8 @@ func Expose(
 	return createdSvc, err
 }
 
-func generateService(serviceConfig serviceConfig) (*corev1.Service, error) {
-	ports := []corev1.ServicePort{}
+func generateService(serviceConfig serviceConfig) (*v1.Service, error) {
+	ports := []v1.ServicePort{}
 	for i, port := range serviceConfig.portsSlice {
 		// We can expect the port to be a valid UNIX port and hence
 		// should not cause integer overflow. Hence,
@@ -210,21 +209,21 @@ func generateService(serviceConfig serviceConfig) (*corev1.Service, error) {
 			protocol = exposeProtocol
 		}
 
-		ports = append(ports, corev1.ServicePort{
+		ports = append(ports, v1.ServicePort{
 			Name:     portName,
 			Port:     int32(portInt),
-			Protocol: corev1.Protocol(protocol),
+			Protocol: v1.Protocol(protocol),
 		})
 	}
 
-	service := corev1.Service{
+	service := v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        serviceConfig.Name,
 			Labels:      serviceConfig.labelsMap,
 			Namespace:   serviceConfig.Namespace,
 			Annotations: serviceConfig.Annotations,
 		},
-		Spec: corev1.ServiceSpec{
+		Spec: v1.ServiceSpec{
 			Selector: serviceConfig.selectorsMap,
 			Ports:    ports,
 		},
@@ -242,21 +241,21 @@ func generateService(serviceConfig serviceConfig) (*corev1.Service, error) {
 
 	// Setup service type
 	if len(serviceConfig.Type) != 0 {
-		service.Spec.Type = corev1.ServiceType(serviceConfig.Type)
+		service.Spec.Type = v1.ServiceType(serviceConfig.Type)
 	}
 
 	// Setup load balancer ip if the type is load balancer
-	if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
+	if service.Spec.Type == v1.ServiceTypeLoadBalancer {
 		service.Spec.LoadBalancerIP = serviceConfig.LoadBalancerIP
 	}
 
 	// Setup session affinity
 	if len(serviceConfig.SessionAffinity) != 0 {
-		switch corev1.ServiceAffinity(serviceConfig.SessionAffinity) {
-		case corev1.ServiceAffinityNone:
-			service.Spec.SessionAffinity = corev1.ServiceAffinityNone
-		case corev1.ServiceAffinityClientIP:
-			service.Spec.SessionAffinity = corev1.ServiceAffinityClientIP
+		switch v1.ServiceAffinity(serviceConfig.SessionAffinity) {
+		case v1.ServiceAffinityNone:
+			service.Spec.SessionAffinity = v1.ServiceAffinityNone
+		case v1.ServiceAffinityClientIP:
+			service.Spec.SessionAffinity = v1.ServiceAffinityClientIP
 		default:
 			return nil, ErrUnknownSessionAffinityErr(serviceConfig.SessionAffinity)
 		}
@@ -265,7 +264,7 @@ func generateService(serviceConfig serviceConfig) (*corev1.Service, error) {
 	// Setup cluster IP
 	if len(serviceConfig.ClusterIP) != 0 {
 		if serviceConfig.ClusterIP == "None" {
-			service.Spec.ClusterIP = corev1.ClusterIPNone
+			service.Spec.ClusterIP = v1.ClusterIPNone
 		} else {
 			service.Spec.ClusterIP = serviceConfig.ClusterIP
 		}
@@ -278,9 +277,9 @@ func generateService(serviceConfig serviceConfig) (*corev1.Service, error) {
 func canBeExposed(kind schema.GroupKind) error {
 	switch kind {
 	case
-		corev1.SchemeGroupVersion.WithKind("ReplicationController").GroupKind(),
-		corev1.SchemeGroupVersion.WithKind("Service").GroupKind(),
-		corev1.SchemeGroupVersion.WithKind("Pod").GroupKind(),
+		v1.SchemeGroupVersion.WithKind("ReplicationController").GroupKind(),
+		v1.SchemeGroupVersion.WithKind("Service").GroupKind(),
+		v1.SchemeGroupVersion.WithKind("Pod").GroupKind(),
 		appsv1.SchemeGroupVersion.WithKind("Deployment").GroupKind(),
 		appsv1.SchemeGroupVersion.WithKind("ReplicaSet").GroupKind(),
 		extensionsv1beta1.SchemeGroupVersion.WithKind("Deployment").GroupKind(),
@@ -296,16 +295,16 @@ func canBeExposed(kind schema.GroupKind) error {
 // map-based selector
 func mapBasedSelectorForObject(object runtime.Object) (map[string]string, error) {
 	switch t := object.(type) {
-	case *corev1.ReplicationController:
+	case *v1.ReplicationController:
 		return t.Spec.Selector, nil
 
-	case *corev1.Pod:
+	case *v1.Pod:
 		if len(t.Labels) == 0 {
 			return map[string]string{}, ErrPodHasNoLabels
 		}
 		return t.Labels, nil
 
-	case *corev1.Service:
+	case *v1.Service:
 		if t.Spec.Selector == nil {
 			return map[string]string{}, ErrServiceHasNoSelectors
 		}
@@ -400,13 +399,13 @@ func mapBasedSelectorForObject(object runtime.Object) (map[string]string, error)
 
 func protocolsForObject(object runtime.Object) (map[string]string, error) {
 	switch t := object.(type) {
-	case *corev1.ReplicationController:
+	case *v1.ReplicationController:
 		return getProtocols(t.Spec.Template.Spec), nil
 
-	case *corev1.Pod:
+	case *v1.Pod:
 		return getProtocols(t.Spec), nil
 
-	case *corev1.Service:
+	case *v1.Service:
 		return getServiceProtocols(t.Spec), nil
 
 	case *extensionsv1beta1.Deployment:
@@ -430,13 +429,13 @@ func protocolsForObject(object runtime.Object) (map[string]string, error) {
 	}
 }
 
-func getProtocols(spec corev1.PodSpec) map[string]string {
+func getProtocols(spec v1.PodSpec) map[string]string {
 	result := make(map[string]string)
 	for _, container := range spec.Containers {
 		for _, port := range container.Ports {
 			// Empty protocol must be defaulted (TCP)
 			if len(port.Protocol) == 0 {
-				port.Protocol = corev1.ProtocolTCP
+				port.Protocol = v1.ProtocolTCP
 			}
 			result[strconv.Itoa(int(port.ContainerPort))] = string(port.Protocol)
 		}
@@ -445,12 +444,12 @@ func getProtocols(spec corev1.PodSpec) map[string]string {
 }
 
 // Extracts the protocols exposed by a service from the given service spec.
-func getServiceProtocols(spec corev1.ServiceSpec) map[string]string {
+func getServiceProtocols(spec v1.ServiceSpec) map[string]string {
 	result := make(map[string]string)
 	for _, servicePort := range spec.Ports {
 		// Empty protocol must be defaulted (TCP)
 		if len(servicePort.Protocol) == 0 {
-			servicePort.Protocol = corev1.ProtocolTCP
+			servicePort.Protocol = v1.ProtocolTCP
 		}
 		result[strconv.Itoa(int(servicePort.Port))] = string(servicePort.Protocol)
 	}
@@ -459,13 +458,13 @@ func getServiceProtocols(spec corev1.ServiceSpec) map[string]string {
 
 func portsForObject(object runtime.Object) ([]string, error) {
 	switch t := object.(type) {
-	case *corev1.ReplicationController:
+	case *v1.ReplicationController:
 		return getPorts(t.Spec.Template.Spec), nil
 
-	case *corev1.Pod:
+	case *v1.Pod:
 		return getPorts(t.Spec), nil
 
-	case *corev1.Service:
+	case *v1.Service:
 		return getServicePorts(t.Spec), nil
 
 	case *extensionsv1beta1.Deployment:
@@ -488,7 +487,7 @@ func portsForObject(object runtime.Object) ([]string, error) {
 	}
 }
 
-func getPorts(spec corev1.PodSpec) []string {
+func getPorts(spec v1.PodSpec) []string {
 	result := []string{}
 	for _, container := range spec.Containers {
 		for _, port := range container.Ports {
@@ -498,7 +497,7 @@ func getPorts(spec corev1.PodSpec) []string {
 	return result
 }
 
-func getServicePorts(spec corev1.ServiceSpec) []string {
+func getServicePorts(spec v1.ServiceSpec) []string {
 	result := []string{}
 	for _, servicePort := range spec.Ports {
 		result = append(result, strconv.Itoa(int(servicePort.Port)))

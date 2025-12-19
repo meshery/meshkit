@@ -126,21 +126,23 @@ func (m *ModelCSV) UpdateModelDefinition(modelDef *_model.ModelDefinition) error
 			}
 		case "svgColor", "svgWhite", "svgComplete":
 			var svg string
-			if key == "svgColor" {
+			switch key {
+			case "svgColor":
 				svg = m.SVGColor
-			} else if key == "svgWhite" {
+			case "svgWhite":
 				svg = m.SVGWhite
-			} else {
+			default:
 				svg = m.SVGComplete
 			}
 			// Attempt to update the SVG string
 			updatedSvg, err := utils.UpdateSVGString(svg, SVG_WIDTH, SVG_HEIGHT, false)
 			if err == nil {
-				if key == "svgColor" {
+				switch key {
+				case "svgColor":
 					metadata.SvgColor = updatedSvg
-				} else if key == "svgWhite" {
+				case "svgWhite":
 					metadata.SvgWhite = updatedSvg
-				} else {
+				default:
 					metadata.SvgComplete = &updatedSvg
 				}
 			} else {
@@ -317,7 +319,7 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool, modelName string)
 // </p>`
 func (m ModelCSV) CreateMarkDownForMDXStyle(componentsMetadata string) string {
 	formattedName := utils.FormatName(m.Model)
-	var template string = `---
+	template := `---
 title: %s
 subtitle: %s
 integrationIcon: icons/color/%s-color.svg
@@ -416,7 +418,8 @@ func (m ModelCSV) CreateMarkDownForMDStyle(componentsMetadata, relationshipMetad
 	formattedName := utils.FormatName(m.Model)
 	var template, markdown string
 
-	if outputFor == "mesherydocs" {
+	switch outputFor {
+	case "mesherydocs":
 		template = `---
 layout: integration
 title: %s
@@ -466,7 +469,7 @@ category: integrations
 			m.HowItWorks,
 			m.HowItWorksDetails,
 		)
-	} else if outputFor == "mesheryio" {
+	case "mesheryio":
 		template = `---
 layout: single-page-model
 item-type: model

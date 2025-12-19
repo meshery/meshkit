@@ -40,7 +40,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 	}
 	//getting defintions for different native resources
 	def.Spec.DefinitionRef.Name = definitionRef
-	def.ObjectMeta.Name = resourceId
+	def.Name = resourceId
 	def.APIVersion = "core.oam.dev/v1alpha1"
 	def.Kind = "WorkloadDefinition"
 	k8sAPIVersion := apiVersion
@@ -58,7 +58,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 		}
 		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId)
 		if cfg.Type != "" {
-			def.ObjectMeta.Name += "." + cfg.Type
+			def.Name += "." + cfg.Type
 			def.Spec.DefinitionRef.Name += "." + cfg.Type
 		}
 		def.Spec.DefinitionRef.Name += ".meshery.layer5.io"
@@ -69,7 +69,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 			"k8sKind":       resourceId,
 			"version":       cfg.K8sVersion,
 		}
-		def.ObjectMeta.Name += ".K8s"
+		def.Name += ".K8s"
 		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId) + ".k8s.meshery.layer5.io"
 	case MESHERY:
 		def.Spec.Metadata = map[string]string{

@@ -215,7 +215,7 @@ func ReadLocalFile(location string) (string, error) {
 
 // Gets the latest stable release tags from github for a given org name and repo name(in that org) in sorted order
 func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
-	var url string = "https://github.com/" + org + "/" + repo + "/releases"
+	url := "https://github.com/" + org + "/" + repo + "/releases"
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, ErrGettingLatestReleaseTag(err)
@@ -889,7 +889,7 @@ func TruncateErrorMessage(err error, wordLimit int) error {
 	words := strings.Fields(err.Error())
 	if len(words) > wordLimit {
 		words = words[:wordLimit]
-		return fmt.Errorf("%s...", strings.Join(words, " "))
+		return fmt.Errorf("%s", strings.Join(words, " "))
 	}
 
 	return err

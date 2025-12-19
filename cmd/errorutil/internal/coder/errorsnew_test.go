@@ -64,24 +64,24 @@ func TestDetectNew(t *testing.T) {
 		t.Errorf("found %v call expressions; want %d", found, countExpected)
 	}
 	for _, e := range errors {
-		if !(e.Name == "ErrTestNewCode1" || e.Name == "ErrTestNewCode2" || e.Name == "ErrTestNewCode3") {
+		if e.Name != "ErrTestNewCode1" && e.Name != "ErrTestNewCode2" && e.Name != "ErrTestNewCode3" {
 			t.Errorf("invalid error name found: %s; want %s", e.Name, "ErrTestNewCode1 or ErrTestNewCode2")
 		}
 		if e.Name == "ErrTestNewCode1" {
-			if !(e.Severity == "Fatal" &&
-				len(e.ShortDescription) == 0 &&
-				len(e.LongDescription) == 0 &&
-				len(e.ProbableCause) == 0 &&
-				len(e.SuggestedRemediation) == 0) {
+			if e.Severity != "Fatal" ||
+				len(e.ShortDescription) != 0 ||
+				len(e.LongDescription) != 0 ||
+				len(e.ProbableCause) != 0 ||
+				len(e.SuggestedRemediation) != 0 {
 				t.Errorf("invalid error found: %v", e)
 			}
 		}
 		if e.Name == "ErrTestNewCode2" {
-			if !(e.Severity == "None" &&
-				e.ShortDescription == "line11" &&
-				e.LongDescription == "line21\nline22" &&
-				len(e.ProbableCause) == 0 &&
-				e.SuggestedRemediation == "line41") {
+			if e.Severity != "None" ||
+				e.ShortDescription != "line11" ||
+				e.LongDescription != "line21\nline22" ||
+				len(e.ProbableCause) != 0 ||
+				e.SuggestedRemediation != "line41" {
 				t.Errorf("invalid error found: %v", e)
 			}
 		}
