@@ -590,9 +590,9 @@ func Compress(src string, buf io.Writer) error {
 			if err != nil {
 				return err
 			}
-			defer func() { _ = data.Close() }()
 
 			_, err = io.Copy(tw, data)
+			_ = data.Close()
 			if err != nil {
 				return err
 			}
