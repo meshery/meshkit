@@ -154,7 +154,7 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 		err = fmt.Errorf("status code %d for %s", resp.StatusCode, AhHelmExporterEndpoint)
 		return nil, ErrGetAllHelmPackages(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var res []map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
@@ -172,11 +172,12 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 		if resp.StatusCode != 200 {
 			err = fmt.Errorf("status code %d for %s", resp.StatusCode, url)
 			fmt.Println(err)
+			_ = resp.Body.Close()
 			continue
 		}
-		defer resp.Body.Close()
 		var res map[string]interface{}
 		err = json.NewDecoder(resp.Body).Decode(&res)
+		_ = resp.Body.Close()
 		if err != nil {
 			fmt.Println(err)
 			continue

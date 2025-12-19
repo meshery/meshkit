@@ -130,10 +130,7 @@ func (g *Github) RegisterDirInterceptor(i GithubDirInterceptor) *Github {
 // Walk will initiate traversal process
 func (g *Github) Walk() error {
 	// Check if a file is requested
-	isFile := true
-	if g.root == "" || filepath.Ext(g.root) == "" {
-		isFile = false
-	}
+	isFile := g.root != "" && filepath.Ext(g.root) != ""
 
 	return g.walker(g.root, isFile)
 }

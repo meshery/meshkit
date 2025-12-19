@@ -151,7 +151,7 @@ func TestSanitizeFile(t *testing.T) {
 	}
 
 	tempDir, _ := os.MkdirTemp(" ", "temp-tests")
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 	// tempDir := "./temp"
 
 	for _, tc := range testCases {
@@ -223,7 +223,7 @@ func TestUncompressedHelmTarError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	validExts := map[string]bool{
 		".json": true,
@@ -251,7 +251,7 @@ func TestZipSlipVulnerability(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	validExts := map[string]bool{
 		".tar": true,

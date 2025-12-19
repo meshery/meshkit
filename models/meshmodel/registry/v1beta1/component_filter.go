@@ -99,9 +99,10 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		finder = finder.Where("model_dbs.name = ?", componentFilter.ModelName)
 	}
 
-	if componentFilter.Annotations == "true" {
+	switch componentFilter.Annotations {
+	case "true":
 		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = true")
-	} else if componentFilter.Annotations == "false" {
+	case "false":
 		finder = finder.Where("component_definition_dbs.metadata->>'isAnnotation' = false")
 	}
 

@@ -128,7 +128,7 @@ func extractManifestFromChart(chartData []byte) (bool, string) {
 	if err != nil {
 		return false, ""
 	}
-	defer gr.Close()
+	defer func() { _ = gr.Close() }()
 	tr := tar.NewReader(gr)
 	for {
 		hdr, err := tr.Next()

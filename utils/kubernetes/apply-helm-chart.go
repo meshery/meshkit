@@ -410,7 +410,7 @@ func checkIfInstallable(ch *chart.Chart) error {
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
 func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Configuration, func(), error) {
 	// Set the environment variable needed by the Init methods
-	os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
+	_ = os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
 
 	var tempFiles []string
 	cleanup := func() {
@@ -489,11 +489,11 @@ func setDataAndReturnFilename(data []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close() // Close file immediately after writing
+	defer func() { _ = f.Close() }() // Close file immediately after writing
 
 	_, err = f.Write(data)
 	if err != nil {
-		os.Remove(f.Name()) // Clean up on write error
+		_ = os.Remove(f.Name()) // Clean up on write error
 		return "", err
 	}
 
