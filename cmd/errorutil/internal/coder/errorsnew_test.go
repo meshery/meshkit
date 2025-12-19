@@ -86,11 +86,11 @@ func TestDetectNew(t *testing.T) {
 			}
 		}
 		if e.Name == "ErrTestNewCode3" {
-			if !(e.Severity == "None" &&
-				e.ShortDescription == "line12" &&
-				e.LongDescription == "line21\nline22" &&
-				len(e.ProbableCause) == 0 &&
-				e.SuggestedRemediation == "line41") {
+			if e.Severity != "None" ||
+				e.ShortDescription != "line12" ||
+				e.LongDescription != "line21\nline22" ||
+				len(e.ProbableCause) != 0 ||
+				e.SuggestedRemediation != "line41" {
 				t.Errorf("invalid error found: %v", e)
 			}
 		}

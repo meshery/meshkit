@@ -493,7 +493,7 @@ func setDataAndReturnFilename(data []byte) (string, error) {
 
 	_, err = f.Write(data)
 	if err != nil {
-		os.Remove(f.Name()) // Clean up on write error
+		_ = os.Remove(f.Name()) // Clean up on write error
 		return "", err
 	}
 

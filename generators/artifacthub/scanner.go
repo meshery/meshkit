@@ -47,7 +47,7 @@ func GetAhPackagesWithName(name string) ([]AhPackage, error) {
 		err = fmt.Errorf("status code %d for %s", resp.StatusCode, finalURL)
 		return nil, ErrGetAhPackage(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var res map[string]([]map[string]interface{})
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {

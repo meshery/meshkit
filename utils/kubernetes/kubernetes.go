@@ -21,8 +21,8 @@ func New(kubeconfig []byte) (*Client, error) {
 	restConfig.Burst = int(100)
 
 	// if insecure variable is kept true, allow that
-	if restConfig.TLSClientConfig.Insecure {
-		restConfig.TLSClientConfig.Insecure = true
+	if restConfig.TLSClientConfig.Insecure { //nolint:staticcheck
+		restConfig.TLSClientConfig.Insecure = true //nolint:staticcheck
 	}
 
 	// Configure kubeclient
