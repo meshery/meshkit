@@ -95,6 +95,12 @@ type EventsFilter struct {
 
 	// ActedUpon UUID of the entity on which the event was performed.
 	ActedUpon []string `json:"acted_upon"`
+
+	// UserID UUIDs of users to filter events by.
+	UserID []string `json:"user_id"`
+
+	// SystemID UUIDs of systems to filter events by.
+	SystemID []string `json:"system_id"`
 }
 
 // ID defines model for id.

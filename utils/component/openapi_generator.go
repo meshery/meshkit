@@ -122,7 +122,10 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 			}
 		}
 
-		metadata := model.NewModelDefinition_Metadata()
+		now := time.Now()
+		metadata := &model.ModelDefinition_Metadata{
+			CreatedAt: &now,
+		}
 		if metadata.AdditionalProperties == nil {
 			metadata.AdditionalProperties = make(map[string]interface{})
 		}
@@ -139,7 +142,7 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 			Metadata: component.ComponentDefinition_Metadata{
 				IsNamespaced: isNamespaced,
 			},
-			Model: model.ModelDefinition{
+			Model: &model.ModelDefinition{
 				SchemaVersion: v1beta1.ModelSchemaVersion,
 				Model: model.Model{
 					Version: pkg.GetVersion(),

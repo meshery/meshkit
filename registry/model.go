@@ -105,7 +105,10 @@ var modelMetadataValues = []string{
 func (m *ModelCSV) UpdateModelDefinition(modelDef *_model.ModelDefinition) error {
 	metadata := modelDef.Metadata
 	if metadata == nil {
-		metadata = _model.NewModelDefinition_Metadata()
+		now := time.Now()
+		metadata = &_model.ModelDefinition_Metadata{
+			CreatedAt: &now,
+		}
 	}
 	if metadata.AdditionalProperties == nil {
 		metadata.AdditionalProperties = make(map[string]interface{})
@@ -626,15 +629,18 @@ func GenerateComponentsFromPkg(pkg models.Package, compDirPath string, defVersio
 	for _, comp := range comps {
 		comp.Version = defVersion
 		if modelDef.Metadata == nil {
-			modelDef.Metadata = _model.NewModelDefinition_Metadata()
+			now := time.Now()
+			modelDef.Metadata = &_model.ModelDefinition_Metadata{
+				CreatedAt: &now,
+			}
 		}
 		if modelDef.Metadata.AdditionalProperties == nil {
 			modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
 		}
-		if comp.Model.Metadata.AdditionalProperties != nil {
+		if comp.Model != nil && comp.Model.Metadata != nil && comp.Model.Metadata.AdditionalProperties != nil {
 			modelDef.Metadata.AdditionalProperties["source_uri"] = comp.Model.Metadata.AdditionalProperties["source_uri"]
 		}
-		comp.Model = modelDef
+		comp.Model = &modelDef
 
 		AssignDefaultsForCompDefs(&comp, &modelDef)
 		alreadyExists, err := comp.WriteComponentDefinition(compDirPath, "json")
@@ -918,16 +924,19 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 				// i.e., If model is enabled, comps are also "enabled". Ultimately, all individual comps will have the ability to control their status.
 				// The status "enabled" indicates that the component will be registered inside the registry.
 				if modelDef.Metadata == nil {
-					modelDef.Metadata = _model.NewModelDefinition_Metadata()
+					now := time.Now()
+					modelDef.Metadata = &_model.ModelDefinition_Metadata{
+						CreatedAt: &now,
+					}
 				}
 				if modelDef.Metadata.AdditionalProperties == nil {
 					modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
 				}
 
-				if comp.Model.Metadata.AdditionalProperties != nil {
+				if comp.Model != nil && comp.Model.Metadata != nil && comp.Model.Metadata.AdditionalProperties != nil {
 					modelDef.Metadata.AdditionalProperties["source_uri"] = comp.Model.Metadata.AdditionalProperties["source_uri"]
 				}
-				comp.Model = *modelDef
+				comp.Model = modelDef
 
 				AssignDefaultsForCompDefs(&comp, modelDef)
 				compAlreadyExist, err := comp.WriteComponentDefinition(compDirPath, "json")
@@ -1041,7 +1050,7 @@ func GenerateDefsForCoreRegistrant(model ModelCSV, ComponentCSVHelper *Component
 					continue
 				}
 				componentDef.Status = &_status
-				componentDef.Model = *modelDef
+				componentDef.Model = modelDef
 				alreadyExists, err = componentDef.WriteComponentDefinition(compDirPath, "json")
 				if err != nil {
 					err = ErrGenerateComponent(err, comp.Model, componentDef.DisplayName)
