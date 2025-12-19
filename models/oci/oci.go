@@ -94,7 +94,7 @@ func createLayer(path string, layerType LayerType, opts layerOptions) (gcrv1.Lay
 		if err != nil {
 			return nil, err
 		}
-		defer os.RemoveAll(tmpDir)
+		defer func() { _ = os.RemoveAll(tmpDir) }()
 		tmpFile := filepath.Join(tmpDir, "artifact.tgz")
 		defaultOpts := client.DefaultOptions()
 		ociClient := client.NewClient(defaultOpts)
@@ -198,7 +198,7 @@ func PullFromOCIRegistry(dirPath, registryAdd, repositoryAdd, imageTag, username
 		return ErrFileNotFound(err, dirPath)
 	}
 
-	defer fs.Close()
+	defer func() { _ = fs.Close() }()
 	ctx := context.Background()
 
 	// Connect to remote registry

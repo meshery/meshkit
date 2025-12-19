@@ -47,8 +47,8 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	br := bufio.NewWriter(fd)
 
 	defer func() {
-		br.Flush()
-		fd.Close()
+		_ = br.Flush()
+		_ = fd.Close()
 	}()
 	gw := gitWalker.
 		Owner(owner).

@@ -144,7 +144,7 @@ func clonewalk(g *Git) error {
 	var wg sync.WaitGroup
 	defer func() {
 		wg.Wait()
-		os.RemoveAll(path)
+		_ = os.RemoveAll(path)
 	}()
 	var err error
 	cloneOptions := &git.CloneOptions{

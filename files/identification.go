@@ -111,14 +111,14 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	if err != nil {
 		return nil, utils.ErrCreateDir(err, "OCI")
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	tmpInputDesignFile := filepath.Join(tmpDir, "design.tar")
 	file, err := os.Create(tmpInputDesignFile)
 	if err != nil {
 		return nil, utils.ErrCreateFile(err, tmpInputDesignFile)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	reader := bytes.NewReader(artifact)
 	if _, err := io.Copy(file, reader); err != nil {
