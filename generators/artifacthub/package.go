@@ -3,17 +3,17 @@ package artifacthub
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"strings"
-	"time"
-
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/component"
 	"github.com/meshery/meshkit/utils/manifests"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	_component "github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	"net/http"
+	"strings"
+	"time"
 )
 
 const ArtifactHubAPIEndpoint = "https://artifacthub.io/api/v1"
@@ -133,7 +133,7 @@ func (pkg *AhPackage) UpdatePackageData() error {
 		if !strings.HasSuffix(pkg.RepoUrl, "/") {
 			pkg.RepoUrl = pkg.RepoUrl + "/"
 		}
-		chartUrl = fmt.Sprintf("%s%s", pkg.RepoUrl, chartUrl)
+		pkg.ChartUrl = fmt.Sprintf("%s%s", pkg.RepoUrl, chartUrl)
 	}
 	pkg.ChartUrl = chartUrl
 	return nil
@@ -162,15 +162,31 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 		return nil, err
 	}
 
+	const maxRetries = 5
+
 	for _, p := range res {
-		name := p["name"].(string)
-		repo := p["repository"].(map[string]interface{})["name"].(string)
+		name, ok := p["name"].(string)
+		if !ok {
+			logrus.WithFields(logrus.Fields{"package_data": p}).Warn("Skipping package due to missing or invalid name")
+			continue
+		}
+		repoMap, ok := p["repository"].(map[string]interface{})
+		if !ok {
+			logrus.WithFields(logrus.Fields{"package_data": p}).Warn("Skipping package due to missing or invalid repository")
+			continue
+		}
+
+		repo, ok := repoMap["name"].(string)
+		if !ok {
+			logrus.WithFields(logrus.Fields{"package_data": p}).Warn("Skipping package due to missing or invalid repository name")
+			continue
+		}
 		url := fmt.Sprintf("https://artifacthub.io/api/v1/packages/helm/%s/%s", repo, name)
 
 		var resp *http.Response
 		var err error
 
-		for i := 0; i < 5; i++ {
+		for i := 0; i < maxRetries; i++ {
 			resp, err = http.Get(url)
 			if err != nil {
 				break
@@ -184,13 +200,13 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 		}
 
 		if err != nil {
-			fmt.Println(err)
+			logrus.WithError(err).WithField("url", url).Error("Failed to fetch package")
 			continue
 		}
 
 		if resp.StatusCode != 200 {
 			err = fmt.Errorf("status code %d for %s", resp.StatusCode, url)
-			fmt.Println(err)
+			logrus.WithError(err).WithField("url", url).Error("Failed to fetch package")
 			resp.Body.Close()
 			continue
 		}
@@ -200,7 +216,7 @@ func GetAllAhHelmPackages() ([]AhPackage, error) {
 		resp.Body.Close()
 
 		if err != nil {
-			fmt.Println(err)
+			logrus.WithError(err).WithField("url", url).Error("Failed to decode package response")
 			continue
 		}
 
@@ -250,3 +266,4 @@ func parseArtifacthubResponse(response map[string]interface{}) *AhPackage {
 		Official:          official,
 	}
 }
+
