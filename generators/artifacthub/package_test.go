@@ -71,3 +71,55 @@ func TestGetChartUrl(t *testing.T) {
 		})
 	}
 }
+
+// TestGetPackageWithDirectURL tests that when SourceURL is an actual URL,
+// it is used directly instead of searching
+func TestGetPackageWithDirectURL(t *testing.T) {
+	tests := []struct {
+		name        string
+		packageName string
+		sourceURL   string
+		wantErr     bool
+	}{
+		{
+			name:        "Direct HTTP URL should be used",
+			packageName: "consul",
+			sourceURL:   "https://charts.bitnami.com/bitnami/consul-1.0.0.tgz",
+			wantErr:     false,
+		},
+		{
+			name:        "Direct HTTPS URL should be used",
+			packageName: "test-package",
+			sourceURL:   "https://example.com/charts/test-1.0.0.tgz",
+			wantErr:     false,
+		},
+		{
+			name:        "OCI URL should be used",
+			packageName: "test-oci",
+			sourceURL:   "oci://registry.example.com/charts/test",
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pm := ArtifactHubPackageManager{
+				PackageName: tt.packageName,
+				SourceURL:   tt.sourceURL,
+			}
+
+			pkg, err := pm.GetPackage()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetPackage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err == nil {
+				// Verify the package has the correct source URL
+				if pkg.GetSourceURL() != tt.sourceURL {
+					t.Errorf("GetSourceURL() = %v, want %v", pkg.GetSourceURL(), tt.sourceURL)
+				}
+			}
+		})
+	}
+}
