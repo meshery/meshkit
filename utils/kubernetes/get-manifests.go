@@ -2,11 +2,11 @@ package kubernetes
 
 import (
 	"fmt"
-	"strings"
-
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/engine"
+	"sort"
+	"strings"
 )
 
 // GetManifestsFromHelm fetches the chart, loads it, and renders templates + CRDs
@@ -45,18 +45,29 @@ func GetManifestsFromHelm(url string) (string, error) {
 	// Helper to safely append separators
 	appendSeparator := func() {
 		if b.Len() > 0 {
-			b.WriteString("\n---\n")
+			// 1. Check if the buffer ends with a newline.
+			// 2. If not, add one to ensure "---" starts on a fresh line.
+			if !strings.HasSuffix(b.String(), "\n") {
+				b.WriteString("\n")
+			}
+			b.WriteString("---\n")
 		}
 	}
-
 	//  Append CRDs
 	for _, crdobject := range chart.CRDObjects() {
 		appendSeparator()
 		b.Write(crdobject.File.Data)
 	}
 
+	keys := make([]string, 0, len(renderedFiles))
+	for k := range renderedFiles {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	//  Append Rendered Templates
-	for filename, fileContent := range renderedFiles {
+	for _, filename := range keys {
+		fileContent := renderedFiles[filename]
 		// Filter out non-manifest files
 		if strings.HasSuffix(filename, "NOTES.txt") || strings.Contains(filename, "/tests/") {
 			continue
