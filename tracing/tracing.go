@@ -17,7 +17,7 @@ import (
 // Config holds the configuration parameters for tracing
 type Config struct {
 	// ServiceName is the name of the service being traced
-	ServiceName string `yaml:"service_name" json:"service_name"` 
+	ServiceName string `yaml:"service_name" json:"service_name"`
 	// ServiceVersion is the version of the service
 	ServiceVersion string `yaml:"service_version" json:"service_version"`
 	// Environment is the deployment environment (e.g., "production", "staging", "development")
@@ -28,16 +28,16 @@ type Config struct {
 	Insecure bool `yaml:"insecure" json:"insecure"`
 }
 
-func InitTracerFromYamlConfig( ctx context.Context , config string) (*sdktrace.TracerProvider,error) {
+func InitTracerFromYamlConfig(ctx context.Context, config string) (*sdktrace.TracerProvider, error) {
 	cfg := Config{}
 
 	err := yaml.Unmarshal([]byte(config),&cfg)
 
-	if (err != nil  ){
-		return nil,fmt.Errorf("Failed to parse tracing config %v",err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse tracing config: %w", err)
 	}
 
-	return InitTracer(ctx,cfg);
+	return InitTracer(ctx, cfg)
 }
 
 // InitTracer initializes and configures the global OpenTelemetry trace provider
