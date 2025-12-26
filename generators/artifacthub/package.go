@@ -72,7 +72,10 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 			comp.Model = &model.ModelDefinition{}
 		}
 		if comp.Model.Metadata == nil {
-			comp.Model.Metadata = &model.ModelDefinition_Metadata{}
+			now := time.Now()
+			comp.Model.Metadata = &model.ModelDefinition_Metadata{
+				CreatedAt: &now,
+			}
 		}
 
 		if comp.Model.Metadata.AdditionalProperties == nil {

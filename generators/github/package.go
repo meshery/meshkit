@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/component"
@@ -96,7 +97,10 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 				comp.Model = &model.ModelDefinition{}
 			}
 			if comp.Model.Metadata == nil {
-				comp.Model.Metadata = &model.ModelDefinition_Metadata{}
+				now := time.Now()
+				comp.Model.Metadata = &model.ModelDefinition_Metadata{
+					CreatedAt: &now,
+				}
 			}
 			if comp.Model.Metadata.AdditionalProperties == nil {
 				comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
