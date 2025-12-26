@@ -31,8 +31,6 @@ type Config struct {
 func InitTracerFromYamlConfig( ctx context.Context , config string) (*sdktrace.TracerProvider,error) {
 	cfg := Config{}
 
-  config = strings.ReplaceAll(config, `\n`, "\n")
-
 	err := yaml.Unmarshal([]byte(config),&cfg)
 
 	if (err != nil  ){
