@@ -35,7 +35,7 @@ func InitTracerFromYamlConfig( ctx context.Context , config string) (*sdktrace.T
 
 	err := yaml.Unmarshal([]byte(config),&cfg)
 
-	if (err != nil  ){
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse tracing config: %w", err)
 	}
 
