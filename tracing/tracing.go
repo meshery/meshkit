@@ -17,7 +17,7 @@ import (
 // Config holds the configuration parameters for tracing
 type Config struct {
 	// ServiceName is the name of the service being traced
-	ServiceName string `yaml:"service_name" json:"service_name"` 
+	ServiceName string `yaml:"service_name" json:"service_name"`
 	// ServiceVersion is the version of the service
 	ServiceVersion string `yaml:"service_version" json:"service_version"`
 	// Environment is the deployment environment (e.g., "production", "staging", "development")
