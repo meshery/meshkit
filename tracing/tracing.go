@@ -28,7 +28,7 @@ type Config struct {
 	Insecure bool `yaml:"insecure" json:"insecure"`
 }
 
-func InitTracerFromYamlConfig( ctx context.Context , config string) (*sdktrace.TracerProvider,error) {
+func InitTracerFromYamlConfig(ctx context.Context, config string) (*sdktrace.TracerProvider, error) {
 	cfg := Config{}
 
   config = strings.ReplaceAll(config, `\n`, "\n")
