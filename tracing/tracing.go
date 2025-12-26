@@ -39,7 +39,7 @@ func InitTracerFromYamlConfig( ctx context.Context , config string) (*sdktrace.T
 		return nil, fmt.Errorf("failed to parse tracing config: %w", err)
 	}
 
-	return InitTracer(ctx,cfg);
+	return InitTracer(ctx, cfg)
 }
 
 // InitTracer initializes and configures the global OpenTelemetry trace provider
