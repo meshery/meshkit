@@ -3,6 +3,7 @@ package tracing
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -10,20 +11,35 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"gopkg.in/yaml.v3"
 )
 
 // Config holds the configuration parameters for tracing
 type Config struct {
 	// ServiceName is the name of the service being traced
-	ServiceName string
+	ServiceName string `yaml:"service_name" json:"service_name"` 
 	// ServiceVersion is the version of the service
-	ServiceVersion string
+	ServiceVersion string `yaml:"service_version" json:"service_version"`
 	// Environment is the deployment environment (e.g., "production", "staging", "development")
-	Environment string
+	Environment string `yaml:"environment" json:"environment"`
 	// Endpoint is the OTLP collector endpoint (e.g., "localhost:4317")
-	Endpoint string
+	Endpoint string `yaml:"endpoint" json:"endpoint"`
 	// Insecure determines whether to use an insecure connection (no TLS)
-	Insecure bool
+	Insecure bool `yaml:"insecure" json:"insecure"`
+}
+
+func InitTracerFromYamlConfig( ctx context.Context , config string) (*sdktrace.TracerProvider,error) {
+	cfg := Config{}
+
+  config = strings.ReplaceAll(config, `\n`, "\n")
+
+	err := yaml.Unmarshal([]byte(config),&cfg)
+
+	if (err != nil  ){
+		return nil,fmt.Errorf("Failed to parse tracing config %v",err)
+	}
+
+	return InitTracer(ctx,cfg);
 }
 
 // InitTracer initializes and configures the global OpenTelemetry trace provider
