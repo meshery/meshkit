@@ -1,19 +1,20 @@
 package github
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
-
-	"github.com/jarcoal/httpmock"
 )
 
-// use httpmock to mock github api responses
 func TestGetGithubRepoBranch(t *testing.T) {
 	tests := []struct {
 		name       string
 		owner      string
 		repo       string
 		mockStatus int
-		mockBody   string
+		mockBody   any // Using any allows us to pass structs or raw strings
 		wantBranch string
 		wantErr    bool
 	}{
@@ -21,8 +22,8 @@ func TestGetGithubRepoBranch(t *testing.T) {
 			name:       "valid repo",
 			owner:      "octocat",
 			repo:       "Hello-World",
-			mockStatus: 200,
-			mockBody:   `{"default_branch":"main"}`,
+			mockStatus: http.StatusOK,
+			mockBody:   map[string]string{"default_branch": "main"},
 			wantBranch: "main",
 			wantErr:    false,
 		},
@@ -30,8 +31,8 @@ func TestGetGithubRepoBranch(t *testing.T) {
 			name:       "valid repo with master branch",
 			owner:      "octocat",
 			repo:       "Hello-Mesh",
-			mockStatus: 200,
-			mockBody:   `{"default_branch":"master"}`,
+			mockStatus: http.StatusOK,
+			mockBody:   map[string]string{"default_branch": "master"},
 			wantBranch: "master",
 			wantErr:    false,
 		},
@@ -39,8 +40,8 @@ func TestGetGithubRepoBranch(t *testing.T) {
 			name:       "repo not found",
 			owner:      "octocat",
 			repo:       "NonExistentRepo",
-			mockStatus: 404,
-			mockBody:   `{"message":"Not Found"}`,
+			mockStatus: http.StatusNotFound,
+			mockBody:   map[string]string{"message": "Not Found"},
 			wantBranch: "",
 			wantErr:    true,
 		},
@@ -48,21 +49,24 @@ func TestGetGithubRepoBranch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// setup httpmock
-			httpmock.Activate()
-			defer httpmock.DeactivateAndReset()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				expectedPath := fmt.Sprintf("/repos/%s/%s", tt.owner, tt.repo)
+				if r.URL.Path != expectedPath {
+					t.Errorf("expected path %s, got %s", expectedPath, r.URL.Path)
+				}
 
-			url := "https://api.github.com/repos/" + tt.owner + "/" + tt.repo
-			httpmock.RegisterResponder("GET", url,
-				httpmock.NewStringResponder(tt.mockStatus, tt.mockBody))
+				w.WriteHeader(tt.mockStatus)
+				json.NewEncoder(w).Encode(tt.mockBody)
+			}))
+			defer server.Close()
 
-			branch, err := GetDefaultBranchFromGitHub(tt.owner, tt.repo, nil)
+			branch, err := GetDefaultBranchFromGitHub(server.URL, tt.owner, tt.repo, server.Client())
+
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetDefaultBranchFromGitHub() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("GetDefaultBranchFromGitHub() unexpected error state: %v", err)
 			}
 			if branch != tt.wantBranch {
-				t.Errorf("GetDefaultBranchFromGitHub() = %v, want %v", branch, tt.wantBranch)
+				t.Errorf("got branch %q, want %q", branch, tt.wantBranch)
 			}
 		})
 	}

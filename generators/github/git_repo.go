@@ -116,7 +116,8 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root s
 	case size == 2:
 		owner, repo = parts[0], parts[1]
 		// we use the default http client here
-		b, err := GetDefaultBranchFromGitHub(owner, repo, http.DefaultClient)
+
+		b, err := GetDefaultBranchFromGitHub("https://api.github.com", owner, repo, http.DefaultClient)
 		if err != nil {
 			return "", "", "", "", err
 		}

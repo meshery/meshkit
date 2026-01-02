@@ -6,11 +6,11 @@ import (
 	"net/http"
 )
 
-func GetDefaultBranchFromGitHub(owner, repo string, client *http.Client) (string, error) {
+func GetDefaultBranchFromGitHub(baseUrl, owner, repo string, client *http.Client) (string, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
+	url := fmt.Sprintf("%s/repos/%s/%s", baseUrl, owner, repo)
 	resp, err := client.Get(url)
 	if err != nil {
 		return "", ErrGetDefaultBranch(err, owner, repo)

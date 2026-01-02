@@ -24,7 +24,6 @@ require (
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/go-containerregistry v0.20.3
 	github.com/google/uuid v1.6.0
-	github.com/jarcoal/httpmock v1.4.1
 	github.com/kubernetes/kompose v1.37.0
 	github.com/meshery/meshery-operator v0.8.11
 	github.com/meshery/schemas v0.8.94
