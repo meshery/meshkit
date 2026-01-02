@@ -1,5 +1,4 @@
 package registry
-
 import (
 	"bytes"
 	"context"
