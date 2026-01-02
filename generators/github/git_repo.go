@@ -103,7 +103,7 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root s
 	default:
 		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid; expected owner/repo[/branch[/path]]", gr.URL.String()))
 	}
-
+	// log.Println("Repo: ", repo, "Owner: ", owner, "Branch: ", branch, "Root: ", root)
 	return
 }
 

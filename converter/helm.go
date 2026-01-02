@@ -29,7 +29,7 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 	}
 	if pattern.Version == "" {
 		return "", ErrCreateHelmChart(fmt.Errorf("missing version"), "chart metadata")
-	}		
+	}
 	//fmt.Println("Pattern loaded successfully" + pattern.Name + " " + pattern.Version)
 	k8sConverter := K8sConverter{}
 	k8sManifest, err := k8sConverter.Convert(patternFile)
@@ -46,7 +46,7 @@ func (h *HelmConverter) Convert(patternFile string) (string, error) {
 
 	chartContent, err := createHelmChartContent(k8sManifest, chartName, chartVersion)
 	if err != nil {
-		return "", err 
+		return "", err
 	}
 
 	return chartContent, nil
@@ -80,7 +80,7 @@ func createHelmChartContent(manifestContent, chartName, chartVersion string) (st
 			fmt.Printf("Warning: Failed to clean up build directory: %v\n", err)
 		}
 	}()
-	
+
 	if err := os.MkdirAll(chartSourcePath, 0755); err != nil {
 		return "", ErrCreateHelmChart(err, "creating chart source directory")
 	}
@@ -126,9 +126,8 @@ func createHelmChartContent(manifestContent, chartName, chartVersion string) (st
 	}
 
 	if err := os.Remove(packagedChartPath); err != nil {
-		fmt.Printf("Warning: Failed to clean up packaged chart: %v\n", err)	
+		fmt.Printf("Warning: Failed to clean up packaged chart: %v\n", err)
 	}
 
 	return string(chartData), nil
 }
-

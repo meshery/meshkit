@@ -1,0 +1,79 @@
+{
+"id": "00000000-0000-0000-0000-000000000000",
+"schemaVersion": "components.meshery.io/v1beta1",
+"version": "",
+"displayName": "Database",
+"description": "",
+"format": "JSON",
+"model": {
+"id": "00000000-0000-0000-0000-000000000000",
+"schemaVersion": "",
+"version": "",
+"name": "acm-controller",
+"displayName": "acm-controller",
+"status": "",
+"registrant": {
+"id": "00000000-0000-0000-0000-000000000000",
+"name": "",
+"type": "",
+"sub_type": "",
+"kind": "",
+"status": "",
+"created_at": "0001-01-01T00:00:00Z",
+"updated_at": "0001-01-01T00:00:00Z",
+"deleted_at": null,
+"schemaVersion": ""
+},
+"connection_id": "00000000-0000-0000-0000-000000000000",
+"category": {
+"id": "00000000-0000-0000-0000-000000000000",
+"name": ""
+},
+"subCategory": "",
+"metadata": {
+"source_uri": "git://github.com/muhammadolammi/meshcrds/",
+"svgColor": "",
+"svgWhite": ""
+},
+"model": {
+"version": ""
+},
+"components_count": 0,
+"relationships_count": 0,
+"created_at": "0001-01-01T00:00:00Z",
+"updated_at": "0001-01-01T00:00:00Z",
+"components": null,
+"relationships": null
+},
+"modelReference": {
+"version": "",
+"name": "",
+"displayName": "",
+"id": "00000000-0000-0000-0000-000000000000",
+"registrant": {
+"kind": ""
+},
+"model": {
+"version": ""
+}
+},
+"styles": null,
+"capabilities": null,
+"status": null,
+"metadata": {
+"configurationUISchema": "",
+"genealogy": "",
+"instanceDetails": null,
+"isAnnotation": false,
+"isNamespaced": true,
+"published": false
+},
+"configuration": null,
+"component": {
+"version": "stable.example.com/v1",
+"kind": "Database",
+"schema": "{\n \"properties\": {\n  \"spec\": {\n   \"properties\": {\n    \"engine\": {\n     \"type\": \"string\"\n    }\n   },\n   \"type\": \"object\"\n  }\n },\n \"title\": \"Database\",\n \"type\": \"object\"\n}"
+},
+"created_at": "0001-01-01T00:00:00Z",
+"updated_at": "0001-01-01T00:00:00Z"
+}

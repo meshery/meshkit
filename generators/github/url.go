@@ -2,8 +2,8 @@ package github
 
 import (
 	"bufio"
-	"io"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -85,32 +85,55 @@ func (u URL) GetContent() (models.Package, error) {
 	}, nil
 }
 
+// func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error {
+// 	var err error
+// 	if utils.IsTarGz(downloadfilePath) {
+// 		err = utils.ExtractTarGz(downloadDirPath, downloadfilePath)
+// 	} else if utils.IsZip(downloadfilePath) {
+// 		err = utils.ExtractZip(downloadDirPath, downloadfilePath)
+// 	} else {
+// 		// If it is not an archive/zip, then the file itself is to be processed.
+// 		downloadDirPath = downloadfilePath
+// 	}
+
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	err = utils.ProcessContent(downloadDirPath, func(path string) error {
+
+// 		err = helm.ConvertToK8sManifest(path, "", w)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		return nil
+// 	})
+
+//		if err != nil {
+//			return err
+//		}
+//		return nil
+//	}
+//
+// Instead of sharing the error we can branch and return from each branch
 func ProcessContent(w io.Writer, downloadDirPath, downloadfilePath string) error {
-	var err error
-	if utils.IsTarGz(downloadfilePath) {
-		err = utils.ExtractTarGz(downloadDirPath, downloadfilePath)
-	} else if utils.IsZip(downloadfilePath) {
-		err = utils.ExtractZip(downloadDirPath, downloadfilePath)
-	} else {
-		// If it is not an archive/zip, then the file itself is to be processed.
-		downloadDirPath = downloadfilePath
-	}
-
-	if err != nil {
-		return err
-	}
-
-	err = utils.ProcessContent(downloadDirPath, func(path string) error {
-
-		err = helm.ConvertToK8sManifest(path, "", w)
-		if err != nil {
+	if utils.IsZip(downloadfilePath) {
+		if err := utils.ExtractZip(downloadDirPath, downloadfilePath); err != nil {
 			return err
 		}
-		return nil
-	})
-
-	if err != nil {
-		return err
+		return utils.ProcessContent(downloadDirPath, func(path string) error {
+			return helm.ConvertToK8sManifest(path, "", w)
+		})
 	}
-	return nil
+
+	if utils.IsTarGz(downloadfilePath) {
+		if err := utils.ExtractTarGz(downloadDirPath, downloadfilePath); err != nil {
+			return err
+		}
+		return utils.ProcessContent(downloadDirPath, func(path string) error {
+			return helm.ConvertToK8sManifest(path, "", w)
+		})
+	}
+
+	return helm.ConvertToK8sManifest(downloadfilePath, "", w)
 }

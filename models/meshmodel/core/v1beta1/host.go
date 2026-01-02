@@ -126,10 +126,10 @@ func (k Kubernetes) String() string {
 
 type GitHub struct{}
 
-func(gh GitHub) HandleDependents(_ component.ComponentDefinition, _ *kubernetes.Client, _, _ bool) (summary string, err error) {
+func (gh GitHub) HandleDependents(_ component.ComponentDefinition, _ *kubernetes.Client, _, _ bool) (summary string, err error) {
 	return summary, err
 }
 
-func(gh GitHub) String() string {
+func (gh GitHub) String() string {
 	return "github"
 }

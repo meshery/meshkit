@@ -2,6 +2,7 @@ package files
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"compress/gzip"
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/models/oci"

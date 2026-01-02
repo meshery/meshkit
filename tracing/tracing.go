@@ -30,7 +30,7 @@ type Config struct {
 func InitTracerFromYamlConfig(ctx context.Context, config string) (*sdktrace.TracerProvider, error) {
 	cfg := Config{}
 
-	err := yaml.Unmarshal([]byte(config),&cfg)
+	err := yaml.Unmarshal([]byte(config), &cfg)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse tracing config: %w", err)

@@ -20,10 +20,10 @@ import (
 var SyncRelationship sync.Mutex
 
 type Rego struct {
-	store       storagepkg.Store
-	txn         storagepkg.Transaction
-	ctx         context.Context
-	policyDir   string
+	store     storagepkg.Store
+	txn       storagepkg.Transaction
+	ctx       context.Context
+	policyDir string
 }
 
 // NewRegoInstance creates a new Rego evaluator with relationships loaded
@@ -52,7 +52,7 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 }
 
 // CustomPrint implements the print.Hook interface to capture print statements
-type CustomPrint struct{
+type CustomPrint struct {
 	Messages []string
 }
 

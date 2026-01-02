@@ -23,3 +23,6 @@ cmd/errorutil/errorutil
 **errorutil_errors_export.json
 *.DS_Store
 coverage.txt
+
+
+zip_test.go

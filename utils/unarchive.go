@@ -70,51 +70,109 @@ func readData(name string) (buffer []byte, err error) {
 	return
 }
 
+// func ExtractZip(path, artifactPath string) error {
+// 	zipReader, err := zip.OpenReader(artifactPath)
+// 	defer func() {
+// 		_ = zipReader.Close()
+// 	}()
+
+// 	if err != nil {
+// 		return ErrExtractZip(err, path)
+// 	}
+// 	// buffer := make([]byte, 1<<4)
+// 	// we default to 16KB buffer from go using io.Copy instead of io.CopyBuffer
+// 	for _, file := range zipReader.File {
+
+// 		fd, err := file.Open()
+// 		defer func() {
+// 			_ = fd.Close()
+// 		}()
+
+// 		if err != nil {
+// 			return ErrExtractZip(err, path)
+// 		}
+
+// 		filePath := filepath.Join(path, file.Name)
+
+// 		if file.FileInfo().IsDir() {
+// 			// err := os.Mkdir(file.Name, file.Mode())
+// 			//  this is cauing a bug by creating dirs in cwd instead of path
+// 			err := os.MkdirAll(filePath, file.Mode())
+// 			if err != nil {
+// 				return ErrExtractZip(err, path)
+// 			}
+// 		} else {
+// 			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+// 			if err != nil {
+// 				return ErrExtractZip(err, path)
+// 			}
+// 			_, err = io.Copy(openedFile, fd)
+// 			if err != nil {
+// 				return ErrExtractZip(err, path)
+// 			}
+// 			defer func() {
+// 				_ = openedFile.Close()
+// 			}()
+// 		}
+
+// 	}
+// 	return nil
+
+// }
 func ExtractZip(path, artifactPath string) error {
 	zipReader, err := zip.OpenReader(artifactPath)
-	defer func() {
-		_ = zipReader.Close()
-	}()
-
 	if err != nil {
 		return ErrExtractZip(err, path)
 	}
-	buffer := make([]byte, 1<<4)
-	for _, file := range zipReader.File {
+	defer zipReader.Close()
 
-		fd, err := file.Open()
-		defer func() {
-			_ = fd.Close()
+	for _, file := range zipReader.File {
+		// We use a closure here so that 'defer' works correctly for each file
+		err := func() error {
+			fd, err := file.Open()
+			if err != nil {
+				return err
+			}
+			defer fd.Close()
+
+			filePath := filepath.Join(path, file.Name)
+
+			if file.FileInfo().IsDir() {
+				// this will create the folders in the filepath(/temp ) instead of cwd, which was a bug
+				return os.MkdirAll(filePath, file.Mode())
+			}
+			// Skip macOS resource fork files
+			if strings.HasPrefix(filepath.Base(filePath), "._") {
+				return nil
+			}
+
+			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+				return err
+			}
+
+			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+			if err != nil {
+				return err
+			}
+			defer openedFile.Close()
+
+			_, err = io.Copy(openedFile, fd)
+			// if err == nil {
+			// 	log.Printf("Copied file %s\n", filePath)
+			// 	// Debug
+			// 	content, readErr := os.ReadFile(filePath)
+			// 	if readErr == nil {
+			// 		log.Printf("CONTENT OF %s:\n%s\n--- END CONTENT ---", filePath, string(content))
+			// 	}
+			// }
+			return err
 		}()
 
 		if err != nil {
 			return ErrExtractZip(err, path)
 		}
-
-		filePath := filepath.Join(path, file.Name)
-
-		if file.FileInfo().IsDir() {
-			err := os.Mkdir(file.Name, file.Mode())
-			if err != nil {
-				return ErrExtractZip(err, path)
-			}
-		} else {
-			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-			if err != nil {
-				return ErrExtractZip(err, path)
-			}
-			_, err = io.CopyBuffer(openedFile, fd, buffer)
-			if err != nil {
-				return ErrExtractZip(err, path)
-			}
-			defer func() {
-				_ = openedFile.Close()
-			}()
-		}
-
 	}
 	return nil
-
 }
 
 func ExtractTarGz(path, downloadfilePath string) error {

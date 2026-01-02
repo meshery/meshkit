@@ -16,42 +16,42 @@ func TestExtractRepoDetailsFromSourceURL(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:      "owner and repo only",
-			input:     "git://github.com/owner/repo",
-			wantOwner: "owner",
-			wantRepo:  "repo",
-			wantRoot:  "/**",
-			wantErr:   false,
+			name:       "owner and repo only",
+			input:      "git://github.com/meshery/meshkit",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "/**",
+			wantErr:    false,
 		},
 		{
 			name:       "owner repo and branch",
-			input:      "git://github.com/owner/repo/mybranch",
-			wantOwner:  "owner",
-			wantRepo:   "repo",
-			wantBranch: "mybranch",
+			input:      "git://github.com/meshery/meshkit/master",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
 			wantRoot:   "/**",
 			wantErr:    false,
 		},
 		{
 			name:       "owner repo branch and path",
-			input:      "git://github.com/owner/repo/mybranch/path/to/crds",
-			wantOwner:  "owner",
-			wantRepo:   "repo",
-			wantBranch: "mybranch",
-			wantRoot:   "path/to/crds",
+			input:      "git://github.com/meshery/meshkit/master/install/kubernetes",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "install/kubernetes",
 			wantErr:    false,
 		},
 		{
 			name:    "invalid single component",
-			input:   "git://github.com/owner",
+			input:   "git://github.com/meshery",
 			wantErr: true,
 		},
 		{
-			name:      "trailing slash on repo",
-			input:     "git://github.com/owner/repo/",
-			wantOwner: "owner",
-			wantRepo:  "repo",
-			// trailing slash leads to a third empty element; branch becomes "" and root "/**"
+			name:       "trailing slash on repo",
+			input:      "git://github.com/meshery/meshkit/",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
 			wantBranch: "",
 			wantRoot:   "/**",
 			wantErr:    false,
@@ -65,7 +65,7 @@ func TestExtractRepoDetailsFromSourceURL(t *testing.T) {
 				t.Fatalf("failed to parse url %s: %v", tt.input, err)
 			}
 			gr := GitRepo{URL: u}
-			owner, repo, branch, root, err := gr.extractRepoDetailsFromSourceURL()
+			owner, repo, branch, root, err := gr.ExtractRepoDetailsFromSourceURL()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("unexpected error state: got err=%v, wantErr=%v", err, tt.wantErr)
 			}

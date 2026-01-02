@@ -42,7 +42,7 @@ func (hook *CallerHook) shouldSkipFrame(pc uintptr) bool {
 	if fn == nil {
 		return false
 	}
-	
+
 	funcName := fn.Name()
 	for _, path := range hook.skippedPaths {
 		if strings.Contains(funcName, path) {
