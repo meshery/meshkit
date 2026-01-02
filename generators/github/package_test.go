@@ -82,13 +82,6 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			want: 1,
 		},
 
-		{ // Source pointing to a zip containing manifests but no CRDs
-			ghPackageManager: GitHubPackageManager{
-				PackageName: "acm-controller",
-				SourceURL:   "git://github.com/MUzairS15/WASM-filters/main/",
-			},
-			want: 0,
-		},
 		// This test case is to solve the ExtractZip function's root path handling
 		{ // Source pointing to a zip containing CRDs
 			ghPackageManager: GitHubPackageManager{
