@@ -33,9 +33,15 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	}
 
 	versions, err := utils.GetLatestReleaseTagsSorted(owner, repo)
+
 	var version string
 	if err == nil && len(versions) > 0 {
+
 		version = versions[len(versions)-1]
+	}
+	// we only work with repo with at least one valid release tag
+	if err != nil {
+		return nil, ErrInvalidGitHubSourceURL(err)
 	}
 
 	dirPath := filepath.Join(os.TempDir(), owner, repo, branch)
