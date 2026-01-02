@@ -82,7 +82,7 @@ func ExtractZip(path, artifactPath string) error {
 		err := func() error {
 			fd, err := file.Open()
 			if err != nil {
-				return ErrExtractZip(err, path)
+				return err
 			}
 			defer fd.Close()
 
@@ -98,12 +98,12 @@ func ExtractZip(path, artifactPath string) error {
 			}
 
 			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-				return ErrExtractZip(err, path)
+				return err
 			}
 
 			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 			if err != nil {
-				return ErrExtractZip(err, path)
+				return err
 			}
 			defer openedFile.Close()
 
@@ -111,7 +111,7 @@ func ExtractZip(path, artifactPath string) error {
 
 			return err
 		}()
-
+		// we capture the closure error here and wrap it with ErrExtractZip
 		if err != nil {
 			return ErrExtractZip(err, path)
 		}
