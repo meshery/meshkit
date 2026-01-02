@@ -81,6 +81,21 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			},
 			want: 1,
 		},
+
+		{ // Source pointing to a gh repo with no branch and no root
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "git://github.com/MUzairS15/WASM-filters",
+			},
+			want: 14,
+		},
+		{ // Source pointing to a gh repo with a branch but no root
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "git://github.com/MUzairS15/WASM-filters/main",
+			},
+			want: 14,
+		},
 	}
 
 	for _, test := range tests {

@@ -20,7 +20,8 @@ type GitRepo struct {
 	PackageName string
 }
 
-// Assumpations: 1. Always a K8s manifest
+// Assumpations:
+// 1. Always a K8s manifest
 // 2. Unzipped/unarchived File type
 
 func (gr GitRepo) GetContent() (models.Package, error) {
@@ -32,10 +33,15 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	}
 
 	versions, err := utils.GetLatestReleaseTagsSorted(owner, repo)
-	if err != nil {
-		return nil, ErrInvalidGitHubSourceURL(err)
+	var version string
+	if err == nil && len(versions) > 0 {
+		version = versions[len(versions)-1]
 	}
-	version := versions[len(versions)-1]
+
+	// if err != nil {
+	// 	return nil, ErrInvalidGitHubSourceURL(err)
+	// }
+	// version := versions[len(versions)-1]
 	dirPath := filepath.Join(os.TempDir(), owner, repo, branch)
 	_ = os.MkdirAll(dirPath, 0755)
 	filePath := filepath.Join(dirPath, utils.GetRandomAlphabetsOfDigit(5))
@@ -80,15 +86,24 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root string, err error) {
 	parts := strings.SplitN(strings.TrimPrefix(gr.URL.Path, "/"), "/", 4)
 	size := len(parts)
-	if size > 3 {
-		owner = parts[0]
-		repo = parts[1]
-		branch = parts[2]
-		root = parts[3]
-
-	} else {
-		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid, specify owner, repo, branch and filepath in the url according to the specified source url format", gr.URL.String()))
+	switch size {
+	case 4:
+		owner, repo, branch, root = parts[0], parts[1], parts[2], parts[3]
+	case 3:
+		owner, repo, branch = parts[0], parts[1], parts[2]
+		root = "/**"
+	case 2:
+		owner, repo = parts[0], parts[1]
+		b, err := GetDefaultBranchFromGitHub(owner, repo)
+		if err != nil {
+			return "", "", "", "", err
+		}
+		branch = b
+		root = "/**"
+	default:
+		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid; expected owner/repo[/branch[/path]]", gr.URL.String()))
 	}
+
 	return
 }
 
