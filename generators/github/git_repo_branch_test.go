@@ -26,6 +26,9 @@ func TestGetGithubRepoBranch(t *testing.T) {
 			wantBranch: "master",
 			wantErr:    false,
 		},
+
+		// lets test for gemini edge case
+
 	}
 
 	for _, tt := range tests {

@@ -38,10 +38,6 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 		version = versions[len(versions)-1]
 	}
 
-	// if err != nil {
-	// 	return nil, ErrInvalidGitHubSourceURL(err)
-	// }
-	// version := versions[len(versions)-1]
 	dirPath := filepath.Join(os.TempDir(), owner, repo, branch)
 	_ = os.MkdirAll(dirPath, 0755)
 	filePath := filepath.Join(dirPath, utils.GetRandomAlphabetsOfDigit(5))
@@ -84,15 +80,33 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 }
 
 func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root string, err error) {
-	parts := strings.SplitN(strings.TrimPrefix(gr.URL.Path, "/"), "/", 4)
+	// Trim slashes from both ends to handle "owner/repo/" correctly
+	path := strings.Trim(gr.URL.Path, "/")
+
+	// If path is empty after trimming, it's definitely invalid
+	if path == "" {
+		return "", "", "", "", ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid", gr.URL.String()))
+	}
+
+	// Split the path into parts
+	raw := strings.Split(path, "/")
+	parts := make([]string, 0)
+	for _, p := range raw {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
 	size := len(parts)
-	switch size {
-	case 4:
-		owner, repo, branch, root = parts[0], parts[1], parts[2], parts[3]
-	case 3:
+
+	switch {
+	case size >= 4:
+		// Use the first three for owner, repo, branch, and join the rest for root
+		owner, repo, branch = parts[0], parts[1], parts[2]
+		root = strings.Join(parts[3:], "/")
+	case size == 3:
 		owner, repo, branch = parts[0], parts[1], parts[2]
 		root = "/**"
-	case 2:
+	case size == 2:
 		owner, repo = parts[0], parts[1]
 		b, err := GetDefaultBranchFromGitHub(owner, repo)
 		if err != nil {
@@ -101,9 +115,9 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root s
 		branch = b
 		root = "/**"
 	default:
-		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid; expected owner/repo[/branch[/path]]", gr.URL.String()))
+		return "", "", "", "", ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid; expected owner/repo[/branch[/path]]", gr.URL.String()))
 	}
-	// log.Println("Repo: ", repo, "Owner: ", owner, "Branch: ", branch, "Root: ", root)
+
 	return
 }
 

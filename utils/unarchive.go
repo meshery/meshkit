@@ -108,14 +108,7 @@ func ExtractZip(path, artifactPath string) error {
 			defer openedFile.Close()
 
 			_, err = io.Copy(openedFile, fd)
-			// if err == nil {
-			// 	log.Printf("Copied file %s\n", filePath)
-			// 	// Debug
-			// 	content, readErr := os.ReadFile(filePath)
-			// 	if readErr == nil {
-			// 		log.Printf("CONTENT OF %s:\n%s\n--- END CONTENT ---", filePath, string(content))
-			// 	}
-			// }
+
 			return err
 		}()
 

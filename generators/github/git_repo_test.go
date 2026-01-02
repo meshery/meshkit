@@ -52,7 +52,35 @@ func TestExtractRepoDetailsFromSourceURL(t *testing.T) {
 			input:      "git://github.com/meshery/meshkit/",
 			wantOwner:  "meshery",
 			wantRepo:   "meshkit",
-			wantBranch: "",
+			wantBranch: "master",
+			wantRoot:   "/**",
+			wantErr:    false,
+		},
+		// AFter gemini review these should gail
+		{
+			name:       "trailing slash triggers default branch",
+			input:      "git://github.com/meshery/meshkit/", // Trailing slash
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master", // The old code would return "" here
+			wantRoot:   "/**",
+			wantErr:    false,
+		},
+		{
+			name:       "nested path depth greater than 4",
+			input:      "git://github.com/meshery/meshkit/master/install/kubernetes/helm/meshery",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "install/kubernetes/helm/meshery", // The old code would cut this off
+			wantErr:    false,
+		},
+		{
+			name:       "multiple slashes in path",
+			input:      "git://github.com/meshery/meshkit///master/",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
 			wantRoot:   "/**",
 			wantErr:    false,
 		},

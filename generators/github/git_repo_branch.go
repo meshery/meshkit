@@ -12,10 +12,11 @@ func GetDefaultBranchFromGitHub(owner, repo string) (string, error) {
 
 func getDefaultBranchFromGitHub(owner, repo string) (string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
-	req, _ := http.NewRequest("GET", url, nil)
-	// for private repos or higher rate limits, set a GitHub token in the GITHUB_TOKEN env var
-	// commented out cause it will fail on empty token
-	// req.Header.Set("Authorization", "token "+os.Getenv("GITHUB_TOKEN"))
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err

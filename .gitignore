@@ -25,4 +25,3 @@ cmd/errorutil/errorutil
 coverage.txt
 
 
-zip_test.go
