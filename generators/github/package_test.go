@@ -90,7 +90,6 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			},
 			want: 2,
 		},
-
 		// This test case is for the feature where root is empty in the source URL
 		{ // Source pointing to a git with just branch containing crds in root and a zip
 			ghPackageManager: GitHubPackageManager{
