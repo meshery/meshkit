@@ -6,30 +6,25 @@ import (
 	"net/http"
 )
 
-func GetDefaultBranchFromGitHub(owner, repo string) (string, error) {
-	return getDefaultBranchFromGitHub(owner, repo)
-}
-
-func getDefaultBranchFromGitHub(owner, repo string) (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", err
+func GetDefaultBranchFromGitHub(owner, repo string, client *http.Client) (string, error) {
+	if client == nil {
+		client = http.DefaultClient
 	}
-
-	resp, err := http.DefaultClient.Do(req)
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
+	resp, err := client.Get(url)
 	if err != nil {
-		return "", err
+		return "", ErrGetDefaultBranch(err, owner, repo)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("github api: %d", resp.StatusCode)
+		return "", ErrGetDefaultBranch(fmt.Errorf("github api: %d", resp.StatusCode), owner, repo)
 	}
 	var out struct {
 		DefaultBranch string `json:"default_branch"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", err
+		return "", ErrGetDefaultBranch(err, owner, repo)
 	}
 	return out.DefaultBranch, nil
+
 }

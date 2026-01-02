@@ -3,6 +3,7 @@ package github
 import (
 	"bufio"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -114,7 +115,8 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root s
 		root = "/**"
 	case size == 2:
 		owner, repo = parts[0], parts[1]
-		b, err := GetDefaultBranchFromGitHub(owner, repo)
+		// we use the default http client here
+		b, err := GetDefaultBranchFromGitHub(owner, repo, http.DefaultClient)
 		if err != nil {
 			return "", "", "", "", err
 		}
