@@ -1,4 +1,5 @@
 package registry
+
 import (
 	"bytes"
 	"context"
@@ -839,23 +840,19 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 		}
 	}()
 	// Iterate models from the spreadsheet
-	for _, model := range modelCSVHelper.Models 
-	{
-    if modelName != "" && modelName != model.Model 
-	{
-        continue
-    }
+	for _, model := range modelCSVHelper.Models {
+		if modelName != "" && modelName != model.Model {
+			continue
+		}
+		if modelName == "" && strings.ToLower(strings.TrimSpace(model.PublishToRegistry)) != "true" {
+			log.Infof("Skipping model: %s (PublishToRegistry != true)", model.Model)
+			continue
+		}
 
-    	if modelName == "" && strings.ToLower(strings.TrimSpace(model.PublishToRegistry)) != "true" 
-		{
-        	log.Infof("Skipping model: %s (PublishToRegistry != true)", model.Model)
-        	continue
-    	}
-	}	
 		totalAvailableModels++
 		ctx := context.Background()
 
-		err := weightedSem.Acquire(ctx, 1)
+		err = weightedSem.Acquire(ctx, 1)
 		if err != nil {
 			break
 		}
@@ -978,7 +975,6 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 			})
 		}(model)
 	}
-
 	wg.Wait()
 	close(spreadsheeetChan)
 	ProcessRelationships(relationshipCSVHelper, relationshipUpdateChan, path)
@@ -990,6 +986,7 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 	}
 	wgForSpreadsheetUpdate.Wait()
 	return nil
+
 }
 
 // For registrants eg: meshery, whose components needs to be directly created by referencing meshery/schemas repo.
