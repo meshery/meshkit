@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -69,43 +70,54 @@ func readData(name string) (buffer []byte, err error) {
 	}
 	return
 }
+
 func ExtractZip(path, artifactPath string) error {
 	zipReader, err := zip.OpenReader(artifactPath)
 	if err != nil {
 		return ErrExtractZip(err, path)
 	}
 	defer zipReader.Close()
-
+	destDir, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
 	for _, file := range zipReader.File {
 		err := func() error {
+			targetPath, err := filepath.Abs(filepath.Join(destDir, file.Name))
+			if err != nil {
+				return err
+			}
+
+			if !strings.HasPrefix(targetPath, destDir+string(os.PathSeparator)) && targetPath != destDir {
+				return fmt.Errorf("zipslip: illegal file path: %s", file.Name)
+			}
+
+			// CHECK for files to skip (macOS metadata)
+			if strings.HasPrefix(filepath.Base(targetPath), "._") || filepath.Base(targetPath) == "__MACOSX" {
+				return nil
+			}
+
 			fd, err := file.Open()
 			if err != nil {
 				return err
 			}
 			defer fd.Close()
 
-			filePath := filepath.Join(path, file.Name)
-			// CHECK for files to skip
-			if strings.HasPrefix(filepath.Base(filePath), "._") || filepath.Base(filePath) == "__MACOSX" {
-				return nil
-			}
-
 			if file.FileInfo().IsDir() {
-				return os.MkdirAll(filePath, file.Mode())
+				return os.MkdirAll(targetPath, file.Mode())
 			}
 
-			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 				return err
 			}
 
-			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+			openedFile, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 			if err != nil {
 				return err
 			}
 			defer openedFile.Close()
 
 			_, err = io.Copy(openedFile, fd)
-
 			return err
 		}()
 		if err != nil {
