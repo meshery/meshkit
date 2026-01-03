@@ -20,7 +20,6 @@ func ErrInvalidGitHubSourceURL(err error) error {
 	return errors.New(ErrInvalidGitHubSourceURLCode, errors.Alert, []string{}, []string{err.Error()}, []string{"sourceURL provided might be invalid", "provided repo/version tag does not exist"}, []string{"ensure source url follows the format: git://<owner>/<repositoryname>/<branch>/<version>/<path from the root of repository>"})
 }
 
-// ErrGetDefaultBranch is the error for getting the default branch
 func ErrGetDefaultBranch(err error, owner, repo string) error {
 	return errors.New(ErrGetGithubDefaultBranchCode, errors.Alert, []string{fmt.Sprintf("Error while getting default branch for %s/%s", owner, repo)}, []string{err.Error()}, []string{"The repository might not exist"}, []string{})
 }
