@@ -1,0 +1,145 @@
+package github
+
+import (
+	"net/url"
+	"testing"
+)
+
+func TestExtractRepoDetailsFromSourceURL(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantOwner  string
+		wantRepo   string
+		wantBranch string
+		wantRoot   string
+		wantErr    bool
+	}{
+		{
+			name:       "owner and repo only",
+			input:      "git://github.com/meshery/meshkit",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "/**",
+			wantErr:    false,
+		},
+		{
+			name:       "owner repo and branch",
+			input:      "git://github.com/meshery/meshkit/master",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "/**",
+			wantErr:    false,
+		},
+		{
+			name:       "owner repo branch and path",
+			input:      "git://github.com/meshery/meshkit/master/install/kubernetes",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "install/kubernetes",
+			wantErr:    false,
+		},
+		{
+			name:    "invalid single component",
+			input:   "git://github.com/meshery",
+			wantErr: true,
+		},
+		{
+			name:       "trailing slash on repo",
+			input:      "git://github.com/meshery/meshkit/",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "/**",
+			wantErr:    false,
+		},
+		// AFter gemini review these should gail
+		{
+			name:       "trailing slash triggers default branch",
+			input:      "git://github.com/meshery/meshkit/", // Trailing slash
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master", // The old code would return "" here
+			wantRoot:   "/**",
+			wantErr:    false,
+		},
+		{
+			name:       "nested path depth greater than 4",
+			input:      "git://github.com/meshery/meshkit/master/install/kubernetes/helm/meshery",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "install/kubernetes/helm/meshery", // The old code would cut this off
+			wantErr:    false,
+		},
+		{
+			name:       "multiple slashes in path",
+			input:      "git://github.com/meshery/meshkit///master/",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "/**",
+			wantErr:    false,
+		},
+		{
+			name:       "GitHub Browser URL - Tree",
+			input:      "https://github.com/meshery/meshkit/tree/master/install",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "install",
+			wantErr:    false,
+		},
+		{
+			name:       "GitHub Browser URL - Blob",
+			input:      "https://github.com/meshery/meshkit/blob/master/models/meshmodel.yaml",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "models/meshmodel.yaml",
+			wantErr:    false,
+		},
+		{
+			name:       "GitHub Release URL",
+			input:      "https://github.com/meshery/meshkit/releases/tag/v0.6.0",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "v0.6.0",
+			wantRoot:   "/**",
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u, err := url.Parse(tt.input)
+			if err != nil {
+				t.Fatalf("failed to parse url %s: %v", tt.input, err)
+			}
+			gr := GitRepo{URL: u}
+			owner, repo, branch, root, err := gr.ExtractRepoDetailsFromSourceURL()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("unexpected error state: got err=%v, wantErr=%v", err, tt.wantErr)
+			}
+			if err != nil {
+				// on error we are done
+				return
+			}
+			if owner != tt.wantOwner {
+				t.Fatalf("owner: got %q want %q", owner, tt.wantOwner)
+			}
+			if repo != tt.wantRepo {
+				t.Fatalf("repo: got %q want %q", repo, tt.wantRepo)
+			}
+			if branch != tt.wantBranch {
+				t.Fatalf("branch: got %q want %q", branch, tt.wantBranch)
+			}
+			if root != tt.wantRoot {
+				t.Fatalf("root: got %q want %q", root, tt.wantRoot)
+			}
+		})
+	}
+}

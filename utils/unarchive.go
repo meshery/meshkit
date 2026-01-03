@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -72,49 +73,58 @@ func readData(name string) (buffer []byte, err error) {
 
 func ExtractZip(path, artifactPath string) error {
 	zipReader, err := zip.OpenReader(artifactPath)
-	defer func() {
-		_ = zipReader.Close()
-	}()
-
 	if err != nil {
 		return ErrExtractZip(err, path)
 	}
-	buffer := make([]byte, 1<<4)
+	defer zipReader.Close()
+	destDir, err := filepath.Abs(path)
+	if err != nil {
+		return ErrExtractZip(err, path)
+	}
 	for _, file := range zipReader.File {
+		err := func() error {
+			targetPath, err := filepath.Abs(filepath.Join(destDir, file.Name))
+			if err != nil {
+				return err
+			}
 
-		fd, err := file.Open()
-		defer func() {
-			_ = fd.Close()
+			if !strings.HasPrefix(targetPath, destDir+string(os.PathSeparator)) && targetPath != destDir {
+				return fmt.Errorf("zipslip: illegal file path: %s", file.Name)
+			}
+
+			// CHECK for files to skip (macOS metadata)
+			if strings.HasPrefix(filepath.Base(targetPath), "._") || filepath.Base(targetPath) == "__MACOSX" {
+				return nil
+			}
+
+			fd, err := file.Open()
+			if err != nil {
+				return err
+			}
+			defer fd.Close()
+
+			if file.FileInfo().IsDir() {
+				return os.MkdirAll(targetPath, file.Mode())
+			}
+
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+				return err
+			}
+
+			openedFile, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+			if err != nil {
+				return err
+			}
+			defer openedFile.Close()
+
+			_, err = io.Copy(openedFile, fd)
+			return err
 		}()
-
 		if err != nil {
 			return ErrExtractZip(err, path)
 		}
-
-		filePath := filepath.Join(path, file.Name)
-
-		if file.FileInfo().IsDir() {
-			err := os.Mkdir(file.Name, file.Mode())
-			if err != nil {
-				return ErrExtractZip(err, path)
-			}
-		} else {
-			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-			if err != nil {
-				return ErrExtractZip(err, path)
-			}
-			_, err = io.CopyBuffer(openedFile, fd, buffer)
-			if err != nil {
-				return ErrExtractZip(err, path)
-			}
-			defer func() {
-				_ = openedFile.Close()
-			}()
-		}
-
 	}
 	return nil
-
 }
 
 func ExtractTarGz(path, downloadfilePath string) error {
