@@ -37,12 +37,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	if err != nil {
 		return nil, ErrInvalidGitHubSourceURL(err)
 	}
-
-	var version string
-	if len(versions) > 0 {
-		version = versions[len(versions)-1]
-	}
-
+	version := versions[len(versions)-1]
 	dirPath := filepath.Join(os.TempDir(), owner, repo, branch)
 	_ = os.MkdirAll(dirPath, 0755)
 	filePath := filepath.Join(dirPath, utils.GetRandomAlphabetsOfDigit(5))

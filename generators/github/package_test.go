@@ -102,7 +102,7 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 		{ // Source pointing to a git with no branch containing crds in root and a zip
 			ghPackageManager: GitHubPackageManager{
 				PackageName: "acm-controller",
-				SourceURL:   "git://github.com/muhammadolammi/meshcrds/",
+				SourceURL:   "git://github.com/muhammadolammi/meshcrds",
 			},
 			want: 5,
 		},
