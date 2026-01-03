@@ -81,6 +81,31 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			},
 			want: 1,
 		},
+
+		// This test case is to solve the ExtractZip function's root path handling
+		{ // Source pointing to a zip containing CRDs
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "git://github.com/muhammadolammi/meshcrds/main/crds.zip",
+			},
+			want: 2,
+		},
+		// This test case is for the feature where root is empty in the source URL
+		{ // Source pointing to a git with just branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "git://github.com/muhammadolammi/meshcrds/main/",
+			},
+			want: 5,
+		},
+		// This test case is for the feature where root and branch is empty in the source URL
+		{ // Source pointing to a git with no branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "git://github.com/muhammadolammi/meshcrds/",
+			},
+			want: 5,
+		},
 	}
 
 	for _, test := range tests {
@@ -121,11 +146,14 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				}
 				_, _ = f.Write(byt)
 			}
+
 			t.Log("generated ", len(comps), "want: ", test.want)
+
 			if len(comps) != test.want {
 				t.Errorf("generated %d, want %d", len(comps), test.want)
 				return
 			}
+
 		})
 	}
 }
