@@ -3,6 +3,7 @@ package utils
 import (
 	"archive/zip"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -62,5 +63,39 @@ func TestExtractZip(t *testing.T) {
 				t.Errorf("ExtractZip() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestExtractZip_Destination(t *testing.T) {
+	destDir, _ := os.MkdirTemp("", "correct-dest-*")
+	defer os.RemoveAll(destDir)
+
+	cwd, _ := os.Getwd()
+
+	subDirName := "target-subfolder"
+	zipFile, _ := os.CreateTemp("", "test-*.zip")
+	writer := zip.NewWriter(zipFile)
+
+	_, _ = writer.Create(subDirName + "/")
+	f, _ := writer.Create(filepath.Join(subDirName, "file.txt"))
+	f.Write([]byte("content"))
+	writer.Close()
+	zipFile.Close()
+	defer os.Remove(zipFile.Name())
+
+	err := ExtractZip(destDir, zipFile.Name())
+	if err != nil {
+		t.Fatalf("Extraction failed: %v", err)
+	}
+
+	wrongPath := filepath.Join(cwd, subDirName)
+	if _, err := os.Stat(wrongPath); err == nil {
+		t.Errorf("BUG FOUND: Folder was created in CWD: %s", wrongPath)
+		os.RemoveAll(wrongPath) // Cleanup the mess made by the bug
+	}
+
+	rightPath := filepath.Join(destDir, subDirName)
+	if _, err := os.Stat(rightPath); os.IsNotExist(err) {
+		t.Errorf("FAILURE: Folder was NOT created in destination: %s", rightPath)
 	}
 }
