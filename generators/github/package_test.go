@@ -106,6 +106,31 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			},
 			want: 5,
 		},
+		// github.com verisons of the above 3 test case
+		{ // Source pointing to a git with just branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds/tree/main/crds.zip",
+			},
+			want: 2,
+		},
+
+		// This test case is for the feature where root is empty in the source URL
+		{ // Source pointing to a git with just branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds/tree/main/",
+			},
+			want: 5,
+		},
+		// This test case is for the feature where root and branch is empty in the source URL
+		{ // Source pointing to a git with no branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds",
+			},
+			want: 5,
+		},
 	}
 
 	for _, test := range tests {
