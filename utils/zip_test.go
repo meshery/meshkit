@@ -76,9 +76,16 @@ func TestExtractZip_Destination(t *testing.T) {
 	zipFile, _ := os.CreateTemp("", "test-*.zip")
 	writer := zip.NewWriter(zipFile)
 
-	_, _ = writer.Create(subDirName + "/")
+	header := &zip.FileHeader{
+		Name:   subDirName + "/",
+		Method: zip.Store,
+	}
+	header.SetMode(0755)
+	_, _ = writer.CreateHeader(header)
+
 	f, _ := writer.Create(filepath.Join(subDirName, "file.txt"))
 	f.Write([]byte("content"))
+
 	writer.Close()
 	zipFile.Close()
 	defer os.Remove(zipFile.Name())
@@ -91,7 +98,7 @@ func TestExtractZip_Destination(t *testing.T) {
 	wrongPath := filepath.Join(cwd, subDirName)
 	if _, err := os.Stat(wrongPath); err == nil {
 		t.Errorf("BUG FOUND: Folder was created in CWD: %s", wrongPath)
-		os.RemoveAll(wrongPath) // Cleanup the mess made by the bug
+		os.RemoveAll(wrongPath)
 	}
 
 	rightPath := filepath.Join(destDir, subDirName)
