@@ -105,7 +105,7 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root s
 
 	// Handle Release URLs:
 	// Pattern: owner/repo/releases/tag/v1.0
-	if len(parts) >= 4 && parts[2] == "releases" && parts[3] == "tag" {
+	if len(parts) >= 5 && parts[2] == "releases" && parts[3] == "tag" {
 		owner, repo = parts[0], parts[1]
 		branch = parts[4] // The tag is treated as the 'branch' for cloning purposes
 		root = "/**"
