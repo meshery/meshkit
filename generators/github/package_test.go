@@ -162,8 +162,8 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				t.Errorf("error while generating components: %v", err)
 				return
 			}
+			currentDirectory := t.TempDir()
 			for _, comp := range comps {
-				currentDirectory, _ := os.Getwd()
 				if comp.Model == nil {
 					t.Errorf("component %s has nil Model", comp.Component.Kind)
 					continue
@@ -178,7 +178,6 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 					}
 				}
 				byt, _ := json.MarshalIndent(comp, "", "")
-
 				f, err := os.Create(fmt.Sprintf("%s/%s%s", dirName, comp.Component.Kind, ".json"))
 				if err != nil {
 					t.Errorf("error creating file for %s: %v", comp.Component.Kind, err)
