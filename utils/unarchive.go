@@ -79,7 +79,7 @@ func ExtractZip(path, artifactPath string) error {
 	defer zipReader.Close()
 	destDir, err := filepath.Abs(path)
 	if err != nil {
-		return err
+		return ErrExtractZip(err, path)
 	}
 	for _, file := range zipReader.File {
 		err := func() error {
