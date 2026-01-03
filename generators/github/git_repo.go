@@ -96,6 +96,21 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root s
 			parts = append(parts, p)
 		}
 	}
+	// Handle GitHub Web UI URLS:
+	// Pattern: owner/repo/tree/branch/... or owner/repo/blob/branch/...
+	if len(parts) >= 3 && (parts[2] == "tree" || parts[2] == "blob") {
+		// Remove 'tree' or 'blob' so the rest of the logic sees [owner, repo, branch, root]
+		parts = append(parts[:2], parts[3:]...)
+	}
+
+	// Handle Release URLs:
+	// Pattern: owner/repo/releases/tag/v1.0
+	if len(parts) >= 4 && parts[2] == "releases" && parts[3] == "tag" {
+		owner, repo = parts[0], parts[1]
+		branch = parts[4] // The tag is treated as the 'branch' for cloning purposes
+		root = "/**"
+		return owner, repo, branch, root, nil
+	}
 	size := len(parts)
 
 	switch {

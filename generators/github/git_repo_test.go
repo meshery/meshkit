@@ -84,6 +84,33 @@ func TestExtractRepoDetailsFromSourceURL(t *testing.T) {
 			wantRoot:   "/**",
 			wantErr:    false,
 		},
+		{
+			name:       "GitHub Browser URL - Tree",
+			input:      "https://github.com/meshery/meshkit/tree/master/install",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "install",
+			wantErr:    false,
+		},
+		{
+			name:       "GitHub Browser URL - Blob",
+			input:      "https://github.com/meshery/meshkit/blob/master/models/meshmodel.yaml",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "master",
+			wantRoot:   "models/meshmodel.yaml",
+			wantErr:    false,
+		},
+		{
+			name:       "GitHub Release URL",
+			input:      "https://github.com/meshery/meshkit/releases/tag/v0.6.0",
+			wantOwner:  "meshery",
+			wantRepo:   "meshkit",
+			wantBranch: "v0.6.0",
+			wantRoot:   "/**",
+			wantErr:    false,
+		},
 	}
 
 	for _, tt := range tests {
