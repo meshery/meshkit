@@ -90,11 +90,7 @@ func TestExtractZip_Destination(t *testing.T) {
 	zipFile.Close()
 	defer os.Remove(zipFile.Name())
 
-	err := ExtractZip(destDir, zipFile.Name())
-	if err != nil {
-		t.Fatalf("Extraction failed: %v", err)
-	}
-
+	extractionErr := ExtractZip(destDir, zipFile.Name())
 	wrongPath := filepath.Join(cwd, subDirName)
 	if _, err := os.Stat(wrongPath); err == nil {
 		t.Errorf("BUG FOUND: Folder was created in CWD: %s", wrongPath)
@@ -105,4 +101,8 @@ func TestExtractZip_Destination(t *testing.T) {
 	if _, err := os.Stat(rightPath); os.IsNotExist(err) {
 		t.Errorf("FAILURE: Folder was NOT created in destination: %s", rightPath)
 	}
+	if extractionErr != nil {
+		t.Fatalf("Extraction failed: %v", extractionErr)
+	}
+
 }
