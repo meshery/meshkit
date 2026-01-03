@@ -131,6 +131,21 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			},
 			want: 5,
 		},
+		// Testing GitHub Release Web UI URL
+		{
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller-release",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds/releases/tag/v1.0",
+			},
+			want: 5, // Assuming v1.0 contains the 5 CRDs
+		},
+		{ // Source pointing to a specific file via GitHub Web UI (Blob)
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "single-crd-blob",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds/blob/main/y1.yml",
+			},
+			want: 1,
+		},
 	}
 
 	for _, test := range tests {
