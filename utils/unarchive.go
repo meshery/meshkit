@@ -85,14 +85,13 @@ func ExtractZip(path, artifactPath string) error {
 			defer fd.Close()
 
 			filePath := filepath.Join(path, file.Name)
+			// CHECK for files to skip
+			if strings.HasPrefix(filepath.Base(filePath), "._") || filepath.Base(filePath) == "__MACOSX" {
+				return nil
+			}
 
 			if file.FileInfo().IsDir() {
-				// this will create the folders in the filepath(/temp ) instead of cwd, which was a bug
 				return os.MkdirAll(filePath, file.Mode())
-			}
-			// Skip macOS resource fork files
-			if strings.HasPrefix(filepath.Base(filePath), "._") {
-				return nil
 			}
 
 			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
@@ -109,7 +108,6 @@ func ExtractZip(path, artifactPath string) error {
 
 			return err
 		}()
-		// we capture the closure error here and wrap it with ErrExtractZip
 		if err != nil {
 			return ErrExtractZip(err, path)
 		}
