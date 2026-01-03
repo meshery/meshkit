@@ -69,52 +69,52 @@ func readData(name string) (buffer []byte, err error) {
 	}
 	return
 }
-
 func ExtractZip(path, artifactPath string) error {
 	zipReader, err := zip.OpenReader(artifactPath)
-	defer func() {
-		_ = zipReader.Close()
-	}()
-
 	if err != nil {
 		return ErrExtractZip(err, path)
 	}
-	buffer := make([]byte, 1<<4)
+	defer zipReader.Close()
+
 	for _, file := range zipReader.File {
+		err := func() error {
+			fd, err := file.Open()
+			if err != nil {
+				return err
+			}
+			defer fd.Close()
 
-		fd, err := file.Open()
-		defer func() {
-			_ = fd.Close()
+			filePath := filepath.Join(path, file.Name)
+
+			if file.FileInfo().IsDir() {
+				// this will create the folders in the filepath(/temp ) instead of cwd, which was a bug
+				return os.MkdirAll(filePath, file.Mode())
+			}
+			// Skip macOS resource fork files
+			if strings.HasPrefix(filepath.Base(filePath), "._") {
+				return nil
+			}
+
+			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+				return err
+			}
+
+			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+			if err != nil {
+				return err
+			}
+			defer openedFile.Close()
+
+			_, err = io.Copy(openedFile, fd)
+
+			return err
 		}()
-
+		// we capture the closure error here and wrap it with ErrExtractZip
 		if err != nil {
 			return ErrExtractZip(err, path)
 		}
-
-		filePath := filepath.Join(path, file.Name)
-
-		if file.FileInfo().IsDir() {
-			err := os.Mkdir(file.Name, file.Mode())
-			if err != nil {
-				return ErrExtractZip(err, path)
-			}
-		} else {
-			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-			if err != nil {
-				return ErrExtractZip(err, path)
-			}
-			_, err = io.CopyBuffer(openedFile, fd, buffer)
-			if err != nil {
-				return ErrExtractZip(err, path)
-			}
-			defer func() {
-				_ = openedFile.Close()
-			}()
-		}
-
 	}
 	return nil
-
 }
 
 func ExtractTarGz(path, downloadfilePath string) error {
