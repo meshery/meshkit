@@ -195,6 +195,7 @@ func TestCallerHook_DifferentLogLevels(t *testing.T) {
 		{"Infof", func(l Handler) { l.Infof("formatted %s message", "info") }, true},
 		{"Debug", func(l Handler) { l.Debug("debug message") }, false}, // Debug level will be filtered out
 		{"Warn", func(l Handler) { l.Warnf("warn message") }, true},
+		{"Fatalf", func(l Handler) { l.Fatalf("formatted %s message", "fatal") }, true},
 	}
 
 	for _, tc := range testCases {
