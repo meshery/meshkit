@@ -32,7 +32,6 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
 // expects a validated docker-compose file
 func Convert(dockerCompose DockerComposeFile) (string, error) {
 
-
 	// Get user's home directory
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -108,7 +107,7 @@ func versionCheck(dc DockerComposeFile) error {
 	}
 	// assume compatible if version is not specified
 	if cf.Version == "" {
-		return nil	
+		return nil
 	}
 	versionFloatVal, err := strconv.ParseFloat(cf.Version, 64)
 	if err != nil {
