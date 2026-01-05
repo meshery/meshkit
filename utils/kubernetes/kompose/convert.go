@@ -1,6 +1,7 @@
 package kompose
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,7 +16,13 @@ const DefaultDockerComposeSchemaURL = "https://raw.githubusercontent.com/compose
 // Checks whether the given manifest is a valid docker-compose file.
 // schemaURL is assigned a default url if not specified
 // error will be 'nil' if it is a valid docker compose file
-func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
+func IsManifestADockerCompose(manifest []byte, schemaURL string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = ErrValidateDockerComposeFile(fmt.Errorf("panic: %v", r))
+		}
+	}()
+	
 	if schemaURL == "" {
 		schemaURL = DefaultDockerComposeSchemaURL
 	}
@@ -30,7 +37,13 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
 
 // converts a given docker-compose file into kubernetes manifests
 // expects a validated docker-compose file
-func Convert(dockerCompose DockerComposeFile) (string, error) {
+func Convert(dockerCompose DockerComposeFile) (result string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			result = ""
+			err = ErrCvrtKompose(fmt.Errorf("panic: %v", r))
+		}
+	}()
 
 	// Get user's home directory
 	homeDir, err := os.UserHomeDir()
@@ -84,12 +97,12 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 		return "", ErrCvrtKompose(err)
 	}
 
-	result, err := os.ReadFile(resultFilePath)
+	resultBytes, err := os.ReadFile(resultFilePath)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
-	return string(result), nil
+	return string(resultBytes), nil
 }
 
 type composeFile struct {

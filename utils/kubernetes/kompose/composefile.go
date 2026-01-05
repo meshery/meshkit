@@ -2,6 +2,7 @@ package kompose
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"cuelang.org/go/cue/cuecontext"
@@ -14,7 +15,13 @@ import (
 
 type DockerComposeFile []byte
 
-func (dc *DockerComposeFile) Validate(schema []byte) error {
+func (dc *DockerComposeFile) Validate(schema []byte) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = ErrValidateDockerComposeFile(fmt.Errorf("panic: %v", r))
+		}
+	}()
+
 	// Check if the YAML contains multiple documents
 	// Docker Compose files are single-document YAML files by specification
 	if hasMultipleDocuments(*dc) {
