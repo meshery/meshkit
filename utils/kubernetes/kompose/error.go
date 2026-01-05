@@ -1,12 +1,17 @@
 package kompose
 
-import "github.com/meshery/meshkit/errors"
+import (
+	"fmt"
+	
+	"github.com/meshery/meshkit/errors"
+)
 
 const (
 	ErrCvrtKomposeCode               = "meshkit-11229"
 	ErrValidateDockerComposeFileCode = "meshkit-11230"
 	ErrIncompatibleVersionCode       = "meshkit-11231"
 	ErrNoVersionCode                 = "meshkit-11232"
+	ErrPanicRecoveryCode             = "meshkit-11233"
 )
 
 func ErrCvrtKompose(err error) error {
@@ -21,4 +26,8 @@ func ErrIncompatibleVersion() error {
 }
 func ErrNoVersion() error {
 	return errors.New(ErrNoVersionCode, errors.Alert, []string{"version not found in the docker compose file"}, []string{"Version field not found"}, []string{"Since the Docker Compose specification does not mandate the version field from version 3 onwards, most sources do not provide them."}, []string{"Make sure that the compose file has version specified,", "Add any version less than or equal to 3.3 if you cannot get the exact version from the source"})
+}
+
+func ErrPanicRecovery(r interface{}) error {
+	return errors.New(ErrPanicRecoveryCode, errors.Alert, []string{"Recovered from panic in compose converter"}, []string{fmt.Sprintf("%v", r)}, []string{"An unexpected panic occurred during compose conversion operation"}, []string{"Check the input docker compose file for correctness", "Report this issue if the problem persists"})
 }
