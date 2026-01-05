@@ -21,7 +21,7 @@ type GitRepo struct {
 	PackageName string
 }
 
-// Assumpations:
+// Assumptions:
 // 1. Always a K8s manifest
 // 2. Unzipped/unarchived File type
 
