@@ -28,6 +28,7 @@ func (dc *DockerComposeFile) Validate(schema []byte) (err error) {
 		return ErrMultipleDocuments()
 	}
 
+
 	jsonSchema, err := json.Extract("", schema)
 	if err != nil {
 		return ErrValidateDockerComposeFile(err)
