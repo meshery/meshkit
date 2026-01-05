@@ -2,21 +2,24 @@ package kompose
 
 import (
 	"bytes"
+	"io"
+
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/encoding/json"
 	"cuelang.org/go/encoding/jsonschema"
 	"cuelang.org/go/encoding/yaml"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 type DockerComposeFile []byte
 
 func (dc *DockerComposeFile) Validate(schema []byte) error {
-	// Extract only the first document from the YAML if it's a multi-document YAML.
-	// Docker Compose files are single-document YAML files, so we only validate
-	// the first document. This prevents validation errors when the input is a
-	// multi-resource Kubernetes manifest.
-	firstDoc := extractFirstYAMLDocument(*dc)
+	// Check if the YAML contains multiple documents
+	// Docker Compose files are single-document YAML files by specification
+	if hasMultipleDocuments(*dc) {
+		return ErrMultipleDocuments()
+	}
 
 	jsonSchema, err := json.Extract("", schema)
 	if err != nil {
@@ -41,38 +44,30 @@ func (dc *DockerComposeFile) Validate(schema []byte) error {
 	if sv.Err() != nil {
 		return ErrValidateDockerComposeFile(sv.Err())
 	}
-	err = yaml.Validate(firstDoc, sv)
+	err = yaml.Validate(*dc, sv)
 	if err != nil {
 		return ErrValidateDockerComposeFile(err)
 	}
 	return nil
 }
 
-// extractFirstYAMLDocument extracts the first document from a potentially
-// multi-document YAML stream. If the input contains only one document,
-// it returns the input unchanged.
-func extractFirstYAMLDocument(data []byte) []byte {
-	// Look for the document separator "---" in the YAML
-	separator := []byte("\n---\n")
-	if idx := bytes.Index(data, separator); idx != -1 {
-		// Return only the first document
-		return data[:idx]
+// hasMultipleDocuments checks if the YAML data contains multiple documents
+// by using the yaml.v3 decoder to detect document separators
+func hasMultipleDocuments(data []byte) bool {
+	decoder := yamlv3.NewDecoder(bytes.NewReader(data))
+
+	// Try to decode the first document
+	var first interface{}
+	if err := decoder.Decode(&first); err != nil {
+		// If we can't decode the first document, treat as single (will fail validation anyway)
+		return false
 	}
 
-	// Also check for "---" at the start of subsequent lines (with possible whitespace)
-	// This handles cases where the separator might have different spacing
-	separatorAlt := []byte("\n---")
-	if idx := bytes.Index(data, separatorAlt); idx != -1 {
-		// Check if this is followed by whitespace or newline (proper YAML separator)
-		afterSep := idx + len(separatorAlt)
-		if afterSep < len(data) {
-			nextChar := data[afterSep]
-			if nextChar == '\n' || nextChar == '\r' || nextChar == ' ' || nextChar == '\t' {
-				return data[:idx]
-			}
-		}
-	}
+	// Try to decode a second document
+	var second interface{}
+	err := decoder.Decode(&second)
 
-	// No separator found, return the entire data
-	return data
+	// If err is EOF, there's only one document
+	// If err is nil, there are multiple documents
+	return err != io.EOF
 }

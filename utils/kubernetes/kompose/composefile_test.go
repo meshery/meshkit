@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-func TestExtractFirstYAMLDocument(t *testing.T) {
+func TestHasMultipleDocuments(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []byte
-		expected []byte
+		expected bool
 	}{
 		{
 			name: "single document YAML",
@@ -16,10 +16,7 @@ func TestExtractFirstYAMLDocument(t *testing.T) {
 services:
   web:
     image: nginx`),
-			expected: []byte(`version: "3.8"
-services:
-  web:
-    image: nginx`),
+			expected: false,
 		},
 		{
 			name: "multi-document YAML with standard separator",
@@ -32,10 +29,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: test`),
-			expected: []byte(`version: "3.8"
-services:
-  web:
-    image: nginx`),
+			expected: true,
 		},
 		{
 			name: "multi-document YAML with multiple separators",
@@ -53,10 +47,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: test2`),
-			expected: []byte(`version: "3.8"
-services:
-  web:
-    image: nginx`),
+			expected: true,
 		},
 		{
 			name: "Kubernetes manifest (multi-document)",
@@ -72,18 +63,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: test-service`),
-			expected: []byte(`apiVersion: v1
-data:
-  config.alloy: |
-    some config data
-kind: ConfigMap
-metadata:
-  name: test`),
+			expected: true,
 		},
 		{
 			name:     "Empty YAML",
 			input:    []byte(``),
-			expected: []byte(``),
+			expected: false,
 		},
 		{
 			name: "YAML with --- in string content",
@@ -93,28 +78,22 @@ services:
     image: nginx
     environment:
       - TEXT=some---text`),
-			expected: []byte(`version: "3.8"
-services:
-  web:
-    image: nginx
-    environment:
-      - TEXT=some---text`),
+			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractFirstYAMLDocument(tt.input)
-			if string(result) != string(tt.expected) {
-				t.Errorf("extractFirstYAMLDocument() = %q, want %q", string(result), string(tt.expected))
+			result := hasMultipleDocuments(tt.input)
+			if result != tt.expected {
+				t.Errorf("hasMultipleDocuments() = %v, want %v", result, tt.expected)
 			}
 		})
 	}
 }
 
 func TestDockerComposeFile_Validate_WithMultiDocument(t *testing.T) {
-	// This test verifies that validation doesn't crash on multi-document YAML
-	// and only validates the first document
+	// This test verifies that validation rejects multi-document YAML
 	multiDocYAML := []byte(`version: "3.8"
 services:
   web:
@@ -138,17 +117,20 @@ data:
 		}
 	}`)
 
-	// This should not crash - it should validate only the first document
+	// This should return an error about multiple documents
 	err := dc.Validate(schema)
-	// We expect this to pass since the first document matches the schema
-	if err != nil {
-		t.Logf("Validation returned error (expected for strict schema): %v", err)
+	if err == nil {
+		t.Error("Expected validation error for multi-document YAML, got nil")
+	}
+	// Verify it's the multiple documents error
+	if err != nil && err.Error() != ErrMultipleDocuments().Error() {
+		t.Logf("Got error (may not be multiple documents error): %v", err)
 	}
 }
 
 func TestDockerComposeFile_Validate_WithKubernetesManifest(t *testing.T) {
 	// This test verifies that validation properly rejects Kubernetes manifests
-	// by only validating the first document against Docker Compose schema
+	// that have multiple documents
 	k8sManifest := []byte(`apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -173,10 +155,38 @@ metadata:
 		"required": ["version"]
 	}`)
 
-	// This should return an error because the Kubernetes manifest
-	// doesn't match the Docker Compose schema
+	// This should return an error about multiple documents
 	err := dc.Validate(schema)
 	if err == nil {
 		t.Error("Expected validation error for Kubernetes manifest, got nil")
+	}
+}
+
+func TestDockerComposeFile_Validate_SingleDocumentValid(t *testing.T) {
+	// This test verifies that single-document Docker Compose files
+	// pass the multi-document check
+	dockerCompose := []byte(`version: "3.8"
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "80:80"`)
+
+	dc := DockerComposeFile(dockerCompose)
+
+	// Create a minimal Docker Compose schema for testing
+	schema := []byte(`{
+		"type": "object",
+		"properties": {
+			"version": {"type": "string"},
+			"services": {"type": "object"}
+		}
+	}`)
+
+	// This should not return the multiple documents error
+	// (it may still fail schema validation, but that's a different error)
+	err := dc.Validate(schema)
+	if err != nil && err.Error() == ErrMultipleDocuments().Error() {
+		t.Error("Single document YAML should not trigger multiple documents error")
 	}
 }
