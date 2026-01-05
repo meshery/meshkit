@@ -8,6 +8,7 @@ import (
 
 	"github.com/kubernetes/kompose/client"
 	"github.com/meshery/meshkit/utils"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -38,6 +39,25 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) (err error) {
 // converts a given docker-compose file into kubernetes manifests
 // expects a validated docker-compose file
 func Convert(dockerCompose DockerComposeFile) (result string, err error) {
+
+  exitFunc := logrus.StandardLogger().ExitFunc;
+	// revert back to original exit func for logrus
+	defer func() {
+		logrus.StandardLogger().ExitFunc = exitFunc
+	}()
+
+	// temporarly disable the default exit function ( os.exit) , because kompose using fatal logging rather than returning errors
+	logrus.StandardLogger().ExitFunc = func (exitCode int){
+		logrus.Errorf("Failed to convert dockercompose to manifest %v",exitCode)
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+		  fmt.Println("paniced will converting dockercompose to go")
+		}
+	}()
+
+
 	defer func() {
 		if r := recover(); r != nil {
 			result = ""
@@ -81,16 +101,21 @@ func Convert(dockerCompose DockerComposeFile) (result string, err error) {
 		return "", ErrCvrtKompose(err)
 	}
 
-	komposeClient, err := client.NewClient()
+	komposeOpts := client.WithSuppressWarnings()
+	komposeClient, err := client.NewClient(komposeOpts)
+	
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
 	ConvertOpt := client.ConvertOptions{
 		InputFiles:              []string{tempFilePath},
+		ToStdout: false,
 		OutFile:                 resultFilePath,
 		GenerateNetworkPolicies: true,
 	}
+
+	
 
 	_, err = komposeClient.Convert(ConvertOpt)
 	if err != nil {
@@ -98,6 +123,12 @@ func Convert(dockerCompose DockerComposeFile) (result string, err error) {
 	}
 
 	resultBytes, err := os.ReadFile(resultFilePath)
+
+	if len(resultBytes) == 0{
+		return "", ErrCvrtKompose(err)
+	}
+
+
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
