@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-
+	
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/encoding/json"
