@@ -1,6 +1,8 @@
 package kompose
 
 import (
+	"fmt"
+	
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/format"
 	"cuelang.org/go/encoding/json"
@@ -10,7 +12,13 @@ import (
 
 type DockerComposeFile []byte
 
-func (dc *DockerComposeFile) Validate(schema []byte) error {
+func (dc *DockerComposeFile) Validate(schema []byte) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = ErrValidateDockerComposeFile(fmt.Errorf("panic: %v", r))
+		}
+	}()
+	
 	jsonSchema, err := json.Extract("", schema)
 	if err != nil {
 		return ErrValidateDockerComposeFile(err)
