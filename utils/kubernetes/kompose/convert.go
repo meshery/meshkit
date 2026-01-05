@@ -1,6 +1,7 @@
 package kompose
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,7 +19,7 @@ const DefaultDockerComposeSchemaURL = "https://raw.githubusercontent.com/compose
 func IsManifestADockerCompose(manifest []byte, schemaURL string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = ErrPanicRecovery(r)
+			err = ErrValidateDockerComposeFile(fmt.Errorf("panic: %v", r))
 		}
 	}()
 	
@@ -40,7 +41,7 @@ func Convert(dockerCompose DockerComposeFile) (result string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			result = ""
-			err = ErrPanicRecovery(r)
+			err = ErrCvrtKompose(fmt.Errorf("panic: %v", r))
 		}
 	}()
 
