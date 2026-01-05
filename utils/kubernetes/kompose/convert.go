@@ -22,7 +22,7 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) (err error) {
 			err = ErrValidateDockerComposeFile(fmt.Errorf("panic: %v", r))
 		}
 	}()
-	
+
 	if schemaURL == "" {
 		schemaURL = DefaultDockerComposeSchemaURL
 	}
