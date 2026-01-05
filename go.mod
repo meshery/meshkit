@@ -308,4 +308,7 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1 // indirect
 )
 
-replace github.com/meshery/meshkit => ../meshkit
+replace (
+	github.com/meshery/meshkit => ../meshkit
+	github.com/meshery/schemas => ../schemas
+)
