@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/meshery/meshkit/encoding"
+	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
 	"github.com/meshery/meshkit/generators"
 	"github.com/meshery/meshkit/generators/models"
@@ -793,16 +794,38 @@ func logModelGenerationSummary(modelToCompGenerateTracker *store.GenerticThreadS
 //
 // If their is ever an error with the writing of file back to spreadsheet of column mismatch just update utils.ComponentCSV struct.
 func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, componentSheetID int64, spreadsheeetID string, modelName string, modelCSVFilePath, componentCSVFilePath, spreadsheeetCred, relationshipCSVFilePath string, relationshipSheetID int64, srv *sheets.Service) error {
+	return InvokeGenerationFromSheetWithOptions(wg, path, modelsheetID, componentSheetID, spreadsheeetID, modelName, modelCSVFilePath, componentCSVFilePath, spreadsheeetCred, relationshipCSVFilePath, relationshipSheetID, srv, DefaultGenerationOptions())
+}
+
+// InvokeGenerationFromSheetWithOptions generates models from a spreadsheet with configurable options.
+// This is the primary function for model generation with support for:
+// - Per-model timeout (configurable, default 5 minutes)
+// - Progress tracking and callbacks
+// - Latest version only filtering
+func InvokeGenerationFromSheetWithOptions(wg *sync.WaitGroup, path string, modelsheetID, componentSheetID int64, spreadsheeetID string, modelName string, modelCSVFilePath, componentCSVFilePath, spreadsheeetCred, relationshipCSVFilePath string, relationshipSheetID int64, srv *sheets.Service, opts GenerationOptions) error {
 	weightedSem := semaphore.NewWeighted(20)
 	url := GoogleSpreadSheetURL + spreadsheeetID
 	totalAvailableModels := 0
 	spreadsheeetChan := make(chan SpreadsheetData)
 	relationshipUpdateChan := make(chan RelationshipCSV)
+
+	// Set default timeout if not specified
+	if opts.ModelTimeout == 0 {
+		opts.ModelTimeout = DefaultModelTimeout
+	}
+
+	// Create progress tracker
+	var progressTracker *ProgressTracker
+
 	defer func() {
 		logModelGenerationSummary(modelToCompGenerateTracker)
 
 		// Log.UpdateLogOutput(os.Stdout)
 		Log.Info(fmt.Sprintf("Summary: %d models, %d components generated.", totalAggregateModel, totalAggregateComponents))
+		if progressTracker != nil {
+			Log.Info(fmt.Sprintf("Progress: %d successful, %d failed, %d skipped out of %d total models",
+				progressTracker.SuccessCount(), progressTracker.FailureCount(), progressTracker.SkippedCount(), progressTracker.Total()))
+		}
 
 		Log.Info("See ", logDirPath, " for detailed logs.")
 
@@ -839,137 +862,208 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 			relationshipCSVHelper.UpdatedRelationships = append(relationshipCSVHelper.UpdatedRelationships, updatedRelationship)
 		}
 	}()
-	// Iterate models from the spreadsheet
-	for _, model := range modelCSVHelper.Models {
 
+	// Pre-count models to be processed for progress tracking
+	modelsToProcess := []ModelCSV{}
+	for _, model := range modelCSVHelper.Models {
 		if modelName != "" && modelName != model.Model {
 			continue
 		}
+		if modelName == "" && strings.ToLower(strings.TrimSpace(model.PublishToRegistry)) != "true" {
+			continue
+		}
+		modelsToProcess = append(modelsToProcess, model)
+	}
+
+	totalModelsToProcess := len(modelsToProcess)
+	progressTracker = NewProgressTracker(totalModelsToProcess)
+
+	Log.Info(fmt.Sprintf("Starting generation for %d models (per-model timeout: %v)", totalModelsToProcess, opts.ModelTimeout))
+
+	// Iterate models from the spreadsheet
+	for modelIndex, model := range modelsToProcess {
+		currentModelNum := modelIndex + 1
+
+		// Log progress
+		Log.Info(fmt.Sprintf("[%d/%d] Processing model: %s (remaining: %d)", currentModelNum, totalModelsToProcess, model.Model, totalModelsToProcess-currentModelNum))
+
+		// Call progress callback if provided
+		if opts.ProgressCallback != nil {
+			opts.ProgressCallback(model.Model, currentModelNum, totalModelsToProcess)
+		}
+
 		totalAvailableModels++
 		ctx := context.Background()
 
 		err := weightedSem.Acquire(ctx, 1)
 		if err != nil {
+			progressTracker.IncrementFailure()
 			break
 		}
 		wg.Add(1)
-		go func(model ModelCSV) {
+		go func(model ModelCSV, modelNum int) {
 			defer func() {
 				wg.Done()
 				weightedSem.Release(1)
+				progressTracker.IncrementProcessed()
 			}()
-			var err error
 
-			if utils.ReplaceSpacesAndConvertToLowercase(model.Registrant) == "meshery" {
-				err = GenerateDefsForCoreRegistrant(model, componentCSVHelper, path, modelName)
-				if err != nil {
-					LogError.Error(err)
-				}
-				return
-			}
+			modelStartTime := time.Now()
+			Log.Debug(fmt.Sprintf("[%d/%d] Starting generation for model: %s at %s", modelNum, totalModelsToProcess, model.Model, modelStartTime.Format("15:04:05")))
 
-			generator, err := generators.NewGenerator(model.Registrant, model.SourceURL, model.Model)
-			if err != nil {
-				err = ErrGenerateModel(err, model.Model)
-				LogError.Error(err)
-				return
-			}
+			// Create context with per-model timeout
+			modelCtx, modelCancel := context.WithTimeout(context.Background(), opts.ModelTimeout)
+			defer modelCancel()
 
-			if utils.ReplaceSpacesAndConvertToLowercase(model.Registrant) == "artifacthub" {
-				RateLimitArtifactHub()
-			}
+			// Channel to receive generation result
+			done := make(chan error, 1)
 
-			pkg, err := generator.GetPackage()
-			if err != nil {
-				err = ErrGenerateModel(err, model.Model)
-				LogError.Error(err)
-				return
-			}
+			go func() {
+				var genErr error
 
-			version := pkg.GetVersion()
-
-			comps, err := pkg.GenerateComponents(model.Group)
-			if err != nil {
-				err = ErrGenerateModel(err, model.Model)
-				LogError.Error(err)
-				return
-			}
-			lengthOfComps := len(comps)
-			if lengthOfComps == 0 {
-				err = ErrGenerateModel(fmt.Errorf("no components found for model"), model.Model)
-				LogError.Error(err)
-				return
-			}
-			modelDirPath, compDirPath, err := createVersionedDirectoryForModelAndComp(version, model.Model, path)
-			if err != nil {
-				err = ErrGenerateModel(err, model.Model)
-				LogError.Error(err)
-				return
-			}
-			modelDef, alreadyExist, err := writeModelDefToFileSystem(&model, version, modelDirPath)
-			if err != nil {
-				err = ErrGenerateModel(err, model.Model)
-				LogError.Error(err)
-				return
-			}
-			if alreadyExist {
-				totalAvailableModels--
-			}
-			for _, comp := range comps {
-				comp.Version = defVersion
-				// Assign the component status corresponding to model status.
-				// i.e., If model is enabled, comps are also "enabled". Ultimately, all individual comps will have the ability to control their status.
-				// The status "enabled" indicates that the component will be registered inside the registry.
-				if modelDef.Metadata == nil {
-					modelDef.Metadata = &_model.ModelDefinition_Metadata{}
-				}
-				if modelDef.Metadata.AdditionalProperties == nil {
-					modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
-				}
-
-				if comp.Model != nil && comp.Model.Metadata != nil && comp.Model.Metadata.AdditionalProperties != nil {
-					modelDef.Metadata.AdditionalProperties["source_uri"] = comp.Model.Metadata.AdditionalProperties["source_uri"]
-				}
-				comp.Model = modelDef
-
-				AssignDefaultsForCompDefs(&comp, modelDef)
-				compAlreadyExist, err := comp.WriteComponentDefinition(compDirPath, "json")
-				if compAlreadyExist {
-					lengthOfComps--
-				}
-				if err != nil {
-					err = ErrGenerateModel(err, model.Model)
-					LogError.Error(err)
+				if utils.ReplaceSpacesAndConvertToLowercase(model.Registrant) == "meshery" {
+					genErr = GenerateDefsForCoreRegistrant(model, componentCSVHelper, path, modelName)
+					done <- genErr
 					return
 				}
-			}
-			if !alreadyExist {
-				if len(comps) == 0 {
-					err = ErrGenerateModel(fmt.Errorf("no components found for model"), model.Model)
-					LogError.Error(err)
 
-				} else {
+				Log.Debug(fmt.Sprintf("Model %s: Creating generator for registrant: %s, source: %s", model.Model, model.Registrant, model.SourceURL))
+
+				generator, genErr := generators.NewGenerator(model.Registrant, model.SourceURL, model.Model)
+				if genErr != nil {
+					done <- ErrGenerateModel(genErr, model.Model)
+					return
+				}
+
+				if utils.ReplaceSpacesAndConvertToLowercase(model.Registrant) == "artifacthub" {
+					RateLimitArtifactHub()
+				}
+
+				Log.Debug(fmt.Sprintf("Model %s: Fetching package from source", model.Model))
+				pkg, genErr := generator.GetPackage()
+				if genErr != nil {
+					done <- ErrGenerateModel(genErr, model.Model)
+					return
+				}
+
+				version := pkg.GetVersion()
+				Log.Debug(fmt.Sprintf("Model %s: Package version: %s, generating components", model.Model, version))
+
+				comps, genErr := pkg.GenerateComponents(model.Group)
+				if genErr != nil {
+					done <- ErrGenerateModel(genErr, model.Model)
+					return
+				}
+
+				lengthOfComps := len(comps)
+				if lengthOfComps == 0 {
+					done <- ErrGenerateModel(fmt.Errorf("no components found for model"), model.Model)
+					return
+				}
+
+				Log.Debug(fmt.Sprintf("Model %s: Generated %d components, creating directories", model.Model, lengthOfComps))
+
+				modelDirPath, compDirPath, genErr := createVersionedDirectoryForModelAndComp(version, model.Model, path)
+				if genErr != nil {
+					done <- ErrGenerateModel(genErr, model.Model)
+					return
+				}
+
+				modelDef, alreadyExist, genErr := writeModelDefToFileSystem(&model, version, modelDirPath)
+				if genErr != nil {
+					done <- ErrGenerateModel(genErr, model.Model)
+					return
+				}
+				if alreadyExist {
+					totalAvailableModels--
+					// If LatestVersionOnly is enabled and model already exists, skip it
+					if opts.LatestVersionOnly {
+						log.Info("Model already exists, skipping due to LatestVersionOnly option: ", model.Model)
+						done <- ErrModelSkipped(model.Model, "model already exists and LatestVersionOnly is enabled")
+						return
+					}
+				}
+
+				for _, comp := range comps {
+					comp.Version = defVersion
+					if modelDef.Metadata == nil {
+						modelDef.Metadata = &_model.ModelDefinition_Metadata{}
+					}
+					if modelDef.Metadata.AdditionalProperties == nil {
+						modelDef.Metadata.AdditionalProperties = make(map[string]interface{})
+					}
+
+					if comp.Model != nil && comp.Model.Metadata != nil && comp.Model.Metadata.AdditionalProperties != nil {
+						modelDef.Metadata.AdditionalProperties["source_uri"] = comp.Model.Metadata.AdditionalProperties["source_uri"]
+					}
+					comp.Model = modelDef
+
+					AssignDefaultsForCompDefs(&comp, modelDef)
+					compAlreadyExist, writeErr := comp.WriteComponentDefinition(compDirPath, "json")
+					if compAlreadyExist {
+						lengthOfComps--
+					}
+					if writeErr != nil {
+						done <- ErrGenerateModel(writeErr, model.Model)
+						return
+					}
+				}
+
+				if !alreadyExist {
+					if len(comps) == 0 {
+						done <- ErrGenerateModel(fmt.Errorf("no components found for model"), model.Model)
+						return
+					}
 					log.Info("Current model: ", model.Model)
 					log.Info("Extracted ", lengthOfComps, " components for ", model.ModelDisplayName, " (", model.Model, ")")
-				}
-			} else {
-				if len(comps) > 0 {
-					log.Info("Model already exists: ", model.Model)
 				} else {
-					err = ErrGenerateModel(fmt.Errorf("no components found for model"), model.Model)
-					LogError.Error(err)
+					if len(comps) > 0 {
+						log.Info("Model already exists: ", model.Model)
+					} else {
+						done <- ErrGenerateModel(fmt.Errorf("no components found for model"), model.Model)
+						return
+					}
 				}
-			}
-			spreadsheeetChan <- SpreadsheetData{
-				Model:      &model,
-				Components: comps,
-			}
 
-			modelToCompGenerateTracker.Set(model.Model, compGenerateTracker{
-				totalComps: lengthOfComps,
-				version:    version,
-			})
-		}(model)
+				spreadsheeetChan <- SpreadsheetData{
+					Model:      &model,
+					Components: comps,
+				}
+
+				modelToCompGenerateTracker.Set(model.Model, compGenerateTracker{
+					totalComps: lengthOfComps,
+					version:    version,
+				})
+
+				done <- nil
+			}()
+
+			// Wait for generation to complete or timeout
+			select {
+			case genErr := <-done:
+				elapsed := time.Since(modelStartTime)
+				if genErr != nil {
+					// Check if this is a skip error
+					if meshkitErr, ok := genErr.(*errors.Error); ok && meshkitErr.Code == ErrModelSkippedCode {
+						progressTracker.IncrementSkipped()
+						Log.Debug(fmt.Sprintf("Model %s: SKIPPED in %v - %v", model.Model, elapsed.Round(time.Millisecond), genErr))
+					} else {
+						progressTracker.IncrementFailure()
+						LogError.Error(fmt.Errorf("model %s generation failed after %v: %w", model.Model, elapsed.Round(time.Millisecond), genErr))
+						Log.Debug(fmt.Sprintf("Model %s: FAILED after %v - %v", model.Model, elapsed.Round(time.Millisecond), genErr))
+					}
+				} else {
+					progressTracker.IncrementSuccess()
+					Log.Debug(fmt.Sprintf("Model %s: SUCCESS in %v", model.Model, elapsed.Round(time.Millisecond)))
+				}
+			case <-modelCtx.Done():
+				elapsed := time.Since(modelStartTime)
+				progressTracker.IncrementFailure()
+				timeoutErr := ErrModelTimeout(model.Model, opts.ModelTimeout)
+				LogError.Error(timeoutErr)
+				Log.Info(fmt.Sprintf("Model %s: TIMEOUT after %v (limit: %v)", model.Model, elapsed.Round(time.Millisecond), opts.ModelTimeout))
+			}
+		}(model, currentModelNum)
 	}
 
 	wg.Wait()
