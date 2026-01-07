@@ -262,7 +262,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	outputDir, err := os.MkdirTemp(tempDir, fileName)
 
 	if err != nil {
-		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("failed to create extraction directory %w", err))
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("failed to create extraction directory: %w", err))
 	}
 
 	switch ext {
