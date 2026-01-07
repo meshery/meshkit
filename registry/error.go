@@ -16,6 +16,7 @@ var (
 	ErrGeneratesComponentCode     = "meshkit-11309"
 	ErrUpdateRelationshipFileCode = "meshkit-11310"
 	ErrModelTimeoutCode           = "meshkit-11311"
+	ErrModelSkippedCode           = "meshkit-11312"
 )
 
 func ErrAppendToSheet(err error, id string) error {
@@ -63,4 +64,12 @@ func ErrModelTimeout(modelName string, timeout time.Duration) error {
 		[]string{fmt.Sprintf("The generation of model '%s' exceeded the per-model timeout of %v", modelName, timeout)},
 		[]string{"The model source may be unresponsive", "Network connectivity issues", "Large number of components to generate for this model"},
 		[]string{"Try increasing the per-model timeout using --timeout flag", "Check network connectivity", "Review the source URL for the model"})
+}
+
+func ErrModelSkipped(modelName, reason string) error {
+	return errors.New(ErrModelSkippedCode, errors.Alert,
+		[]string{fmt.Sprintf("model %s was skipped: %s", modelName, reason)},
+		[]string{fmt.Sprintf("Model '%s' was skipped during generation: %s", modelName, reason)},
+		[]string{"Model already exists and LatestVersionOnly is enabled"},
+		[]string{"This is expected behavior when LatestVersionOnly option is used"})
 }

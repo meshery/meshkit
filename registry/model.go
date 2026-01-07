@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/meshery/meshkit/encoding"
+	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
 	"github.com/meshery/meshkit/generators"
 	"github.com/meshery/meshkit/generators/models"
@@ -975,6 +976,12 @@ func InvokeGenerationFromSheetWithOptions(wg *sync.WaitGroup, path string, model
 				}
 				if alreadyExist {
 					totalAvailableModels--
+					// If LatestVersionOnly is enabled and model already exists, skip it
+					if opts.LatestVersionOnly {
+						log.Info("Model already exists, skipping due to LatestVersionOnly option: ", model.Model)
+						done <- ErrModelSkipped(model.Model, "model already exists and LatestVersionOnly is enabled")
+						return
+					}
 				}
 
 				for _, comp := range comps {
@@ -1036,9 +1043,15 @@ func InvokeGenerationFromSheetWithOptions(wg *sync.WaitGroup, path string, model
 			case genErr := <-done:
 				elapsed := time.Since(modelStartTime)
 				if genErr != nil {
-					progressTracker.IncrementFailure()
-					LogError.Error(fmt.Errorf("model %s generation failed after %v: %w", model.Model, elapsed.Round(time.Millisecond), genErr))
-					Log.Debug(fmt.Sprintf("Model %s: FAILED after %v - %v", model.Model, elapsed.Round(time.Millisecond), genErr))
+					// Check if this is a skip error
+					if meshkitErr, ok := genErr.(*errors.Error); ok && meshkitErr.Code == ErrModelSkippedCode {
+						progressTracker.IncrementSkipped()
+						Log.Debug(fmt.Sprintf("Model %s: SKIPPED in %v - %v", model.Model, elapsed.Round(time.Millisecond), genErr))
+					} else {
+						progressTracker.IncrementFailure()
+						LogError.Error(fmt.Errorf("model %s generation failed after %v: %w", model.Model, elapsed.Round(time.Millisecond), genErr))
+						Log.Debug(fmt.Sprintf("Model %s: FAILED after %v - %v", model.Model, elapsed.Round(time.Millisecond), genErr))
+					}
 				} else {
 					progressTracker.IncrementSuccess()
 					Log.Debug(fmt.Sprintf("Model %s: SUCCESS in %v", model.Model, elapsed.Round(time.Millisecond)))
