@@ -20,6 +20,9 @@ type Handler interface {
 	Warn(err error)
 	Warnf(format string, args ...interface{})
 	Error(err error)
+	Errorf(format string, args ...interface{})
+	Fatal(err error)
+	Fatalf(format string, args ...interface{})
 	SetLevel(level logrus.Level)
 	GetLevel() logrus.Level
 	UpdateLogOutput(w io.Writer)
@@ -89,30 +92,24 @@ func New(appname string, opts Options) (Handler, error) {
 	return &Logger{handler: entry}, nil
 }
 
-func (l *Logger) Error(err error) {
-	if err == nil {
-		return
-	}
-
-	l.handler.WithFields(logrus.Fields{
-		"code":                  errors.GetCode(err),
-		"severity":              errors.GetSeverity(err),
-		"short-description":     errors.GetSDescription(err),
-		"probable-cause":        errors.GetCause(err),
-		"suggested-remediation": errors.GetRemedy(err),
-	}).Log(logrus.ErrorLevel, err.Error())
-}
-
 func (l *Logger) Info(description ...interface{}) {
 	l.handler.Log(logrus.InfoLevel,
 		description...,
 	)
 }
 
+func (l *Logger) Infof(format string, args ...interface{}) {
+	l.handler.Log(logrus.InfoLevel, fmt.Sprintf(format, args...))
+}
+
 func (l *Logger) Debug(description ...interface{}) {
 	l.handler.Log(logrus.DebugLevel,
 		description...,
 	)
+}
+
+func (l *Logger) Debugf(format string, args ...interface{}) {
+	l.handler.Log(logrus.DebugLevel, fmt.Sprintf(format, args...))
 }
 
 func (l *Logger) Warn(err error) {
@@ -129,6 +126,48 @@ func (l *Logger) Warn(err error) {
 	}).Log(logrus.WarnLevel, err.Error())
 }
 
+func (l *Logger) Warnf(format string, args ...interface{}) {
+	l.handler.Log(logrus.WarnLevel, fmt.Sprintf(format, args...))
+}
+
+func (l *Logger) Error(err error) {
+	if err == nil {
+		return
+	}
+
+	l.handler.WithFields(logrus.Fields{
+		"code":                  errors.GetCode(err),
+		"severity":              errors.GetSeverity(err),
+		"short-description":     errors.GetSDescription(err),
+		"probable-cause":        errors.GetCause(err),
+		"suggested-remediation": errors.GetRemedy(err),
+	}).Log(logrus.ErrorLevel, err.Error())
+}
+
+func (l *Logger) Errorf(format string, args ...interface{}) {
+	l.handler.Log(logrus.ErrorLevel, fmt.Sprintf(format, args...))
+}
+
+func (l *Logger) Fatal(err error) {
+	if err == nil {
+		return
+	}
+
+	l.handler.WithFields(logrus.Fields{
+		"code":                  errors.GetCode(err),
+		"severity":              errors.GetSeverity(err),
+		"short-description":     errors.GetSDescription(err),
+		"probable-cause":        errors.GetCause(err),
+		"suggested-remediation": errors.GetRemedy(err),
+	}).Log(logrus.FatalLevel, err.Error())
+	os.Exit(1)
+}
+
+func (l *Logger) Fatalf(format string, args ...interface{}) {
+	l.handler.Log(logrus.FatalLevel, fmt.Sprintf(format, args...))
+	os.Exit(1)
+}
+
 func (l *Logger) SetLevel(level logrus.Level) {
 	l.handler.Logger.SetLevel(level)
 }
@@ -139,16 +178,4 @@ func (l *Logger) GetLevel() logrus.Level {
 
 func (l *Logger) UpdateLogOutput(output io.Writer) {
 	l.handler.Logger.SetOutput(output)
-}
-
-func (l *Logger) Infof(format string, args ...interface{}) {
-	l.handler.Log(logrus.InfoLevel, fmt.Sprintf(format, args...))
-}
-
-func (l *Logger) Warnf(format string, args ...interface{}) {
-	l.handler.Log(logrus.WarnLevel, fmt.Sprintf(format, args...))
-}
-
-func (l *Logger) Debugf(format string, args ...interface{}) {
-	l.handler.Log(logrus.DebugLevel, fmt.Sprintf(format, args...))
 }

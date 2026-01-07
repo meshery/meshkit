@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/meshery/meshkit/errors"
 )
@@ -14,6 +15,7 @@ var (
 	ErrUpdateComponentsCode       = "meshkit-11308"
 	ErrGeneratesComponentCode     = "meshkit-11309"
 	ErrUpdateRelationshipFileCode = "meshkit-11310"
+	ErrModelTimeoutCode           = "meshkit-11311"
 )
 
 func ErrAppendToSheet(err error, id string) error {
@@ -53,4 +55,12 @@ func ErrUpdateRelationshipFile(err error) error {
 		[]string{err.Error()},
 		[]string{"Error occurred while comapring the new file and the existing relationship file generated from the spreadsheet"},
 		[]string{"Ensure that the new file is in the correct format and has the correct data"})
+}
+
+func ErrModelTimeout(modelName string, timeout time.Duration) error {
+	return errors.New(ErrModelTimeoutCode, errors.Alert,
+		[]string{fmt.Sprintf("model generation timed out for %s after %v", modelName, timeout)},
+		[]string{fmt.Sprintf("The generation of model '%s' exceeded the per-model timeout of %v", modelName, timeout)},
+		[]string{"The model source may be unresponsive", "Network connectivity issues", "Large number of components to generate for this model"},
+		[]string{"Try increasing the per-model timeout using --timeout flag", "Check network connectivity", "Review the source URL for the model"})
 }

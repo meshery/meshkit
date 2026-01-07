@@ -2,6 +2,7 @@ package files
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"compress/gzip"
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/models/oci"
@@ -399,9 +399,10 @@ type ParsedCompose struct {
 	manifest string
 }
 
+
+
 // ParseFileAsDockerCompose parses a Docker Compose file into a types.Config struct.
 func ParseFileAsDockerCompose(file SanitizedFile) (ParsedCompose, error) {
-
 	manifest, err := kompose.Convert(file.RawData)
 
 	// fmt.Println("manifest ", manifest)
