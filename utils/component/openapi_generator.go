@@ -108,9 +108,10 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 		if err == nil {
 			scope, err := scopeCue.String()
 			if err == nil {
-				if scope == "Namespaced" {
+				switch scope {
+				case "Namespaced":
 					isNamespaced = true
-				} else if scope == "Cluster" {
+				case "Cluster":
 					isNamespaced = false
 				}
 			}

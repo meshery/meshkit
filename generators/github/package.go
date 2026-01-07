@@ -43,7 +43,7 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 	if err != nil {
 		return nil, ErrGenerateGitHubPackage(err, gp.Name)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// parse yaml and break into pages
 	decoder := yaml.NewDecoder(file)

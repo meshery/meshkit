@@ -1,12 +1,14 @@
 package kompose
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 
 	"github.com/kubernetes/kompose/client"
 	"github.com/meshery/meshkit/utils"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,7 +17,13 @@ const DefaultDockerComposeSchemaURL = "https://raw.githubusercontent.com/compose
 // Checks whether the given manifest is a valid docker-compose file.
 // schemaURL is assigned a default url if not specified
 // error will be 'nil' if it is a valid docker compose file
-func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
+func IsManifestADockerCompose(manifest []byte, schemaURL string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = ErrValidateDockerComposeFile(fmt.Errorf("panic: %v", r))
+		}
+	}()
+
 	if schemaURL == "" {
 		schemaURL = DefaultDockerComposeSchemaURL
 	}
@@ -30,8 +38,32 @@ func IsManifestADockerCompose(manifest []byte, schemaURL string) error {
 
 // converts a given docker-compose file into kubernetes manifests
 // expects a validated docker-compose file
-func Convert(dockerCompose DockerComposeFile) (string, error) {
+func Convert(dockerCompose DockerComposeFile) (result string, err error) {
 
+  exitFunc := logrus.StandardLogger().ExitFunc;
+	// revert back to original exit func for logrus
+	defer func() {
+		logrus.StandardLogger().ExitFunc = exitFunc
+	}()
+
+	// temporarly disable the default exit function ( os.exit) , because kompose using fatal logging rather than returning errors
+	logrus.StandardLogger().ExitFunc = func (exitCode int){
+		logrus.Errorf("Failed to convert dockercompose to manifest %v",exitCode)
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+		  fmt.Println("paniced will converting dockercompose to go")
+		}
+	}()
+
+
+	defer func() {
+		if r := recover(); r != nil {
+			result = ""
+			err = ErrCvrtKompose(fmt.Errorf("panic: %v", r))
+		}
+	}()
 
 	// Get user's home directory
 	homeDir, err := os.UserHomeDir()
@@ -58,9 +90,9 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 	}
 
 	defer func() {
-		os.Remove(envFilePath)
-		os.Remove(tempFilePath)
-		os.Remove(resultFilePath)
+		_ = os.Remove(envFilePath)
+		_ = os.Remove(tempFilePath)
+		_ = os.Remove(resultFilePath)
 	}()
 
 	formatComposeFile(&dockerCompose)
@@ -69,28 +101,39 @@ func Convert(dockerCompose DockerComposeFile) (string, error) {
 		return "", ErrCvrtKompose(err)
 	}
 
-	komposeClient, err := client.NewClient()
+	komposeOpts := client.WithSuppressWarnings()
+	komposeClient, err := client.NewClient(komposeOpts)
+	
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
 	ConvertOpt := client.ConvertOptions{
 		InputFiles:              []string{tempFilePath},
+		ToStdout: false,
 		OutFile:                 resultFilePath,
 		GenerateNetworkPolicies: true,
 	}
+
+	
 
 	_, err = komposeClient.Convert(ConvertOpt)
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
-	result, err := os.ReadFile(resultFilePath)
+	resultBytes, err := os.ReadFile(resultFilePath)
+
+	if len(resultBytes) == 0{
+		return "", ErrCvrtKompose(err)
+	}
+
+
 	if err != nil {
 		return "", ErrCvrtKompose(err)
 	}
 
-	return string(result), nil
+	return string(resultBytes), nil
 }
 
 type composeFile struct {
@@ -108,7 +151,7 @@ func versionCheck(dc DockerComposeFile) error {
 	}
 	// assume compatible if version is not specified
 	if cf.Version == "" {
-		return nil	
+		return nil
 	}
 	versionFloatVal, err := strconv.ParseFloat(cf.Version, 64)
 	if err != nil {

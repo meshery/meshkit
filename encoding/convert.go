@@ -18,7 +18,7 @@ func ToYaml(data []byte) ([]byte, error) {
 	}
 
 	if len(out.Content) == 0 {
-		return nil, fmt.Errorf("No content found in the yaml file.")
+		return nil, fmt.Errorf("no content found in the yaml file")
 	}
 
 	// Recursively set the style of nodes to block style for readable formatting.

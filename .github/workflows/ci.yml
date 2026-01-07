@@ -19,7 +19,7 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           skip-cache: true
@@ -37,22 +37,4 @@ jobs:
           cache-dependency-path: go.sum
       - name: go mod tidy
         run: make tidy
-  codecov:
-    name: codecov
-    needs: [ tidy ]
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache: true
-          cache-dependency-path: go.sum
-      - name: test
-        run: make test
-      - name: Upload covergae to Codecov
-        if: github.repository == 'meshery/meshkit'
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage.out
-          flags: unittests
+

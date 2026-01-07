@@ -7,6 +7,7 @@ const (
 	ErrValidateDockerComposeFileCode = "meshkit-11230"
 	ErrIncompatibleVersionCode       = "meshkit-11231"
 	ErrNoVersionCode                 = "meshkit-11232"
+	ErrMultipleDocumentsCode         = "meshkit-11233"
 )
 
 func ErrCvrtKompose(err error) error {
@@ -21,4 +22,8 @@ func ErrIncompatibleVersion() error {
 }
 func ErrNoVersion() error {
 	return errors.New(ErrNoVersionCode, errors.Alert, []string{"version not found in the docker compose file"}, []string{"Version field not found"}, []string{"Since the Docker Compose specification does not mandate the version field from version 3 onwards, most sources do not provide them."}, []string{"Make sure that the compose file has version specified,", "Add any version less than or equal to 3.3 if you cannot get the exact version from the source"})
+}
+
+func ErrMultipleDocuments() error {
+	return errors.New(ErrMultipleDocumentsCode, errors.Alert, []string{"Multiple YAML documents found in input"}, []string{"Docker Compose files must be a single YAML document"}, []string{"Input contains multiple YAML documents separated by '---'", "This may be a Kubernetes manifest with multiple resources"}, []string{"Ensure the input is a single Docker Compose file", "If importing Kubernetes manifests, use the appropriate import method"})
 }

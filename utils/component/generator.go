@@ -115,9 +115,10 @@ func Generate(resource string) (component.ComponentDefinition, error) {
 		cmp.Metadata.AdditionalProperties = make(map[string]interface{})
 	}
 	scope, _ := extractCueValueFromPath(crdCue, DefaultPathConfig.ScopePath)
-	if scope == "Cluster" {
+	switch scope {
+	case "Cluster":
 		cmp.Metadata.IsNamespaced = false
-	} else if scope == "Namespaced" {
+	case "Namespaced":
 		cmp.Metadata.IsNamespaced = true
 	}
 	cmp.Component.Kind = name

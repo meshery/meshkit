@@ -41,14 +41,14 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	filePath := filepath.Join(dirPath, utils.GetRandomAlphabetsOfDigit(5))
 	fd, err := os.Create(filePath)
 	if err != nil {
-		os.RemoveAll(dirPath)
+		_ = os.RemoveAll(dirPath)
 		return nil, utils.ErrCreateFile(err, filePath)
 	}
 	br := bufio.NewWriter(fd)
 
 	defer func() {
-		br.Flush()
-		fd.Close()
+		_ = br.Flush()
+		_ = fd.Close()
 	}()
 	gw := gitWalker.
 		Owner(owner).

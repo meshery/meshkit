@@ -91,7 +91,7 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 		if err != nil {
 			return err
 		}
-		defer gzipReader.Close()
+		defer func() { _ = gzipReader.Close() }()
 		reader = gzipReader
 	}
 
@@ -151,7 +151,7 @@ func ExtractTar(reader io.Reader, archiveFile string, outputDir string) error {
 			if err != nil {
 				return fmt.Errorf("failed to create file: %v", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			// Copy file contents
 			if _, err := io.Copy(file, tarReader); err != nil {
@@ -221,14 +221,14 @@ func ExtractZipFromBytes(data []byte, outputDir string) error {
 			if err != nil {
 				return fmt.Errorf("failed to open file in zip: %w", err)
 			}
-			defer zipFile.Close()
+			defer func() { _ = zipFile.Close() }()
 
 			// Create the output file
 			outFile, err := os.Create(filePath)
 			if err != nil {
 				return fmt.Errorf("failed to create output file: %w", err)
 			}
-			defer outFile.Close()
+			defer func() { _ = outFile.Close() }()
 
 			// Copy the contents of the file from the ZIP archive to the output file
 			if _, err := io.Copy(outFile, zipFile); err != nil {

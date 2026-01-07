@@ -2,6 +2,7 @@ package files
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"compress/gzip"
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/models/oci"
@@ -111,14 +111,14 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	if err != nil {
 		return nil, utils.ErrCreateDir(err, "OCI")
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	tmpInputDesignFile := filepath.Join(tmpDir, "design.tar")
 	file, err := os.Create(tmpInputDesignFile)
 	if err != nil {
 		return nil, utils.ErrCreateFile(err, tmpInputDesignFile)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	reader := bytes.NewReader(artifact)
 	if _, err := io.Copy(file, reader); err != nil {
@@ -151,7 +151,7 @@ func ParseCompressedOCIArtifactIntoDesign(artifact []byte) (*pattern.PatternFile
 	}
 
 	if design == nil {
-		return nil, ErrEmptyOCIImage(fmt.Errorf("No design file detected in the imported OCI image"))
+		return nil, ErrEmptyOCIImage(fmt.Errorf("no design file detected in the imported OCI image"))
 	}
 
 	var patternFile pattern.PatternFile
@@ -204,7 +204,7 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 		return *parsedDesign, nil
 
 	} else {
-		return pattern.PatternFile{}, fmt.Errorf("Invalid File extension %s", ext)
+		return pattern.PatternFile{}, fmt.Errorf("invalid file extension %s", ext)
 	}
 
 }
@@ -237,7 +237,7 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 			if err == io.EOF {
 				break // End of file
 			}
-			return nil, fmt.Errorf("Failed to decode YAML document: %v", err)
+			return nil, fmt.Errorf("failed to decode YAML document: %v", err)
 		}
 
 		if len(raw.Raw) == 0 {
@@ -399,9 +399,10 @@ type ParsedCompose struct {
 	manifest string
 }
 
+
+
 // ParseFileAsDockerCompose parses a Docker Compose file into a types.Config struct.
 func ParseFileAsDockerCompose(file SanitizedFile) (ParsedCompose, error) {
-
 	manifest, err := kompose.Convert(file.RawData)
 
 	// fmt.Println("manifest ", manifest)

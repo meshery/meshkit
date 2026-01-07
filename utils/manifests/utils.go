@@ -15,6 +15,9 @@ import (
 
 const (
 	JsonSchemaPropsRef = "JSONSchemaProps"
+	// DefaultMaxRefDepth is the maximum depth for resolving $ref references
+	// This prevents exponential blowup when processing large OpenAPI specs like Kubernetes
+	DefaultMaxRefDepth = 10
 )
 
 var templateExpression *regexp.Regexp
@@ -40,7 +43,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 	}
 	//getting defintions for different native resources
 	def.Spec.DefinitionRef.Name = definitionRef
-	def.ObjectMeta.Name = resourceId
+	def.Name = resourceId
 	def.APIVersion = "core.oam.dev/v1alpha1"
 	def.Kind = "WorkloadDefinition"
 	k8sAPIVersion := apiVersion
@@ -58,7 +61,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 		}
 		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId)
 		if cfg.Type != "" {
-			def.ObjectMeta.Name += "." + cfg.Type
+			def.Name += "." + cfg.Type
 			def.Spec.DefinitionRef.Name += "." + cfg.Type
 		}
 		def.Spec.DefinitionRef.Name += ".meshery.layer5.io"
@@ -69,7 +72,7 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 			"k8sKind":       resourceId,
 			"version":       cfg.K8sVersion,
 		}
-		def.ObjectMeta.Name += ".K8s"
+		def.Name += ".K8s"
 		def.Spec.DefinitionRef.Name = strings.ToLower(resourceId) + ".k8s.meshery.layer5.io"
 	case MESHERY:
 		def.Spec.Metadata = map[string]string{
@@ -244,10 +247,28 @@ type ResolveOpenApiRefs struct {
 	// this is used to track whether we have a JsonSchemaProp inside a JsonSchemaProp
 	// which on resolving would cause infinite loops
 	isInsideJsonSchemaProps bool
+	// MaxDepth limits the depth of $ref resolution to prevent exponential blowup
+	// with large OpenAPI specs like Kubernetes. If 0, defaults to DefaultMaxRefDepth.
+	MaxDepth int
 }
 
 // TODO: Refactor to use interface{} as an argument while doing type conversion recursively instead of assuming the input to always be a marshaled map[string]interface{}
+// ResolveReferences resolves $ref references in an OpenAPI schema up to MaxDepth levels.
+// References beyond the depth limit are left as-is to prevent exponential blowup.
 func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue.Value, cache map[string][]byte) ([]byte, error) {
+	maxDepth := ro.MaxDepth
+	if maxDepth == 0 {
+		maxDepth = DefaultMaxRefDepth
+	}
+	return ro.resolveReferencesWithDepth(manifest, definitions, cache, 0, maxDepth)
+}
+
+func (ro *ResolveOpenApiRefs) resolveReferencesWithDepth(manifest []byte, definitions cue.Value, cache map[string][]byte, currentDepth, maxDepth int) ([]byte, error) {
+	// Stop resolving if we've exceeded the depth limit
+	if currentDepth >= maxDepth {
+		return manifest, nil
+	}
+
 	setIsJsonFalse := func() {
 		ro.isInsideJsonSchemaProps = false
 	}
@@ -284,7 +305,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 					continue
 				}
 				byt, _ := encoding.Marshal(v0)
-				byt, err = ro.ResolveReferences(byt, definitions, cache)
+				byt, err = ro.resolveReferencesWithDepth(byt, definitions, cache, currentDepth+1, maxDepth)
 				if err != nil {
 					return nil, err
 				}
@@ -314,7 +335,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 					if errJson != nil {
 						return nil, err
 					}
-					def, err = ro.ResolveReferences(marshalledVal, definitions, cache)
+					def, err = ro.resolveReferencesWithDepth(marshalledVal, definitions, cache, currentDepth+1, maxDepth)
 					if err != nil {
 						return nil, err
 					}
@@ -338,7 +359,7 @@ func (ro *ResolveOpenApiRefs) ResolveReferences(manifest []byte, definitions cue
 			if err != nil {
 				return nil, err
 			}
-			def, err = ro.ResolveReferences(marVal, definitions, cache)
+			def, err = ro.resolveReferencesWithDepth(marVal, definitions, cache, currentDepth+1, maxDepth)
 			if err != nil {
 				return nil, err
 			}
