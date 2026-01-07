@@ -250,7 +250,7 @@ func ParseFileAsKubernetesManifest(file SanitizedFile) ([]runtime.Object, error)
 			// Fallback: Convert to Unstructured object for unknown API types
 			unstructuredObj := &unstructured.Unstructured{}
 			if err := json.Unmarshal(raw.Raw, unstructuredObj); err != nil {
-				return nil, fmt.Errorf("Failed to decode YAML into Kubernetes object \n %v", utils.TruncateErrorMessage(err, 20))
+				return nil, fmt.Errorf("failed to decode YAML into Kubernetes object \n %v", utils.TruncateErrorMessage(err, 20))
 			}
 			objects = append(objects, unstructuredObj)
 		}
@@ -297,7 +297,7 @@ var ValidKustomizeFileExtensions = map[string]bool{
 func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
 
 	if !ValidHelmChartFileExtensions[file.FileExt] {
-		return nil, fmt.Errorf("Invalid file extension %s", file.FileExt)
+		return nil, fmt.Errorf("invalid file extension %s", file.FileExt)
 	}
 
 	// Use Helm's loader.LoadArchive to load the chart

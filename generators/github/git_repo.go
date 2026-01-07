@@ -41,7 +41,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	filePath := filepath.Join(dirPath, utils.GetRandomAlphabetsOfDigit(5))
 	fd, err := os.Create(filePath)
 	if err != nil {
-		os.RemoveAll(dirPath)
+		_ = os.RemoveAll(dirPath)
 		return nil, utils.ErrCreateFile(err, filePath)
 	}
 	br := bufio.NewWriter(fd)
@@ -87,7 +87,7 @@ func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root s
 		root = parts[3]
 
 	} else {
-		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid, specify owner, repo, branch and filepath in the url according to the specified source url format", gr.URL.String()))
+		err = ErrInvalidGitHubSourceURL(fmt.Errorf("source URL %s is invalid, specify owner, repo, branch and filepath in the url according to the specified source url format", gr.URL.String()))
 	}
 	return
 }
