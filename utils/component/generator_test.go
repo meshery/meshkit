@@ -154,7 +154,7 @@ func TestGenerate(t *testing.T) {
 			if got.Component.Kind != tt.want.Component.Kind {
 				t.Errorf("got %v, want %v", got.Component.Kind, tt.want.Component.Kind)
 			}
-			if !(got.Component.Version == tt.want.Component.Version) {
+			if got.Component.Version != tt.want.Component.Version {
 				t.Errorf("got %v, want %v", got.Component.Version, tt.want.Component.Version)
 			}
 		})
