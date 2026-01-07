@@ -110,19 +110,19 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	}
 	entries, ok := out["entries"].(map[interface{}]interface{})
 	if entries == nil || !ok {
-		return ErrGetChartUrl(fmt.Errorf("cannot extract chartUrl from repository helm index"))
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
 	pkgEntry, ok := entries[pkg.Name]
 	if pkgEntry == nil || !ok {
-		return ErrGetChartUrl(fmt.Errorf("cannot extract chartUrl from repository helm index"))
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
 	urls, ok := pkgEntry.([]interface{})[0].(map[interface{}]interface{})["urls"]
 	if urls == nil || !ok {
-		return ErrGetChartUrl(fmt.Errorf("cannot extract chartUrl from repository helm index"))
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
 	chartUrl, ok := urls.([]interface{})[0].(string)
 	if !ok || chartUrl == "" {
-		return ErrGetChartUrl(fmt.Errorf("cannot extract chartUrl from repository helm index"))
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
 
 	if strings.HasPrefix(chartUrl, "http") || strings.HasPrefix(chartUrl, "oci://") {

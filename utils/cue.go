@@ -111,7 +111,7 @@ func Lookup(rootVal cue.Value, path string) (cue.Value, error) {
 		return res, ErrCueLookup(res.Err())
 	}
 	if !res.Exists() {
-		return res, ErrCueLookup(fmt.Errorf("could not find the value at the path: %s", path))
+		return res, ErrCueLookup(fmt.Errorf("Could not find the value at the path: %s", path))
 	}
 
 	return res.Value(), nil

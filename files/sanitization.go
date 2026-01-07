@@ -262,7 +262,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	outputDir, err := os.MkdirTemp(tempDir, fileName)
 
 	if err != nil {
-		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("failed to create extraction directory: %w", err))
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("Failed to create extraction directory %w", err))
 	}
 
 	switch ext {
@@ -272,7 +272,7 @@ func SanitizeBundle(data []byte, fileName string, ext string, tempDir string) (S
 	case ".zip":
 		err = ExtractZipFromBytes(data, outputDir)
 	default:
-		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("unsupported compression extension %s", ext))
+		return SanitizedFile{}, ErrFailedToExtractArchive(fileName, fmt.Errorf("Unsupported compression extension %s", ext))
 	}
 
 	if err != nil {
