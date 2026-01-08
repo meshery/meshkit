@@ -379,7 +379,7 @@ func ErrDecodePattern(err error) error {
 }
 
 var (
-	ErrInvalidModelCode        = "meshkit-11301"
+	ErrInvalidModelCode        = "meshkit-11331"
 	ErrInvalidModelArchiveCode = "meshkit-11302"
 	ErrEmptyModelCode          = "meshkit-11303"
 )
