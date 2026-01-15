@@ -387,7 +387,7 @@ func createNewRegistrant(registrantName string) connection.Connection {
 	}
 	newRegistrant := connection.Connection{
 		Name:   registrantName,
-		Status: connection.Discovered,
+		Status: connection.ConnectionStatusDiscovered,
 		Type:   "registry",
 		Kind:   kind,
 	}
@@ -1180,14 +1180,19 @@ func SetLogger(ismultiWriter bool) error {
 		return err
 	}
 	logFilePath := filepath.Join(logDirPath, "model-generation.log")
-	logFile, err := os.Create(logFilePath)
+	logFile, err = os.Create(logFilePath)
 	if err != nil {
 		return err
 	}
 
 	logErrorFilePath := filepath.Join(logDirPath, "registry-errors.log")
-	errorLogFile, err := os.Create(logErrorFilePath)
+	errorLogFile, err = os.Create(logErrorFilePath)
 	if err != nil {
+		// Close the already opened logFile to avoid leak
+		if logFile != nil {
+			_ = logFile.Close()
+			logFile = nil
+		}
 		return err
 	}
 	if Log == nil {

@@ -88,7 +88,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 		}
 	}
 
-	model.Registrant.Status = connection.Registered
+	model.Registrant.Status = connection.ConnectionStatusRegistered
 	_, _, err := rh.regManager.RegisterEntity(model.Registrant, &model)
 
 	// If model cannot be registered, don't register anything else
