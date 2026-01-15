@@ -18,6 +18,10 @@ var (
 	Log logger.Handler
 	//global logger error variable
 	LogError logger.Handler
+	// logFile and errorLogFile are the file handles for the log files
+	// They are stored at package level to allow proper cleanup
+	logFile      *os.File
+	errorLogFile *os.File
 )
 
 const (
@@ -146,6 +150,19 @@ func SetupLogger(name string, debugLevel bool, output io.Writer) logger.Handler 
 		os.Exit(1)
 	}
 	return logger
+}
+
+// CloseLogger closes the log file handles opened by SetLogger.
+// This should be called when logging is no longer needed to prevent file handle leaks.
+func CloseLogger() {
+	if logFile != nil {
+		_ = logFile.Close()
+		logFile = nil
+	}
+	if errorLogFile != nil {
+		_ = errorLogFile.Close()
+		errorLogFile = nil
+	}
 }
 
 // Downloads CSV file using spreadsheet URL
