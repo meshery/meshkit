@@ -3,6 +3,7 @@ package github
 import (
 	"bufio"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -20,7 +21,8 @@ type GitRepo struct {
 	PackageName string
 }
 
-// Assumpations: 1. Always a K8s manifest
+// Assumptions:
+// 1. Always a K8s manifest
 // 2. Unzipped/unarchived File type
 
 func (gr GitRepo) GetContent() (models.Package, error) {
@@ -78,17 +80,61 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 }
 
 func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root string, err error) {
-	parts := strings.SplitN(strings.TrimPrefix(gr.URL.Path, "/"), "/", 4)
-	size := len(parts)
-	if size > 3 {
-		owner = parts[0]
-		repo = parts[1]
-		branch = parts[2]
-		root = parts[3]
+	// Trim slashes from both ends to handle "owner/repo/" correctly
+	path := strings.Trim(gr.URL.Path, "/")
 
-	} else {
-		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid, specify owner, repo, branch and filepath in the url according to the specified source url format", gr.URL.String()))
+	// If path is empty after trimming, it's definitely invalid
+	if path == "" {
+		return "", "", "", "", ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid", gr.URL.String()))
 	}
+
+	// Split the path into parts
+	raw := strings.Split(path, "/")
+	parts := make([]string, 0)
+	for _, p := range raw {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	// Handle GitHub Web UI URLS:
+	// Pattern: owner/repo/tree/branch/... or owner/repo/blob/branch/...
+	if len(parts) >= 3 && (parts[2] == "tree" || parts[2] == "blob") {
+		// Remove 'tree' or 'blob' so the rest of the logic sees [owner, repo, branch, root]
+		parts = append(parts[:2], parts[3:]...)
+	}
+
+	// Handle Release URLs:
+	// Pattern: owner/repo/releases/tag/v1.0
+	if len(parts) >= 5 && parts[2] == "releases" && parts[3] == "tag" {
+		owner, repo = parts[0], parts[1]
+		branch = parts[4] // The tag is treated as the 'branch' for cloning purposes
+		root = "/**"
+		return owner, repo, branch, root, nil
+	}
+	size := len(parts)
+
+	switch {
+	case size >= 4:
+		// Use the first three for owner, repo, branch, and join the rest for root
+		owner, repo, branch = parts[0], parts[1], parts[2]
+		root = strings.Join(parts[3:], "/")
+	case size == 3:
+		owner, repo, branch = parts[0], parts[1], parts[2]
+		root = "/**"
+	case size == 2:
+		owner, repo = parts[0], parts[1]
+		// we use the default http client here
+
+		b, err := GetDefaultBranchFromGitHub("https://api.github.com", owner, repo, http.DefaultClient)
+		if err != nil {
+			return "", "", "", "", err
+		}
+		branch = b
+		root = "/**"
+	default:
+		return "", "", "", "", ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid; expected owner/repo[/branch[/path]]", gr.URL.String()))
+	}
+
 	return
 }
 
