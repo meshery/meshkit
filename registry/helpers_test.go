@@ -140,3 +140,18 @@ func TestProgressCallbackParameters(t *testing.T) {
 	assert.Equal(t, 5, capturedCurrentIndex)
 	assert.Equal(t, 100, capturedTotalModels)
 }
+
+func TestCloseLoggerWhenNoFilesOpen(t *testing.T) {
+	// Ensure logFile and errorLogFile are nil
+	logFile = nil
+	errorLogFile = nil
+
+	// CloseLogger should not panic when files are nil
+	assert.NotPanics(t, func() {
+		CloseLogger()
+	}, "CloseLogger should not panic when log files are nil")
+
+	// After closing, files should still be nil
+	assert.Nil(t, logFile, "logFile should be nil after CloseLogger")
+	assert.Nil(t, errorLogFile, "errorLogFile should be nil after CloseLogger")
+}
