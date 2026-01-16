@@ -37,26 +37,34 @@ func NewDownloaderForScheme(scheme string, url *url.URL, packageName string) Dow
 	return nil
 }
 
-// isGitHubURL checks if the URL is a GitHub repository URL
-// This enables automatic CRD discovery for standard GitHub URLs
-func isGitHubURL(scheme string, url *url.URL) bool {
-	host := strings.ToLower(url.Host)
-	// Check for github.com domain
-	if host == "github.com" || strings.HasSuffix(host, ".github.com") {
-		// Check if it looks like a repository URL (has at least owner/repo in path)
-		path := strings.TrimPrefix(url.Path, "/")
-		parts := strings.Split(path, "/")
-		// Valid GitHub repo URL should have at least owner and repo
-		if len(parts) >= 2 && parts[0] != "" && parts[1] != "" {
-			// Exclude certain paths that aren't repositories
-			excluded := []string{"settings", "explore", "marketplace", "pulls", "issues", "new", "organizations", "login", "join"}
-			for _, exclude := range excluded {
-				if parts[0] == exclude {
-					return false
-				}
-			}
-			return true
+func isGitHubURL(scheme string, u *url.URL) bool {
+	host := strings.ToLower(u.Host)
+	if host != "github.com" && !strings.HasSuffix(host, ".github.com") {
+		return false
+	}
+	if strings.HasPrefix(host, "gist.") {
+		return false
+	}
+	
+	path := strings.Trim(u.Path, "/")
+	path = strings.TrimSuffix(path, ".git")
+	
+	if path == "" {
+		return false
+	}
+	
+	parts := strings.Split(path, "/")
+	
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return false
+	}
+	
+
+	excluded := []string{"settings", "explore", "marketplace", "pulls", "issues", "new", "organizations", "login", "join", "logout", "pricing", "blog"}
+	for _, exclude := range excluded {
+		if parts[0] == exclude {
+			return false
 		}
 	}
-	return false
+	return true
 }

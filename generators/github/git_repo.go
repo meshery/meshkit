@@ -93,58 +93,66 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 	}, nil
 }
 
-func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root string, err error) {
-	path := strings.TrimPrefix(gr.URL.Path, "/")
-	parts := strings.Split(path, "/")
-	size := len(parts)
+// parseGitURL parses a git URL and extracts owner, repo, branch, and path components
+func parseGitURL(rawURL *url.URL) (owner, repo, branch, path string, err error) {
+	urlPath := strings.Trim(rawURL.Path, "/")
+	urlPath = strings.TrimSuffix(urlPath, ".git")
 	
-	// Minimum required: owner and repo
-	if size < 2 {
-		err = ErrInvalidGitHubSourceURL(fmt.Errorf("Source URL %s is invalid, must specify at least owner and repo", gr.URL.String()))
+	if urlPath == "" {
+		err = fmt.Errorf("empty path in URL: %s", rawURL.String())
 		return
 	}
+	parts := strings.Split(urlPath, "/")
 	
+	if len(parts) < 2 {
+		err = fmt.Errorf("invalid git URL format: must have at least owner/repo in path: %s", rawURL.String())
+		return
+	}
 	owner = parts[0]
 	repo = parts[1]
 	
-	// Remove .git suffix from repo name if present
-	repo = strings.TrimSuffix(repo, ".git")
+	// Default branch
+	branch = "main"
+	path = ""
 	
-	// Handle standard GitHub URL formats:
+	// Handle different GitHub URL formats
 	// - https://github.com/owner/repo
 	// - https://github.com/owner/repo/tree/branch
 	// - https://github.com/owner/repo/tree/branch/path/to/dir
+	// - https://github.com/owner/repo/blob/branch/path/to/file
 	// - git://github.com/owner/repo/branch/path (legacy format)
 	
-	branch = "main" // default branch
-	root = ""
-	
-	if size >= 3 {
-		// Check if this is a standard GitHub URL with /tree/branch format
-		if parts[2] == "tree" && size >= 4 {
-			// Format: owner/repo/tree/branch[/path...]
-			branch = parts[3]
-			if size > 4 {
-				// Reconstruct the path after branch
-				root = strings.Join(parts[4:], "/")
+	if len(parts) >= 3 {
+		if parts[2] == "tree" {
+			if len(parts) >= 4 {
+				branch = parts[3]
+				if len(parts) > 4 {
+					path = strings.Join(parts[4:], "/")
+				}
 			}
 		} else if parts[2] == "blob" {
-			// Format: owner/repo/blob/branch/path/to/file
-			// This is a file URL, not a directory - we'll treat it as root path
-			if size >= 4 {
+			if len(parts) >= 4 {
 				branch = parts[3]
-				if size > 4 {
-					root = strings.Join(parts[4:], "/")
+				if len(parts) > 4 {
+					path = strings.Join(parts[4:], "/")
 				}
 			}
 		} else {
-			// Legacy format: owner/repo/branch[/path...]
 			branch = parts[2]
-			if size > 3 {
-				// Reconstruct the path after branch
-				root = strings.Join(parts[3:], "/")
+			if len(parts) > 3 {
+				path = strings.Join(parts[3:], "/")
 			}
 		}
+	}
+	
+	return owner, repo, branch, path, nil
+}
+
+func (gr GitRepo) extractRepoDetailsFromSourceURL() (owner, repo, branch, root string, err error) {
+	owner, repo, branch, root, err = parseGitURL(gr.URL)
+	if err != nil {
+		err = ErrInvalidGitHubSourceURL(err)
+		return
 	}
 	
 	// If root is empty, we'll use "/**" for recursive traversal in GetContent
