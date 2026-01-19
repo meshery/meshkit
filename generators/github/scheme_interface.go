@@ -2,8 +2,8 @@ package github
 
 import (
 	"net/url"
-	"strings"
 
+	giturlparse "github.com/git-download-manager/git-url-parse"
 	"github.com/meshery/meshkit/generators/models"
 )
 
@@ -13,7 +13,7 @@ type DownloaderScheme interface {
 
 func NewDownloaderForScheme(scheme string, url *url.URL, packageName string) DownloaderScheme {
 	// Check if this is a GitHub URL - route to GitRepo for automatic CRD discovery
-	if isGitHubURL(scheme, url) {
+	if isGitHubURL(url) {
 		return GitRepo{
 			URL:         url,
 			PackageName: packageName,
@@ -37,34 +37,15 @@ func NewDownloaderForScheme(scheme string, url *url.URL, packageName string) Dow
 	return nil
 }
 
-func isGitHubURL(scheme string, u *url.URL) bool {
-	host := strings.ToLower(u.Host)
-	if host != "github.com" && !strings.HasSuffix(host, ".github.com") {
+func isGitHubURL(u *url.URL) bool {
+	gitRepository := giturlparse.NewGitRepository("", "", u.String(), "")
+	if err := gitRepository.Parse("", 0, ""); err != nil {
 		return false
 	}
-	if strings.HasPrefix(host, "gist.") {
-		return false
-	}
-	
-	path := strings.Trim(u.Path, "/")
-	path = strings.TrimSuffix(path, ".git")
-	
-	if path == "" {
-		return false
-	}
-	
-	parts := strings.Split(path, "/")
-	
-	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
-		return false
-	}
-	
 
-	excluded := []string{"settings", "explore", "marketplace", "pulls", "issues", "new", "organizations", "login", "join", "logout", "pricing", "blog"}
-	for _, exclude := range excluded {
-		if parts[0] == exclude {
-			return false
-		}
+	if gitRepository.Hostname != "github.com" {
+		return false
 	}
-	return true
+
+	return gitRepository.Owner != "" && gitRepository.Name != ""
 }

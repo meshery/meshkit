@@ -6,8 +6,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
+	giturlparse "github.com/git-download-manager/git-url-parse"
 	"github.com/meshery/meshkit/generators/models"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/helm"
@@ -95,56 +97,23 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 
 // parseGitURL parses a git URL and extracts owner, repo, branch, and path components
 func parseGitURL(rawURL *url.URL) (owner, repo, branch, path string, err error) {
-	urlPath := strings.Trim(rawURL.Path, "/")
-	urlPath = strings.TrimSuffix(urlPath, ".git")
-	
-	if urlPath == "" {
-		err = fmt.Errorf("empty path in URL: %s", rawURL.String())
-		return
+	gitRepository := giturlparse.NewGitRepository("", "", rawURL.String(), "")
+	if err := gitRepository.Parse("", 0, ""); err != nil {
+		return "", "", "", "", err
 	}
-	parts := strings.Split(urlPath, "/")
-	
-	if len(parts) < 2 {
-		err = fmt.Errorf("invalid git URL format: must have at least owner/repo in path: %s", rawURL.String())
-		return
+
+	owner = gitRepository.Owner
+	repo = gitRepository.Name
+	branch = gitRepository.Branch
+	if branch == "" {
+		branch = "main"
 	}
-	owner = parts[0]
-	repo = parts[1]
-	
-	// Default branch
-	branch = "main"
-	path = ""
-	
-	// Handle different GitHub URL formats
-	// - https://github.com/owner/repo
-	// - https://github.com/owner/repo/tree/branch
-	// - https://github.com/owner/repo/tree/branch/path/to/dir
-	// - https://github.com/owner/repo/blob/branch/path/to/file
-	// - git://github.com/owner/repo/branch/path (legacy format)
-	
-	if len(parts) >= 3 {
-		if parts[2] == "tree" {
-			if len(parts) >= 4 {
-				branch = parts[3]
-				if len(parts) > 4 {
-					path = strings.Join(parts[4:], "/")
-				}
-			}
-		} else if parts[2] == "blob" {
-			if len(parts) >= 4 {
-				branch = parts[3]
-				if len(parts) > 4 {
-					path = strings.Join(parts[4:], "/")
-				}
-			}
-		} else {
-			branch = parts[2]
-			if len(parts) > 3 {
-				path = strings.Join(parts[3:], "/")
-			}
-		}
+	path = gitRepository.Path
+
+	if owner == "" || repo == "" {
+		return "", "", "", "", fmt.Errorf("invalid git URL format: must have at least owner/repo in path: %s", rawURL.String())
 	}
-	
+
 	return owner, repo, branch, path, nil
 }
 
@@ -226,13 +195,12 @@ func crdAwareFileInterceptor(br *bufio.Writer) walker.FileInterceptor {
 				continue
 			}
 			// Check for YAML format
-			if strings.Contains(doc, "kind: CustomResourceDefinition") {
+			if match, _ := regexp.MatchString(`kind:\s*CustomResourceDefinition`, doc); match {
 				hasCRD = true
 				break
 			}
 			// Check for JSON format
-			if strings.Contains(doc, "\"kind\":\"CustomResourceDefinition\"") ||
-				strings.Contains(doc, `"kind":"CustomResourceDefinition"`) {
+			if match, _ := regexp.MatchString(`"kind"\s*:\s*"CustomResourceDefinition"`, doc); match {
 				hasCRD = true
 				break
 			}
