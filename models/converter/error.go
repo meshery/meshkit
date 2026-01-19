@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	ErrUnknownFormatCode = "meshkit-11245"
+	ErrUnknownFormatCode = "meshkit-11320"
 )
 
 func ErrUnknownFormat(format DesignFormat) error {

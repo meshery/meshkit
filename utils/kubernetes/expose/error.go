@@ -9,7 +9,7 @@ import (
 
 var (
 	// ErrExposeResourceCode is generated while exposing the kubernetes resource
-	ErrExposeResourceCode = "meshkit-11205"
+	ErrExposeResourceCode = "meshkit-11325"
 
 	// ErrGettingResourceCode is generated when there is an error getting the kubernetes resource
 	ErrGettingResourceCode = "meshkit-11206"

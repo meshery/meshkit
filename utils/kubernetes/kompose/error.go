@@ -7,7 +7,7 @@ const (
 	ErrValidateDockerComposeFileCode = "meshkit-11230"
 	ErrIncompatibleVersionCode       = "meshkit-11231"
 	ErrNoVersionCode                 = "meshkit-11232"
-	ErrMultipleDocumentsCode         = "meshkit-11233"
+	ErrMultipleDocumentsCode         = "meshkit-11326"
 )
 
 func ErrCvrtKompose(err error) error {
