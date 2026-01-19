@@ -71,3 +71,27 @@ func TestGetChartUrl(t *testing.T) {
 		})
 	}
 }
+
+func TestVersionSanitization(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"With v prefix", "v1.2.3", "1.2.3"},
+		{"Without v prefix", "1.2.3", "1.2.3"},
+		{"Date based", "v2022.06.14", "2022.06.14"},
+		{"Empty", "", ""},
+		{"Complex", "v1.0.0-beta+exp.sha.5114f85", "1.0.0-beta+exp.sha.5114f85"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pkg := AhPackage{Version: tt.input}
+			// This calls the helper method we added to package.go
+			if got := pkg.sanitizedVersion(); got != tt.expected {
+				t.Errorf("sanitizedVersion() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
