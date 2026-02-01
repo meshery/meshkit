@@ -42,6 +42,7 @@ type Git struct {
 	useAPI       bool
 	timeout      time.Duration
 	progressHook ProgressHook
+	maxDepth     int
 }
 
 // NewGit returns a pointer to an instance of Git
@@ -77,6 +78,11 @@ func (g *Git) BaseURL(baseurl string) *Git {
 // to the same Git instance
 func (g *Git) MaxFileSize(size int64) *Git {
 	g.maxFileSizeInBytes = size
+	return g
+}
+
+func (g *Git) MaxDepth(depth int) *Git {
+	g.maxDepth = depth
 	return g
 }
 
@@ -415,14 +421,22 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 			}
 		}
 
+		pathSep := string(os.PathSeparator)
+		rootDepth := strings.Count(rootPath, pathSep)
 		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
-			if d.IsDir() && g.dirInterceptor != nil {
-				return g.dirInterceptor(Directory{
-					Name: d.Name(),
-					Path: path,
-				})
-			}
 			if d.IsDir() {
+				if g.dirInterceptor != nil {
+					return g.dirInterceptor(Directory{
+						Name: d.Name(),
+						Path: path,
+					})
+				}
+				if g.maxDepth > 0 {
+					currentDepth := strings.Count(path, pathSep) - rootDepth
+					if currentDepth >= g.maxDepth {
+						return filepath.SkipDir
+					}
+				}
 				return nil
 			}
 			f, errInfo := d.Info()
