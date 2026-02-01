@@ -14,7 +14,16 @@ const (
 	gitHub      = "github"
 )
 
+type GeneratorOptions struct {
+	Recursive bool
+	MaxDepth  int
+}
+
 func NewGenerator(registrant, url, packageName string) (models.PackageManager, error) {
+	return NewGeneratorWithOptions(registrant, url, packageName, GeneratorOptions{})
+}
+
+func NewGeneratorWithOptions(registrant, url, packageName string, opts GeneratorOptions) (models.PackageManager, error) {
 	registrant = utils.ReplaceSpacesAndConvertToLowercase(registrant)
 	switch registrant {
 	case artifactHub:
@@ -26,6 +35,8 @@ func NewGenerator(registrant, url, packageName string) (models.PackageManager, e
 		return github.GitHubPackageManager{
 			PackageName: packageName,
 			SourceURL:   url,
+			Recursive:   opts.Recursive,
+			MaxDepth:    opts.MaxDepth,
 		}, nil
 	}
 	return nil, ErrUnsupportedRegistrant(fmt.Errorf("generator not implemented for the registrant %s", registrant))
