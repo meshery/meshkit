@@ -29,6 +29,7 @@ type Git struct {
 	fileInterceptor    FileInterceptor
 	dirInterceptor     DirInterceptor
 	referenceName      plumbing.ReferenceName
+	maxDepth           int
 }
 
 // NewGit returns a pointer to an instance of Git
@@ -64,6 +65,11 @@ func (g *Git) BaseURL(baseurl string) *Git {
 func (g *Git) MaxFileSize(size int64) *Git {
 	g.maxFileSizeInBytes = size
 	return g
+}
+
+func (g *Git) MaxDepth(depth int) *Git {
+    g.maxDepth = depth
+    return g
 }
 
 // ShowLogs enable the logs and returns a pointer
@@ -183,14 +189,23 @@ func clonewalk(g *Git) error {
 	}
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
+		pathSep := string(os.PathSeparator)
+		rootDepth := strings.Count(rootPath, pathSep)
 		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
-			if d.IsDir() && g.dirInterceptor != nil {
-				return g.dirInterceptor(Directory{
-					Name: d.Name(),
-					Path: path,
-				})
-			}
 			if d.IsDir() {
+				if g.dirInterceptor != nil {
+					return g.dirInterceptor(Directory{
+						Name: d.Name(),
+						Path: path,
+					})
+				}
+				// Check max depth if configured
+				if g.maxDepth > 0 {
+					currentDepth := strings.Count(path, pathSep) - rootDepth
+					if currentDepth >= g.maxDepth {
+						return filepath.SkipDir
+					}
+				}
 				return nil
 			}
 			f, errInfo := d.Info()
