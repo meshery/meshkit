@@ -68,8 +68,8 @@ func (g *Git) MaxFileSize(size int64) *Git {
 }
 
 func (g *Git) MaxDepth(depth int) *Git {
-    g.maxDepth = depth
-    return g
+	g.maxDepth = depth
+	return g
 }
 
 // ShowLogs enable the logs and returns a pointer
@@ -202,7 +202,7 @@ func clonewalk(g *Git) error {
 				// Check max depth if configured
 				if g.maxDepth > 0 {
 					currentDepth := strings.Count(path, pathSep) - rootDepth
-					if currentDepth >= g.maxDepth {
+					if currentDepth > g.maxDepth {
 						return filepath.SkipDir
 					}
 				}
