@@ -1,62 +1,171 @@
 package github
 
 import (
-	"net/url"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/meshery/meshkit/utils/walker"
 )
 
-func TestRecursiveWalk(t *testing.T) {
-	// Ideally we would mock the network calls or setup a local git repo.
-	// However, given the environment limitations and existing tests using real network,
-	// we will try to make a test that relies on the walker logic directly or uses a stable public repo.
-	// But since testing walker directly is unit testing, let's try to verify GitRepo logic using a mock-like approach if possible,
-	// or just rely on the existing pattern.
+func TestRecursiveWalkFunctional(t *testing.T) {
+	// 1. Create a temporary local git repo
+	tempDir, err := ioutil.TempDir("", "test-recursive-walk")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
 
-	// Let's create a test that uses the walker directly first to verify local directory walking if possible,
-	// but the Git walker is specifically for git repos.
-
-	// Verify that the fields are correctly set on the walker.
-
-	gr := GitRepo{
-		URL:         &url.URL{Path: "/owner/repo/branch/root"},
-		Recursive:   true,
-		MaxDepth:    2,
-		PackageName: "test-package",
+	// Initialize git repo
+	r, err := git.PlainInit(tempDir, false)
+	if err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+	w, err := r.Worktree()
+	if err != nil {
+		t.Fatalf("Failed to get worktree: %v", err)
 	}
 
-	if !gr.Recursive {
-		t.Error("GitRepo.Recursive should be true")
+	// 2. Commit a file structure
+	// root/
+	//   root.yaml
+	//   level1/
+	//     level1.yaml
+	//     level2/
+	//       level2.yaml
+
+	createFile(t, tempDir, "root.yaml", "content")
+	createFile(t, tempDir, "level1/level1.yaml", "content")
+	createFile(t, tempDir, "level1/level2/level2.yaml", "content")
+
+	_, err = w.Add(".")
+	if err != nil {
+		t.Fatalf("Failed to add files: %v", err)
 	}
-	if gr.MaxDepth != 2 {
-		t.Errorf("GitRepo.MaxDepth should be 2, got %d", gr.MaxDepth)
+	// Use a fixed time for commit to be deterministic if needed, but not strictly required here.
+	_, err = w.Commit("Initial commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Test",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to commit: %v", err)
 	}
 
-	// Since we cannot easily mock the internal walker without refactoring using interfaces,
-	// we will rely on integration/manual verification via code structure.
-	// Wait, we CAN test the logic in `clonewalk` if we can intercept the git clone.
-	// But `git.PlainClone` is hardcoded.
-
-	// Instead, let's add a test for `GitHubPackageManager` ensuring options are passed.
-
-	ghpm := GitHubPackageManager{
-		PackageName: "test",
-		SourceURL:   "https://github.com/owner/repo",
-		Recursive:   true,
-		MaxDepth:    3,
+	// 3. Test Cases
+	tests := []struct {
+		name      string
+		recursive bool
+		maxDepth  int
+		wantFiles []string
+	}{
+		{
+			name:      "Non-recursive (Root only)",
+			recursive: false,
+			maxDepth:  0,
+			wantFiles: []string{"root.yaml"},
+		},
+		{
+			name:      "Recursive Unlimited",
+			recursive: true,
+			maxDepth:  0,
+			wantFiles: []string{"root.yaml", "level1.yaml", "level2.yaml"},
+		},
+		{
+			name:      "Recursive MaxDepth 1",
+			recursive: true,
+			maxDepth:  1,
+			wantFiles: []string{"root.yaml", "level1.yaml"},
+		},
+		{
+			name:      "Recursive MaxDepth 2",
+			recursive: true,
+			maxDepth:  2,
+			wantFiles: []string{"root.yaml", "level1.yaml", "level2.yaml"},
+		},
 	}
 
-	if !ghpm.Recursive {
-		t.Error("GitHubPackageManager.Recursive should be true")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Construct file URL for local repo
+			// Convert tempDir to file URI (e.g., file:///C:/...)
+			// ToSlash is important for Windows
+			repoPath := filepath.ToSlash(tempDir)
+			if !strings.HasPrefix(repoPath, "/") {
+				repoPath = "/" + repoPath
+			}
+			fileURL := "file://" + repoPath
+
+			walkerInst := walker.NewGit().
+				Owner("").
+				Repo("").
+				BaseURL(fileURL).
+				Branch("master").
+				Root("").
+				MaxDepth(tt.maxDepth)
+
+			var collectedFiles []string
+			walkerInst.RegisterFileInterceptor(func(f walker.File) error {
+				collectedFiles = append(collectedFiles, f.Name)
+				return nil
+			})
+
+			// Adjust root to trigger recursion internal flag
+			if tt.recursive {
+				walkerInst.Root("/**")
+			} else {
+				walkerInst.Root("")
+			}
+
+			// Run Walk
+			err := walkerInst.Walk()
+			if err != nil {
+				// We expect this to work for local repos. Fail if it doesn't.
+				t.Fatalf("Walk failed: %v", err)
+			}
+
+			assertFilesEqual(t, collectedFiles, tt.wantFiles)
+		})
 	}
-	if ghpm.MaxDepth != 3 {
-		t.Errorf("GitHubPackageManager.MaxDepth should be 3, got %d", ghpm.MaxDepth)
+}
+
+func assertFilesEqual(t *testing.T, got, want []string) {
+	gotMap := make(map[string]struct{})
+	for _, f := range got {
+		gotMap[f] = struct{}{}
 	}
+	for _, f := range want {
+		if _, ok := gotMap[f]; !ok {
+			t.Errorf("missing expected file: %s", f)
+		} else {
+			delete(gotMap, f)
+		}
+	}
+	if len(gotMap) > 0 {
+		for f := range gotMap {
+			t.Errorf("unexpected file collected: %s", f)
+		}
+	}
+	if len(got) != len(want) {
+		t.Errorf("got %d files, want %d", len(got), len(want))
+	}
+}
 
-	// Verify internally somehow? No easy way without exposure.
-
-	// Let's rely on the fact that I modified the code correctly and maybe add a small test
-	// that uses a real small repo if I can find one, similar to existing tests.
-
-	// Existing tests use: https://github.com/GoogleCloudPlatform/k8s-config-connector
-	// Let's try to simple test struct passing.
+func createFile(t *testing.T, base, path, content string) {
+	fullPath := filepath.Join(base, path)
+	err := os.MkdirAll(filepath.Dir(fullPath), 0755)
+	if err != nil {
+		t.Fatalf("Failed to create dirs: %v", err)
+	}
+	err = ioutil.WriteFile(fullPath, []byte(content), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
 }
