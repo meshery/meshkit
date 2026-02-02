@@ -56,22 +56,22 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 		Owner(owner).
 		Repo(repo).
 		Branch(branch).
-		Root(root).
 		MaxDepth(gr.MaxDepth).
 		RegisterFileInterceptor(fileInterceptor(br)).
 		RegisterDirInterceptor(dirInterceptor(br))
-
-	// Handle recursion
+		// Handle recursion and depth
+	effectiveRoot := root
 	if gr.Recursive {
-		if !strings.HasSuffix(root, "/**") {
-			gw = gw.Root(root + "/**")
+		if !strings.HasSuffix(effectiveRoot, "/**") {
+			effectiveRoot += "/**"
 		}
 	} else {
 		// If not recursive, ensure root does not end with /** which walker uses to toggle recursion
-		if strings.HasSuffix(root, "/**") {
-			gw = gw.Root(strings.TrimSuffix(root, "/**"))
+		if strings.HasSuffix(effectiveRoot, "/**") {
+			effectiveRoot = strings.TrimSuffix(effectiveRoot, "/**")
 		}
 	}
+	gw = gw.Root(effectiveRoot)
 
 	if version != "" {
 		gw = gw.ReferenceName(fmt.Sprintf("refs/tags/%s", version))
