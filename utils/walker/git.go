@@ -201,7 +201,7 @@ func clonewalk(g *Git) error {
 				}
 				if g.maxDepth > 0 {
 					currentDepth := strings.Count(path, pathSep) - rootDepth
-					if currentDepth >= g.maxDepth {
+					if currentDepth > g.maxDepth {
 						return filepath.SkipDir
 					}
 				}
