@@ -18,6 +18,8 @@ type GitRepo struct {
 	// <git://github.com/owner/repo/branch/versiontag/root(path to the directory/file)>
 	URL         *url.URL
 	PackageName string
+	Recursive   bool
+	MaxDepth    int
 }
 
 // Assumpations: 1. Always a K8s manifest
@@ -54,9 +56,22 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 		Owner(owner).
 		Repo(repo).
 		Branch(branch).
-		Root(root).
+		MaxDepth(gr.MaxDepth).
 		RegisterFileInterceptor(fileInterceptor(br)).
 		RegisterDirInterceptor(dirInterceptor(br))
+		// Handle recursion and depth
+	effectiveRoot := root
+	if gr.Recursive {
+		if !strings.HasSuffix(effectiveRoot, "/**") {
+			effectiveRoot += "/**"
+		}
+	} else {
+		// If not recursive, ensure root does not end with /** which walker uses to toggle recursion
+		if strings.HasSuffix(effectiveRoot, "/**") {
+			effectiveRoot = strings.TrimSuffix(effectiveRoot, "/**")
+		}
+	}
+	gw = gw.Root(effectiveRoot)
 
 	if version != "" {
 		gw = gw.ReferenceName(fmt.Sprintf("refs/tags/%s", version))
