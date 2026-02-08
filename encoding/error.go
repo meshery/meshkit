@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	ErrDecodeYamlCode                = "meshkit-11245"
-	ErrUnmarshalCode                 = "meshkit-11246"
-	ErrUnmarshalInvalidCode          = "meshkit-11247"
-	ErrUnmarshalSyntaxCode           = "meshkit-11248"
-	ErrUnmarshalTypeCode             = "meshkit-11249"
+	ErrDecodeYamlCode                = "meshkit-11321"
+	ErrUnmarshalCode                 = "meshkit-11328"
+	ErrUnmarshalInvalidCode          = "meshkit-11329"
+	ErrUnmarshalSyntaxCode           = "meshkit-11323"
+	ErrUnmarshalTypeCode             = "meshkit-11330"
 	ErrUnmarshalUnsupportedTypeCode  = "meshkit-11250"
 	ErrUnmarshalUnsupportedValueCode = "meshkit-11251"
 )

@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	ErrUpdateEntityStatusCode = "meshkit-11243"
+	ErrUpdateEntityStatusCode = "meshkit-11327"
 )
 
 func ErrUpdateEntityStatus(err error, entity string, status EntityStatus) error {
