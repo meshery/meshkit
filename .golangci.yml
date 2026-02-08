@@ -1,13 +1,2 @@
-version: "2"
-
 run:
   timeout: 5m
-
-linters-settings:
-  staticcheck:
-    go: "1.25"
-    checks: ["all", "-ST1005"]
-
-issues:
-  exclude:
-    - "ST1005"
