@@ -18,7 +18,7 @@ require (
 	github.com/docker/cli v27.5.1+incompatible
 	github.com/fluxcd/pkg/oci v0.43.1
 	github.com/fluxcd/pkg/tar v0.10.0
-	github.com/go-git/go-git/v5 v5.16.4
+	github.com/go-git/go-git/v5 v5.16.5
 	github.com/go-logr/logr v1.4.3
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/gofrs/uuid v4.4.0+incompatible
