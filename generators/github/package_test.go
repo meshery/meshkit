@@ -81,6 +81,71 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 			},
 			want: 1,
 		},
+
+		// This test case is to solve the ExtractZip function's root path handling
+		{ // Source pointing to a zip containing CRDs
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "git://github.com/muhammadolammi/meshcrds/main/crds.zip",
+			},
+			want: 2,
+		},
+		// This test case is for the feature where root is empty in the source URL
+		{ // Source pointing to a git with just branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "git://github.com/muhammadolammi/meshcrds/main/",
+			},
+			want: 5,
+		},
+		// This test case is for the feature where root and branch is empty in the source URL
+		{ // Source pointing to a git with no branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "git://github.com/muhammadolammi/meshcrds",
+			},
+			want: 5,
+		},
+		// github.com verisons of the above 3 test case
+		{ // Source pointing to a git with just branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds/tree/main/crds.zip",
+			},
+			want: 2,
+		},
+
+		// This test case is for the feature where root is empty in the source URL
+		{ // Source pointing to a git with just branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds/tree/main/",
+			},
+			want: 5,
+		},
+		// This test case is for the feature where root and branch is empty in the source URL
+		{ // Source pointing to a git with no branch containing crds in root and a zip
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds",
+			},
+			want: 5,
+		},
+		// Testing GitHub Release Web UI URL
+		{
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "acm-controller-release",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds/releases/tag/v1.0",
+			},
+			want: 5, // Assuming v1.0 contains the 5 CRDs
+		},
+		{ // Source pointing to a specific file via GitHub Web UI (Blob)
+			ghPackageManager: GitHubPackageManager{
+				PackageName: "single-crd-blob",
+				SourceURL:   "https://github.com/muhammadolammi/meshcrds/blob/main/y1.yml",
+			},
+			want: 1,
+		},
 	}
 
 	for _, test := range tests {
@@ -97,8 +162,8 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				t.Errorf("error while generating components: %v", err)
 				return
 			}
+			currentDirectory := t.TempDir()
 			for _, comp := range comps {
-				currentDirectory, _ := os.Getwd()
 				if comp.Model == nil {
 					t.Errorf("component %s has nil Model", comp.Component.Kind)
 					continue
@@ -113,7 +178,6 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 					}
 				}
 				byt, _ := json.MarshalIndent(comp, "", "")
-
 				f, err := os.Create(fmt.Sprintf("%s/%s%s", dirName, comp.Component.Kind, ".json"))
 				if err != nil {
 					t.Errorf("error creating file for %s: %v", comp.Component.Kind, err)
@@ -121,11 +185,14 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				}
 				_, _ = f.Write(byt)
 			}
+
 			t.Log("generated ", len(comps), "want: ", test.want)
+
 			if len(comps) != test.want {
 				t.Errorf("generated %d, want %d", len(comps), test.want)
 				return
 			}
+
 		})
 	}
 }
