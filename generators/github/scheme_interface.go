@@ -18,6 +18,7 @@ func NewDownloaderForScheme(scheme string, url *url.URL, gp GitHubPackageManager
 			PackageName: gp.PackageName,
 			Recursive:   gp.Recursive,
 			MaxDepth:    gp.MaxDepth,
+			Extensions:  gp.Extensions,
 		}
 	case "http":
 		fallthrough

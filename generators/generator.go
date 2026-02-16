@@ -15,8 +15,9 @@ const (
 )
 
 type GeneratorOptions struct {
-	Recursive bool
-	MaxDepth  int
+	Recursive  bool
+	MaxDepth   int
+	Extensions []string
 }
 
 func NewGenerator(registrant, url, packageName string) (models.PackageManager, error) {
@@ -37,6 +38,7 @@ func NewGeneratorWithOptions(registrant, url, packageName string, opts Generator
 			SourceURL:   url,
 			Recursive:   opts.Recursive,
 			MaxDepth:    opts.MaxDepth,
+			Extensions:  opts.Extensions,
 		}, nil
 	}
 	return nil, ErrUnsupportedRegistrant(fmt.Errorf("generator not implemented for the registrant %s", registrant))
