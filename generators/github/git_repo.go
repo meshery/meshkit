@@ -20,6 +20,7 @@ type GitRepo struct {
 	PackageName string
 	Recursive   bool
 	MaxDepth    int
+	Extensions  []string
 }
 
 // Assumpations: 1. Always a K8s manifest
@@ -57,6 +58,7 @@ func (gr GitRepo) GetContent() (models.Package, error) {
 		Repo(repo).
 		Branch(branch).
 		MaxDepth(gr.MaxDepth).
+		AllowedExtensions(gr.Extensions).
 		RegisterFileInterceptor(fileInterceptor(br)).
 		RegisterDirInterceptor(dirInterceptor(br))
 

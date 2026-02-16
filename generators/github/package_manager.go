@@ -13,6 +13,7 @@ type GitHubPackageManager struct {
 	SourceURL   string
 	Recursive   bool
 	MaxDepth    int
+	Extensions  []string
 }
 
 func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
