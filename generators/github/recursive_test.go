@@ -30,7 +30,9 @@ func TestRecursiveWalkFunctional(t *testing.T) {
 	}
 
 	createFile(t, tempDir, "root.yaml", "content")
+	createFile(t, tempDir, "root.json", "content")
 	createFile(t, tempDir, "level1/level1.yaml", "content")
+	createFile(t, tempDir, "level1/level1.txt", "content")
 	createFile(t, tempDir, "level1/level2/level2.yaml", "content")
 
 	_, err = w.Add(".")
@@ -49,34 +51,60 @@ func TestRecursiveWalkFunctional(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		recursive bool
-		maxDepth  int
-		wantFiles []string
+		name       string
+		recursive  bool
+		maxDepth   int
+		extensions []string
+		wantFiles  []string
 	}{
 		{
-			name:      "Non-recursive (Root only)",
-			recursive: false,
-			maxDepth:  0,
-			wantFiles: []string{"root.yaml"},
+			name:       "Non-recursive (Root only, all types)",
+			recursive:  false,
+			maxDepth:   0,
+			extensions: nil,
+			wantFiles:  []string{"root.yaml", "root.json"},
 		},
 		{
-			name:      "Recursive Unlimited",
-			recursive: true,
-			maxDepth:  0,
-			wantFiles: []string{"root.yaml", "level1.yaml", "level2.yaml"},
+			name:       "Recursive Unlimited (All types)",
+			recursive:  true,
+			maxDepth:   0,
+			extensions: nil,
+			wantFiles:  []string{"root.yaml", "root.json", "level1.yaml", "level1.txt", "level2.yaml"},
 		},
 		{
-			name:      "Recursive MaxDepth 1",
-			recursive: true,
-			maxDepth:  1,
-			wantFiles: []string{"root.yaml", "level1.yaml"},
+			name:       "Recursive MaxDepth 1 (All types)",
+			recursive:  true,
+			maxDepth:   1,
+			extensions: nil,
+			wantFiles:  []string{"root.yaml", "root.json", "level1.yaml", "level1.txt"},
 		},
 		{
-			name:      "Recursive MaxDepth 2",
-			recursive: true,
-			maxDepth:  2,
-			wantFiles: []string{"root.yaml", "level1.yaml", "level2.yaml"},
+			name:       "Recursive MaxDepth 2 (All types)",
+			recursive:  true,
+			maxDepth:   2,
+			extensions: nil,
+			wantFiles:  []string{"root.yaml", "root.json", "level1.yaml", "level1.txt", "level2.yaml"},
+		},
+		{
+			name:       "Recursive Filtered (.yaml only)",
+			recursive:  true,
+			maxDepth:   0,
+			extensions: []string{".yaml"},
+			wantFiles:  []string{"root.yaml", "level1.yaml", "level2.yaml"},
+		},
+		{
+			name:       "Recursive Filtered (.yaml, .json)",
+			recursive:  true,
+			maxDepth:   0,
+			extensions: []string{".yaml", ".json"},
+			wantFiles:  []string{"root.yaml", "root.json", "level1.yaml", "level2.yaml"},
+		},
+		{
+			name:       "Recursive MaxDepth 1 Filtered (.yaml)",
+			recursive:  true,
+			maxDepth:   1,
+			extensions: []string{".yaml"},
+			wantFiles:  []string{"root.yaml", "level1.yaml"},
 		},
 	}
 
@@ -94,7 +122,8 @@ func TestRecursiveWalkFunctional(t *testing.T) {
 				BaseURL(fileURL).
 				Branch("master").
 				Root("").
-				MaxDepth(tt.maxDepth)
+				MaxDepth(tt.maxDepth).
+				AllowedExtensions(tt.extensions)
 
 			var collectedFiles []string
 			walkerInst.RegisterFileInterceptor(func(f walker.File) error {
@@ -123,9 +152,11 @@ func assertFilesEqual(t *testing.T, got, want []string) {
 	for _, f := range got {
 		gotMap[f] = struct{}{}
 	}
+	failed := false
 	for _, f := range want {
 		if _, ok := gotMap[f]; !ok {
 			t.Errorf("missing expected file: %s", f)
+			failed = true
 		} else {
 			delete(gotMap, f)
 		}
@@ -133,10 +164,12 @@ func assertFilesEqual(t *testing.T, got, want []string) {
 	if len(gotMap) > 0 {
 		for f := range gotMap {
 			t.Errorf("unexpected file collected: %s", f)
+			failed = true
 		}
 	}
-	if len(got) != len(want) {
-		t.Errorf("got %d files, want %d", len(got), len(want))
+	if failed {
+		t.Errorf("Got: %v", got)
+		t.Errorf("Want: %v", want)
 	}
 }
 
