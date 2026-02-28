@@ -47,7 +47,7 @@ func (c *Controller) V(level int) *Controller {
 
 func (c *Controller) WithValues(keysAndValues ...interface{}) logr.LogSink {
 	c.base.defaultHandler.Log(logrus.InfoLevel, keysAndValues...)
-	c.base.errorHandler.Log(logrus.InfoLevel, keysAndValues...)
+	c.base.errorHandler.Log(logrus.ErrorLevel, keysAndValues...)
 	return c
 }
 
