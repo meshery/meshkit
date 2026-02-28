@@ -26,7 +26,7 @@ var mError = meshkitError.New(
 )
 
 func TestLogger_Info_Debug_Warn_Error_Fatal(t *testing.T) {
-	var buf bytes.Buffer
+	var outBuffer, errBuffer bytes.Buffer
 	opts := Options{
 		Format:           TerminalLogFormat,
 		LogLevel:         int(logrus.DebugLevel),
@@ -37,40 +37,40 @@ func TestLogger_Info_Debug_Warn_Error_Fatal(t *testing.T) {
 	l := log.(*Logger)
 
 	// Redirect output for testing
-	l.UpdateLogOutput(&buf)
-	l.UpdateErrorLogOutput(&buf)
+	l.UpdateLogOutput(&outBuffer)
+	l.UpdateErrorLogOutput(&errBuffer)
 
 	l.Info("info message")
-	assert.Contains(t, buf.String(), "info message")
-	buf.Reset()
+	assert.Contains(t, outBuffer.String(), "info message")
+	outBuffer.Reset()
 
 	l.Infof("infof %s", "message")
-	assert.Contains(t, buf.String(), "infof message")
-	buf.Reset()
+	assert.Contains(t, outBuffer.String(), "infof message")
+	outBuffer.Reset()
 
 	l.Debug("debug message")
-	assert.Contains(t, buf.String(), "debug message")
-	buf.Reset()
+	assert.Contains(t, outBuffer.String(), "debug message")
+	outBuffer.Reset()
 
 	l.Debugf("debugf %s", "message")
-	assert.Contains(t, buf.String(), "debugf message")
-	buf.Reset()
+	assert.Contains(t, outBuffer.String(), "debugf message")
+	outBuffer.Reset()
 
 	l.Warn(errors.New("warn error"))
-	assert.Contains(t, buf.String(), "warn error")
-	buf.Reset()
+	assert.Contains(t, outBuffer.String(), "warn error")
+	outBuffer.Reset()
 
 	l.Warnf("warnf %s", "message")
-	assert.Contains(t, buf.String(), "warnf message")
-	buf.Reset()
+	assert.Contains(t, outBuffer.String(), "warnf message")
+	outBuffer.Reset()
 
 	l.Error(errors.New("error message"))
-	assert.Contains(t, buf.String(), "error message")
-	buf.Reset()
+	assert.Contains(t, errBuffer.String(), "error message")
+	errBuffer.Reset()
 
 	l.Errorf("errorf %s", "message")
-	assert.Contains(t, buf.String(), "errorf message")
-	buf.Reset()
+	assert.Contains(t, errBuffer.String(), "errorf message")
+	errBuffer.Reset()
 }
 
 func TestLogger_SetLevel_GetLevel(t *testing.T) {
