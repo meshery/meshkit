@@ -10,6 +10,8 @@ import (
 	"github.com/meshery/meshkit/database"
 	models "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
+	regv1alpha3 "github.com/meshery/meshkit/models/meshmodel/registry/v1alpha3"
+	regv1beta1 "github.com/meshery/meshkit/models/meshmodel/registry/v1beta1"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/component"
@@ -106,6 +108,19 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	}
 	return &rm, nil
 }
+
+func (rm *RegistryManager) GetComponentSummary(
+	f *regv1beta1.ComponentSummaryFilter,
+) (*regv1beta1.ComponentSummary, error) {
+	return f.GetSummary(rm.db)
+}
+
+func (rm *RegistryManager) GetRelationshipSummary(
+	f *regv1alpha3.RelationshipSummaryFilter,
+) (*regv1alpha3.RelationshipSummary, error) {
+	return f.GetSummary(rm.db)
+}
+
 func (rm *RegistryManager) Cleanup() {
 	_ = rm.db.Migrator().DropTable(
 		&Registry{},

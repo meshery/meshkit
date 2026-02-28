@@ -3,7 +3,7 @@ package v1beta1
 import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
-	"github.com/meshery/meshkit/models/meshmodel/registry"
+	registryerrors "github.com/meshery/meshkit/models/meshmodel/registry/errors"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"gorm.io/gorm/clause"
 )
@@ -30,7 +30,7 @@ func (cf *CategoryFilter) GetById(db *database.Handler) (entity.Entity, error) {
 	c := &category.CategoryDefinition{}
 	err := db.First(c, "id = ?", cf.Id).Error
 	if err != nil {
-		return nil, registry.ErrGetById(err, cf.Id)
+		return nil, registryerrors.ErrGetById(err, cf.Id)
 	}
 	return c, err
 }
