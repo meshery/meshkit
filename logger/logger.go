@@ -87,6 +87,10 @@ func newLogrusLogger(appname string, opts Options, defaultOutput io.Writer) *log
 		log.SetOutput(opts.Output)
 	}
 
+	if opts.ErrorOutput != nil {
+		log.SetOutput(opts.ErrorOutput)
+	}
+
 	log.SetLevel(logrus.Level(opts.LogLevel))
 
 	return log.WithFields(logrus.Fields{"app": appname})
