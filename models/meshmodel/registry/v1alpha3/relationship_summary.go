@@ -115,49 +115,32 @@ func (relationshipFilter *RelationshipSummaryFilter) GetSummary(db *database.Han
 		return slices.Contains(relationshipFilter.Include, dim)
 	}
 
-	if shouldCompute(RelationshipSummaryByModel) {
-		var rows []RelationshipGroupEntry
-		err := base.Session(&gorm.Session{}).
-			Select("model_dbs.name as Key, COUNT(DISTINCT(relationship_definition_dbs.id)) as Count").
-			Group("model_dbs.name").
-			Scan(&rows).Error
-		if err != nil {
-			return nil, err
-		}
-		summary.ByModel = rows
+	type dimensionInfo struct {
+		dim        RelationshipSummaryDimension
+		selectExpr string
+		groupExpr  string
+		receiver   *[]RelationshipGroupEntry
 	}
-	if shouldCompute(RelationshipSummaryByKind) {
-		var rows []RelationshipGroupEntry
-		err := base.Session(&gorm.Session{}).
-			Select("relationship_definition_dbs.kind as Key, COUNT(DISTINCT(relationship_definition_dbs.id)) as Count").
-			Group("relationship_definition_dbs.kind").
-			Scan(&rows).Error
-		if err != nil {
-			return nil, err
-		}
-		summary.ByKind = rows
+
+	dimensions := []dimensionInfo{
+		{RelationshipSummaryByModel, "model_dbs.name as Key, COUNT(DISTINCT(relationship_definition_dbs.id)) as Count", "model_dbs.name", &summary.ByModel},
+		{RelationshipSummaryByKind, "relationship_definition_dbs.kind as Key, COUNT(DISTINCT(relationship_definition_dbs.id)) as Count", "relationship_definition_dbs.kind", &summary.ByKind},
+		{RelationshipSummaryByType, "relationship_definition_dbs.type as Key, COUNT(DISTINCT(relationship_definition_dbs.id)) as Count", "relationship_definition_dbs.type", &summary.ByType},
+		{RelationshipSummaryBySubType, "relationship_definition_dbs.sub_type as Key, COUNT(DISTINCT(relationship_definition_dbs.id)) as Count", "relationship_definition_dbs.sub_type", &summary.BySubType},
 	}
-	if shouldCompute(RelationshipSummaryByType) {
-		var rows []RelationshipGroupEntry
-		err := base.Session(&gorm.Session{}).
-			Select("relationship_definition_dbs.type as Key, COUNT(DISTINCT(relationship_definition_dbs.id)) as Count").
-			Group("relationship_definition_dbs.type").
-			Scan(&rows).Error
-		if err != nil {
-			return nil, err
+
+	for _, d := range dimensions {
+		if shouldCompute(d.dim) {
+			var rows []RelationshipGroupEntry
+			err := base.Session(&gorm.Session{}).
+				Select(d.selectExpr).
+				Group(d.groupExpr).
+				Scan(&rows).Error
+			if err != nil {
+				return nil, err
+			}
+			*d.receiver = rows
 		}
-		summary.ByType = rows
-	}
-	if shouldCompute(RelationshipSummaryBySubType) {
-		var rows []RelationshipGroupEntry
-		err := base.Session(&gorm.Session{}).
-			Select("relationship_definition_dbs.sub_type as Key, COUNT(DISTINCT(relationship_definition_dbs.id)) as Count").
-			Group("relationship_definition_dbs.sub_type").
-			Scan(&rows).Error
-		if err != nil {
-			return nil, err
-		}
-		summary.BySubType = rows
 	}
 	return summary, nil
 }

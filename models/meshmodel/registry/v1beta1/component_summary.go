@@ -106,39 +106,32 @@ func (componentFilter *ComponentSummaryFilter) GetSummary(db *database.Handler) 
 		}
 		return slices.Contains(componentFilter.Include, dim)
 	}
+	type dimensionInfo struct {
+		dim        ComponentSummaryDimension
+		selectExpr string
+		groupExpr  string
+		receiver   *[]ComponentGroupEntry
+	}
+
+	dimensions := []dimensionInfo{
+		{ComponentSummaryByModel, "model_dbs.name as Key, COUNT(DISTINCT(component_definition_dbs.id)) as Count", "model_dbs.name", &summary.ByModel},
+		{ComponentSummaryByCategory, "model_dbs.category_id as Key, COUNT(DISTINCT(component_definition_dbs.id)) as Count", "model_dbs.category_id", &summary.ByCategory},
+		{ComponentSummaryByRegistrant, "connections.name as Key, COUNT(DISTINCT(component_definition_dbs.id)) as Count", "connections.name", &summary.ByRegistrant},
+	}
+
 	// partial error is not tolerated so the populated summary should all be correct
-	if shouldCompute(ComponentSummaryByModel) {
-		var rows []ComponentGroupEntry
-		err := base.Session(&gorm.Session{}).
-			Select("model_dbs.name as key, COUNT(DISTINCT component_definition_dbs.id) as count").
-			Group("model_dbs.name").
-			Scan(&rows).Error
-		if err != nil {
-			return nil, err
+	for _, d := range dimensions {
+		if shouldCompute(d.dim) {
+			var rows []ComponentGroupEntry
+			err := base.Session(&gorm.Session{}).
+				Select(d.selectExpr).
+				Group(d.groupExpr).
+				Scan(&rows).Error
+			if err != nil {
+				return nil, err
+			}
+			*d.receiver = rows
 		}
-		summary.ByModel = rows
-	}
-	if shouldCompute(ComponentSummaryByCategory) {
-		var rows []ComponentGroupEntry
-		err := base.Session(&gorm.Session{}).
-			Select("category_dbs.name as key, COUNT(DISTINCT component_definition_dbs.id) as count").
-			Group("category_dbs.name").
-			Scan(&rows).Error
-		if err != nil {
-			return nil, err
-		}
-		summary.ByCategory = rows
-	}
-	if shouldCompute(ComponentSummaryByRegistrant) {
-		var rows []ComponentGroupEntry
-		err := base.Session(&gorm.Session{}).
-			Select("connections.name as key, COUNT(DISTINCT component_definition_dbs.id) as count").
-			Group("connections.name").
-			Scan(&rows).Error
-		if err != nil {
-			return nil, err
-		}
-		summary.ByRegistrant = rows
 	}
 
 	return summary, nil
