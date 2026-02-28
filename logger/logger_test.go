@@ -161,8 +161,8 @@ func TestLoggerIntegration_FileOutput(t *testing.T) {
 	f, err := os.Create(logFile)
 	assert.NoError(t, err)
 	defer func() {
-		f.Close()
-		os.Remove(logFile)
+		_ = f.Close()
+		_ = os.Remove(logFile)
 	}()
 
 	logger, err := New("testapp", Options{
