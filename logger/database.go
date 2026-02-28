@@ -24,17 +24,17 @@ func (c *Database) LogMode(level gormlogger.LogLevel) gormlogger.Interface {
 	return c
 }
 func (c *Database) Info(ctx context.Context, msg string, data ...interface{}) {
-	c.base.handler.Log(logrus.InfoLevel,
+	c.base.defaultHandler.Log(logrus.InfoLevel,
 		"msg", data,
 	)
 }
 func (c *Database) Warn(ctx context.Context, msg string, data ...interface{}) {
-	c.base.handler.Log(logrus.WarnLevel,
+	c.base.defaultHandler.Log(logrus.WarnLevel,
 		"msg", data,
 	)
 }
 func (c *Database) Error(ctx context.Context, msg string, data ...interface{}) {
-	c.base.handler.Log(logrus.ErrorLevel,
+	c.base.errorHandler.Log(logrus.ErrorLevel,
 		"msg", data,
 	)
 }

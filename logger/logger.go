@@ -32,7 +32,8 @@ type Handler interface {
 }
 
 type Logger struct {
-	handler *logrus.Entry
+	defaultHandler *logrus.Entry
+	errorHandler   *logrus.Entry
 }
 
 // TerminalFormatter is exported
@@ -54,7 +55,7 @@ func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return append([]byte(msg), '\n'), nil
 }
 
-func New(appname string, opts Options) (Handler, error) {
+func newLogrusLogger(appname string, opts Options, defaultOutput io.Writer) *logrus.Entry {
 	log := logrus.New()
 
 	switch opts.Format {
@@ -81,35 +82,40 @@ func New(appname string, opts Options) (Handler, error) {
 		log.AddHook(&CallerHook{skippedPaths: skippedPaths})
 	}
 
-	log.SetOutput(os.Stdout)
+	log.SetOutput(defaultOutput)
 	if opts.Output != nil {
 		log.SetOutput(opts.Output)
 	}
 
 	log.SetLevel(logrus.Level(opts.LogLevel))
 
-	entry := log.WithFields(logrus.Fields{"app": appname})
-	return &Logger{handler: entry}, nil
+	return log.WithFields(logrus.Fields{"app": appname})
+}
+
+func New(appname string, opts Options) (Handler, error) {
+	entry := newLogrusLogger(appname, opts, os.Stdout)
+	errEntry := newLogrusLogger(appname, opts, os.Stderr)
+	return &Logger{defaultHandler: entry, errorHandler: errEntry}, nil
 }
 
 func (l *Logger) Info(description ...interface{}) {
-	l.handler.Log(logrus.InfoLevel,
+	l.defaultHandler.Log(logrus.InfoLevel,
 		description...,
 	)
 }
 
 func (l *Logger) Infof(format string, args ...interface{}) {
-	l.handler.Log(logrus.InfoLevel, fmt.Sprintf(format, args...))
+	l.defaultHandler.Log(logrus.InfoLevel, fmt.Sprintf(format, args...))
 }
 
 func (l *Logger) Debug(description ...interface{}) {
-	l.handler.Log(logrus.DebugLevel,
+	l.defaultHandler.Log(logrus.DebugLevel,
 		description...,
 	)
 }
 
 func (l *Logger) Debugf(format string, args ...interface{}) {
-	l.handler.Log(logrus.DebugLevel, fmt.Sprintf(format, args...))
+	l.defaultHandler.Log(logrus.DebugLevel, fmt.Sprintf(format, args...))
 }
 
 func (l *Logger) Warn(err error) {
@@ -117,7 +123,7 @@ func (l *Logger) Warn(err error) {
 		return
 	}
 
-	l.handler.WithFields(logrus.Fields{
+	l.defaultHandler.WithFields(logrus.Fields{
 		"code":                  errors.GetCode(err),
 		"severity":              errors.GetSeverity(err),
 		"short-description":     errors.GetSDescription(err),
@@ -127,7 +133,7 @@ func (l *Logger) Warn(err error) {
 }
 
 func (l *Logger) Warnf(format string, args ...interface{}) {
-	l.handler.Log(logrus.WarnLevel, fmt.Sprintf(format, args...))
+	l.defaultHandler.Log(logrus.WarnLevel, fmt.Sprintf(format, args...))
 }
 
 func (l *Logger) Error(err error) {
@@ -135,7 +141,7 @@ func (l *Logger) Error(err error) {
 		return
 	}
 
-	l.handler.WithFields(logrus.Fields{
+	l.errorHandler.WithFields(logrus.Fields{
 		"code":                  errors.GetCode(err),
 		"severity":              errors.GetSeverity(err),
 		"short-description":     errors.GetSDescription(err),
@@ -145,7 +151,7 @@ func (l *Logger) Error(err error) {
 }
 
 func (l *Logger) Errorf(format string, args ...interface{}) {
-	l.handler.Log(logrus.ErrorLevel, fmt.Sprintf(format, args...))
+	l.errorHandler.Log(logrus.ErrorLevel, fmt.Sprintf(format, args...))
 }
 
 func (l *Logger) Fatal(err error) {
@@ -153,7 +159,7 @@ func (l *Logger) Fatal(err error) {
 		return
 	}
 
-	l.handler.WithFields(logrus.Fields{
+	l.errorHandler.WithFields(logrus.Fields{
 		"code":                  errors.GetCode(err),
 		"severity":              errors.GetSeverity(err),
 		"short-description":     errors.GetSDescription(err),
@@ -164,18 +170,23 @@ func (l *Logger) Fatal(err error) {
 }
 
 func (l *Logger) Fatalf(format string, args ...interface{}) {
-	l.handler.Log(logrus.FatalLevel, fmt.Sprintf(format, args...))
+	l.errorHandler.Log(logrus.FatalLevel, fmt.Sprintf(format, args...))
 	os.Exit(1)
 }
 
 func (l *Logger) SetLevel(level logrus.Level) {
-	l.handler.Logger.SetLevel(level)
+	l.defaultHandler.Logger.SetLevel(level)
+	l.errorHandler.Logger.SetLevel(level)
 }
 
 func (l *Logger) GetLevel() logrus.Level {
-	return l.handler.Logger.GetLevel()
+	return l.defaultHandler.Logger.GetLevel()
 }
 
 func (l *Logger) UpdateLogOutput(output io.Writer) {
-	l.handler.Logger.SetOutput(output)
+	l.defaultHandler.Logger.SetOutput(output)
+}
+
+func (l *Logger) UpdateErrorLogOutput(output io.Writer) {
+	l.errorHandler.Logger.SetOutput(output)
 }
