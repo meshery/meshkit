@@ -101,7 +101,9 @@ func (relationshipFilter *RelationshipSummaryFilter) GetSummary(db *database.Han
 	if relationshipFilter.Version != "" {
 		base = base.Where("model_dbs.model->>'version' = ?", relationshipFilter.Version)
 	}
-	if err := base.Distinct("relationship_definition_dbs.id").Count(&summary.Total).Error; err != nil {
+	if err := base.Session(&gorm.Session{}).
+		Distinct("relationship_definition_dbs.id").
+		Count(&summary.Total).Error; err != nil {
 		return nil, err
 	}
 

@@ -47,8 +47,8 @@ type ComponentSummary struct {
 	ByRegistrant []ComponentGroupEntry
 }
 
-func (f *ComponentSummaryFilter) Validate() error {
-	for _, dim := range f.Include {
+func (componentSummaryFilter *ComponentSummaryFilter) Validate() error {
+	for _, dim := range componentSummaryFilter.Include {
 		switch dim {
 		case ComponentSummaryByModel, ComponentSummaryByCategory, ComponentSummaryByRegistrant:
 			// valid
@@ -89,7 +89,13 @@ func (componentFilter *ComponentSummaryFilter) GetSummary(db *database.Handler) 
 	if componentFilter.Version != "" {
 		base = base.Where("model_dbs.model->>'version' = ?", componentFilter.Version)
 	}
-	if err := base.Distinct("component_definition_dbs.id").Count(&summary.Total).Error; err != nil {
+	if componentFilter.Registrant != "" {
+		base = base.Where("connections.name = ?", componentFilter.Registrant)
+	}
+
+	if err := base.Session(&gorm.Session{}).
+		Distinct("component_definition_dbs.id").
+		Count(&summary.Total).Error; err != nil {
 		return nil, err
 	}
 	// per dimension
@@ -100,6 +106,7 @@ func (componentFilter *ComponentSummaryFilter) GetSummary(db *database.Handler) 
 		}
 		return slices.Contains(componentFilter.Include, dim)
 	}
+	// partial error is not tolerated so the populated summary should all be correct
 	if shouldCompute(ComponentSummaryByModel) {
 		var rows []ComponentGroupEntry
 		err := base.Session(&gorm.Session{}).
