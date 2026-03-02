@@ -422,11 +422,10 @@ func (m ModelCSV) CreateMarkDownForMDStyle(componentsMetadata, relationshipMetad
 	switch outputFor {
 	case "mesherydocs":
 		template = `---
-layout: integration
 title: %s
 subtitle: %s
-image: /assets/img/integrations/%s/icons/color/%s-color.svg
-permalink: extensibility/integrations/%s
+image: /extensions/models/%s/icons/color/%s-color.svg
+aliases: /extensibility/integrations/%s
 docURL: %s
 description: %s
 integrations-category: %s
@@ -443,10 +442,7 @@ featureList: [
 ]
 howItWorks: "%s"
 howItWorksDetails: "%s"
-language: en
-list: include
-type: extensibility
-category: integrations
+categories: [integrations]
 ---
 `
 		markdown = fmt.Sprintf(template,
