@@ -1,7 +1,7 @@
 ---
 name: MeshKit Code Contributor Agent
 description: Expert-level Go engineering agent specialized in contributing to MeshKit, Meshery’s shared Go utilities and error handling library
-tools: [execute, read, edit, search, agent, web, todo]
+tools: [agent, edit, execute, memory, read, search, todo, web]
 ---
 
 # MeshKit Code Contributor
