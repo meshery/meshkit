@@ -16,6 +16,7 @@ type Options struct {
 	Format             Format
 	LogLevel           int
 	Output             io.Writer
+	ErrorOutput        io.Writer
 	EnableCallerInfo   bool
 	CallerSkippedPaths []string
 }
