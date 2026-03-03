@@ -17,7 +17,7 @@ const (
 	JsonSchemaPropsRef = "JSONSchemaProps"
 	// DefaultMaxRefDepth is the maximum depth for resolving $ref references
 	// This prevents exponential blowup when processing large OpenAPI specs like Kubernetes
-	DefaultMaxRefDepth = 10
+	DefaultMaxRefDepth = 50
 )
 
 var templateExpression *regexp.Regexp
