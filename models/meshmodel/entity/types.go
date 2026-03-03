@@ -31,12 +31,3 @@ type Entity interface {
 	GetID() uuid.UUID
 	Create(db *database.Handler, hostID uuid.UUID) (entityID uuid.UUID, err error)
 }
-type Summary interface {
-	KeyValue() string
-	CountValue() int
-}
-
-// SummaryFilter is the interface for entities that expose aggregated summary data.
-type SummaryFilter[T Summary] interface {
-	GetSummary(db *database.Handler) (*T, error)
-}
