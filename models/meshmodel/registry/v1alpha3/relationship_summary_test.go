@@ -12,31 +12,40 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type relationshipSummaryRecord struct {
+	Id               uuid.UUID                                  `gorm:"column:id;primaryKey"`
+	Kind             string                                     `gorm:"column:kind"`
+	RelationshipType string                                     `gorm:"column:type"`
+	SubType          string                                     `gorm:"column:sub_type"`
+	Status           *relationship.RelationshipDefinitionStatus `gorm:"column:status"`
+	ModelId          uuid.UUID                                  `gorm:"column:model_id"`
+	Version          string                                     `gorm:"column:version"`
+}
+
+func (relationshipSummaryRecord) TableName() string {
+	return "relationship_definition_dbs"
+}
+
 func TestRelationshipSummary_GetSummary(t *testing.T) {
 	db := newRelationshipSummaryTestDB(t)
 	seedRelationshipSummaryData(t, db)
 
-	f := &RelationshipSummaryFilter{
-		Include: []RelationshipSummaryDimension{
-			RelationshipSummaryByModel,
-			RelationshipSummaryByKind,
-		},
-	}
+	include := []relationship.RelationshipSummaryFilterInclude{relationship.ByModel, relationship.ByKind}
+	f := &relationship.RelationshipSummaryFilter{Include: &include}
 
-	summary, err := f.GetSummary(db)
+	summary, err := GetSummary(f, db)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), summary.Total)
-	require.Equal(t, map[string]int{"model-a": 1, "model-b": 1}, relationshipGroupToMap(summary.ByModel))
-	require.Equal(t, map[string]int{"edge": 1, "hierarchy": 1}, relationshipGroupToMap(summary.ByKind))
+	require.Equal(t, map[string]int32{"model-a": 1, "model-b": 1}, relationshipGroupToMap(summary.ByModel))
+	require.Equal(t, map[string]int32{"edge": 1, "hierarchy": 1}, relationshipGroupToMap(summary.ByKind))
 	require.Empty(t, summary.ByType)
 	require.Empty(t, summary.BySubType)
 }
 
 func TestRelationshipSummary_Validate(t *testing.T) {
-	f := &RelationshipSummaryFilter{
-		Include: []RelationshipSummaryDimension{"invalid_dimension"},
-	}
-	err := f.Validate()
+	include := []relationship.RelationshipSummaryFilterInclude{relationship.RelationshipSummaryFilterInclude("invalid_dimension")}
+	f := &relationship.RelationshipSummaryFilter{Include: &include}
+	_, err := GetSummary(f, newRelationshipSummaryTestDB(t))
 	require.Error(t, err)
 }
 
@@ -55,7 +64,7 @@ func newRelationshipSummaryTestDB(t *testing.T) *database.Handler {
 	err = h.AutoMigrate(
 		&category.CategoryDefinition{},
 		&model.ModelDefinition{},
-		&relationship.RelationshipDefinition{},
+		&relationshipSummaryRecord{},
 	)
 	require.NoError(t, err)
 
@@ -96,7 +105,7 @@ func seedRelationshipSummaryData(t *testing.T, db *database.Handler) {
 	require.NoError(t, db.Create(&modelB).Error)
 
 	relationshipStatus := relationship.RelationshipDefinitionStatus("enabled")
-	rel1 := relationship.RelationshipDefinition{
+	rel1 := relationshipSummaryRecord{
 		Id:               uuid.Must(uuid.NewV4()),
 		Kind:             "edge",
 		RelationshipType: "binding",
@@ -105,7 +114,7 @@ func seedRelationshipSummaryData(t *testing.T, db *database.Handler) {
 		ModelId:          modelA.Id,
 		Version:          "v1.0.0",
 	}
-	rel2 := relationship.RelationshipDefinition{
+	rel2 := relationshipSummaryRecord{
 		Id:               uuid.Must(uuid.NewV4()),
 		Kind:             "hierarchy",
 		RelationshipType: "binding",
@@ -118,9 +127,15 @@ func seedRelationshipSummaryData(t *testing.T, db *database.Handler) {
 	require.NoError(t, db.Create(&rel2).Error)
 }
 
-func relationshipGroupToMap(rows []RelationshipGroupEntry) map[string]int {
-	out := make(map[string]int, len(rows))
-	for _, row := range rows {
+func relationshipGroupToMap(rows *[]struct {
+	Count int32  `json:"count" yaml:"count"`
+	Key   string `json:"key" yaml:"key"`
+}) map[string]int32 {
+	if rows == nil {
+		return map[string]int32{}
+	}
+	out := make(map[string]int32, len(*rows))
+	for _, row := range *rows {
 		out[row.Key] = row.Count
 	}
 	return out

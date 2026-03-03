@@ -17,27 +17,22 @@ func TestComponentSummary_GetSummary(t *testing.T) {
 	db := newComponentSummaryTestDB(t)
 	seedComponentSummaryData(t, db)
 
-	f := &ComponentSummaryFilter{
-		Include: []ComponentSummaryDimension{
-			ComponentSummaryByModel,
-			ComponentSummaryByRegistrant,
-		},
-	}
+	include := []component.ComponentSummaryFilterInclude{component.ByModel, component.ByCategory, component.ByRegistrant}
+	f := &component.ComponentSummaryFilter{Include: &include}
 
-	summary, err := f.GetSummary(db)
+	summary, err := GetSummary(f, db)
 	require.NoError(t, err)
 	require.Equal(t, int64(3), summary.Total)
 
-	require.Equal(t, map[string]int{"model-a": 2, "model-b": 1}, componentGroupToMap(summary.ByModel))
-	require.Equal(t, map[string]int{"registrant-a": 2, "registrant-b": 1}, componentGroupToMap(summary.ByRegistrant))
-	require.Empty(t, summary.ByCategory)
+	require.Equal(t, map[string]int32{"model-a": 2, "model-b": 1}, componentGroupToMap(summary.ByModel))
+	require.Equal(t, map[string]int32{"infra": 3}, componentGroupToMap(summary.ByCategory))
+	require.Equal(t, map[string]int32{"registrant-a": 2, "registrant-b": 1}, componentGroupToMap(summary.ByRegistrant))
 }
 
 func TestComponentSummary_Validate(t *testing.T) {
-	f := &ComponentSummaryFilter{
-		Include: []ComponentSummaryDimension{"unknown_dimension"},
-	}
-	err := f.Validate()
+	include := []component.ComponentSummaryFilterInclude{component.ComponentSummaryFilterInclude("unknown_dimension")}
+	f := &component.ComponentSummaryFilter{Include: &include}
+	_, err := GetSummary(f, newComponentSummaryTestDB(t))
 	require.Error(t, err)
 }
 
@@ -140,9 +135,15 @@ func seedComponentSummaryData(t *testing.T, db *database.Handler) {
 	require.NoError(t, db.Create(&comp3).Error)
 }
 
-func componentGroupToMap(rows []ComponentGroupEntry) map[string]int {
-	out := make(map[string]int, len(rows))
-	for _, row := range rows {
+func componentGroupToMap(rows *[]struct {
+	Count int32  `json:"count" yaml:"count"`
+	Key   string `json:"key" yaml:"key"`
+}) map[string]int32 {
+	if rows == nil {
+		return map[string]int32{}
+	}
+	out := make(map[string]int32, len(*rows))
+	for _, row := range *rows {
 		out[row.Key] = row.Count
 	}
 	return out
