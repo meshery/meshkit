@@ -9,6 +9,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	cueJson "cuelang.org/go/encoding/json"
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/meshery/meshkit/generators/models"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/manifests"
@@ -176,35 +177,63 @@ func getResourceScope(manifest string, kind string) (bool, error) {
 }
 
 func getResolvedManifest(manifest string) (string, error) {
+	// Normalize YAML input to JSON.
 	var m map[string]interface{}
-
 	err := yaml.Unmarshal([]byte(manifest), &m)
 	if err != nil {
 		return "", utils.ErrDecodeYaml(err)
 	}
-
 	byt, err := json.Marshal(m)
 	if err != nil {
 		return "", utils.ErrMarshal(err)
 	}
 
-	cuectx := cuecontext.New()
-	cueParsedManExpr, err := cueJson.Extract("", byt)
+	loader := openapi3.NewLoader()
+	doc, err := loader.LoadFromData(byt)
 	if err != nil {
 		return "", ErrGetSchema(err)
 	}
-
-	parsedManifest := cuectx.BuildExpr(cueParsedManExpr)
-	definitions, err := utils.Lookup(parsedManifest, "components.schemas")
-	if err != nil {
+	if doc.Components == nil || len(doc.Components.Schemas) == 0 {
 		return "", ErrNoSchemasFound
 	}
-	resol := manifests.ResolveOpenApiRefs{}
-	cache := make(map[string][]byte)
-	resolved, err := resol.ResolveReferences(byt, definitions, cache)
+	for _, schemaRef := range doc.Components.Schemas {
+		clearSchemaRefs(schemaRef)
+	}
+	resolved, err := json.Marshal(doc)
 	if err != nil {
 		return "", err
 	}
-	manifest = string(resolved)
-	return manifest, nil
+	return string(resolved), nil
+}
+
+// clearSchemaRefs recursively clears $ref strings on all nested SchemaRefs
+// so that json.Marshal outputs fully inlined schemas.
+func clearSchemaRefs(sr *openapi3.SchemaRef) {
+	if sr == nil {
+		return
+	}
+	sr.Ref = ""
+	s := sr.Value
+	if s == nil {
+		return
+	}
+	for _, child := range s.AllOf {
+		clearSchemaRefs(child)
+	}
+	for _, child := range s.AnyOf {
+		clearSchemaRefs(child)
+	}
+	for _, child := range s.OneOf {
+		clearSchemaRefs(child)
+	}
+	clearSchemaRefs(s.Not)
+	if s.Items != nil {
+		clearSchemaRefs(s.Items)
+	}
+	for _, prop := range s.Properties {
+		clearSchemaRefs(prop)
+	}
+	if s.AdditionalProperties.Schema != nil {
+		clearSchemaRefs(s.AdditionalProperties.Schema)
+	}
 }
