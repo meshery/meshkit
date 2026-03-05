@@ -196,9 +196,9 @@ func getResolvedManifest(manifest string) (string, error) {
 	if doc.Components == nil || len(doc.Components.Schemas) == 0 {
 		return "", ErrNoSchemasFound
 	}
-	visited := make(map[*openapi3.SchemaRef]bool)
+	stack := make(map[*openapi3.Schema]bool)
 	for _, schemaRef := range doc.Components.Schemas {
-		clearSchemaRefs(schemaRef, visited)
+		clearSchemaRefs(schemaRef, stack)
 	}
 	resolved, err := json.Marshal(doc)
 	if err != nil {
@@ -208,35 +208,43 @@ func getResolvedManifest(manifest string) (string, error) {
 }
 
 // clearSchemaRefs recursively clears $ref strings on all nested SchemaRefs
-// so that json.Marshal outputs fully inlined schemas. The visited set
-// prevents infinite recursion on circular references.
-func clearSchemaRefs(sr *openapi3.SchemaRef, visited map[*openapi3.SchemaRef]bool) {
-	if sr == nil || visited[sr] {
+// so that json.Marshal outputs fully inlined schemas. The stack set tracks
+// Schema values (not SchemaRef pointers) on the current recursion path to
+// detect circular references. kin-openapi resolves $refs by creating
+// different SchemaRef objects that share the same underlying Schema pointer,
+// so tracking by *Schema is necessary to catch all cycles.
+func clearSchemaRefs(sr *openapi3.SchemaRef, stack map[*openapi3.Schema]bool) {
+	if sr == nil {
 		return
 	}
-	visited[sr] = true
 	sr.Ref = ""
 	s := sr.Value
 	if s == nil {
 		return
 	}
+	if stack[s] {
+		sr.Value = &openapi3.Schema{}
+		return
+	}
+	stack[s] = true
 	for _, child := range s.AllOf {
-		clearSchemaRefs(child, visited)
+		clearSchemaRefs(child, stack)
 	}
 	for _, child := range s.AnyOf {
-		clearSchemaRefs(child, visited)
+		clearSchemaRefs(child, stack)
 	}
 	for _, child := range s.OneOf {
-		clearSchemaRefs(child, visited)
+		clearSchemaRefs(child, stack)
 	}
-	clearSchemaRefs(s.Not, visited)
+	clearSchemaRefs(s.Not, stack)
 	if s.Items != nil {
-		clearSchemaRefs(s.Items, visited)
+		clearSchemaRefs(s.Items, stack)
 	}
 	for _, prop := range s.Properties {
-		clearSchemaRefs(prop, visited)
+		clearSchemaRefs(prop, stack)
 	}
 	if s.AdditionalProperties.Schema != nil {
-		clearSchemaRefs(s.AdditionalProperties.Schema, visited)
+		clearSchemaRefs(s.AdditionalProperties.Schema, stack)
 	}
+	delete(stack, s)
 }

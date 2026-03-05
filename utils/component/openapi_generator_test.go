@@ -169,6 +169,50 @@ components:
 			wantErr:   true,
 			errSubstr: "",
 		},
+		{
+			name: "Self-referencing schema like JSONSchemaProps does not stack overflow",
+			input: `{
+				"openapi": "3.0.0",
+				"info": {"title": "k8s-like", "version": "1.0"},
+				"paths": {},
+				"components": {
+					"schemas": {
+						"JSONSchemaProps": {
+							"type": "object",
+							"properties": {
+								"description": {"type": "string"},
+								"properties": {
+									"type": "object",
+									"additionalProperties": {"$ref": "#/components/schemas/JSONSchemaProps"}
+								},
+								"items": {
+									"$ref": "#/components/schemas/JSONSchemaPropsOrArray"
+								},
+								"not": {
+									"$ref": "#/components/schemas/JSONSchemaProps"
+								},
+								"allOf": {
+									"type": "array",
+									"items": {"$ref": "#/components/schemas/JSONSchemaProps"}
+								}
+							}
+						},
+						"JSONSchemaPropsOrArray": {
+							"type": "object",
+							"properties": {
+								"schema": {"$ref": "#/components/schemas/JSONSchemaProps"},
+								"jsonSchemas": {
+									"type": "array",
+									"items": {"$ref": "#/components/schemas/JSONSchemaProps"}
+								}
+							}
+						}
+					}
+				}
+			}`,
+			checkPath: "components.schemas.JSONSchemaProps.properties.description",
+			wantType:  "string",
+		},
 	}
 
 	for _, tt := range tests {
@@ -278,7 +322,7 @@ func TestClearSchemaRefs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			visited := make(map[*openapi3.SchemaRef]bool)
+			visited := make(map[*openapi3.Schema]bool)
 			clearSchemaRefs(tt.sr, visited)
 			if tt.sr != nil && tt.sr.Ref != "" {
 				t.Errorf("Ref = %q, want empty", tt.sr.Ref)
@@ -294,14 +338,35 @@ func TestClearSchemaRefs_Circular(t *testing.T) {
 	a.Value.Properties = openapi3.Schemas{"b": b}
 	b.Value.Properties = openapi3.Schemas{"a": a}
 
-	visited := make(map[*openapi3.SchemaRef]bool)
-	clearSchemaRefs(a, visited) // must not hang or panic
+	stack := make(map[*openapi3.Schema]bool)
+	clearSchemaRefs(a, stack) // must not hang or panic
 
 	if a.Ref != "" {
 		t.Errorf("a.Ref = %q, want empty", a.Ref)
 	}
 	if b.Ref != "" {
 		t.Errorf("b.Ref = %q, want empty", b.Ref)
+	}
+
+	// json.Marshal must not stack overflow on the cleared structure.
+	if _, err := json.Marshal(a); err != nil {
+		t.Fatalf("json.Marshal failed after clearing circular refs: %v", err)
+	}
+}
+
+func TestClearSchemaRefs_SelfReference(t *testing.T) {
+	// Schema that references itself (like JSONSchemaProps).
+	self := &openapi3.SchemaRef{Value: &openapi3.Schema{
+		Type: &openapi3.Types{"object"},
+	}}
+	self.Value.Properties = openapi3.Schemas{"nested": self}
+
+	stack := make(map[*openapi3.Schema]bool)
+	clearSchemaRefs(self, stack)
+
+	// The self-referencing property should be replaced, breaking the cycle.
+	if _, err := json.Marshal(self); err != nil {
+		t.Fatalf("json.Marshal failed on self-referencing schema: %v", err)
 	}
 }
 
