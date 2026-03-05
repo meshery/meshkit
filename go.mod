@@ -15,7 +15,7 @@ replace (
 require (
 	cuelang.org/go v0.15.1
 	github.com/Masterminds/semver/v3 v3.4.0
-	github.com/docker/cli v27.5.1+incompatible
+	github.com/docker/cli v29.2.0+incompatible
 	github.com/fluxcd/pkg/oci v0.43.1
 	github.com/fluxcd/pkg/tar v0.10.0
 	github.com/getkin/kin-openapi v0.133.0
