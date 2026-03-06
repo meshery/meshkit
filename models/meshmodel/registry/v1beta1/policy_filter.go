@@ -4,7 +4,7 @@ import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
-	"github.com/meshery/meshkit/models/meshmodel/registry"
+	registryerrors "github.com/meshery/meshkit/models/meshmodel/registry/errors"
 )
 
 type PolicyFilter struct {
@@ -29,7 +29,7 @@ func (pf *PolicyFilter) GetById(db *database.Handler) (entity.Entity, error) {
 	p := &v1beta1.PolicyDefinition{}
 	err := db.First(p, "id = ?", pf.Id).Error
 	if err != nil {
-		return nil, registry.ErrGetById(err, pf.Id)
+		return nil, registryerrors.ErrGetById(err, pf.Id)
 	}
 	return p, err
 }
