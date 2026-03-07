@@ -2,6 +2,7 @@ package component
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -305,7 +306,7 @@ func TestGetResolvedManifest_AllOf(t *testing.T) {
 	}
 }
 
-func TestClearSchemaRefs(t *testing.T) {
+func TestWalkAndClearRefs(t *testing.T) {
 	tests := []struct {
 		name string
 		sr   *openapi3.SchemaRef
@@ -322,8 +323,9 @@ func TestClearSchemaRefs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			visited := make(map[*openapi3.Schema]bool)
-			clearSchemaRefs(tt.sr, visited)
+			visited := make(map[uintptr]bool)
+			schemaStack := make(map[uintptr]bool)
+			walkAndClearRefs(reflect.ValueOf(tt.sr), visited, schemaStack)
 			if tt.sr != nil && tt.sr.Ref != "" {
 				t.Errorf("Ref = %q, want empty", tt.sr.Ref)
 			}
@@ -331,15 +333,16 @@ func TestClearSchemaRefs(t *testing.T) {
 	}
 }
 
-func TestClearSchemaRefs_Circular(t *testing.T) {
+func TestWalkAndClearRefs_Circular(t *testing.T) {
 	// Build a circular reference: A -> B -> A
 	a := &openapi3.SchemaRef{Ref: "#/components/schemas/A", Value: &openapi3.Schema{}}
 	b := &openapi3.SchemaRef{Ref: "#/components/schemas/B", Value: &openapi3.Schema{}}
 	a.Value.Properties = openapi3.Schemas{"b": b}
 	b.Value.Properties = openapi3.Schemas{"a": a}
 
-	stack := make(map[*openapi3.Schema]bool)
-	clearSchemaRefs(a, stack) // must not hang or panic
+	visited := make(map[uintptr]bool)
+	schemaStack := make(map[uintptr]bool)
+	walkAndClearRefs(reflect.ValueOf(a), visited, schemaStack) // must not hang or panic
 
 	if a.Ref != "" {
 		t.Errorf("a.Ref = %q, want empty", a.Ref)
@@ -354,15 +357,16 @@ func TestClearSchemaRefs_Circular(t *testing.T) {
 	}
 }
 
-func TestClearSchemaRefs_SelfReference(t *testing.T) {
+func TestWalkAndClearRefs_SelfReference(t *testing.T) {
 	// Schema that references itself (like JSONSchemaProps).
 	self := &openapi3.SchemaRef{Value: &openapi3.Schema{
 		Type: &openapi3.Types{"object"},
 	}}
 	self.Value.Properties = openapi3.Schemas{"nested": self}
 
-	stack := make(map[*openapi3.Schema]bool)
-	clearSchemaRefs(self, stack)
+	visited := make(map[uintptr]bool)
+	schemaStack := make(map[uintptr]bool)
+	walkAndClearRefs(reflect.ValueOf(self), visited, schemaStack)
 
 	// The self-referencing property should be replaced, breaking the cycle.
 	if _, err := json.Marshal(self); err != nil {
