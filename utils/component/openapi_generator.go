@@ -196,15 +196,141 @@ func getResolvedManifest(manifest string) (string, error) {
 	if doc.Components == nil || len(doc.Components.Schemas) == 0 {
 		return "", ErrNoSchemasFound
 	}
-	stack := make(map[*openapi3.Schema]bool)
-	for _, schemaRef := range doc.Components.Schemas {
-		clearSchemaRefs(schemaRef, stack)
-	}
+	clearDocRefs(doc)
 	resolved, err := json.Marshal(doc)
 	if err != nil {
 		return "", err
 	}
 	return string(resolved), nil
+}
+
+// clearDocRefs clears $ref strings across the entire OpenAPI document,
+// including paths, components/parameters, components/headers,
+// components/requestBodies, components/responses, and components/callbacks.
+func clearDocRefs(doc *openapi3.T) {
+	stack := make(map[*openapi3.Schema]bool)
+
+	if doc.Components != nil {
+		for _, sr := range doc.Components.Schemas {
+			clearSchemaRefs(sr, stack)
+		}
+		for _, pr := range doc.Components.Parameters {
+			clearParameterRefs(pr, stack)
+		}
+		for _, hr := range doc.Components.Headers {
+			clearHeaderRefs(hr, stack)
+		}
+		for _, rb := range doc.Components.RequestBodies {
+			clearRequestBodyRefs(rb, stack)
+		}
+		for _, rr := range doc.Components.Responses {
+			clearResponseRefs(rr, stack)
+		}
+		for _, cr := range doc.Components.Callbacks {
+			clearCallbackRefs(cr, stack)
+		}
+	}
+
+	if doc.Paths != nil {
+		for _, pathItem := range doc.Paths.Map() {
+			clearPathItemRefs(pathItem, stack)
+		}
+	}
+}
+
+func clearContentRefs(content openapi3.Content, stack map[*openapi3.Schema]bool) {
+	for _, mt := range content {
+		if mt != nil {
+			clearSchemaRefs(mt.Schema, stack)
+		}
+	}
+}
+
+func clearParameterRefs(pr *openapi3.ParameterRef, stack map[*openapi3.Schema]bool) {
+	if pr == nil {
+		return
+	}
+	pr.Ref = ""
+	if pr.Value != nil {
+		clearSchemaRefs(pr.Value.Schema, stack)
+		clearContentRefs(pr.Value.Content, stack)
+	}
+}
+
+func clearHeaderRefs(hr *openapi3.HeaderRef, stack map[*openapi3.Schema]bool) {
+	if hr == nil {
+		return
+	}
+	hr.Ref = ""
+	if hr.Value != nil {
+		clearSchemaRefs(hr.Value.Schema, stack)
+		clearContentRefs(hr.Value.Content, stack)
+	}
+}
+
+func clearRequestBodyRefs(rb *openapi3.RequestBodyRef, stack map[*openapi3.Schema]bool) {
+	if rb == nil {
+		return
+	}
+	rb.Ref = ""
+	if rb.Value != nil {
+		clearContentRefs(rb.Value.Content, stack)
+	}
+}
+
+func clearResponseRefs(rr *openapi3.ResponseRef, stack map[*openapi3.Schema]bool) {
+	if rr == nil {
+		return
+	}
+	rr.Ref = ""
+	if rr.Value != nil {
+		clearContentRefs(rr.Value.Content, stack)
+		for _, hr := range rr.Value.Headers {
+			clearHeaderRefs(hr, stack)
+		}
+	}
+}
+
+func clearCallbackRefs(cr *openapi3.CallbackRef, stack map[*openapi3.Schema]bool) {
+	if cr == nil {
+		return
+	}
+	cr.Ref = ""
+	if cr.Value != nil {
+		for _, pathItem := range cr.Value.Map() {
+			clearPathItemRefs(pathItem, stack)
+		}
+	}
+}
+
+func clearPathItemRefs(pathItem *openapi3.PathItem, stack map[*openapi3.Schema]bool) {
+	if pathItem == nil {
+		return
+	}
+	for _, pr := range pathItem.Parameters {
+		clearParameterRefs(pr, stack)
+	}
+	for _, op := range pathItem.Operations() {
+		clearOperationRefs(op, stack)
+	}
+}
+
+func clearOperationRefs(op *openapi3.Operation, stack map[*openapi3.Schema]bool) {
+	if op == nil {
+		return
+	}
+	for _, pr := range op.Parameters {
+		clearParameterRefs(pr, stack)
+	}
+	clearRequestBodyRefs(op.RequestBody, stack)
+	if op.Responses != nil {
+		for _, rr := range op.Responses.Map() {
+			clearResponseRefs(rr, stack)
+		}
+	}
+	for _, cr := range op.Callbacks {
+		clearCallbackRefs(cr, stack)
+	}
 }
 
 // clearSchemaRefs recursively clears $ref strings on all nested SchemaRefs
