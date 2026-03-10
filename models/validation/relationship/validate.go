@@ -63,17 +63,6 @@ func loadRelationshipSchema() (*openapi3.Schema, error) {
 	return ref.Value, nil
 }
 
-// fixSchemaRefs normalises $ref values that are broken in published schema versions.
-// Specifically:
-//   - ./api.yml#/components/schemas/X → #/components/schemas/X (same-document refs)
-//   - capability_core.yml → api.yml (file was renamed)
-func fixSchemaRefs(data []byte) []byte {
-	s := string(data)
-	s = strings.ReplaceAll(s, `"./api.yml#/`, `"#/`)
-	s = strings.ReplaceAll(s, `capability_core.yml#/`, `api.yml#/`)
-	return []byte(s)
-}
-
 // stripNulls recursively removes nil values from a JSON map so that
 // optional pointer fields (which marshal to null) are treated as absent
 // rather than triggering "not nullable" schema errors.
