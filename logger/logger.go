@@ -26,6 +26,7 @@ type Handler interface {
 	SetLevel(level logrus.Level)
 	GetLevel() logrus.Level
 	UpdateLogOutput(w io.Writer)
+	UpdateErrorLogOutput(w io.Writer)
 	// Kubernetes Controller compliant logger
 	ControllerLogger() logr.Logger
 	DatabaseLogger() gormlogger.Interface
