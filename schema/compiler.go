@@ -4,6 +4,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/url"
 	"strings"
 
@@ -15,8 +16,13 @@ const embeddedSchemaScheme = "meshkit"
 
 type dlclarkRegexp regexp2.Regexp
 
+var regexpMatchStringErrorf = log.Printf
+
 func (re *dlclarkRegexp) MatchString(value string) bool {
 	matched, err := (*regexp2.Regexp)(re).MatchString(value)
+	if err != nil {
+		regexpMatchStringErrorf("schema: regexp2 MatchString failed for pattern %q: %v", re.String(), err)
+	}
 	return err == nil && matched
 }
 
@@ -168,12 +174,19 @@ func collectViolations(output *jsonschema.OutputUnit, violations *[]Violation) {
 }
 
 func keywordFromLocation(location string) string {
-	location = strings.Trim(location, "#")
-	location = strings.Trim(location, "/")
+	if index := strings.Index(location, "#"); index >= 0 {
+		location = location[index+1:]
+	}
+
+	location = strings.TrimPrefix(location, "/")
+	location = strings.TrimSuffix(location, "/")
 	if location == "" {
 		return ""
 	}
 
-	parts := strings.Split(location, "/")
-	return parts[len(parts)-1]
+	if index := strings.LastIndex(location, "/"); index >= 0 {
+		location = location[index+1:]
+	}
+
+	return strings.NewReplacer("~1", "/", "~0", "~").Replace(location)
 }

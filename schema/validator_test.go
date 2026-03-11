@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	meshkitencoding "github.com/meshery/meshkit/encoding"
 	meshkiterrors "github.com/meshery/meshkit/errors"
 	schemav1alpha3 "github.com/meshery/schemas/models/v1alpha3"
 	schemav1beta1 "github.com/meshery/schemas/models/v1beta1"
@@ -109,4 +110,47 @@ func TestValidatorValidateRelationshipWithMismatchedSchemaVersion(t *testing.T) 
 	require.Len(t, details.Violations, 1)
 	assert.Equal(t, "/schemaVersion", details.Violations[0].InstancePath)
 	assert.Equal(t, "const", details.Violations[0].Keyword)
+}
+
+func TestDecodeAndValidateWithValidatorZeroRef(t *testing.T) {
+	validator := New()
+
+	document, err := DecodeAndValidateWithValidator[map[string]any](validator, Ref{}, []byte(validRelationshipDocument))
+	require.NoError(t, err)
+	assert.Equal(t, schemav1alpha3.RelationshipSchemaVersion, document["schemaVersion"])
+}
+
+func TestValidatorValidateAnyWithZeroRef(t *testing.T) {
+	validator := New()
+
+	var document map[string]any
+	err := meshkitencoding.Unmarshal([]byte(validRelationshipDocument), &document)
+	require.NoError(t, err)
+
+	err = validator.ValidateAny(Ref{}, document)
+	require.NoError(t, err)
+}
+
+func TestValidatorValidateAnyWithZeroRefAndNonStringSchemaVersion(t *testing.T) {
+	validator := New()
+
+	err := validator.ValidateAny(Ref{}, map[string]any{
+		"schemaVersion": 1,
+	})
+	require.Error(t, err)
+	assert.Equal(t, ErrDecodeDocumentCode, meshkiterrors.GetCode(err))
+}
+
+func TestValidatorDocumentTypeFromSchemaVersionUsesRegistrations(t *testing.T) {
+	validator := New()
+
+	require.NoError(t, validator.Register(Registration{
+		Ref: Ref{
+			SchemaVersion: "example.meshery.io/v1alpha1",
+			Type:          TypeEnvironment,
+		},
+		Location: environmentSchemaLocation,
+	}))
+
+	assert.Equal(t, TypeEnvironment, validator.documentTypeFromSchemaVersion("example.meshery.io/v1alpha1"))
 }

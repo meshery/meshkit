@@ -84,6 +84,10 @@ func New() *Validator {
 
 // DetectRef reads the schemaVersion from the supplied document and returns the corresponding reference.
 func DetectRef(data []byte) (Ref, error) {
+	return Default().detectRef(data)
+}
+
+func (v *Validator) detectRef(data []byte) (Ref, error) {
 	var header struct {
 		SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
 	}
@@ -98,7 +102,7 @@ func DetectRef(data []byte) (Ref, error) {
 
 	return Ref{
 		SchemaVersion: header.SchemaVersion,
-		Type:          documentTypeFromSchemaVersion(header.SchemaVersion),
+		Type:          v.documentTypeFromSchemaVersion(header.SchemaVersion),
 	}, nil
 }
 
@@ -131,14 +135,8 @@ func DecodeAndValidateWithRef[T any](ref Ref, data []byte) (T, error) {
 func DecodeAndValidateWithValidator[T any](validator *Validator, ref Ref, data []byte) (T, error) {
 	var out T
 
-	if ref.IsZero() {
-		if err := validator.Validate(data); err != nil {
-			return out, err
-		}
-	} else {
-		if err := validator.ValidateBytes(ref, data); err != nil {
-			return out, err
-		}
+	if err := validator.ValidateBytes(ref, data); err != nil {
+		return out, err
 	}
 
 	if err := meshkitencoding.Unmarshal(data, &out); err != nil {
@@ -150,7 +148,7 @@ func DecodeAndValidateWithValidator[T any](validator *Validator, ref Ref, data [
 
 // Validate validates the supplied document after auto-detecting the schema from schemaVersion.
 func (v *Validator) Validate(data []byte) error {
-	ref, err := DetectRef(data)
+	ref, err := v.detectRef(data)
 	if err != nil {
 		return err
 	}
@@ -179,23 +177,21 @@ func (v *Validator) ValidateBytes(ref Ref, data []byte) error {
 
 // ValidateAny validates the supplied value against the explicitly identified schema.
 func (v *Validator) ValidateAny(ref Ref, value any) error {
-	if ref.IsZero() {
-		payload, err := json.Marshal(value)
-		if err != nil {
-			return ErrDecodeDocument(err)
-		}
+	document, err := normalizeDocument(value)
+	if err != nil {
+		return ErrDecodeDocument(err)
+	}
 
-		return v.Validate(payload)
+	if ref.IsZero() {
+		ref, err = v.detectRefFromDocument(document)
+		if err != nil {
+			return err
+		}
 	}
 
 	registration, err := v.resolve(ref)
 	if err != nil {
 		return err
-	}
-
-	document, err := normalizeDocument(value)
-	if err != nil {
-		return ErrDecodeDocument(err)
 	}
 
 	return v.validateDocument(registration, ref, document)
@@ -280,21 +276,42 @@ func schemaVersionMismatch(expected string, document any) (Violation, bool) {
 	}, true
 }
 
-func documentTypeFromSchemaVersion(schemaVersion string) DocumentType {
-	switch schemaVersion {
-	case modelSchemaVersion:
-		return TypeModel
-	case componentSchemaVersion:
-		return TypeComponent
-	case connectionSchemaVersion:
-		return TypeConnection
-	case designSchemaVersion:
-		return TypeDesign
-	case relationshipSchemaVersion:
-		return TypeRelationship
-	default:
+func (v *Validator) documentTypeFromSchemaVersion(schemaVersion string) DocumentType {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+
+	registration, ok := v.registrations[schemaVersionKey(schemaVersion)]
+	if !ok {
 		return ""
 	}
+
+	return registration.Ref.Type
+}
+
+func (v *Validator) detectRefFromDocument(document any) (Ref, error) {
+	object, ok := document.(map[string]any)
+	if !ok {
+		return Ref{}, ErrDecodeDocument(fmt.Errorf("schemaVersion can only be auto-detected from object documents"))
+	}
+
+	schemaVersion, found := object["schemaVersion"]
+	if !found {
+		return Ref{}, ErrDetectSchemaVersion()
+	}
+
+	schemaVersionString, ok := schemaVersion.(string)
+	if !ok {
+		return Ref{}, ErrDecodeDocument(fmt.Errorf("schemaVersion must be a string"))
+	}
+
+	if schemaVersionString == "" {
+		return Ref{}, ErrDetectSchemaVersion()
+	}
+
+	return Ref{
+		SchemaVersion: schemaVersionString,
+		Type:          v.documentTypeFromSchemaVersion(schemaVersionString),
+	}, nil
 }
 
 func decodeDocument(data []byte) (any, error) {
