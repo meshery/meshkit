@@ -15,6 +15,7 @@ replace (
 require (
 	cuelang.org/go v0.15.1
 	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/dlclark/regexp2 v1.11.0
 	github.com/docker/cli v27.5.1+incompatible
 	github.com/fluxcd/pkg/oci v0.43.1
 	github.com/fluxcd/pkg/tar v0.10.0
@@ -27,11 +28,12 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.37.0
 	github.com/meshery/meshery-operator v0.8.11
-	github.com/meshery/schemas v0.8.113
+	github.com/meshery/schemas v0.8.126
 	github.com/nats-io/nats.go v1.47.0
 	github.com/open-policy-agent/opa v1.11.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/pkg/errors v0.9.1
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
@@ -206,7 +208,7 @@ require (
 	github.com/lestrrat-go/httprc/v3 v3.0.2 // indirect
 	github.com/lestrrat-go/jwx/v3 v3.0.12 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
-	github.com/lib/pq v1.10.9 // indirect
+	github.com/lib/pq v1.11.1 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -256,7 +258,6 @@ require (
 	github.com/rubenv/sql-migrate v1.8.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
