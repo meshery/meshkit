@@ -40,8 +40,6 @@ func loadRelationshipSchema() (*openapi3.Schema, error) {
 		return nil, fmt.Errorf("reading schema file: %w", err)
 	}
 
-	data = fixSchemaRefs(data)
-
 	loader := openapi3.NewLoader()
 	loader.IsExternalRefsAllowed = true
 	loader.ReadFromURIFunc = func(_ *openapi3.Loader, uri *url.URL) ([]byte, error) {
@@ -141,7 +139,7 @@ func validateAgainstSchema(rel *relationship.RelationshipDefinition, result *Val
 	// are treated as absent rather than triggering "not nullable" errors.
 	stripNulls(m)
 
-	if err := schema.VisitJSON(m); err != nil {
+	if err := schema.VisitJSON(m, openapi3.MultiErrors()); err != nil {
 		convertSchemaErrors(err, result)
 	}
 
