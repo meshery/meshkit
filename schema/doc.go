@@ -13,15 +13,15 @@
 // instance:
 //
 //	for _, dt := range schema.DocumentTypes() {
-//	    fmt.Println(dt)
+//		fmt.Println(dt)
 //	}
 //
 // Callers that need a specific type should construct it directly with
 // [DocumentType], for example:
 //
 //	ref := schema.Ref{
-//	    SchemaVersion: "relationships.meshery.io/v1alpha3",
-//	    Type:          schema.DocumentType("relationship"),
+//		SchemaVersion: "relationships.meshery.io/v1alpha3",
+//		Type:          schema.DocumentType("relationship"),
 //	}
 //
 // Prefer [DocumentTypes] whenever code needs to enumerate registered types.
