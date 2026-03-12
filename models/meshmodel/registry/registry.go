@@ -10,9 +10,11 @@ import (
 	"github.com/meshery/meshkit/database"
 	models "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
-	"github.com/meshery/schemas/models/v1alpha3/relationship"
+	regv1alpha3 "github.com/meshery/meshkit/models/meshmodel/registry/v1alpha3"
+	regv1beta1 "github.com/meshery/meshkit/models/meshmodel/registry/v1beta1"
+	schemarelationship "github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/category"
-	"github.com/meshery/schemas/models/v1beta1/component"
+	schemacomponent "github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
 	"golang.org/x/text/cases"
@@ -95,8 +97,8 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	err := rm.db.AutoMigrate(
 		&Registry{},
 		&connection.Connection{},
-		&component.ComponentDefinition{},
-		&relationship.RelationshipDefinition{},
+		&schemacomponent.ComponentDefinition{},
+		&schemarelationship.RelationshipDefinition{},
 		&models.PolicyDefinition{},
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
@@ -106,14 +108,27 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	}
 	return &rm, nil
 }
+
+func (rm *RegistryManager) GetComponentSummary(
+	f *schemacomponent.ComponentSummaryFilter,
+) (*schemacomponent.ComponentSummary, error) {
+	return regv1beta1.GetSummary(f, rm.db)
+}
+
+func (rm *RegistryManager) GetRelationshipSummary(
+	f *schemarelationship.RelationshipSummaryFilter,
+) (*schemarelationship.RelationshipSummary, error) {
+	return regv1alpha3.GetSummary(f, rm.db)
+}
+
 func (rm *RegistryManager) Cleanup() {
 	_ = rm.db.Migrator().DropTable(
 		&Registry{},
 		&connection.Connection{},
-		&component.ComponentDefinition{},
+		&schemacomponent.ComponentDefinition{},
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
-		&relationship.RelationshipDefinition{},
+		&schemarelationship.RelationshipDefinition{},
 	)
 }
 func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Entity) (bool, bool, error) {

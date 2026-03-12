@@ -3,7 +3,7 @@ package v1alpha3
 import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
-	"github.com/meshery/meshkit/models/meshmodel/registry"
+	registryerrors "github.com/meshery/meshkit/models/meshmodel/registry/errors"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 
 	"gorm.io/gorm/clause"
@@ -39,7 +39,7 @@ func (rf *RelationshipFilter) GetById(db *database.Handler) (entity.Entity, erro
 	r := &relationship.RelationshipDefinition{}
 	err := db.First(r, "id = ?", rf.Id).Error
 	if err != nil {
-		return nil, registry.ErrGetById(err, rf.Id)
+		return nil, registryerrors.ErrGetById(err, rf.Id)
 	}
 	return r, err
 }

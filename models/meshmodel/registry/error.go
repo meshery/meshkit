@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/meshery/meshkit/errors"
+	registryerrors "github.com/meshery/meshkit/models/meshmodel/registry/errors"
 )
 
 var (
@@ -18,15 +19,7 @@ var (
 )
 
 func ErrGetById(err error, id string) error {
-	return errors.New(
-		ErrUnknownHostCode,
-		errors.Alert,
-		[]string{"Failed to get the entity with the given ID: " + id},
-		[]string{err.Error()},
-		[]string{"Entity with the given ID may not be present in the registry", "Registry might be inaccessible at the moment"},
-		[]string{"Check if your ID is correct", "If the registry is inaccesible, please try again after some time"},
-	)
-
+	return registryerrors.ErrGetById(err, id)
 }
 
 func ErrUnknownHost(err error) error {
