@@ -120,6 +120,18 @@ func TestValidatorValidateUnsupportedSchemaVersion(t *testing.T) {
 	assert.Equal(t, ErrResolveSchemaCode, meshkiterrors.GetCode(err))
 }
 
+func TestValidatorResolveDoesNotFallbackFromUnknownSchemaVersionToType(t *testing.T) {
+	validator, err := New()
+	require.NoError(t, err)
+
+	_, err = validator.resolve(Ref{
+		SchemaVersion: "unsupported.meshery.io/v1alpha1",
+		Type:          TypeModel,
+	})
+	require.Error(t, err)
+	assert.Equal(t, ErrResolveSchemaCode, meshkiterrors.GetCode(err))
+}
+
 func TestValidatorValidateRelationshipWithMismatchedSchemaVersion(t *testing.T) {
 	mismatchedSchemaVersionDocument := strings.Replace(
 		validRelationshipDocument,

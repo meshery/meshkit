@@ -75,6 +75,14 @@ func TestDlclarkRegexpMatchStringLogsError(t *testing.T) {
 	assert.Contains(t, logged, "match timeout")
 }
 
+func TestCompileRegexpSetsDefaultMatchTimeout(t *testing.T) {
+	re, err := compileRegexp("^[a-z]+$")
+	assert.NoError(t, err)
+
+	compiled := (*regexp2.Regexp)(re.(*dlclarkRegexp))
+	assert.Equal(t, defaultRegexpMatchTimeout, compiled.MatchTimeout)
+}
+
 func TestJSONPointer(t *testing.T) {
 	t.Parallel()
 

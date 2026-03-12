@@ -173,79 +173,79 @@ func (e *Error) ErrorV2(additionalInfo interface{}) ErrorV2 {
 }
 
 func GetCode(err error) string {
-	var errV1 *Error
-	if stderrors.As(err, &errV1) && errV1 != nil && errV1.Code != " " {
-		return errV1.Code
-	}
-
 	var errV2 *ErrorV2
 	if stderrors.As(err, &errV2) && errV2 != nil && errV2.Code != " " {
 		return errV2.Code
+	}
+
+	var errV1 *Error
+	if stderrors.As(err, &errV1) && errV1 != nil && errV1.Code != " " {
+		return errV1.Code
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetSeverity(err error) Severity {
-	var errV1 *Error
-	if stderrors.As(err, &errV1) && errV1 != nil {
-		return errV1.Severity
-	}
-
 	var errV2 *ErrorV2
 	if stderrors.As(err, &errV2) && errV2 != nil {
 		return errV2.Severity
+	}
+
+	var errV1 *Error
+	if stderrors.As(err, &errV1) && errV1 != nil {
+		return errV1.Severity
 	}
 	return None
 }
 
 func GetSDescription(err error) string {
-	var errV1 *Error
-	if stderrors.As(err, &errV1) && errV1 != nil {
-		return strings.Join(errV1.ShortDescription[:], ".")
-	}
-
 	var errV2 *ErrorV2
 	if stderrors.As(err, &errV2) && errV2 != nil {
 		return strings.Join(errV2.ShortDescription[:], ".")
+	}
+
+	var errV1 *Error
+	if stderrors.As(err, &errV1) && errV1 != nil {
+		return strings.Join(errV1.ShortDescription[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetCause(err error) string {
-	var errV1 *Error
-	if stderrors.As(err, &errV1) && errV1 != nil {
-		return strings.Join(errV1.ProbableCause[:], ".")
-	}
-
 	var errV2 *ErrorV2
 	if stderrors.As(err, &errV2) && errV2 != nil {
 		return strings.Join(errV2.ProbableCause[:], ".")
+	}
+
+	var errV1 *Error
+	if stderrors.As(err, &errV1) && errV1 != nil {
+		return strings.Join(errV1.ProbableCause[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetRemedy(err error) string {
-	var errV1 *Error
-	if stderrors.As(err, &errV1) && errV1 != nil {
-		return strings.Join(errV1.SuggestedRemediation[:], ".")
-	}
-
 	var errV2 *ErrorV2
 	if stderrors.As(err, &errV2) && errV2 != nil {
 		return strings.Join(errV2.SuggestedRemediation[:], ".")
+	}
+
+	var errV1 *Error
+	if stderrors.As(err, &errV1) && errV1 != nil {
+		return strings.Join(errV1.SuggestedRemediation[:], ".")
 	}
 	return strings.Join(NoneString[:], "")
 }
 
 func GetLDescription(err error) string {
-	var errV1 *Error
-	if stderrors.As(err, &errV1) && errV1 != nil {
-		return strings.Join(errV1.LongDescription, ".")
-	}
-
 	var errV2 *ErrorV2
 	if stderrors.As(err, &errV2) && errV2 != nil {
 		return strings.Join(errV2.LongDescription, ".")
+	}
+
+	var errV1 *Error
+	if stderrors.As(err, &errV1) && errV1 != nil {
+		return strings.Join(errV1.LongDescription, ".")
 	}
 	return strings.Join(NoneString, "")
 }

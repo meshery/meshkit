@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/dlclark/regexp2"
 	"github.com/getkin/kin-openapi/openapi3"
@@ -18,6 +19,12 @@ const (
 	syntheticOpenAPIVersion   = "3.0.3"
 	syntheticOpenAPITitle     = "MeshKit Schema Validator"
 	syntheticOpenAPIDocSchema = "1.0.0"
+
+	// defaultRegexpMatchTimeout caps regexp2 backtracking evaluation to guard
+	// against potential CPU exhaustion when matching untrusted input against
+	// complex patterns. regexp2 uses a backtracking engine (unlike Go's RE2),
+	// so unbounded matching can become a denial-of-service vector.
+	defaultRegexpMatchTimeout = 2 * time.Second
 )
 
 type dlclarkRegexp regexp2.Regexp
@@ -42,6 +49,7 @@ func compileRegexp(pattern string) (openapi3.RegexMatcher, error) {
 		return nil, err
 	}
 
+	compiled.MatchTimeout = defaultRegexpMatchTimeout
 	return (*dlclarkRegexp)(compiled), nil
 }
 

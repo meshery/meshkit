@@ -63,6 +63,11 @@ func builtinRegistrations() []Registration {
 			Location: relationshipSchemaLocation,
 		},
 		{
+			// Environment schema has no SchemaVersion intentionally: the upstream
+			// schemas module does not yet define an EnvironmentSchemaVersion constant.
+			// As a result, auto-detection via Validate(data) is not supported for
+			// environment documents; callers must use ValidateBytes(Ref{Type: TypeEnvironment}, data)
+			// or ValidateAs(TypeEnvironment, data) explicitly.
 			Ref: Ref{
 				Type: TypeEnvironment,
 			},
@@ -89,6 +94,10 @@ func (v *Validator) Register(registration Registration) error {
 		v.registrations[schemaVersionKey(registration.Ref.SchemaVersion)] = registration
 	}
 
+	// Type key uses "latest wins" semantics: if multiple schema versions are registered
+	// for the same type, the most recently registered one becomes the default for
+	// type-only lookups (e.g. ValidateAs). This is intentional for the current single-version
+	// use case; if multi-version support is needed in the future, this should be revisited.
 	if registration.Ref.Type != "" {
 		v.registrations[typeKey(registration.Ref.Type)] = registration
 	}
@@ -104,6 +113,10 @@ func (v *Validator) resolve(ref Ref) (Registration, error) {
 		if registration, ok := v.registrations[schemaVersionKey(ref.SchemaVersion)]; ok {
 			return registration, nil
 		}
+		// SchemaVersion was explicitly specified but has no registered schema.
+		// Do NOT fall back to the Type key – that would silently validate the document
+		// against a different schema than the caller requested.
+		return Registration{}, ErrResolveSchema(ref)
 	}
 
 	if ref.Type != "" {

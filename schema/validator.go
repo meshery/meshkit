@@ -100,22 +100,12 @@ func DetectRef(data []byte) (Ref, error) {
 }
 
 func (v *Validator) detectRef(data []byte) (Ref, error) {
-	var header struct {
-		SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
-	}
-
-	if err := meshkitencoding.Unmarshal(data, &header); err != nil {
+	document, err := decodeDocument(data)
+	if err != nil {
 		return Ref{}, ErrDecodeDocument(err)
 	}
 
-	if header.SchemaVersion == "" {
-		return Ref{}, ErrDetectSchemaVersion()
-	}
-
-	return Ref{
-		SchemaVersion: header.SchemaVersion,
-		Type:          v.documentTypeFromSchemaVersion(header.SchemaVersion),
-	}, nil
+	return v.detectRefFromDocument(document)
 }
 
 // Validate validates the supplied document after auto-detecting the schema from schemaVersion.
@@ -159,13 +149,25 @@ func DecodeAndValidateWithValidator[T any](validator *Validator, ref Ref, data [
 }
 
 // Validate validates the supplied document after auto-detecting the schema from schemaVersion.
+// The document bytes are decoded exactly once; the resulting value is reused for both
+// schema-version detection and validation, avoiding a redundant unmarshal.
 func (v *Validator) Validate(data []byte) error {
-	ref, err := v.detectRef(data)
+	document, err := decodeDocument(data)
+	if err != nil {
+		return ErrDecodeDocument(err)
+	}
+
+	ref, err := v.detectRefFromDocument(document)
 	if err != nil {
 		return err
 	}
 
-	return v.ValidateBytes(ref, data)
+	registration, err := v.resolve(ref)
+	if err != nil {
+		return err
+	}
+
+	return v.validateDocument(registration, ref, document)
 }
 
 // ValidateBytes validates the supplied document against the explicitly identified schema.
