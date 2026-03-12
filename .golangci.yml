@@ -29,7 +29,6 @@ linters:
       min-len: 3
       min-occurrences: 10
     staticcheck:
-      go: "1.25"
       checks:
         - all
         - -ST1005
