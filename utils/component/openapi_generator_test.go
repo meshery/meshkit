@@ -284,7 +284,9 @@ func TestGetResolvedManifest_AllOf(t *testing.T) {
 	}
 
 	var parsed map[string]any
-	json.Unmarshal([]byte(out), &parsed)
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("failed to unmarshal resolved manifest: %v", err)
+	}
 
 	extended := navigatePath(t, parsed, "components.schemas.Extended").(map[string]any)
 	allOf, ok := extended["allOf"].([]any)

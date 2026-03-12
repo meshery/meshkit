@@ -21,7 +21,11 @@ func TestGetResolvedManifest_RealKubernetesSpec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to fetch kubernetes spec: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Errorf("failed to close response body: %v", closeErr)
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
