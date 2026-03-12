@@ -36,6 +36,15 @@ const invalidMinimalModelDocument = `
 schemaVersion: models.meshery.io/v1beta1
 `
 
+const validDesignDocument = `
+id: 11111111-1111-1111-1111-111111111111
+name: sample-design
+schemaVersion: designs.meshery.io/v1beta1
+version: v0.0.1
+components: []
+relationships: []
+`
+
 func TestDetectRef(t *testing.T) {
 	ref, err := DetectRef([]byte("schemaVersion: relationships.meshery.io/v1alpha3"))
 	require.NoError(t, err)
@@ -51,10 +60,20 @@ func TestValidatorValidateRelationshipSuccess(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestValidatorValidateDesignSuccess(t *testing.T) {
+	err := Default().Validate([]byte(validDesignDocument))
+	require.NoError(t, err)
+}
+
 func TestValidatorValidateRelationshipFailure(t *testing.T) {
 	invalidRelationshipDocument := strings.Replace(validRelationshipDocument, "kind: edge", "kind: invalid", 1)
+	expectedRegistration, err := Default().resolve(Ref{
+		SchemaVersion: schemav1alpha3.RelationshipSchemaVersion,
+		Type:          TypeRelationship,
+	})
+	require.NoError(t, err)
 
-	err := Default().Validate([]byte(invalidRelationshipDocument))
+	err = Default().Validate([]byte(invalidRelationshipDocument))
 	require.Error(t, err)
 
 	var meshkitErr *meshkiterrors.ErrorV2
@@ -67,7 +86,7 @@ func TestValidatorValidateRelationshipFailure(t *testing.T) {
 		SchemaVersion: schemav1alpha3.RelationshipSchemaVersion,
 		Type:          TypeRelationship,
 	}, details.Ref)
-	assert.Equal(t, relationshipSchemaLocation, details.SchemaLocation)
+	assert.Equal(t, expectedRegistration.Location, details.SchemaLocation)
 	require.NotEmpty(t, details.Violations)
 
 	instancePaths := make([]string, 0, len(details.Violations))
@@ -99,6 +118,11 @@ func TestValidatorCompileModelSchema(t *testing.T) {
 func TestValidatorValidateModelWithExplicitRefReportsViolations(t *testing.T) {
 	validator, err := New()
 	require.NoError(t, err)
+	expectedRegistration, err := validator.resolve(Ref{
+		SchemaVersion: schemav1beta1.ModelSchemaVersion,
+		Type:          TypeModel,
+	})
+	require.NoError(t, err)
 
 	err = validator.ValidateBytes(Ref{
 		SchemaVersion: schemav1beta1.ModelSchemaVersion,
@@ -110,7 +134,7 @@ func TestValidatorValidateModelWithExplicitRefReportsViolations(t *testing.T) {
 
 	details, ok := ValidationDetailsFromError(err)
 	require.True(t, ok)
-	assert.Equal(t, modelSchemaLocation, details.SchemaLocation)
+	assert.Equal(t, expectedRegistration.Location, details.SchemaLocation)
 	require.NotEmpty(t, details.Violations)
 }
 
@@ -191,13 +215,16 @@ func TestValidatorValidateAnyWithZeroRefAndNonStringSchemaVersion(t *testing.T) 
 func TestValidatorDocumentTypeFromSchemaVersionUsesRegistrations(t *testing.T) {
 	validator, err := New()
 	require.NoError(t, err)
+	environmentRegistration, err := validator.resolve(Ref{Type: TypeEnvironment})
+	require.NoError(t, err)
 
 	require.NoError(t, validator.Register(Registration{
 		Ref: Ref{
 			SchemaVersion: "example.meshery.io/v1alpha1",
 			Type:          TypeEnvironment,
 		},
-		Location: environmentSchemaLocation,
+		Location:     environmentRegistration.Location,
+		AssetVersion: environmentRegistration.AssetVersion,
 	}))
 
 	assert.Equal(t, TypeEnvironment, validator.documentTypeFromSchemaVersion("example.meshery.io/v1alpha1"))

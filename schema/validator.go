@@ -35,6 +35,11 @@ type Ref struct {
 type Registration struct {
 	Ref      Ref
 	Location string
+	// AssetVersion is the schema asset version segment derived from the embedded
+	// schemas path (for example, "v1beta1"). It is used to resolve schemaVersion
+	// strings even when the underlying schema asset does not embed a literal
+	// schemaVersion constant/default.
+	AssetVersion string
 }
 
 // Violation is a field-level validation failure reported by the underlying schema validator.
@@ -49,6 +54,7 @@ type Violation struct {
 type Validator struct {
 	fsys          fs.FS
 	registrations map[string]Registration
+	typeVersions  map[DocumentType]map[string]Registration
 	cache         sync.Map
 	compiling     singleflight.Group
 	mu            sync.RWMutex
@@ -70,12 +76,18 @@ func Default() *Validator {
 
 // New returns a validator preloaded with the built-in Meshery schema registrations.
 func New() (*Validator, error) {
+	registrations, err := builtinRegistrations()
+	if err != nil {
+		return nil, err
+	}
+
 	v := &Validator{
 		fsys:          meshschemas.Schemas,
 		registrations: map[string]Registration{},
+		typeVersions:  map[DocumentType]map[string]Registration{},
 	}
 
-	for _, registration := range builtinRegistrations() {
+	for _, registration := range registrations {
 		if err := v.Register(registration); err != nil {
 			return nil, err
 		}
@@ -300,7 +312,10 @@ func (v *Validator) documentTypeFromSchemaVersion(schemaVersion string) Document
 
 	registration, ok := v.registrations[schemaVersionKey(schemaVersion)]
 	if !ok {
-		return ""
+		registration, ok = v.resolveByDerivedSchemaVersion(schemaVersion, "")
+		if !ok {
+			return ""
+		}
 	}
 
 	return registration.Ref.Type
