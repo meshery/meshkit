@@ -9,7 +9,7 @@ type (
 		ProbableCause        []string
 		SuggestedRemediation []string
 	}
-	// Limitations of Error struct defined above:
+	// ErrorV2 addresses limitations of the Error struct defined above:
 	// There are different types of Errors. Each type of error contains different information.
 	// Short and Long Descriptions accept only strings and so they cannot contain structured information.
 	// e.g. The Validation Error information (instancePath, badValue etc.) cannot be contained in Error struct (or not in a structured way that the clients can make use of it)
