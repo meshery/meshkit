@@ -153,7 +153,7 @@ func discoverRegistration(fsys fs.FS, assetPath string) (Registration, bool, err
 
 	var document any
 	if err := meshkitencoding.Unmarshal(asset, &document); err != nil {
-		return Registration{}, false, nil
+		return Registration{}, false, ErrUnmarshalSchemaAsset(assetPath, err)
 	}
 
 	root, ok := document.(map[string]any)

@@ -14,7 +14,8 @@ var (
 	ErrDecodeDocumentCode      = "meshkit-11323"
 	ErrCompileSchemaCode       = "meshkit-11324"
 	ErrValidateDocumentCode    = "meshkit-11325"
-	ErrDecodeTypedDocumentCode = "meshkit-11326"
+	ErrDecodeTypedDocumentCode  = "meshkit-11326"
+	ErrUnmarshalSchemaAssetCode = "meshkit-11327"
 
 	errValidateDocumentBase = meshkiterrors.New(
 		ErrValidateDocumentCode,
@@ -116,5 +117,16 @@ func ErrDecodeTypedDocument(err error) error {
 		[]string{err.Error()},
 		[]string{"The document is valid against the schema but could not be decoded into the requested Go type"},
 		[]string{"Ensure the destination Go type matches the target schema model"},
+	)
+}
+
+func ErrUnmarshalSchemaAsset(assetPath string, err error) error {
+	return meshkiterrors.New(
+		ErrUnmarshalSchemaAssetCode,
+		meshkiterrors.Alert,
+		[]string{"Unable to unmarshal embedded schema asset"},
+		[]string{fmt.Sprintf("Failed to unmarshal %s: %s", assetPath, err.Error())},
+		[]string{"The embedded schema asset is not valid JSON or YAML"},
+		[]string{"Ensure the embedded schema asset is valid JSON or YAML"},
 	)
 }
