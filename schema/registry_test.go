@@ -71,7 +71,7 @@ func TestBuiltinRegistrationsExtractSchemaVersionsWhenAvailable(t *testing.T) {
 	assert.Equal(t, schemav1beta1.ConnectionSchemaVersion, actual[TypeConnection])
 	assert.Equal(t, schemav1alpha3.RelationshipSchemaVersion, actual[TypeRelationship])
 	assert.Empty(t, actual[TypeDesign])
-	assert.Empty(t, actual[TypeEnvironment])
+	assert.Equal(t, "environments.meshery.io/v1beta1", actual[TypeEnvironment])
 }
 
 func TestValidatorResolveUsesSchemaVersionConventionFallback(t *testing.T) {
@@ -168,4 +168,14 @@ definitions:
 	require.True(t, ok)
 	assert.Equal(t, DocumentType("selector"), registration.Ref.Type)
 	assert.Equal(t, "schemas/constructs/v1alpha3/selector/selector.yaml", registration.Location)
+}
+
+func TestValidatorResolvesEnvironmentBySchemaVersion(t *testing.T) {
+	validator, err := New()
+	require.NoError(t, err)
+
+	registration, err := validator.resolve(Ref{SchemaVersion: "environments.meshery.io/v1beta1"})
+	require.NoError(t, err)
+	assert.Equal(t, TypeEnvironment, registration.Ref.Type)
+	assert.Equal(t, "schemas/constructs/v1beta1/environment/environment.yaml", registration.Location)
 }

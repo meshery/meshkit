@@ -3,8 +3,10 @@ package schema
 import (
 	"bytes"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io/fs"
+	"strings"
 	"sync"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -243,14 +245,32 @@ func (v *Validator) validateDocument(registration Registration, requested Ref, d
 		openapi3.MultiErrors(),
 		openapi3.SetSchemaRegexCompiler(compileRegexp),
 	); err != nil {
+		violations := filterSchemaVersionPatternViolations(violationsFromError(err))
+		if len(violations) == 0 {
+			return nil
+		}
+
 		return ErrValidateDocument(ValidationDetails{
 			Ref:            resolvedRef,
 			SchemaLocation: registration.Location,
-			Violations:     violationsFromError(err),
+			Violations:     violations,
 		})
 	}
 
 	return nil
+}
+
+func filterSchemaVersionPatternViolations(violations []Violation) []Violation {
+	filtered := make([]Violation, 0, len(violations))
+	for _, violation := range violations {
+		if violation.Keyword == "pattern" && strings.HasSuffix(violation.InstancePath, "/schemaVersion") {
+			continue
+		}
+
+		filtered = append(filtered, violation)
+	}
+
+	return filtered
 }
 
 func (r Ref) IsZero() bool {
@@ -324,7 +344,7 @@ func (v *Validator) documentTypeFromSchemaVersion(schemaVersion string) Document
 func (v *Validator) detectRefFromDocument(document any) (Ref, error) {
 	object, ok := document.(map[string]any)
 	if !ok {
-		return Ref{}, ErrDecodeDocument(fmt.Errorf("schemaVersion can only be auto-detected from object documents"))
+		return Ref{}, ErrDecodeDocument(stderrors.New("schemaVersion can only be auto-detected from object documents"))
 	}
 
 	schemaVersion, found := object["schemaVersion"]
@@ -334,7 +354,7 @@ func (v *Validator) detectRefFromDocument(document any) (Ref, error) {
 
 	schemaVersionString, ok := schemaVersion.(string)
 	if !ok {
-		return Ref{}, ErrDecodeDocument(fmt.Errorf("schemaVersion must be a string"))
+		return Ref{}, ErrDecodeDocument(stderrors.New("schemaVersion must be a string"))
 	}
 
 	if schemaVersionString == "" {

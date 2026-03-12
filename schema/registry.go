@@ -1,7 +1,7 @@
 package schema
 
 import (
-	"fmt"
+	stderrors "errors"
 	"io/fs"
 	"path"
 	"sort"
@@ -62,12 +62,12 @@ func builtinRegistrations() ([]Registration, error) {
 
 func (v *Validator) Register(registration Registration) error {
 	if registration.Ref.IsZero() {
-		return ErrInvalidRegistration(fmt.Errorf("schema ref is empty"))
+		return ErrInvalidRegistration(stderrors.New("schema ref is empty"))
 	}
 
 	registration.Location = strings.TrimSpace(registration.Location)
 	if registration.Location == "" {
-		return ErrInvalidRegistration(fmt.Errorf("schema location is empty"))
+		return ErrInvalidRegistration(stderrors.New("schema location is empty"))
 	}
 
 	if registration.AssetVersion == "" {

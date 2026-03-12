@@ -2,7 +2,6 @@ package schema
 
 import (
 	stderrors "errors"
-	"fmt"
 	"io/fs"
 	"log"
 	"net/url"
@@ -61,7 +60,7 @@ func embeddedSchemaReadURI(fsys fs.FS) openapi3.ReadFromURIFunc {
 
 		embeddedPath := strings.TrimPrefix(location.Path, "/")
 		if embeddedPath == "" {
-			return nil, fmt.Errorf("schema path is empty")
+			return nil, stderrors.New("schema path is empty")
 		}
 
 		return fs.ReadFile(fsys, embeddedPath)
@@ -89,7 +88,7 @@ func (v *Validator) compile(location string) (*openapi3.Schema, error) {
 
 		schema := document.Components.Schemas[rootSchemaComponentName].Value
 		if schema == nil {
-			return nil, ErrCompileSchema(location, fmt.Errorf("resolved schema is empty"))
+			return nil, ErrCompileSchema(location, stderrors.New("resolved schema is empty"))
 		}
 
 		actual, _ := v.cache.LoadOrStore(location, schema)
