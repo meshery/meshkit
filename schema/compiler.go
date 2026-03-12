@@ -209,21 +209,3 @@ func jsonPointer(path []string) string {
 func escapeJSONPointerToken(token string) string {
 	return strings.NewReplacer("~", "~0", "/", "~1").Replace(token)
 }
-
-func keywordFromLocation(location string) string {
-	if index := strings.Index(location, "#"); index >= 0 {
-		location = location[index+1:]
-	}
-
-	location = strings.TrimPrefix(location, "/")
-	location = strings.TrimSuffix(location, "/")
-	if location == "" {
-		return ""
-	}
-
-	if index := strings.LastIndex(location, "/"); index >= 0 {
-		location = location[index+1:]
-	}
-
-	return strings.NewReplacer("~1", "/", "~0", "~").Replace(location)
-}
