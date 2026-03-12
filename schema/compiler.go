@@ -28,12 +28,18 @@ const (
 
 type dlclarkRegexp regexp2.Regexp
 
-var regexpMatchStringErrorf = log.Printf
+// RegexpMatchStringErrorf is called when regexp2 pattern matching fails at
+// runtime (e.g. due to a match timeout). It defaults to log.Printf. Library
+// consumers may replace it with their own structured logger before the
+// Validator is used, for example:
+//
+//	schema.RegexpMatchStringErrorf = myLogger.Errorf
+var RegexpMatchStringErrorf = log.Printf
 
 func (re *dlclarkRegexp) MatchString(value string) bool {
 	matched, err := (*regexp2.Regexp)(re).MatchString(value)
 	if err != nil {
-		regexpMatchStringErrorf("schema: regexp2 MatchString failed for pattern %q: %v", re.String(), err)
+		RegexpMatchStringErrorf("schema: regexp2 MatchString failed for pattern %q: %v", re.String(), err)
 	}
 	return err == nil && matched
 }

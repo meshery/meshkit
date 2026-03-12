@@ -62,12 +62,12 @@ func TestDlclarkRegexpMatchStringLogsError(t *testing.T) {
 	re := (*dlclarkRegexp)(compiled)
 
 	var logged string
-	previous := regexpMatchStringErrorf
-	regexpMatchStringErrorf = func(format string, args ...any) {
+	previous := RegexpMatchStringErrorf
+	RegexpMatchStringErrorf = func(format string, args ...any) {
 		logged = fmt.Sprintf(format, args...)
 	}
 	t.Cleanup(func() {
-		regexpMatchStringErrorf = previous
+		RegexpMatchStringErrorf = previous
 	})
 
 	assert.False(t, re.MatchString(strings.Repeat("a", 5_000)+"!"))
