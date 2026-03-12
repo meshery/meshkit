@@ -334,9 +334,28 @@ func schemaVersionFromTemplates(fsys fs.FS, assetPath string) (string, bool) {
 		return "", false
 	}
 
+	// Derive the canonical template prefix for this schema.  The convention
+	// used by github.com/meshery/schemas is:
+	//
+	//   {schema_base}_template.{ext}
+	//
+	// where {schema_base} is the schema filename without its extension
+	// (e.g. "connection" for "connection.yaml", "connection_page" for
+	// "connection_page.yaml").  We only read templates whose name begins with
+	// that exact name so that sibling schemas sharing a templates/ directory
+	// (such as connection.yaml and connection_page.yaml) cannot inherit each
+	// other's schemaVersion.
+	schemaBase := strings.TrimSuffix(path.Base(assetPath), path.Ext(assetPath))
+	templatePrefix := schemaBase + "_template"
+
 	values := map[string]struct{}{}
 	for _, entry := range entries {
 		if entry.IsDir() || !isDiscoverableSchemaAsset(entry.Name()) {
+			continue
+		}
+
+		entryBase := strings.TrimSuffix(entry.Name(), path.Ext(entry.Name()))
+		if entryBase != templatePrefix {
 			continue
 		}
 
