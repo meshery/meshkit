@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"math"
 	"strings"
 	"testing"
@@ -106,7 +107,9 @@ func TestValidatorValidateModelWithExplicitRefReportsViolations(t *testing.T) {
 	}, []byte(invalidMinimalModelDocument))
 	require.Error(t, err)
 
-	assert.Equal(t, ErrValidateDocumentCode, meshkiterrors.GetCode(err))
+	var errV2 *meshkiterrors.ErrorV2
+	require.True(t, stderrors.As(err, &errV2))
+	assert.Equal(t, ErrValidateDocumentCode, errV2.Code)
 
 	details, ok := ValidationDetailsFromError(err)
 	require.True(t, ok)
