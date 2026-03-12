@@ -1,11 +1,13 @@
 package schema
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"sync"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	meshkitencoding "github.com/meshery/meshkit/encoding"
 	meshschemas "github.com/meshery/schemas"
 	"golang.org/x/sync/singleflight"
@@ -60,14 +62,14 @@ var (
 // Default returns the process-wide validator backed by the embedded schemas module.
 func Default() *Validator {
 	defaultValidatorOnce.Do(func() {
-		defaultValidator = New()
+		defaultValidator = MustNew()
 	})
 
 	return defaultValidator
 }
 
 // New returns a validator preloaded with the built-in Meshery schema registrations.
-func New() *Validator {
+func New() (*Validator, error) {
 	v := &Validator{
 		fsys:          meshschemas.Schemas,
 		registrations: map[string]Registration{},
@@ -75,10 +77,20 @@ func New() *Validator {
 
 	for _, registration := range builtinRegistrations() {
 		if err := v.Register(registration); err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
+	return v, nil
+}
+
+// MustNew returns a validator preloaded with the built-in Meshery schema registrations.
+// It panics if any builtin registration fails.
+func MustNew() *Validator {
+	v, err := New()
+	if err != nil {
+		panic(err)
+	}
 	return v
 }
 
@@ -212,7 +224,11 @@ func (v *Validator) validateDocument(registration Registration, requested Ref, d
 		return err
 	}
 
-	if err := schema.Validate(document); err != nil {
+	if err := schema.VisitJSON(
+		document,
+		openapi3.MultiErrors(),
+		openapi3.SetSchemaRegexCompiler(compileRegexp),
+	); err != nil {
 		return ErrValidateDocument(ValidationDetails{
 			Ref:            resolvedRef,
 			SchemaLocation: registration.Location,
@@ -325,16 +341,44 @@ func decodeDocument(data []byte) (any, error) {
 }
 
 func normalizeDocument(value any) (any, error) {
-	normalizedBytes, err := json.Marshal(value)
-	if err != nil {
-		return nil, err
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for k, val := range v {
+			normalized, err := normalizeDocument(val)
+			if err != nil {
+				return nil, err
+			}
+			out[k] = normalized
+		}
+		return out, nil
+	case []any:
+		out := make([]any, len(v))
+		for i, elem := range v {
+			normalized, err := normalizeDocument(elem)
+			if err != nil {
+				return nil, err
+			}
+			out[i] = normalized
+		}
+		return out, nil
+	case bool, string, nil,
+		float32, float64,
+		int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64,
+		json.Number:
+		return v, nil
+	default:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		dec := json.NewDecoder(bytes.NewReader(b))
+		dec.UseNumber()
+		var result any
+		if err := dec.Decode(&result); err != nil {
+			return nil, err
+		}
+		return normalizeDocument(result)
 	}
-
-	var normalized any
-
-	if err := json.Unmarshal(normalizedBytes, &normalized); err != nil {
-		return nil, err
-	}
-
-	return normalized, nil
 }

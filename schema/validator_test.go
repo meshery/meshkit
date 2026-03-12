@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 
@@ -28,6 +30,10 @@ model:
     version: v1.0.0
   registrant:
     kind: github
+`
+
+const invalidMinimalModelDocument = `
+schemaVersion: models.meshery.io/v1beta1
 `
 
 func TestDetectRef(t *testing.T) {
@@ -70,16 +76,42 @@ func TestValidatorValidateRelationshipFailure(t *testing.T) {
 	}
 
 	assert.Contains(t, instancePaths, "/kind")
+
+	keywords := make([]string, 0, len(details.Violations))
+	for _, violation := range details.Violations {
+		keywords = append(keywords, violation.Keyword)
+	}
+
+	assert.Contains(t, keywords, "enum")
 }
 
 func TestValidatorCompileModelSchema(t *testing.T) {
-	validator := New()
+	validator, err := New()
+	require.NoError(t, err)
 
 	registration, err := validator.resolve(Ref{SchemaVersion: schemav1beta1.ModelSchemaVersion})
 	require.NoError(t, err)
 
 	_, err = validator.compile(registration.Location)
 	require.NoError(t, err)
+}
+
+func TestValidatorValidateModelWithExplicitRefReportsViolations(t *testing.T) {
+	validator, err := New()
+	require.NoError(t, err)
+
+	err = validator.ValidateBytes(Ref{
+		SchemaVersion: schemav1beta1.ModelSchemaVersion,
+		Type:          TypeModel,
+	}, []byte(invalidMinimalModelDocument))
+	require.Error(t, err)
+
+	assert.Equal(t, ErrValidateDocumentCode, meshkiterrors.GetCode(err))
+
+	details, ok := ValidationDetailsFromError(err)
+	require.True(t, ok)
+	assert.Equal(t, modelSchemaLocation, details.SchemaLocation)
+	require.NotEmpty(t, details.Violations)
 }
 
 func TestValidatorValidateUnsupportedSchemaVersion(t *testing.T) {
@@ -113,7 +145,8 @@ func TestValidatorValidateRelationshipWithMismatchedSchemaVersion(t *testing.T) 
 }
 
 func TestDecodeAndValidateWithValidatorZeroRef(t *testing.T) {
-	validator := New()
+	validator, err := New()
+	require.NoError(t, err)
 
 	document, err := DecodeAndValidateWithValidator[map[string]any](validator, Ref{}, []byte(validRelationshipDocument))
 	require.NoError(t, err)
@@ -121,10 +154,11 @@ func TestDecodeAndValidateWithValidatorZeroRef(t *testing.T) {
 }
 
 func TestValidatorValidateAnyWithZeroRef(t *testing.T) {
-	validator := New()
+	validator, err := New()
+	require.NoError(t, err)
 
 	var document map[string]any
-	err := meshkitencoding.Unmarshal([]byte(validRelationshipDocument), &document)
+	err = meshkitencoding.Unmarshal([]byte(validRelationshipDocument), &document)
 	require.NoError(t, err)
 
 	err = validator.ValidateAny(Ref{}, document)
@@ -132,9 +166,10 @@ func TestValidatorValidateAnyWithZeroRef(t *testing.T) {
 }
 
 func TestValidatorValidateAnyWithZeroRefAndNonStringSchemaVersion(t *testing.T) {
-	validator := New()
+	validator, err := New()
+	require.NoError(t, err)
 
-	err := validator.ValidateAny(Ref{}, map[string]any{
+	err = validator.ValidateAny(Ref{}, map[string]any{
 		"schemaVersion": 1,
 	})
 	require.Error(t, err)
@@ -142,7 +177,8 @@ func TestValidatorValidateAnyWithZeroRefAndNonStringSchemaVersion(t *testing.T) 
 }
 
 func TestValidatorDocumentTypeFromSchemaVersionUsesRegistrations(t *testing.T) {
-	validator := New()
+	validator, err := New()
+	require.NoError(t, err)
 
 	require.NoError(t, validator.Register(Registration{
 		Ref: Ref{
@@ -153,4 +189,71 @@ func TestValidatorDocumentTypeFromSchemaVersionUsesRegistrations(t *testing.T) {
 	}))
 
 	assert.Equal(t, TypeEnvironment, validator.documentTypeFromSchemaVersion("example.meshery.io/v1alpha1"))
+}
+
+func TestValidateAnyWithExplicitRef(t *testing.T) {
+	validator, err := New()
+	require.NoError(t, err)
+
+	var document map[string]any
+	err = meshkitencoding.Unmarshal([]byte(validRelationshipDocument), &document)
+	require.NoError(t, err)
+
+	err = validator.ValidateAny(Ref{
+		SchemaVersion: schemav1alpha3.RelationshipSchemaVersion,
+		Type:          TypeRelationship,
+	}, document)
+	require.NoError(t, err)
+}
+
+func TestDecodeAndValidateWithRefSuccess(t *testing.T) {
+	ref := Ref{
+		SchemaVersion: schemav1alpha3.RelationshipSchemaVersion,
+		Type:          TypeRelationship,
+	}
+	document, err := DecodeAndValidateWithRef[map[string]any](
+		ref,
+		[]byte(validRelationshipDocument),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, schemav1alpha3.RelationshipSchemaVersion, document["schemaVersion"])
+}
+
+func TestDecodeAndValidateWithValidatorDecodeFailure(t *testing.T) {
+	validator, err := New()
+	require.NoError(t, err)
+
+	type BadTarget struct {
+		ID int `json:"id"`
+	}
+
+	_, err = DecodeAndValidateWithValidator[BadTarget](validator, Ref{
+		SchemaVersion: schemav1alpha3.RelationshipSchemaVersion,
+		Type:          TypeRelationship,
+	}, []byte(validRelationshipDocument))
+	require.Error(t, err)
+	assert.Equal(t, ErrDecodeTypedDocumentCode, meshkiterrors.GetCode(err))
+}
+
+func TestNormalizeDocumentPreservesScalarTypes(t *testing.T) {
+	document := map[string]any{
+		"int":    int64(42),
+		"uint":   uint64(math.MaxUint64),
+		"number": json.Number("18446744073709551615"),
+		"nested": []any{int32(7), map[string]any{"float": 3.14}},
+	}
+
+	normalized, err := normalizeDocument(document)
+	require.NoError(t, err)
+
+	normalizedMap, ok := normalized.(map[string]any)
+	require.True(t, ok)
+
+	assert.IsType(t, int64(0), normalizedMap["int"])
+	assert.EqualValues(t, uint64(math.MaxUint64), normalizedMap["uint"])
+	assert.IsType(t, json.Number(""), normalizedMap["number"])
+
+	nested, ok := normalizedMap["nested"].([]any)
+	require.True(t, ok)
+	assert.IsType(t, int32(0), nested[0])
 }

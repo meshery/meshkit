@@ -9,10 +9,16 @@ import (
 	"strings"
 
 	"github.com/dlclark/regexp2"
-	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/getkin/kin-openapi/openapi3"
 )
 
-const embeddedSchemaScheme = "meshkit"
+const (
+	embeddedSchemaScheme      = "meshkit"
+	rootSchemaComponentName   = "Root"
+	syntheticOpenAPIVersion   = "3.0.3"
+	syntheticOpenAPITitle     = "MeshKit Schema Validator"
+	syntheticOpenAPIDocSchema = "1.0.0"
+)
 
 type dlclarkRegexp regexp2.Regexp
 
@@ -30,7 +36,7 @@ func (re *dlclarkRegexp) String() string {
 	return (*regexp2.Regexp)(re).String()
 }
 
-func compileRegexp(pattern string) (jsonschema.Regexp, error) {
+func compileRegexp(pattern string) (openapi3.RegexMatcher, error) {
 	compiled, err := regexp2.Compile(pattern, regexp2.ECMAScript)
 	if err != nil {
 		return nil, err
@@ -39,87 +45,69 @@ func compileRegexp(pattern string) (jsonschema.Regexp, error) {
 	return (*dlclarkRegexp)(compiled), nil
 }
 
-type embeddedLoader struct {
-	fsys fs.FS
-}
+func embeddedSchemaReadURI(fsys fs.FS) openapi3.ReadFromURIFunc {
+	return func(_ *openapi3.Loader, location *url.URL) ([]byte, error) {
+		if location.Scheme != embeddedSchemaScheme {
+			return nil, openapi3.ErrURINotSupported
+		}
 
-func (l embeddedLoader) Load(rawURL string) (any, error) {
-	parsedURL, err := url.Parse(rawURL)
-	if err != nil {
-		return nil, err
-	}
+		embeddedPath := strings.TrimPrefix(location.Path, "/")
+		if embeddedPath == "" {
+			return nil, fmt.Errorf("schema path is empty")
+		}
 
-	if parsedURL.Scheme != embeddedSchemaScheme {
-		return nil, fmt.Errorf("unsupported schema URL scheme: %s", parsedURL.Scheme)
-	}
-
-	embeddedPath := strings.TrimPrefix(parsedURL.Path, "/")
-	if embeddedPath == "" {
-		return nil, fmt.Errorf("schema path is empty")
-	}
-
-	schemaData, err := fs.ReadFile(l.fsys, embeddedPath)
-	if err != nil {
-		return nil, err
-	}
-
-	document, err := decodeDocument(schemaData)
-	if err != nil {
-		return nil, err
-	}
-
-	rewriteRootID(document, rawURL)
-
-	return document, nil
-}
-
-func rewriteRootID(document any, rawURL string) {
-	object, ok := document.(map[string]any)
-	if !ok {
-		return
-	}
-
-	if _, hasID := object["$id"]; hasID {
-		object["$id"] = stripFragment(rawURL)
+		return fs.ReadFile(fsys, embeddedPath)
 	}
 }
 
-func stripFragment(rawURL string) string {
-	if index := strings.Index(rawURL, "#"); index >= 0 {
-		return rawURL[:index]
-	}
-
-	return rawURL
-}
-
-func (v *Validator) compile(location string) (*jsonschema.Schema, error) {
+func (v *Validator) compile(location string) (*openapi3.Schema, error) {
 	if cached, ok := v.cache.Load(location); ok {
-		return cached.(*jsonschema.Schema), nil
+		return cached.(*openapi3.Schema), nil
 	}
 
 	compiled, err, _ := v.compiling.Do(location, func() (any, error) {
 		if cached, ok := v.cache.Load(location); ok {
-			return cached.(*jsonschema.Schema), nil
+			return cached.(*openapi3.Schema), nil
 		}
 
-		compiler := jsonschema.NewCompiler()
-		compiler.DefaultDraft(jsonschema.Draft7)
-		compiler.UseLoader(embeddedLoader{fsys: v.fsys})
-		compiler.UseRegexpEngine(compileRegexp)
+		loader := openapi3.NewLoader()
+		loader.IsExternalRefsAllowed = true
+		loader.ReadFromURIFunc = embeddedSchemaReadURI(v.fsys)
 
-		schema, err := compiler.Compile(embeddedSchemaURL(location))
-		if err != nil {
+		document := syntheticOpenAPIDocument(location)
+		if err := loader.ResolveRefsIn(document, nil); err != nil {
 			return nil, ErrCompileSchema(location, err)
 		}
 
+		schema := document.Components.Schemas[rootSchemaComponentName].Value
+		if schema == nil {
+			return nil, ErrCompileSchema(location, fmt.Errorf("resolved schema is empty"))
+		}
+
 		actual, _ := v.cache.LoadOrStore(location, schema)
-		return actual.(*jsonschema.Schema), nil
+		return actual.(*openapi3.Schema), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return compiled.(*jsonschema.Schema), nil
+	return compiled.(*openapi3.Schema), nil
+}
+
+func syntheticOpenAPIDocument(location string) *openapi3.T {
+	return &openapi3.T{
+		OpenAPI: syntheticOpenAPIVersion,
+		Info: &openapi3.Info{
+			Title:   syntheticOpenAPITitle,
+			Version: syntheticOpenAPIDocSchema,
+		},
+		Paths: openapi3.NewPaths(),
+		Components: &openapi3.Components{
+			Schemas: openapi3.Schemas{
+				rootSchemaComponentName: openapi3.NewSchemaRef(embeddedSchemaURL(location), nil),
+			},
+		},
+	}
 }
 
 func embeddedSchemaURL(location string) string {
@@ -133,44 +121,80 @@ func embeddedSchemaURL(location string) string {
 }
 
 func violationsFromError(err error) []Violation {
-	var validationErr *jsonschema.ValidationError
-	if !stderrors.As(err, &validationErr) {
-		return nil
-	}
-
-	output := validationErr.BasicOutput()
-	if output == nil {
+	if err == nil {
 		return nil
 	}
 
 	violations := []Violation{}
-	collectViolations(output, &violations)
+	collectViolations(err, &violations)
 	return violations
 }
 
-func collectViolations(output *jsonschema.OutputUnit, violations *[]Violation) {
-	if output == nil {
-		return
+func collectViolations(err error, violations *[]Violation) bool {
+	if err == nil {
+		return false
 	}
 
-	if output.Error != nil {
-		schemaPath := output.AbsoluteKeywordLocation
-		if schemaPath == "" {
-			schemaPath = output.KeywordLocation
+	switch actual := err.(type) {
+	case openapi3.MultiError:
+		collected := false
+		for _, child := range actual {
+			if collectViolations(child, violations) {
+				collected = true
+			}
+		}
+		return collected
+	case *openapi3.SchemaError:
+		if collectViolations(actual.Origin, violations) {
+			return true
 		}
 
 		*violations = append(*violations, Violation{
-			InstancePath: output.InstanceLocation,
-			SchemaPath:   schemaPath,
-			Keyword:      keywordFromLocation(schemaPath),
-			Message:      output.Error.String(),
+			InstancePath: jsonPointer(actual.JSONPointer()),
+			SchemaPath:   schemaPathFromSchemaError(actual),
+			Keyword:      actual.SchemaField,
+			Message:      schemaErrorMessage(actual),
 		})
+		return true
+	default:
+		return collectViolations(stderrors.Unwrap(err), violations)
+	}
+}
+
+func schemaPathFromSchemaError(err *openapi3.SchemaError) string {
+	if err == nil || err.SchemaField == "" {
+		return ""
 	}
 
-	for index := range output.Errors {
-		child := output.Errors[index]
-		collectViolations(&child, violations)
+	return "/" + escapeJSONPointerToken(err.SchemaField)
+}
+
+func schemaErrorMessage(err *openapi3.SchemaError) string {
+	if err == nil {
+		return ""
 	}
+	if err.Reason != "" {
+		return err.Reason
+	}
+	return err.Error()
+}
+
+func jsonPointer(path []string) string {
+	if len(path) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+	for _, token := range path {
+		builder.WriteByte('/')
+		builder.WriteString(escapeJSONPointerToken(token))
+	}
+
+	return builder.String()
+}
+
+func escapeJSONPointerToken(token string) string {
+	return strings.NewReplacer("~", "~0", "/", "~1").Replace(token)
 }
 
 func keywordFromLocation(location string) string {
