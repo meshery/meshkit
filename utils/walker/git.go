@@ -29,6 +29,8 @@ type Git struct {
 	fileInterceptor    FileInterceptor
 	dirInterceptor     DirInterceptor
 	referenceName      plumbing.ReferenceName
+	maxDepth           int
+	allowedExtensions  []string
 }
 
 // NewGit returns a pointer to an instance of Git
@@ -64,6 +66,30 @@ func (g *Git) BaseURL(baseurl string) *Git {
 func (g *Git) MaxFileSize(size int64) *Git {
 	g.maxFileSizeInBytes = size
 	return g
+}
+
+func (g *Git) MaxDepth(depth int) *Git {
+	g.maxDepth = depth
+	return g
+}
+
+func (g *Git) AllowedExtensions(ext []string) *Git {
+	g.allowedExtensions = ext
+	return g
+}
+
+func (g *Git) isAllowedFile(name string) bool {
+	if len(g.allowedExtensions) == 0 {
+		return true // no filtering
+	}
+
+	ext := strings.ToLower(filepath.Ext(name))
+	for _, allowed := range g.allowedExtensions {
+		if ext == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 // ShowLogs enable the logs and returns a pointer
@@ -184,13 +210,29 @@ func clonewalk(g *Git) error {
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
 		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
-			if d.IsDir() && g.dirInterceptor != nil {
-				return g.dirInterceptor(Directory{
-					Name: d.Name(),
-					Path: path,
-				})
-			}
 			if d.IsDir() {
+				if d.Name() == ".git" {
+					return filepath.SkipDir
+				}
+				if g.maxDepth > 0 {
+					rel, err := filepath.Rel(rootPath, path)
+					if err == nil && rel != "." {
+						currentDepth := strings.Count(rel, string(os.PathSeparator)) + 1
+						if currentDepth > g.maxDepth {
+							return filepath.SkipDir
+						}
+					}
+				}
+
+				if g.dirInterceptor != nil {
+					return g.dirInterceptor(Directory{
+						Name: d.Name(),
+						Path: path,
+					})
+				}
+				return nil
+			}
+			if !g.isAllowedFile(d.Name()) {
 				return nil
 			}
 			f, errInfo := d.Info()
