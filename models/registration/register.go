@@ -138,11 +138,11 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	// 3. Register relationships
 	for _, rel := range pkg.Relationships {
 		rel.Model = model.ToReference()
-		rel.ModelId = model.Id
+		rel.ModelId = &model.ID
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
-			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.RelationshipDefinition, rel.Id.String(), err)
+			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.RelationshipDefinition, rel.ID.String(), err)
 		} else {
 			// Successful registration, add to successfulRelationships
 			registeredRelationships = append(registeredRelationships, rel)

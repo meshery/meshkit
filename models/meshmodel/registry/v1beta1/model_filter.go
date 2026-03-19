@@ -66,7 +66,7 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 		var components []component.ComponentDefinition
 		componentFinder := db.Model(&component.ComponentDefinition{}).
 			Select("component_definition_dbs.id, component_definition_dbs.component, component_definition_dbs.display_name, component_definition_dbs.metadata, component_definition_dbs.schema_version, component_definition_dbs.version").
-			Where("component_definition_dbs.model_id = ?", m.Id)
+			Where("component_definition_dbs.model_id = ?", m.ID)
 		if err := componentFinder.Scan(&components).Error; err != nil {
 			return nil, err
 		}
@@ -78,7 +78,7 @@ func (mf *ModelFilter) GetById(db *database.Handler) (entity.Entity, error) {
 		var relationships []relationship.RelationshipDefinition
 		relationshipFinder := db.Model(&relationship.RelationshipDefinition{}).
 			Select("relationship_definition_dbs.*").
-			Where("relationship_definition_dbs.model_id = ?", m.Id)
+			Where("relationship_definition_dbs.model_id = ?", m.ID)
 		if err := relationshipFinder.Scan(&relationships).Error; err != nil {
 			return nil, err
 		}
@@ -178,16 +178,16 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 		// resolve for loop scope
 		_modelDB := modelDB
 		var componentCount int64
-		db.Model(&component.ComponentDefinition{}).Where("component_definition_dbs.model_id = ?", _modelDB.Id).Count(&componentCount)
+		db.Model(&component.ComponentDefinition{}).Where("component_definition_dbs.model_id = ?", _modelDB.ID).Count(&componentCount)
 		var relationshipCount int64
-		db.Model(&relationship.RelationshipDefinition{}).Where("relationship_definition_dbs.model_id = ?", _modelDB.Id).Count(&relationshipCount)
+		db.Model(&relationship.RelationshipDefinition{}).Where("relationship_definition_dbs.model_id = ?", _modelDB.ID).Count(&relationshipCount)
 		_modelDB.ComponentsCount = int(componentCount)
 		_modelDB.RelationshipsCount = int(relationshipCount)
 
 		// If Trim is true, only include the id, name, counts and metadata
 		if mf.Trim {
 			trimmedModel := &model.ModelDefinition{
-				Id:                 _modelDB.Id,
+				ID:                 _modelDB.ID,
 				Name:               _modelDB.Name,
 				DisplayName:        _modelDB.DisplayName,
 				Metadata:           _modelDB.Metadata,
@@ -201,7 +201,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 				var components []component.ComponentDefinition
 				finder := db.Model(&component.ComponentDefinition{}).
 					Select("component_definition_dbs.*").
-					Where("component_definition_dbs.model_id = ?", _modelDB.Id)
+					Where("component_definition_dbs.model_id = ?", _modelDB.ID)
 				if err := finder.Scan(&components).Error; err != nil {
 					return nil, 0, 0, err
 				}
@@ -211,7 +211,7 @@ func (mf *ModelFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, e
 				var relationships []relationship.RelationshipDefinition
 				finder := db.Model(&relationship.RelationshipDefinition{}).
 					Select("relationship_definition_dbs.*").
-					Where("relationship_definition_dbs.model_id = ?", _modelDB.Id)
+					Where("relationship_definition_dbs.model_id = ?", _modelDB.ID)
 				if err := finder.Scan(&relationships).Error; err != nil {
 					return nil, 0, 0, err
 				}
