@@ -209,3 +209,29 @@ func jsonPointer(path []string) string {
 func escapeJSONPointerToken(token string) string {
 	return strings.NewReplacer("~", "~0", "/", "~1").Replace(token)
 }
+
+// keywordFromLocation extracts and unescapes the last JSON Pointer segment
+// from a schema location string (e.g. "#/properties/foo~1bar" → "foo/bar").
+// Returns an empty string when the location has no meaningful path segments.
+func keywordFromLocation(location string) string {
+	// Isolate the fragment portion (after '#').
+	_, fragment, hasFragment := strings.Cut(location, "#")
+	if !hasFragment {
+		fragment = location
+	}
+
+	// The fragment is a JSON Pointer like "/properties/foo~1bar".
+	// Split on "/" and take the last non-empty token.
+	parts := strings.Split(fragment, "/")
+	last := ""
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] != "" {
+			last = parts[i]
+			break
+		}
+	}
+
+	// Unescape JSON Pointer escape sequences (~1 → /, ~0 → ~).
+	// Order matters: ~1 must be replaced before ~0.
+	return strings.NewReplacer("~1", "/", "~0", "~").Replace(last)
+}

@@ -45,7 +45,7 @@ func EnrichComponentWithMesheryMetadata(comp *component.ComponentDefinition, des
 	// Assign the new label
 	labels[ResourceSourceDesignIdLabelKey] = designId
 	annotations[ResourceSourceDesignVersionLabelKey] = designVersion
-	annotations[ResourceSourceComponentIdLabelKey] = comp.Id.String()
+	annotations[ResourceSourceComponentIdLabelKey] = comp.ID.String()
 
 	return nil
 }
