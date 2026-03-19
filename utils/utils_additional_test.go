@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -327,12 +328,27 @@ func TestConvertToJSONCompatible(t *testing.T) {
 func TestIsClosed(t *testing.T) {
 	ch := make(chan int, 1)
 	if IsClosed(ch) {
-		t.Error("expected false for open channel")
+		t.Error("expected false for open empty channel")
 	}
 	close(ch)
 	if !IsClosed(ch) {
 		t.Error("expected true for closed channel")
 	}
+}
+
+func TestIsClosed_OpenWithBufferedValue(t *testing.T) {
+	// Note: IsClosed uses a select-receive which will consume a buffered value
+	// and return true even though the channel is open. This test documents
+	// that known limitation.
+	ch := make(chan int, 1)
+	ch <- 42
+	// IsClosed will receive the value and report the channel as "closed"
+	// even though it is actually open with a buffered value.
+	result := IsClosed(ch)
+	if !result {
+		t.Log("IsClosed correctly reported open channel with buffered value (unexpected but welcome)")
+	}
+	// The value has been consumed by IsClosed's select-receive
 }
 
 func TestWriteToFile(t *testing.T) {
@@ -559,7 +575,9 @@ func TestIsTarGz(t *testing.T) {
 
 	// Non-gzip file should return false
 	txtPath := filepath.Join(dir, "plain.txt")
-	os.WriteFile(txtPath, []byte("not a tarball"), 0644)
+	if err := os.WriteFile(txtPath, []byte("not a tarball"), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
 	if IsTarGz(txtPath) {
 		t.Error("expected false for plain text file")
 	}
@@ -572,9 +590,33 @@ func TestIsTarGz(t *testing.T) {
 
 func TestIsZip(t *testing.T) {
 	dir := t.TempDir()
+
+	// Create a valid zip file
+	zipPath := filepath.Join(dir, "test.zip")
+	zipBuf := new(bytes.Buffer)
+	zw := zip.NewWriter(zipBuf)
+	fw, err := zw.Create("hello.txt")
+	if err != nil {
+		t.Fatalf("failed to create zip entry: %v", err)
+	}
+	if _, err := fw.Write([]byte("hello world")); err != nil {
+		t.Fatalf("failed to write zip entry: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("failed to close zip writer: %v", err)
+	}
+	if err := os.WriteFile(zipPath, zipBuf.Bytes(), 0644); err != nil {
+		t.Fatalf("failed to write test zip file: %v", err)
+	}
+	if !IsZip(zipPath) {
+		t.Error("expected true for actual zip file")
+	}
+
 	// Non-zip file should return false
 	txtPath := filepath.Join(dir, "plain.txt")
-	os.WriteFile(txtPath, []byte("not a zip"), 0644)
+	if err := os.WriteFile(txtPath, []byte("not a zip"), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
 	if IsZip(txtPath) {
 		t.Error("expected false for plain text file")
 	}
@@ -591,7 +633,9 @@ func TestIsYaml(t *testing.T) {
 	// so the file needs enough text content to be detected as text/plain.
 	yamlContent := strings.Repeat("name: test\ncount: 42\ndescription: some description value here\n", 20)
 	yamlPath := filepath.Join(dir, "test.yaml")
-	os.WriteFile(yamlPath, []byte(yamlContent), 0644)
+	if err := os.WriteFile(yamlPath, []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("failed to write test YAML file: %v", err)
+	}
 	if !IsYaml(yamlPath) {
 		t.Error("expected true for YAML file")
 	}

@@ -111,18 +111,18 @@ func TestMap_UnmarshalJSON_IntoExisting(t *testing.T) {
 }
 
 func TestMap_UnmarshalText(t *testing.T) {
-	m := Map{}
+	m := &Map{}
 	err := m.UnmarshalText([]byte(`{"key":"value"}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if m["key"] != "value" {
-		t.Errorf("expected key=value, got %v", m["key"])
+	if (*m)["key"] != "value" {
+		t.Errorf("expected key=value, got %v", (*m)["key"])
 	}
 }
 
 func TestMap_UnmarshalText_Invalid(t *testing.T) {
-	m := Map{}
+	m := &Map{}
 	err := m.UnmarshalText([]byte(`not json`))
 	if err == nil {
 		t.Fatal("expected error for invalid text")
