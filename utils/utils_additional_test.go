@@ -242,13 +242,20 @@ func TestMergeMaps(t *testing.T) {
 	}
 }
 
+// TestIsSchemaEmpty validates IsSchemaEmpty, which — despite its name — returns
+// true only when the schema contains a non-nil "properties" field (i.e. the
+// schema is meaningfully non-empty). It returns false for an absent or empty
+// schema. The inverted naming is a known quirk of the existing API.
 func TestIsSchemaEmpty(t *testing.T) {
+	// Returns false (schema is considered "empty") when the input is blank.
 	if IsSchemaEmpty("") {
 		t.Error("expected false for empty string")
 	}
+	// Returns false when the schema has no "properties" key.
 	if IsSchemaEmpty(`{}`) {
 		t.Error("expected false for schema without properties")
 	}
+	// Returns true (schema is considered "not empty") when "properties" is present.
 	if !IsSchemaEmpty(`{"properties":{"name":{"type":"string"}}}`) {
 		t.Error("expected true for schema with properties")
 	}
@@ -337,18 +344,28 @@ func TestIsClosed(t *testing.T) {
 }
 
 func TestIsClosed_OpenWithBufferedValue(t *testing.T) {
-	// Note: IsClosed uses a select-receive which will consume a buffered value
-	// and return true even though the channel is open. This test documents
-	// that known limitation.
+	// IsClosed uses a select-receive: if the channel has a buffered value it
+	// will be consumed and the function returns true, even though the channel
+	// is actually still open. This test documents and pins that known limitation
+	// so any future change to the behavior is caught explicitly.
 	ch := make(chan int, 1)
 	ch <- 42
-	// IsClosed will receive the value and report the channel as "closed"
-	// even though it is actually open with a buffered value.
+
 	result := IsClosed(ch)
+
+	// The buffered receive is treated as "closed" by the current implementation.
 	if !result {
-		t.Log("IsClosed correctly reported open channel with buffered value (unexpected but welcome)")
+		t.Error("expected IsClosed to return true for open channel with buffered value (known behavior)")
 	}
-	// The value has been consumed by IsClosed's select-receive
+	// The value must have been consumed; the channel should now be empty.
+	select {
+	case v, ok := <-ch:
+		if ok {
+			t.Errorf("expected channel to be empty after IsClosed consumed the value, got %v", v)
+		}
+	default:
+		// channel is empty — correct
+	}
 }
 
 func TestWriteToFile(t *testing.T) {
