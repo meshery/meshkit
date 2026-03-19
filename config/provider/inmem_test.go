@@ -15,7 +15,10 @@ func TestNewInMem(t *testing.T) {
 }
 
 func TestInMem_SetAndGetKey(t *testing.T) {
-	h, _ := NewInMem(Options{})
+	h, err := NewInMem(Options{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	h.SetKey("name", "meshery")
 	got := h.GetKey("name")
 	if got != "meshery" {
@@ -24,7 +27,10 @@ func TestInMem_SetAndGetKey(t *testing.T) {
 }
 
 func TestInMem_GetKey_Missing(t *testing.T) {
-	h, _ := NewInMem(Options{})
+	h, err := NewInMem(Options{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	got := h.GetKey("missing")
 	if got != "" {
 		t.Errorf("expected empty string for missing key, got %s", got)
@@ -32,7 +38,10 @@ func TestInMem_GetKey_Missing(t *testing.T) {
 }
 
 func TestInMem_OverwriteKey(t *testing.T) {
-	h, _ := NewInMem(Options{})
+	h, err := NewInMem(Options{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	h.SetKey("key", "first")
 	h.SetKey("key", "second")
 	got := h.GetKey("key")
@@ -42,10 +51,13 @@ func TestInMem_OverwriteKey(t *testing.T) {
 }
 
 func TestInMem_SetAndGetObject(t *testing.T) {
-	h, _ := NewInMem(Options{})
+	h, err := NewInMem(Options{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	input := map[string]string{"hello": "world"}
-	err := h.SetObject("obj", input)
+	err = h.SetObject("obj", input)
 	if err != nil {
 		t.Fatalf("unexpected error setting object: %v", err)
 	}
@@ -61,7 +73,10 @@ func TestInMem_SetAndGetObject(t *testing.T) {
 }
 
 func TestInMem_MultipleKeys(t *testing.T) {
-	h, _ := NewInMem(Options{})
+	h, err := NewInMem(Options{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	h.SetKey("a", "1")
 	h.SetKey("b", "2")
 	h.SetKey("c", "3")
