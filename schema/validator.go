@@ -6,6 +6,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io/fs"
+	"sort"
 	"strings"
 	"sync"
 
@@ -17,15 +18,6 @@ import (
 
 // DocumentType identifies a Meshery document family.
 type DocumentType string
-
-const (
-	TypeComponent    DocumentType = "component"
-	TypeConnection   DocumentType = "connection"
-	TypeDesign       DocumentType = "design"
-	TypeEnvironment  DocumentType = "environment"
-	TypeModel        DocumentType = "model"
-	TypeRelationship DocumentType = "relationship"
-)
 
 // Ref identifies which schema should be used to validate a document.
 type Ref struct {
@@ -160,6 +152,49 @@ func DecodeAndValidateWithValidator[T any](validator *Validator, ref Ref, data [
 	}
 
 	return out, nil
+}
+
+// DocumentTypes returns a sorted snapshot of all document types currently registered with
+// the default Validator. This includes both the well-known built-in types and any additional
+// types discovered dynamically from the embedded github.com/meshery/schemas module (e.g.
+// "selector", "subcategory"). The returned slice reflects the state of registrations at the
+// time of the call.
+func DocumentTypes() []DocumentType {
+	return Default().DocumentTypes()
+}
+
+// DocumentTypes returns a sorted snapshot of all document types currently registered with
+// this Validator. It covers every type present in the embedded github.com/meshery/schemas
+// module, including dynamically discovered types such as "selector" and "subcategory".
+//
+// The returned slice is a stable snapshot; subsequent calls may return a larger slice if
+// additional types are registered via Register in the interim.
+func (v *Validator) DocumentTypes() []DocumentType {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+
+	seen := make(map[DocumentType]struct{})
+
+	for dt := range v.typeVersions {
+		seen[dt] = struct{}{}
+	}
+
+	for _, registration := range v.registrations {
+		if registration.Ref.Type != "" {
+			seen[registration.Ref.Type] = struct{}{}
+		}
+	}
+
+	types := make([]DocumentType, 0, len(seen))
+	for dt := range seen {
+		types = append(types, dt)
+	}
+
+	sort.Slice(types, func(i, j int) bool {
+		return types[i] < types[j]
+	})
+
+	return types
 }
 
 // Validate validates the supplied document after auto-detecting the schema from schemaVersion.
