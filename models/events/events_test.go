@@ -21,9 +21,18 @@ func TestNewEvent(t *testing.T) {
 }
 
 func TestEventBuilder_FullChain(t *testing.T) {
-	resourceID, _ := uuid.NewV4()
-	userID, _ := uuid.NewV4()
-	systemID, _ := uuid.NewV4()
+	resourceID, err := uuid.FromString("11111111-1111-1111-1111-111111111111")
+	if err != nil {
+		t.Fatalf("failed to parse resourceID UUID: %v", err)
+	}
+	userID, err := uuid.FromString("22222222-2222-2222-2222-222222222222")
+	if err != nil {
+		t.Fatalf("failed to parse userID UUID: %v", err)
+	}
+	systemID, err := uuid.FromString("33333333-3333-3333-3333-333333333333")
+	if err != nil {
+		t.Fatalf("failed to parse systemID UUID: %v", err)
+	}
 	metadata := map[string]interface{}{"key": "value"}
 
 	event := NewEvent().
