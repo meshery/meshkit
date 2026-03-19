@@ -152,7 +152,7 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityTy
 	}
 	switch entityType {
 	case "models":
-		model := model.ModelDefinition{Id: entityID}
+		model := model.ModelDefinition{ID: entityID}
 		err := model.UpdateStatus(rm.db, entity.EntityStatus(status))
 		if err != nil {
 			return err
