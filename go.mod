@@ -28,7 +28,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.37.0
 	github.com/meshery/meshery-operator v0.8.11
-	github.com/meshery/schemas v0.8.127
+	github.com/meshery/schemas v0.8.129
 	github.com/nats-io/nats.go v1.47.0
 	github.com/open-policy-agent/opa v1.11.0
 	github.com/opencontainers/image-spec v1.1.1
@@ -299,7 +299,7 @@ require (
 	golang.org/x/tools/godoc v0.1.0-deprecated // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251213004720-97cd9d5aeac2 // indirect
-	google.golang.org/grpc v1.77.0 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
