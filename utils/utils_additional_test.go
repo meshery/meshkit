@@ -547,11 +547,14 @@ func TestIsTarGz(t *testing.T) {
 	// Create a real gzip file
 	tgzPath := filepath.Join(dir, "test.tar.gz")
 	var buf bytes.Buffer
-	if err := Compress(dir, &buf); err == nil {
-		os.WriteFile(tgzPath, buf.Bytes(), 0644)
-		if !IsTarGz(tgzPath) {
-			t.Error("expected true for actual tar.gz file")
-		}
+	if err := Compress(dir, &buf); err != nil {
+		t.Fatalf("failed to compress directory for testing: %v", err)
+	}
+	if err := os.WriteFile(tgzPath, buf.Bytes(), 0644); err != nil {
+		t.Fatalf("failed to write test tar.gz file: %v", err)
+	}
+	if !IsTarGz(tgzPath) {
+		t.Error("expected true for actual tar.gz file")
 	}
 
 	// Non-gzip file should return false
