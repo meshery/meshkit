@@ -59,7 +59,7 @@ components:
         user_id: 00000000-0000-0000-0000-000000000000
         created_at: "2025-01-24T10:44:19.92197795Z"
         updated_at: "2025-01-24T10:44:19.92197795Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        deleted_at: null
       connection_id: 56fc1fd1-f0c1-21ab-983f-9efa8fec5b2f
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -219,7 +219,7 @@ components:
         user_id: 00000000-0000-0000-0000-000000000000
         created_at: "2025-01-24T10:44:19.92197795Z"
         updated_at: "2025-01-24T10:44:19.92197795Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        deleted_at: null
       connection_id: 56fc1fd1-f0c1-21ab-983f-9efa8fec5b2f
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -379,7 +379,7 @@ components:
         user_id: 00000000-0000-0000-0000-000000000000
         created_at: "2024-09-26T17:48:01.864031019Z"
         updated_at: "2024-09-26T17:48:01.864031019Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        deleted_at: null
       connection_id: cdd66d14-bdd9-1a24-ba16-faec2953d9d5
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -539,7 +539,7 @@ components:
         user_id: 00000000-0000-0000-0000-000000000000
         created_at: "2024-10-14T14:04:06.185628309+05:30"
         updated_at: "2024-10-14T14:04:06.185628309+05:30"
-        deleted_at: "0001-01-01T00:00:00Z"
+        deleted_at: null
       connection_id: 9e04779c-94b6-6a03-575c-66f4c57541eb
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -723,7 +723,7 @@ components:
         user_id: 00000000-0000-0000-0000-000000000000
         created_at: "2024-10-08T21:09:27.968829684Z"
         updated_at: "2024-10-08T21:09:27.968829684Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        deleted_at: null
       connection_id: 9e04779c-94b6-6a03-575c-66f4c57541eb
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -897,7 +897,7 @@ components:
         user_id: 00000000-0000-0000-0000-000000000000
         created_at: "2024-09-26T17:48:01.864031019Z"
         updated_at: "2024-09-26T17:48:01.864031019Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        deleted_at: null
       connection_id: cdd66d14-bdd9-1a24-ba16-faec2953d9d5
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -1065,7 +1065,7 @@ components:
         user_id: 00000000-0000-0000-0000-000000000000
         created_at: "2024-09-26T17:48:01.864031019Z"
         updated_at: "2024-09-26T17:48:01.864031019Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        deleted_at: null
       connection_id: cdd66d14-bdd9-1a24-ba16-faec2953d9d5
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -1235,9 +1235,9 @@ relationships:
         kind: ""
         status: ""
         user_id: 00000000-0000-0000-0000-000000000000
-        created_at: "0001-01-01T00:00:00Z"
-        updated_at: "0001-01-01T00:00:00Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        created_at: null
+        updated_at: null
+        deleted_at: null
       connection_id: cdd66d14-bdd9-1a24-ba16-faec2953d9d5
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -1276,9 +1276,9 @@ relationships:
                   kind: ""
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1317,9 +1317,9 @@ relationships:
                   kind: artifacthub
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1357,9 +1357,9 @@ relationships:
                   kind: artifacthub
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1393,9 +1393,9 @@ relationships:
                   kind: artifacthub
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1436,9 +1436,9 @@ relationships:
         kind: ""
         status: ""
         user_id: 00000000-0000-0000-0000-000000000000
-        created_at: "0001-01-01T00:00:00Z"
-        updated_at: "0001-01-01T00:00:00Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        created_at: null
+        updated_at: null
+        deleted_at: null
       connection_id: cdd66d14-bdd9-1a24-ba16-faec2953d9d5
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -1477,9 +1477,9 @@ relationships:
                   kind: ""
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1518,9 +1518,9 @@ relationships:
                   kind: artifacthub
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1564,9 +1564,9 @@ relationships:
         kind: ""
         status: ""
         user_id: 00000000-0000-0000-0000-000000000000
-        created_at: "0001-01-01T00:00:00Z"
-        updated_at: "0001-01-01T00:00:00Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        created_at: null
+        updated_at: null
+        deleted_at: null
       connection_id: cdd66d14-bdd9-1a24-ba16-faec2953d9d5
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -1605,9 +1605,9 @@ relationships:
                   kind: ""
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1646,9 +1646,9 @@ relationships:
                   kind: artifacthub
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1692,9 +1692,9 @@ relationships:
         kind: ""
         status: ""
         user_id: 00000000-0000-0000-0000-000000000000
-        created_at: "0001-01-01T00:00:00Z"
-        updated_at: "0001-01-01T00:00:00Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        created_at: null
+        updated_at: null
+        deleted_at: null
       connection_id: cdd66d14-bdd9-1a24-ba16-faec2953d9d5
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -1733,9 +1733,9 @@ relationships:
                   kind: ""
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1774,9 +1774,9 @@ relationships:
                   kind: artifacthub
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1820,9 +1820,9 @@ relationships:
         kind: ""
         status: ""
         user_id: 00000000-0000-0000-0000-000000000000
-        created_at: "0001-01-01T00:00:00Z"
-        updated_at: "0001-01-01T00:00:00Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        created_at: null
+        updated_at: null
+        deleted_at: null
       connection_id: cdd66d14-bdd9-1a24-ba16-faec2953d9d5
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -1861,9 +1861,9 @@ relationships:
                   kind: ""
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1902,9 +1902,9 @@ relationships:
                   kind: artifacthub
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -1951,9 +1951,9 @@ relationships:
         kind: ""
         status: ""
         user_id: 00000000-0000-0000-0000-000000000000
-        created_at: "0001-01-01T00:00:00Z"
-        updated_at: "0001-01-01T00:00:00Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        created_at: null
+        updated_at: null
+        deleted_at: null
       connection_id: 9e04779c-94b6-6a03-575c-66f4c57541eb
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -1997,9 +1997,9 @@ relationships:
                   kind: github
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -2044,9 +2044,9 @@ relationships:
                   kind: github
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -2104,9 +2104,9 @@ relationships:
         kind: ""
         status: ""
         user_id: 00000000-0000-0000-0000-000000000000
-        created_at: "0001-01-01T00:00:00Z"
-        updated_at: "0001-01-01T00:00:00Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        created_at: null
+        updated_at: null
+        deleted_at: null
       connection_id: 9e04779c-94b6-6a03-575c-66f4c57541eb
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -2150,9 +2150,9 @@ relationships:
                   kind: ""
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -2191,9 +2191,9 @@ relationships:
                   kind: artifacthub
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -2240,9 +2240,9 @@ relationships:
         kind: ""
         status: ""
         user_id: 00000000-0000-0000-0000-000000000000
-        created_at: "0001-01-01T00:00:00Z"
-        updated_at: "0001-01-01T00:00:00Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        created_at: null
+        updated_at: null
+        deleted_at: null
       connection_id: 9e04779c-94b6-6a03-575c-66f4c57541eb
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -2286,9 +2286,9 @@ relationships:
                   kind: github
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -2333,9 +2333,9 @@ relationships:
                   kind: github
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -2393,9 +2393,9 @@ relationships:
         kind: ""
         status: ""
         user_id: 00000000-0000-0000-0000-000000000000
-        created_at: "0001-01-01T00:00:00Z"
-        updated_at: "0001-01-01T00:00:00Z"
-        deleted_at: "0001-01-01T00:00:00Z"
+        created_at: null
+        updated_at: null
+        deleted_at: null
       connection_id: 9e04779c-94b6-6a03-575c-66f4c57541eb
       category:
         id: 00000000-0000-0000-0000-000000000000
@@ -2439,9 +2439,9 @@ relationships:
                   kind: ""
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000
@@ -2480,9 +2480,9 @@ relationships:
                   kind: artifacthub
                   status: ""
                   user_id: 00000000-0000-0000-0000-000000000000
-                  created_at: "0001-01-01T00:00:00Z"
-                  updated_at: "0001-01-01T00:00:00Z"
-                  deleted_at: "0001-01-01T00:00:00Z"
+                  created_at: null
+                  updated_at: null
+                  deleted_at: null
                 connection_id: 00000000-0000-0000-0000-000000000000
                 category:
                   id: 00000000-0000-0000-0000-000000000000

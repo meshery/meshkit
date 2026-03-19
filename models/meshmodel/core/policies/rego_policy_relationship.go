@@ -20,10 +20,10 @@ import (
 var SyncRelationship sync.Mutex
 
 type Rego struct {
-	store       storagepkg.Store
-	txn         storagepkg.Transaction
-	ctx         context.Context
-	policyDir   string
+	store     storagepkg.Store
+	txn       storagepkg.Transaction
+	ctx       context.Context
+	policyDir string
 }
 
 // NewRegoInstance creates a new Rego evaluator with relationships loaded
@@ -52,7 +52,7 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 }
 
 // CustomPrint implements the print.Hook interface to capture print statements
-type CustomPrint struct{
+type CustomPrint struct {
 	Messages []string
 }
 
@@ -136,7 +136,7 @@ func (r *Rego) RegoPolicyHandler(
 	for _, comp := range resp.Design.Components {
 		var patches []patching.Patch
 		for _, up := range updates {
-			if up.Id == comp.Id.String() {
+			if up.Id == comp.ID.String() {
 				patches = append(patches, patching.Patch{Path: up.Path[1:], Value: up.Value})
 			}
 		}
