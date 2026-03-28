@@ -58,7 +58,6 @@ type ComponentCSV struct {
 
 // The Component Definition generated assumes or is only for components which have registrant as "meshery"
 func (c *ComponentCSV) CreateComponentDefinition(isModelPublished bool, defVersion string) (component.ComponentDefinition, error) {
-	status := entity.Enabled
 	if c.Status != "" {
 		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "ignored" {
 			status = entity.Ignored
@@ -94,7 +93,6 @@ var compStyleValues = []string{
 }
 
 func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefinition) error {
-	status := entity.Enabled
 	if c.Status != "" {
 		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "ignored" {
 			status = entity.Ignored

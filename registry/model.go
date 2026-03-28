@@ -1097,11 +1097,13 @@ func GenerateDefsForCoreRegistrant(model ModelCSV, ComponentCSVHelper *Component
 			version:    version,
 		})
 	}()
-	status := entity.Ignored
-	if isModelPublished {
-		status = entity.Enabled
+
+	var _status *component.ComponentDefinitionStatus
+	if !isModelPublished {
+		s := component.ComponentDefinitionStatus(entity.Ignored)
+		_status = &s
 	}
-	_status := component.ComponentDefinitionStatus(status)
+
 	modelDirPath, compDirPath, err := createVersionedDirectoryForModelAndComp(version, model.Model, path)
 	if err != nil {
 		err = ErrGenerateModel(err, model.Model)
@@ -1133,7 +1135,9 @@ func GenerateDefsForCoreRegistrant(model ModelCSV, ComponentCSVHelper *Component
 					Log.Error(ErrUpdateComponent(err, modelName, comp.Component))
 					continue
 				}
-				componentDef.Status = &_status
+				if _status != nil {
+					componentDef.Status = _status
+				}
 				componentDef.Model = modelDef
 				alreadyExists, err = componentDef.WriteComponentDefinition(compDirPath, "json")
 				if err != nil {
