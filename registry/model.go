@@ -58,10 +58,6 @@ func (pf *packageFetcher) getPackage(registrant, sourceURL, modelName string) (m
 	}
 
 	fetchedPkg, err, _ := pf.fetchGroup.Do(cacheKey, func() (interface{}, error) {
-		if cachedPkg, ok := pf.cache.Load(cacheKey); ok {
-			return cachedPkg, nil
-		}
-
 		generator, err := pf.newGenerator(registrant, sourceURL, modelName)
 		if err != nil {
 			return nil, err
