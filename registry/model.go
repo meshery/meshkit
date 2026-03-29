@@ -60,6 +60,7 @@ var defVersion = "v1.0.0"
 
 // keep
 type ModelCSV struct {
+	Status             *_model.ModelDefinitionStatus     `json:"status,omitempty"`
 	Registrant         string                            `json:"registrant" csv:"registrant"`
 	ModelDisplayName   string                            `json:"modelDisplayName" csv:"modelDisplayName"`
 	Model              string                            `json:"model" csv:"model"`
@@ -174,9 +175,10 @@ func (m *ModelCSV) UpdateModelDefinition(modelDef *_model.ModelDefinition) error
 	return nil
 }
 func (mcv *ModelCSV) CreateModelDefinition(version, defVersion string) _model.ModelDefinition {
-	status := entity.Ignored
-	if strings.ToLower(mcv.PublishToRegistry) == "true" {
-		status = entity.Enabled
+	var status _model.ModelDefinitionStatus
+
+	if strings.ToLower(strings.TrimSpace(mcv.PublishToRegistry)) != "true" {
+		status = _model.ModelDefinitionStatus(entity.Ignored)
 	}
 	var catname category.CategoryDefinition
 	catname.Name = mcv.Category
@@ -189,7 +191,7 @@ func (mcv *ModelCSV) CreateModelDefinition(version, defVersion string) _model.Mo
 
 		SchemaVersion: v1beta1.ModelSchemaVersion,
 		Name:          mcv.Model,
-		Status:        _model.ModelDefinitionStatus(status),
+		Status:        status,
 		Registrant:    registrant,
 		SubCategory:   mcv.SubCategory,
 		Model: _model.Model{
@@ -533,8 +535,10 @@ func (m ModelCSVHelper) Cleanup() error {
 }
 func AssignDefaultsForCompDefs(componentDef *component.ComponentDefinition, modelDef *_model.ModelDefinition) {
 	// Assign the status from the model to the component
-	compStatus := component.ComponentDefinitionStatus(modelDef.Status)
-	componentDef.Status = &compStatus
+	if modelDef.Status != "" && string(modelDef.Status) != string(entity.Enabled) {
+		compStatus := component.ComponentDefinitionStatus(modelDef.Status)
+		componentDef.Status = &compStatus
+	}
 
 	// Initialize AdditionalProperties and Styles if nil
 	if componentDef.Metadata.AdditionalProperties == nil {
@@ -1080,10 +1084,8 @@ func InvokeGenerationFromSheetWithOptions(wg *sync.WaitGroup, path string, model
 func GenerateDefsForCoreRegistrant(model ModelCSV, ComponentCSVHelper *ComponentCSVHelper, path string, modelName string) error {
 	var version string
 	parts := strings.Split(model.SourceURL, "/")
-	// Assuming the URL is always of the format "protocol://github.com/owner/repo/tree/definitions/{model-name}/version/components"
-	// We know the version is the 7th element (0-indexed) in the split URL
 	if len(parts) >= 8 {
-		version = parts[8] // Fetch the version from the expected position
+		version = parts[8]
 	} else {
 		return fmt.Errorf("invalid SourceURL format: %s", model.SourceURL)
 	}
@@ -1135,9 +1137,7 @@ func GenerateDefsForCoreRegistrant(model ModelCSV, ComponentCSVHelper *Component
 					Log.Error(ErrUpdateComponent(err, modelName, comp.Component))
 					continue
 				}
-				if _status != nil {
-					componentDef.Status = _status
-				}
+				componentDef.Status = _status
 				componentDef.Model = modelDef
 				alreadyExists, err = componentDef.WriteComponentDefinition(compDirPath, "json")
 				if err != nil {
