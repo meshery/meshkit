@@ -118,7 +118,11 @@ func ErrUnmarshal(err error) error {
 }
 
 func ErrUnmarshalInvalid(err error, typ reflect.Type) error {
-	return errors.New(ErrUnmarshalInvalidCode, errors.Alert, []string{"Unmarshal invalid error for type: ", typ.String()}, []string{err.Error()}, []string{"Invalid object format"}, []string{"Make sure to input a valid JSON object"})
+	typeName := "<nil>"
+	if typ != nil {
+		typeName = typ.String()
+	}
+	return errors.New(ErrUnmarshalInvalidCode, errors.Alert, []string{"Unmarshal invalid error for type: ", typeName}, []string{err.Error()}, []string{"Invalid object format"}, []string{"Make sure to input a valid JSON object"})
 }
 
 func ErrUnmarshalSyntax(err error, offset int64) error {
