@@ -13,6 +13,17 @@ import (
 	"cuelang.org/go/encoding/yaml"
 )
 
+var (
+	formatCueNode = format.Node
+	compileCue    = func(ctx *cue.Context, src string) cue.Value {
+		return ctx.CompileString(src)
+	}
+	lookupCuePath = func(root cue.Value, path string) (cue.Value, error, bool) {
+		res := root.LookupPath(cue.ParsePath(path))
+		return res, res.Err(), res.Exists()
+	}
+)
+
 func Validate(schema cue.Value, value cue.Value) (bool, []errors.Error) {
 	var errs []errors.Error
 	uval := value.Unify(schema)
@@ -94,11 +105,11 @@ func JsonSchemaToCue(value string) (cue.Value, error) {
 	if err != nil {
 		return out, ErrJsonSchemaToCue(err)
 	}
-	src, err := format.Node(extractedSchema)
+	src, err := formatCueNode(extractedSchema)
 	if err != nil {
 		return out, ErrJsonSchemaToCue(err)
 	}
-	out = cueCtx.CompileString(string(src))
+	out = compileCue(cueCtx, string(src))
 	if out.Err() != nil {
 		return out, ErrJsonSchemaToCue(out.Err())
 	}
@@ -106,11 +117,11 @@ func JsonSchemaToCue(value string) (cue.Value, error) {
 }
 
 func Lookup(rootVal cue.Value, path string) (cue.Value, error) {
-	res := rootVal.LookupPath(cue.ParsePath(path))
-	if res.Err() != nil {
-		return res, ErrCueLookup(res.Err())
+	res, err, exists := lookupCuePath(rootVal, path)
+	if err != nil {
+		return res, ErrCueLookup(err)
 	}
-	if !res.Exists() {
+	if !exists {
 		return res, ErrCueLookup(fmt.Errorf("Could not find the value at the path: %s", path))
 	}
 

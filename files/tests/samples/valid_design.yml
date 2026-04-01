@@ -309,7 +309,7 @@ relationships:
     components_count: 0
     relationships_count: 0
   modelid: 00000000-0000-0000-0000-000000000000
-  schemaVersion: relationships.meshery.io/v1alpha3
+  schemaVersion: relationships.meshery.io/v1beta2
   selectors:
   - allow:
       from:

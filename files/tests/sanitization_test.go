@@ -10,7 +10,7 @@ import (
 	"archive/zip"
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
-	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
+	coreV1 "github.com/meshery/schemas/models/core"
 	"github.com/stretchr/testify/assert"
 )
 

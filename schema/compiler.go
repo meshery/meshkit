@@ -210,10 +210,10 @@ func escapeJSONPointerToken(token string) string {
 	return strings.NewReplacer("~", "~0", "/", "~1").Replace(token)
 }
 
-// keywordFromLocation extracts and unescapes the last JSON Pointer segment
+// KeywordFromLocation extracts and unescapes the last JSON Pointer segment
 // from a schema location string (e.g. "#/properties/foo~1bar" → "foo/bar").
 // Returns an empty string when the location has no meaningful path segments.
-func keywordFromLocation(location string) string {
+func KeywordFromLocation(location string) string {
 	// Isolate the fragment portion (after '#').
 	_, fragment, hasFragment := strings.Cut(location, "#")
 	if !hasFragment {

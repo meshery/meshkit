@@ -32,6 +32,26 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type fileWriter interface {
+	Write([]byte) (int, error)
+	WriteString(string) (int, error)
+	Close() error
+}
+
+var (
+	createWritableFile = func(path string) (fileWriter, error) {
+		return os.Create(path)
+	}
+	openWritableFile = func(path string, flag int, perm os.FileMode) (fileWriter, error) {
+		return os.OpenFile(path, flag, perm)
+	}
+	jsonMarshal       = json.Marshal
+	jsonMarshalIndent = json.MarshalIndent
+	tarHeaderForFile  = tar.FileInfoHeader
+	relativePath      = filepath.Rel
+	copyToTarWriter   = io.Copy
+)
+
 // transforms the keys of a Map recursively with the given transform function
 func TransformMapKeys(input map[string]interface{}, transformFunc func(string) string) map[string]interface{} {
 	output := make(map[string]interface{})
@@ -93,7 +113,7 @@ func StrConcat(s ...string) string {
 }
 
 func Marshal(obj interface{}) (string, error) {
-	result, err := json.Marshal(obj)
+	result, err := jsonMarshal(obj)
 	if err != nil {
 		return " ", ErrMarshal(err)
 	}
@@ -140,7 +160,7 @@ func GetHome() string {
 // the given filename
 func CreateFile(contents []byte, filename string, location string) error {
 	// Create file in -rw-r--r-- mode
-	fd, err := os.OpenFile(filepath.Join(location, filename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	fd, err := openWritableFile(filepath.Join(location, filename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -307,7 +327,7 @@ func IsClosed[K any](ch chan K) bool {
 
 // WriteToFile writes the given content to the given file path
 func WriteToFile(path string, content string) error {
-	file, err := os.Create(path)
+	file, err := createWritableFile(path)
 	if err != nil {
 		return ErrCreateFile(err, path)
 	}
@@ -366,7 +386,7 @@ func MergeMaps(mergeInto, toMerge map[string]interface{}) map[string]interface{}
 	return mergeInto
 }
 
-func WriteYamlToFile[K any](outputPath string, data K) error {
+func WriteYamlToFile[K any](outputPath string, data K) (err error) {
 	file, err := os.Create(outputPath)
 	if err != nil {
 		return ErrCreateFile(err, outputPath)
@@ -377,6 +397,16 @@ func WriteYamlToFile[K any](outputPath string, data K) error {
 	encoder.SetIndent(2)
 
 	defer func() { _ = encoder.Close() }()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			switch value := recovered.(type) {
+			case error:
+				err = ErrMarshal(value)
+			default:
+				err = ErrMarshal(fmt.Errorf("%v", value))
+			}
+		}
+	}()
 
 	if err := encoder.Encode(data); err != nil {
 		return ErrMarshal(err)
@@ -386,7 +416,7 @@ func WriteYamlToFile[K any](outputPath string, data K) error {
 }
 
 func WriteJSONToFile[K any](outputPath string, data K) error {
-	byt, err := json.MarshalIndent(data, "", "  ")
+	byt, err := jsonMarshalIndent(data, "", "  ")
 
 	if err != nil {
 		return ErrMarshal(err)
@@ -473,10 +503,7 @@ func FindEntityType(content []byte) (entity.EntityType, error) {
 // map[string]interface{} recursively => map[string]interface{}
 func RecursiveCastMapStringInterfaceToMapStringInterface(in map[string]interface{}) map[string]interface{} {
 	res := ConvertMapInterfaceMapString(in)
-	out, ok := res.(map[string]interface{})
-	if !ok {
-		fmt.Println("failed to cast")
-	}
+	out, _ := res.(map[string]interface{})
 
 	return out
 }
@@ -530,7 +557,7 @@ func YAMLToJSON(content []byte) ([]byte, error) {
 	var jsonData interface{}
 	if err := yaml.Unmarshal(content, &jsonData); err == nil {
 		jsonData = ConvertToJSONCompatible(jsonData)
-		convertedContent, err := json.Marshal(jsonData)
+		convertedContent, err := jsonMarshal(jsonData)
 		if err == nil {
 			content = convertedContent
 		} else {
@@ -570,12 +597,12 @@ func Compress(src string, buf io.Writer) error {
 			return err
 		}
 
-		header, err := tar.FileInfoHeader(fi, file)
+		header, err := tarHeaderForFile(fi, file)
 		if err != nil {
 			return err
 		}
 
-		relPath, err := filepath.Rel(src, file)
+		relPath, err := relativePath(src, file)
 		if err != nil {
 			return err
 		}
@@ -591,7 +618,7 @@ func Compress(src string, buf io.Writer) error {
 				return err
 			}
 
-			_, err = io.Copy(tw, data)
+			_, err = copyToTarWriter(tw, data)
 			_ = data.Close()
 			if err != nil {
 				return err

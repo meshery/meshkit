@@ -1454,7 +1454,7 @@ relationships:
       relationships_count: 0
       components: null
       relationships: null
-    schemaVersion: relationships.meshery.io/v1alpha3
+    schemaVersion: relationships.meshery.io/v1beta2
     selectors:
       - allow:
           from:
@@ -1582,7 +1582,7 @@ relationships:
       relationships_count: 0
       components: null
       relationships: null
-    schemaVersion: relationships.meshery.io/v1alpha3
+    schemaVersion: relationships.meshery.io/v1beta2
     selectors:
       - allow:
           from:
@@ -1710,7 +1710,7 @@ relationships:
       relationships_count: 0
       components: null
       relationships: null
-    schemaVersion: relationships.meshery.io/v1alpha3
+    schemaVersion: relationships.meshery.io/v1beta2
     selectors:
       - allow:
           from:
@@ -1838,7 +1838,7 @@ relationships:
       relationships_count: 0
       components: null
       relationships: null
-    schemaVersion: relationships.meshery.io/v1alpha3
+    schemaVersion: relationships.meshery.io/v1beta2
     selectors:
       - allow:
           from:
@@ -1974,7 +1974,7 @@ relationships:
       relationships_count: 0
       components: null
       relationships: null
-    schemaVersion: relationships.meshery.io/v1alpha3
+    schemaVersion: relationships.meshery.io/v1beta2
     selectors:
       - allow:
           from:
@@ -2127,7 +2127,7 @@ relationships:
       relationships_count: 0
       components: null
       relationships: null
-    schemaVersion: relationships.meshery.io/v1alpha3
+    schemaVersion: relationships.meshery.io/v1beta2
     selectors:
       - allow:
           from:
@@ -2263,7 +2263,7 @@ relationships:
       relationships_count: 0
       components: null
       relationships: null
-    schemaVersion: relationships.meshery.io/v1alpha3
+    schemaVersion: relationships.meshery.io/v1beta2
     selectors:
       - allow:
           from:
@@ -2416,7 +2416,7 @@ relationships:
       relationships_count: 0
       components: null
       relationships: null
-    schemaVersion: relationships.meshery.io/v1alpha3
+    schemaVersion: relationships.meshery.io/v1beta2
     selectors:
       - allow:
           from:
