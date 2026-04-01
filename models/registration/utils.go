@@ -5,12 +5,13 @@ import (
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
-	"github.com/meshery/schemas/models/v1alpha3"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
+
+const relationshipSchemaVersionV1Beta2 = "relationships.meshery.io/v1beta2"
 
 // TODO: refactor this and use CUE
 func getEntity(byt []byte) (et entity.Entity, _ error) {
@@ -37,7 +38,7 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 			return nil, ErrGetEntity(fmt.Errorf("Invalid model definition: %s", err.Error()))
 		}
 		et = &model
-	case v1alpha3.RelationshipSchemaVersion:
+	case relationshipSchemaVersionV1Beta2, "relationships.meshery.io/v1alpha3":
 		var rel relationship.RelationshipDefinition
 		err := encoding.Unmarshal(byt, &rel)
 		if err != nil {

@@ -11,12 +11,12 @@ import (
 	"github.com/meshery/meshkit/files"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/csv"
-	"github.com/meshery/schemas/models/v1alpha3"
 	_rel "github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
 
 const rowIndex = 1
+const relationshipSchemaVersionV1Beta2 = "relationships.meshery.io/v1beta2"
 
 type RelationshipCSVHelper struct {
 	SpreadsheetID        int64
@@ -151,7 +151,7 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 			}
 
 			var rel _rel.RelationshipDefinition
-			rel.SchemaVersion = v1alpha3.RelationshipSchemaVersion
+			rel.SchemaVersion = relationshipSchemaVersionV1Beta2
 			rel.Kind = _rel.RelationshipDefinitionKind(utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.KIND))
 			rel.RelationshipType = utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.Type)
 			rel.SubType = utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.SubType)
