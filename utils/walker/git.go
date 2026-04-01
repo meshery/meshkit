@@ -74,7 +74,18 @@ func (g *Git) MaxDepth(depth int) *Git {
 }
 
 func (g *Git) AllowedExtensions(ext []string) *Git {
-	g.allowedExtensions = ext
+	var normalized []string
+	for _, e := range ext {
+		e = strings.ToLower(strings.TrimSpace(e))
+		if e == "" {
+			continue
+		}
+		if !strings.HasPrefix(e, ".") {
+			e = "." + e
+		}
+		normalized = append(normalized, e)
+	}
+	g.allowedExtensions = normalized
 	return g
 }
 
@@ -210,6 +221,9 @@ func clonewalk(g *Git) error {
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
 		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
+			if er != nil {
+				return er
+			}
 			if d.IsDir() {
 				if d.Name() == ".git" {
 					return filepath.SkipDir
@@ -236,7 +250,7 @@ func clonewalk(g *Git) error {
 				return nil
 			}
 			f, errInfo := d.Info()
-			if err != nil {
+			if errInfo != nil {
 				return errInfo
 			}
 			return g.readFile(f, path)
