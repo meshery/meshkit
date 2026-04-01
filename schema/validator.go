@@ -27,6 +27,11 @@ const (
 	TypeRelationship DocumentType = "relationship"
 )
 
+// RelationshipSchemaVersionV1Beta2 is the canonical schema version string for
+// v1beta2 relationship definitions. Use this constant instead of hard-coding
+// the string to keep all packages in sync.
+const RelationshipSchemaVersionV1Beta2 = "relationships.meshery.io/v1beta2"
+
 // Ref identifies which schema should be used to validate a document.
 type Ref struct {
 	SchemaVersion string       `json:"schemaVersion,omitempty" yaml:"schemaVersion,omitempty"`

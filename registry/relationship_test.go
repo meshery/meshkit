@@ -7,13 +7,12 @@ import (
 	"testing"
 
 	"github.com/meshery/meshkit/encoding"
+	"github.com/meshery/meshkit/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestProcessRelationshipsWritesV1Beta2SchemaVersion(t *testing.T) {
-	t.Parallel()
-
 	Log = SetupLogger("relationship-test", false, io.Discard)
 
 	outputDir := t.TempDir()
@@ -42,5 +41,5 @@ func TestProcessRelationshipsWritesV1Beta2SchemaVersion(t *testing.T) {
 
 	var document map[string]any
 	require.NoError(t, encoding.Unmarshal(relationshipBytes, &document))
-	assert.Equal(t, relationshipSchemaVersionV1Beta2, document["schemaVersion"])
+	assert.Equal(t, schema.RelationshipSchemaVersionV1Beta2, document["schemaVersion"])
 }

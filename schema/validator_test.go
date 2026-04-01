@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const relationshipSchemaVersionV1Beta2 = "relationships.meshery.io/v1beta2"
-
 const validRelationshipDocument = `
 id: 11111111-1111-1111-1111-111111111111
 schemaVersion: relationships.meshery.io/v1beta2
@@ -51,7 +49,7 @@ func TestDetectRef(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, Ref{
-		SchemaVersion: relationshipSchemaVersionV1Beta2,
+		SchemaVersion: RelationshipSchemaVersionV1Beta2,
 		Type:          TypeRelationship,
 	}, ref)
 }
@@ -69,7 +67,7 @@ func TestValidatorValidateDesignSuccess(t *testing.T) {
 func TestValidatorValidateRelationshipFailure(t *testing.T) {
 	invalidRelationshipDocument := strings.Replace(validRelationshipDocument, "kind: edge", "kind: invalid", 1)
 	expectedRegistration, err := Default().resolve(Ref{
-		SchemaVersion: relationshipSchemaVersionV1Beta2,
+		SchemaVersion: RelationshipSchemaVersionV1Beta2,
 		Type:          TypeRelationship,
 	})
 	require.NoError(t, err)
@@ -84,7 +82,7 @@ func TestValidatorValidateRelationshipFailure(t *testing.T) {
 	details, ok := ValidationDetailsFromError(err)
 	require.True(t, ok)
 	assert.Equal(t, Ref{
-		SchemaVersion: relationshipSchemaVersionV1Beta2,
+		SchemaVersion: RelationshipSchemaVersionV1Beta2,
 		Type:          TypeRelationship,
 	}, details.Ref)
 	assert.Equal(t, expectedRegistration.Location, details.SchemaLocation)
@@ -167,7 +165,7 @@ func TestValidatorValidateRelationshipWithMismatchedSchemaVersion(t *testing.T) 
 
 	err := Default().ValidateBytes(
 		Ref{
-			SchemaVersion: relationshipSchemaVersionV1Beta2,
+			SchemaVersion: RelationshipSchemaVersionV1Beta2,
 			Type:          TypeRelationship,
 		},
 		[]byte(mismatchedSchemaVersionDocument),
@@ -187,7 +185,7 @@ func TestDecodeAndValidateWithValidatorZeroRef(t *testing.T) {
 
 	document, err := DecodeAndValidateWithValidator[map[string]any](validator, Ref{}, []byte(validRelationshipDocument))
 	require.NoError(t, err)
-	assert.Equal(t, relationshipSchemaVersionV1Beta2, document["schemaVersion"])
+	assert.Equal(t, RelationshipSchemaVersionV1Beta2, document["schemaVersion"])
 }
 
 func TestValidatorValidateAnyWithZeroRef(t *testing.T) {
@@ -240,7 +238,7 @@ func TestValidateAnyWithExplicitRef(t *testing.T) {
 	require.NoError(t, err)
 
 	err = validator.ValidateAny(Ref{
-		SchemaVersion: relationshipSchemaVersionV1Beta2,
+		SchemaVersion: RelationshipSchemaVersionV1Beta2,
 		Type:          TypeRelationship,
 	}, document)
 	require.NoError(t, err)
@@ -248,7 +246,7 @@ func TestValidateAnyWithExplicitRef(t *testing.T) {
 
 func TestDecodeAndValidateWithRefSuccess(t *testing.T) {
 	ref := Ref{
-		SchemaVersion: relationshipSchemaVersionV1Beta2,
+		SchemaVersion: RelationshipSchemaVersionV1Beta2,
 		Type:          TypeRelationship,
 	}
 	document, err := DecodeAndValidateWithRef[map[string]any](
@@ -256,7 +254,7 @@ func TestDecodeAndValidateWithRefSuccess(t *testing.T) {
 		[]byte(validRelationshipDocument),
 	)
 	require.NoError(t, err)
-	assert.Equal(t, relationshipSchemaVersionV1Beta2, document["schemaVersion"])
+	assert.Equal(t, RelationshipSchemaVersionV1Beta2, document["schemaVersion"])
 }
 
 func TestDecodeAndValidateWithValidatorDecodeFailure(t *testing.T) {
@@ -268,7 +266,7 @@ func TestDecodeAndValidateWithValidatorDecodeFailure(t *testing.T) {
 	}
 
 	_, err = DecodeAndValidateWithValidator[BadTarget](validator, Ref{
-		SchemaVersion: relationshipSchemaVersionV1Beta2,
+		SchemaVersion: RelationshipSchemaVersionV1Beta2,
 		Type:          TypeRelationship,
 	}, []byte(validRelationshipDocument))
 	require.Error(t, err)
