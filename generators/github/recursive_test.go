@@ -1,7 +1,6 @@
 package github
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +13,7 @@ import (
 )
 
 func TestRecursiveWalkFunctional(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "test-recursive-walk")
+	tempDir, err := os.MkdirTemp("", "test-recursive-walk")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -179,7 +178,7 @@ func createFile(t *testing.T, base, path, content string) {
 	if err != nil {
 		t.Fatalf("Failed to create dirs: %v", err)
 	}
-	err = ioutil.WriteFile(fullPath, []byte(content), 0644)
+	err = os.WriteFile(fullPath, []byte(content), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
