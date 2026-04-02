@@ -8,32 +8,11 @@ import (
 	"testing"
 	"time"
 
+	artifacthubgen "github.com/meshery/meshkit/generators/artifacthub"
+	githubgen "github.com/meshery/meshkit/generators/github"
 	"github.com/meshery/meshkit/generators/models"
-	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/stretchr/testify/assert"
 )
-
-type stubPackage struct {
-	name      string
-	version   string
-	sourceURL string
-}
-
-func (sp stubPackage) GenerateComponents(string) ([]component.ComponentDefinition, error) {
-	return nil, nil
-}
-
-func (sp stubPackage) GetVersion() string {
-	return sp.version
-}
-
-func (sp stubPackage) GetSourceURL() string {
-	return sp.sourceURL
-}
-
-func (sp stubPackage) GetName() string {
-	return sp.name
-}
 
 type stubPackageManager struct {
 	pkg       models.Package
@@ -47,6 +26,22 @@ func (spm stubPackageManager) GetPackage() (models.Package, error) {
 		time.Sleep(spm.delay)
 	}
 	return spm.pkg, nil
+}
+
+func stubPackageForRegistrant(registrant, url, packageName string) models.Package {
+	switch registrant {
+	case "artifacthub":
+		return artifacthubgen.AhPackage{
+			Name:     fmt.Sprintf("%s:%s", registrant, packageName),
+			ChartUrl: url,
+			Version:  "v1.0.0",
+		}
+	default:
+		return githubgen.GitHubPackage{
+			Name:      packageName,
+			SourceURL: url,
+		}
+	}
 }
 
 func TestGenerationOptionsTimeoutBehavior(t *testing.T) {
@@ -83,17 +78,13 @@ func TestGenerationOptionsTimeoutBehavior(t *testing.T) {
 	}
 }
 
-func TestPackageFetcherCachesByRegistrantAndSourceURL(t *testing.T) {
+func TestPackageFetcherCachesGitHubPackagesByRegistrantAndSourceURL(t *testing.T) {
 	t.Parallel()
 
 	callCount := &atomic.Int32{}
 	fetcher := newPackageFetcher(func(registrant, url, packageName string) (models.PackageManager, error) {
 		return stubPackageManager{
-			pkg: &stubPackage{
-				name:      packageName,
-				version:   "v1.0.0",
-				sourceURL: url,
-			},
+			pkg:       stubPackageForRegistrant(registrant, url, packageName),
 			callCount: callCount,
 		}, nil
 	})
@@ -105,7 +96,28 @@ func TestPackageFetcherCachesByRegistrantAndSourceURL(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.EqualValues(t, 1, callCount.Load())
-	assert.Same(t, firstPkg, secondPkg)
+	assert.Equal(t, "azure-network", firstPkg.GetName())
+	assert.Equal(t, "azure-compute", secondPkg.GetName())
+}
+
+func TestPackageFetcherDoesNotShareArtifactHubPackagesAcrossModelNames(t *testing.T) {
+	t.Parallel()
+
+	callCount := &atomic.Int32{}
+	fetcher := newPackageFetcher(func(registrant, url, packageName string) (models.PackageManager, error) {
+		return stubPackageManager{
+			pkg:       stubPackageForRegistrant(registrant, url, packageName),
+			callCount: callCount,
+		}, nil
+	})
+
+	_, err := fetcher.getPackage("artifacthub", "https://example.com/shared.yaml", "azure-network")
+	assert.NoError(t, err)
+
+	_, err = fetcher.getPackage("artifacthub", "https://example.com/shared.yaml", "azure-compute")
+	assert.NoError(t, err)
+
+	assert.EqualValues(t, 2, callCount.Load())
 }
 
 func TestPackageFetcherDoesNotShareAcrossRegistrants(t *testing.T) {
@@ -114,11 +126,7 @@ func TestPackageFetcherDoesNotShareAcrossRegistrants(t *testing.T) {
 	callCount := &atomic.Int32{}
 	fetcher := newPackageFetcher(func(registrant, url, packageName string) (models.PackageManager, error) {
 		return stubPackageManager{
-			pkg: &stubPackage{
-				name:      fmt.Sprintf("%s:%s", registrant, packageName),
-				version:   "v1.0.0",
-				sourceURL: url,
-			},
+			pkg:       stubPackageForRegistrant(registrant, url, packageName),
 			callCount: callCount,
 		}, nil
 	})
@@ -132,30 +140,35 @@ func TestPackageFetcherDoesNotShareAcrossRegistrants(t *testing.T) {
 	assert.EqualValues(t, 2, callCount.Load())
 }
 
-func TestPackageFetcherDeduplicatesConcurrentRequests(t *testing.T) {
+func TestPackageFetcherDeduplicatesConcurrentGitHubRequests(t *testing.T) {
 	t.Parallel()
 
 	callCount := &atomic.Int32{}
 	fetcher := newPackageFetcher(func(registrant, url, packageName string) (models.PackageManager, error) {
 		return stubPackageManager{
-			pkg: &stubPackage{
-				name:      packageName,
-				version:   "v1.0.0",
-				sourceURL: url,
-			},
+			pkg:       stubPackageForRegistrant(registrant, url, packageName),
 			callCount: callCount,
 			delay:     25 * time.Millisecond,
 		}, nil
 	})
 
+	modelNames := []string{
+		"azure-network",
+		"azure-compute",
+		"azure-storage",
+		"azure-network",
+		"azure-compute",
+		"azure-storage",
+	}
 	var wg sync.WaitGroup
-	for range 10 {
+	for _, modelName := range modelNames {
 		wg.Add(1)
-		go func() {
+		go func(modelName string) {
 			defer wg.Done()
-			_, err := fetcher.getPackage("github", "https://example.com/aso.yaml", "azure-network")
+			pkg, err := fetcher.getPackage("github", "https://example.com/aso.yaml", modelName)
 			assert.NoError(t, err)
-		}()
+			assert.Equal(t, modelName, pkg.GetName())
+		}(modelName)
 	}
 	wg.Wait()
 

@@ -17,6 +17,7 @@ import (
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
 	"github.com/meshery/meshkit/generators"
+	"github.com/meshery/meshkit/generators/github"
 	"github.com/meshery/meshkit/generators/models"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/utils"
@@ -51,10 +52,39 @@ func newPackageFetcher(newGenerator generatorFactory) *packageFetcher {
 	}
 }
 
+func packageCacheKey(registrant, sourceURL, modelName string) string {
+	normalizedRegistrant := utils.ReplaceSpacesAndConvertToLowercase(registrant)
+	if normalizedRegistrant == artifactHub {
+		return fmt.Sprintf("%s\x00%s\x00%s", normalizedRegistrant, sourceURL, utils.ReplaceSpacesAndConvertToLowercase(modelName))
+	}
+
+	return fmt.Sprintf("%s\x00%s", normalizedRegistrant, sourceURL)
+}
+
+// GitHub packages derive generated component metadata from the model name, so
+// reuse the fetched content but return a per-model copy with the requested name.
+func packageForModel(registrant, modelName string, pkg models.Package) models.Package {
+	if utils.ReplaceSpacesAndConvertToLowercase(registrant) != gitHub {
+		return pkg
+	}
+
+	switch typedPkg := pkg.(type) {
+	case github.GitHubPackage:
+		typedPkg.Name = modelName
+		return typedPkg
+	case *github.GitHubPackage:
+		clonedPkg := *typedPkg
+		clonedPkg.Name = modelName
+		return &clonedPkg
+	default:
+		return pkg
+	}
+}
+
 func (pf *packageFetcher) getPackage(registrant, sourceURL, modelName string) (models.Package, error) {
-	cacheKey := fmt.Sprintf("%s\x00%s", utils.ReplaceSpacesAndConvertToLowercase(registrant), sourceURL)
+	cacheKey := packageCacheKey(registrant, sourceURL, modelName)
 	if cachedPkg, ok := pf.cache.Load(cacheKey); ok {
-		return cachedPkg.(models.Package), nil
+		return packageForModel(registrant, modelName, cachedPkg.(models.Package)), nil
 	}
 
 	fetchedPkg, err, _ := pf.fetchGroup.Do(cacheKey, func() (interface{}, error) {
@@ -79,7 +109,7 @@ func (pf *packageFetcher) getPackage(registrant, sourceURL, modelName string) (m
 		return nil, err
 	}
 
-	return fetchedPkg.(models.Package), nil
+	return packageForModel(registrant, modelName, fetchedPkg.(models.Package)), nil
 }
 
 type compGenerateTracker struct {
