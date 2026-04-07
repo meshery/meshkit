@@ -1,20 +1,28 @@
 package schemas
 
 import (
-	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestServeJSonFileWorkspace(t *testing.T) {
+func TestServeJSONFileWorkspace(t *testing.T) {
 	schema, uiSchema, err := ServeJSonFile("workspace")
 	require.NoError(t, err)
 	require.NotEmpty(t, schema)
 	require.NotEmpty(t, uiSchema)
 
-	assert.True(t, bytes.Contains(schema, []byte(`"title": "Workspace"`)))
-	assert.True(t, bytes.Contains(schema, []byte(`"organization"`)))
-	assert.True(t, bytes.Contains(uiSchema, []byte(`"organization"`)))
+	var schemaDocument map[string]any
+	require.NoError(t, json.Unmarshal(schema, &schemaDocument))
+	assert.Equal(t, "Workspace", schemaDocument["title"])
+
+	properties, ok := schemaDocument["properties"].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, properties, "organization")
+
+	var uiSchemaDocument map[string]any
+	require.NoError(t, json.Unmarshal(uiSchema, &uiSchemaDocument))
+	assert.Contains(t, uiSchemaDocument, "organization")
 }
