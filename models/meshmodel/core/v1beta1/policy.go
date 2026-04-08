@@ -49,12 +49,12 @@ func (p *PolicyDefinition) Create(db *database.Handler, hostID core.Uuid) (core.
 
 	mid, err := p.Model.Create(db, hostID)
 	if err != nil {
-		return uuid.UUID{}, err
+		return core.Uuid{}, err
 	}
 	p.ModelID = mid
 	err = db.Omit(clause.Associations).Create(&p).Error
 	if err != nil {
-		return uuid.UUID{}, err
+		return core.Uuid{}, err
 	}
 	return p.ID, nil
 }
