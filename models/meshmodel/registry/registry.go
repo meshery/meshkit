@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
+	core "github.com/meshery/schemas/models/core"
 	models "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
@@ -70,9 +71,9 @@ func (c *RegistryEntityCache) Set(f entity.Filter, value EntityCacheValue) {
 }
 
 type Registry struct {
-	ID           uuid.UUID
-	RegistrantID uuid.UUID
-	Entity       uuid.UUID
+	ID           core.Uuid
+	RegistrantID core.Uuid
+	Entity       core.Uuid
 	Type         entity.EntityType
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
