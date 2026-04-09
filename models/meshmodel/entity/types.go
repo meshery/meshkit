@@ -1,8 +1,8 @@
 package entity
 
 import (
-	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
+	core "github.com/meshery/schemas/models/core"
 )
 
 type EntityType string
@@ -27,7 +27,7 @@ type Entity interface {
 	// ComponentDefinitions and PolicyDefinitions are examples of entities
 	Type() EntityType
 	GetEntityDetail() string
-	GenerateID() (uuid.UUID, error)
-	GetID() uuid.UUID
-	Create(db *database.Handler, hostID uuid.UUID) (entityID uuid.UUID, err error)
+	GenerateID() (core.Uuid, error)
+	GetID() core.Uuid
+	Create(db *database.Handler, hostID core.Uuid) (entityID core.Uuid, err error)
 }

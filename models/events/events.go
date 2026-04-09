@@ -6,7 +6,7 @@ package events
 import (
 	"time"
 
-	"github.com/gofrs/uuid"
+	core "github.com/meshery/schemas/models/core"
 )
 
 // Defines values for EventSeverity.
@@ -36,7 +36,7 @@ type DeletedAt = time.Time
 // Event Defines model for event_trackers
 type Event struct {
 	// ActedUpon UUID of the entity on which the event was performed.
-	ActedUpon uuid.UUID `db:"acted_upon" json:"acted_upon"`
+	ActedUpon core.Uuid `db:"acted_upon" json:"acted_upon"`
 
 	// Action Action taken on the resource.
 	Action string `db:"action" json:"action"`
@@ -104,13 +104,13 @@ type EventsFilter struct {
 }
 
 // ID defines model for id.
-type ID = uuid.UUID
+type ID = core.Uuid
 
 // OperationID defines model for operation_id.
-type OperationID = uuid.UUID
+type OperationID = core.Uuid
 
 // SystemID defines model for system_id.
-type SystemID = uuid.UUID
+type SystemID = core.Uuid
 
 // Time defines model for time.
 type Time = time.Time
@@ -119,4 +119,4 @@ type Time = time.Time
 type UpdatedAt = time.Time
 
 // UserID defines model for user_uuid.
-type UserID = uuid.UUID
+type UserID = core.Uuid

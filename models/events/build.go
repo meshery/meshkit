@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	core "github.com/meshery/schemas/models/core"
 )
 
 type EventBuilder struct {
@@ -21,7 +22,7 @@ func NewEvent() *EventBuilder {
 	}
 }
 
-func (e *EventBuilder) ActedUpon(resource uuid.UUID) *EventBuilder {
+func (e *EventBuilder) ActedUpon(resource core.Uuid) *EventBuilder {
 	e.event.ActedUpon = resource
 	return e
 }
@@ -56,12 +57,12 @@ func (e *EventBuilder) WithStatus(status EventStatus) *EventBuilder {
 	return e
 }
 
-func (e *EventBuilder) FromUser(id uuid.UUID) *EventBuilder {
+func (e *EventBuilder) FromUser(id core.Uuid) *EventBuilder {
 	e.event.UserID = &id
 	return e
 }
 
-func (e *EventBuilder) FromSystem(id uuid.UUID) *EventBuilder {
+func (e *EventBuilder) FromSystem(id core.Uuid) *EventBuilder {
 	e.event.SystemID = id
 	return e
 }
