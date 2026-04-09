@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/meshery/meshkit/errors"
-	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
+	coreV1 "github.com/meshery/schemas/models/core"
 )
 
 var (

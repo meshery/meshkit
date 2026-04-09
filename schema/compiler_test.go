@@ -50,7 +50,7 @@ func TestKeywordFromLocation(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, testCase.expected, keywordFromLocation(testCase.location))
+			assert.Equal(t, testCase.expected, KeywordFromLocation(testCase.location))
 		})
 	}
 }

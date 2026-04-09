@@ -16,7 +16,7 @@ import (
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/kubernetes/kompose"
 	"github.com/meshery/meshkit/utils/walker"
-	coreV1 "github.com/meshery/schemas/models/v1alpha1/core"
+	coreV1 "github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 

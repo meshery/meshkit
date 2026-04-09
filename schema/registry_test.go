@@ -4,7 +4,6 @@ import (
 	"testing"
 	"testing/fstest"
 
-	schemav1alpha3 "github.com/meshery/schemas/models/v1alpha3"
 	schemav1beta1 "github.com/meshery/schemas/models/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,13 +25,15 @@ func TestBuiltinRegistrationsDiscoverCoreSchemas(t *testing.T) {
 	require.Contains(t, byType, TypeDesign)
 	require.Contains(t, byType, TypeRelationship)
 	require.Contains(t, byType, TypeEnvironment)
+	require.Contains(t, byType, TypeWorkspace)
 
 	assert.Equal(t, "schemas/constructs/v1beta1/model/model.yaml", byType[TypeModel].Location)
-	assert.Equal(t, "schemas/constructs/v1beta1/component/component.yaml", byType[TypeComponent].Location)
-	assert.Equal(t, "schemas/constructs/v1beta1/connection/connection.yaml", byType[TypeConnection].Location)
-	assert.Equal(t, "schemas/constructs/v1beta1/design/design.yaml", byType[TypeDesign].Location)
-	assert.Equal(t, "schemas/constructs/v1alpha3/relationship/relationship.yaml#/components/schemas/RelationshipDefinition", byType[TypeRelationship].Location)
+	assert.Equal(t, "schemas/constructs/v1beta2/component/component.yaml", byType[TypeComponent].Location)
+	assert.Equal(t, "schemas/constructs/v1beta2/connection/connection.yaml", byType[TypeConnection].Location)
+	assert.Equal(t, "schemas/constructs/v1beta2/design/design.yaml", byType[TypeDesign].Location)
+	assert.Equal(t, "schemas/constructs/v1beta2/relationship/relationship.yaml", byType[TypeRelationship].Location)
 	assert.Equal(t, "schemas/constructs/v1beta1/environment/environment.yaml", byType[TypeEnvironment].Location)
+	assert.Equal(t, "schemas/constructs/v1beta1/workspace/workspace.yaml", byType[TypeWorkspace].Location)
 }
 
 func TestBuiltinRegistrationsIncludeSelectorAndSubcategorySchemas(t *testing.T) {
@@ -66,12 +67,13 @@ func TestBuiltinRegistrationsExtractSchemaVersionsWhenAvailable(t *testing.T) {
 		actual[registration.Ref.Type] = registration.Ref.SchemaVersion
 	}
 
-	assert.Equal(t, schemav1beta1.ModelSchemaVersion, actual[TypeModel])
-	assert.Equal(t, schemav1beta1.ComponentSchemaVersion, actual[TypeComponent])
-	assert.Equal(t, schemav1beta1.ConnectionSchemaVersion, actual[TypeConnection])
-	assert.Equal(t, schemav1alpha3.RelationshipSchemaVersion, actual[TypeRelationship])
-	assert.Empty(t, actual[TypeDesign])
+	assert.Equal(t, "models.meshery.io/v1beta1", actual[TypeModel])
+	assert.Equal(t, "components.meshery.io/v1beta2", actual[TypeComponent])
+	assert.Equal(t, "connections.meshery.io/v1beta2", actual[TypeConnection])
+	assert.Equal(t, "relationships.meshery.io/v1beta2", actual[TypeRelationship])
+	assert.Equal(t, "designs.meshery.io/v1beta2", actual[TypeDesign])
 	assert.Equal(t, "environments.meshery.io/v1beta1", actual[TypeEnvironment])
+	assert.Empty(t, actual[TypeWorkspace])
 }
 
 func TestValidatorResolveUsesSchemaVersionConventionFallback(t *testing.T) {
@@ -86,6 +88,15 @@ func TestValidatorResolveUsesSchemaVersionConventionFallback(t *testing.T) {
 
 	detectedType := validator.documentTypeFromSchemaVersion(schemav1beta1.DesignSchemaVersion)
 	assert.Equal(t, TypeDesign, detectedType)
+
+	workspaceRegistration, err := validator.resolve(Ref{SchemaVersion: "workspaces.meshery.io/v1beta1"})
+	require.NoError(t, err)
+	assert.Equal(t, TypeWorkspace, workspaceRegistration.Ref.Type)
+	assert.Equal(t, "schemas/constructs/v1beta1/workspace/workspace.yaml", workspaceRegistration.Location)
+	assert.Equal(t, "v1beta1", workspaceRegistration.AssetVersion)
+
+	detectedType = validator.documentTypeFromSchemaVersion("workspaces.meshery.io/v1beta1")
+	assert.Equal(t, TypeWorkspace, detectedType)
 }
 
 func TestParseSchemaVersion(t *testing.T) {
@@ -110,6 +121,13 @@ func TestParseSchemaVersion(t *testing.T) {
 			schemaVersion: "capability.meshery.io/v1alpha1",
 			expectedType:  "capability",
 			expectedAsset: "v1alpha1",
+			expectedOK:    true,
+		},
+		{
+			name:          "pluralized workspace schema version",
+			schemaVersion: "workspaces.meshery.io/v1beta1",
+			expectedType:  TypeWorkspace,
+			expectedAsset: "v1beta1",
 			expectedOK:    true,
 		},
 		{

@@ -15,9 +15,9 @@ import (
 	"github.com/meshery/meshkit/utils/csv"
 	"github.com/meshery/meshkit/utils/manifests"
 	"github.com/meshery/schemas"
-	"github.com/meshery/schemas/models/v1alpha1/capability"
-	corev1alpha1 "github.com/meshery/schemas/models/v1alpha1/core"
+	corev1alpha1 "github.com/meshery/schemas/models/core"
 	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1/capability"
 	"github.com/meshery/schemas/models/v1beta1/component"
 )
 

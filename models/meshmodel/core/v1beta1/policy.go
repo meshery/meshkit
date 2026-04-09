@@ -8,6 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/utils"
+	core "github.com/meshery/schemas/models/core"
 	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 	"gorm.io/gorm/clause"
 
@@ -16,10 +17,10 @@ import (
 
 // swagger:response PolicyDefinition
 type PolicyDefinition struct {
-	ID         uuid.UUID               `json:"-"`
+	ID         core.Uuid               `json:"-"`
 	Kind       string                  `json:"kind,omitempty" yaml:"kind"`
 	Version    string                  `json:"version,omitempty" yaml:"version"`
-	ModelID    uuid.UUID               `json:"-" gorm:"column:modelID"`
+	ModelID    core.Uuid               `json:"-" gorm:"column:modelID"`
 	Model      v1beta1.ModelDefinition `json:"model"`
 	SubType    string                  `json:"subType" yaml:"subType"`
 	Expression map[string]interface{}  `json:"expression" yaml:"expression" gorm:"type:bytes;serializer:json"`
@@ -27,11 +28,11 @@ type PolicyDefinition struct {
 	UpdatedAt  time.Time               `json:"-"`
 }
 
-func (p PolicyDefinition) GetID() uuid.UUID {
+func (p PolicyDefinition) GetID() core.Uuid {
 	return p.ID
 }
 
-func (p *PolicyDefinition) GenerateID() (uuid.UUID, error) {
+func (p *PolicyDefinition) GenerateID() (core.Uuid, error) {
 	return uuid.NewV4()
 }
 
@@ -43,17 +44,17 @@ func (p *PolicyDefinition) GetEntityDetail() string {
 	return fmt.Sprintf("type: %s, definition version: %s, name: %s, model: %s, version: %s", p.Type(), p.Version, p.Kind, p.Model.Name, p.Model.Version)
 }
 
-func (p *PolicyDefinition) Create(db *database.Handler, hostID uuid.UUID) (uuid.UUID, error) {
+func (p *PolicyDefinition) Create(db *database.Handler, hostID core.Uuid) (core.Uuid, error) {
 	p.ID, _ = p.GenerateID()
 
 	mid, err := p.Model.Create(db, hostID)
 	if err != nil {
-		return uuid.UUID{}, err
+		return core.Uuid{}, err
 	}
 	p.ModelID = mid
 	err = db.Omit(clause.Associations).Create(&p).Error
 	if err != nil {
-		return uuid.UUID{}, err
+		return core.Uuid{}, err
 	}
 	return p.ID, nil
 }

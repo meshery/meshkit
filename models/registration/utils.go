@@ -5,6 +5,7 @@ import (
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/schema"
 	"github.com/meshery/schemas/models/v1alpha3"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1"
@@ -37,7 +38,7 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 			return nil, ErrGetEntity(fmt.Errorf("Invalid model definition: %s", err.Error()))
 		}
 		et = &model
-	case v1alpha3.RelationshipSchemaVersion:
+	case schema.RelationshipSchemaVersionV1Beta2, v1alpha3.RelationshipSchemaVersion:
 		var rel relationship.RelationshipDefinition
 		err := encoding.Unmarshal(byt, &rel)
 		if err != nil {
