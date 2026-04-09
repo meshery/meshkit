@@ -25,6 +25,7 @@ const (
 	TypeEnvironment  DocumentType = "environment"
 	TypeModel        DocumentType = "model"
 	TypeRelationship DocumentType = "relationship"
+	TypeWorkspace    DocumentType = "workspace"
 )
 
 // RelationshipSchemaVersionV1Beta2 is the canonical schema version string for
