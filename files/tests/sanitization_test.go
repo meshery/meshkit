@@ -10,7 +10,7 @@ import (
 	"archive/zip"
 	"github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/files"
-	coreV1 "github.com/meshery/schemas/models/core"
+	"github.com/meshery/schemas/models/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +22,7 @@ func TestSanitizeFile(t *testing.T) {
 		expectError     bool
 		expectedErrCode string
 		expectedContent map[string]interface{}
-		expectedType    coreV1.IaCFileTypes
+		expectedType    core.IaCFileTypes
 	}{
 		{
 			name:         "Valid JSON",
@@ -77,59 +77,59 @@ func TestSanitizeFile(t *testing.T) {
 			name:         "Can Identify Design",
 			filePath:     "./samples/valid_design.yml",
 			expectedExt:  ".yml",
-			expectedType: coreV1.MesheryDesign,
+			expectedType: core.MesheryDesign,
 		},
 
 		{
 			name:         "Can Identify Designs packaged as OCI images",
 			filePath:     "./samples/valid-design-oci.tar",
 			expectedExt:  ".tar",
-			expectedType: coreV1.MesheryDesign,
+			expectedType: core.MesheryDesign,
 		},
 		{
 			name:         "Can Identify Kubernetes Manifest",
 			filePath:     "./samples/valid_manifest.yml",
 			expectedExt:  ".yml",
-			expectedType: coreV1.K8sManifest,
+			expectedType: core.K8sManifest,
 		},
 
 		{
 			name:         "Can Identify Kubernetes Manifest With Crds",
 			filePath:     "./samples/manifest-with-crds.yml",
 			expectedExt:  ".yml",
-			expectedType: coreV1.K8sManifest,
+			expectedType: core.K8sManifest,
 		},
 
 		{
 			name:         "Can Identify HelmChart",
 			filePath:     "./samples/valid-helm.tgz",
 			expectedExt:  ".tgz",
-			expectedType: coreV1.HelmChart,
+			expectedType: core.HelmChart,
 		},
 		{
 			name:         "Can Identify Kustomize archive (tar.gz)",
 			filePath:     "./samples/wordpress-kustomize.tar.gz",
 			expectedExt:  ".gz",
-			expectedType: coreV1.K8sKustomize,
+			expectedType: core.K8sKustomize,
 		},
 		{
 			name:         "Can Identify Kustomize archive (zip)",
 			filePath:     "./samples/wordpress-kustomize.zip",
 			expectedExt:  ".zip",
-			expectedType: coreV1.K8sKustomize,
+			expectedType: core.K8sKustomize,
 		},
 		{
 			name:         "Can Identify Docker Compose",
 			filePath:     "./samples/valid-docker-compose.yml",
 			expectedExt:  ".yml",
-			expectedType: coreV1.DockerCompose,
+			expectedType: core.DockerCompose,
 		},
 
 		{
 			name:         "Can Identify Docker Compose v2",
 			filePath:     "./samples/valid-compose-2.yml",
 			expectedExt:  ".yml",
-			expectedType: coreV1.DockerCompose,
+			expectedType: core.DockerCompose,
 		},
 
 		// {
