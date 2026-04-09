@@ -16,7 +16,7 @@ import (
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/kubernetes/kompose"
 	"github.com/meshery/meshkit/utils/walker"
-	coreV1 "github.com/meshery/schemas/models/core"
+	"github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 
@@ -38,7 +38,7 @@ import (
 )
 
 type IdentifiedFile struct {
-	Type coreV1.IaCFileTypes
+	Type core.IaCFileTypes
 
 	// pattern.PatternFile (meshery-design),
 	// []runtime.Object (k8s manifest) ,
@@ -53,52 +53,52 @@ func IdentifyFile(sanitizedFile SanitizedFile) (IdentifiedFile, error) {
 	var parsed interface{}
 
 	// Map to store identification errors for each file type
-	identificationErrorsTrace := map[coreV1.IaCFileTypes]error{}
+	identificationErrorsTrace := map[core.IaCFileTypes]error{}
 
 	// Attempt to parse the file as a Meshery design
 	if parsed, err = ParseFileAsMesheryDesign(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       coreV1.MesheryDesign,
+			Type:       core.MesheryDesign,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[coreV1.MesheryDesign] = err
+	identificationErrorsTrace[core.MesheryDesign] = err
 
 	// Attempt to parse the file as a Kubernetes manifest
 	if parsed, err = ParseFileAsKubernetesManifest(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       coreV1.K8sManifest,
+			Type:       core.K8sManifest,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[coreV1.K8sManifest] = err
+	identificationErrorsTrace[core.K8sManifest] = err
 
 	// Attempt to parse the file as a Helm chart
 	if parsed, err = ParseFileAsHelmChart(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       coreV1.HelmChart,
+			Type:       core.HelmChart,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[coreV1.HelmChart] = err
+	identificationErrorsTrace[core.HelmChart] = err
 
 	// Attempt to parse the file as a Docker Compose file
 	if parsed, err = ParseFileAsDockerCompose(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       coreV1.DockerCompose,
+			Type:       core.DockerCompose,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[coreV1.DockerCompose] = err
+	identificationErrorsTrace[core.DockerCompose] = err
 
 	// Attempt to parse the file as a Kustomization file
 	if parsed, err = ParseFileAsKustomization(sanitizedFile); err == nil {
 		return IdentifiedFile{
-			Type:       coreV1.K8sKustomize,
+			Type:       core.K8sKustomize,
 			ParsedFile: parsed,
 		}, nil
 	}
-	identificationErrorsTrace[coreV1.K8sKustomize] = err
+	identificationErrorsTrace[core.K8sKustomize] = err
 
 	// If no file type matched, return a detailed error with the identification trace
 	return IdentifiedFile{}, ErrFailedToIdentifyFile(sanitizedFile.FileName, sanitizedFile.FileExt, identificationErrorsTrace)
