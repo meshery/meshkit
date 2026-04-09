@@ -173,14 +173,14 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 					continue
 				}
 				if rel.Metadata == nil {
-					rel.Metadata = &_rel.Relationship_Metadata{}
+					rel.Metadata = &_rel.RelationshipMetadata{}
 				}
 			}
 			annotation := false
 			if utils.ReplaceSpacesAndConvertToLowercase(relationship.IsAnnotation) == "true" {
 				annotation = true
 			}
-			rel.Metadata = &_rel.Relationship_Metadata{
+			rel.Metadata = &_rel.RelationshipMetadata{
 				Description:  &relationship.Description,
 				IsAnnotation: &annotation,
 				Styles:       &styles,
