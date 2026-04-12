@@ -15,7 +15,7 @@ import (
 	"github.com/meshery/meshkit/utils/csv"
 	"github.com/meshery/meshkit/utils/manifests"
 	"github.com/meshery/schemas"
-	corev1alpha1 "github.com/meshery/schemas/models/core"
+	"github.com/meshery/schemas/models/core"
 	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/capability"
 	"github.com/meshery/schemas/models/v1beta1/component"
@@ -181,7 +181,7 @@ func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefiniti
 	for _, key := range compStyleValues {
 		if c.Shape != "" {
 			shape := c.Shape
-			compDefStyles.Shape = (*corev1alpha1.Shape)(&shape)
+			compDefStyles.Shape = (*core.Shape)(&shape)
 		}
 		if c.PrimaryColor != "" {
 
