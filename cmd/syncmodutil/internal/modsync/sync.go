@@ -93,6 +93,23 @@ func (g *GoMod) SyncRequire(f io.Reader, throwerr bool) (gomod string, err error
 		}
 	}
 
+	// Compute the set of modules we will emit a replace directive for, so
+	// that any pre-existing replace in the destination for the same module
+	// can be stripped first. Leaving both in place would cause `go mod tidy`
+	// to fail with "multiple replacements for <module>".
+	emitModules := make(map[string]bool, len(g.RequiredVersions)+len(g.ReplacedVersions))
+	for _, required := range g.RequiredVersions {
+		if !replacedMods[required.Name] {
+			emitModules[required.Name] = true
+		}
+	}
+	for _, r := range g.ReplacedVersions {
+		if len(r) >= 1 {
+			emitModules[r[0].Name] = true
+		}
+	}
+	data = stripConflictingReplaces(data, emitModules)
+
 	if len(g.RequiredVersions) > 0 || len(g.ReplacedVersions) > 0 {
 		data = append(data, "replace (")
 	}
@@ -119,6 +136,56 @@ func (g *GoMod) SyncRequire(f io.Reader, throwerr bool) (gomod string, err error
 	}
 	gomod = strings.Join(data, "\n")
 	return
+}
+
+// stripConflictingReplaces removes any replace directive from the
+// destination go.mod lines whose "from" module is in the conflicts set.
+// Both forms are handled: single-line (`replace foo => bar v1`) and lines
+// inside an existing `replace (...)` block. Replaces for modules not in
+// conflicts are preserved — including destination-specific overrides that
+// the source does not touch. Empty replace blocks that may be left behind
+// are valid go.mod syntax; `go mod tidy` cleans them up.
+func stripConflictingReplaces(data []string, conflicts map[string]bool) []string {
+	if len(conflicts) == 0 {
+		return data
+	}
+	out := make([]string, 0, len(data))
+	inReplaceBlock := false
+	for _, line := range data {
+		trim := strings.TrimSpace(line)
+
+		if !inReplaceBlock && (trim == "replace (" || trim == "replace(") {
+			inReplaceBlock = true
+			out = append(out, line)
+			continue
+		}
+		if inReplaceBlock && trim == ")" {
+			inReplaceBlock = false
+			out = append(out, line)
+			continue
+		}
+
+		if strings.Contains(trim, "=>") {
+			var rest string
+			switch {
+			case inReplaceBlock:
+				rest = trim
+			case strings.HasPrefix(trim, "replace "):
+				rest = strings.TrimPrefix(trim, "replace ")
+			default:
+				out = append(out, line)
+				continue
+			}
+			parts := strings.SplitN(rest, "=>", 2)
+			from := strings.Fields(strings.TrimSpace(parts[0]))
+			if len(from) >= 1 && conflicts[from[0]] {
+				continue
+			}
+		}
+
+		out = append(out, line)
+	}
+	return out
 }
 
 // formatReplaceLine renders a single replace directive. The "from" version
