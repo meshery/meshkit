@@ -71,20 +71,75 @@ func (g *GoMod) SyncRequire(f io.Reader, throwerr bool) (gomod string, err error
 			}
 		}
 	}
-	if len(g.ReplacedVersions) != 0 {
-		data = append(data, "replace(")
+
+	// Emit a replace block that pins every package in the source (host)
+	// module graph to its exact source-selected version. Pinning via
+	// `replace` — rather than relying on `require` alone — is required for
+	// Go plugin ABI compatibility. Without it, the `go mod tidy` step that
+	// callers run after this tool can upgrade transitive dependencies past
+	// what the host binary is linked against (for example, a direct
+	// dependency on github.com/99designs/gqlgen pulling in a newer
+	// github.com/vektah/gqlparser/v2 than the host uses), causing
+	// plugin.Open to fail at runtime with:
+	//   "plugin was built with a different version of package <pkg>".
+	// Because replace directives override require resolution, this
+	// guarantees the destination module is compiled against the exact same
+	// versions as the source. Source-declared replaces take precedence over
+	// pinning and are emitted verbatim.
+	replacedMods := make(map[string]bool, len(g.ReplacedVersions))
+	for _, r := range g.ReplacedVersions {
+		if len(r) >= 1 {
+			replacedMods[r[0].Name] = true
+		}
 	}
 
-	//Add all the replaced versions from source to destination. Running go mod tidy after the utility will perform the cleanup in the destination go.mod and remove all the unwanted replace statements.
-	//Instead of trying to intelligently perform diffs, it is better to let the go mod tidy do the cleanup.
-	for _, replaced := range g.ReplacedVersions {
-		data = append(data, fmt.Sprintf("\t%s %s => %s %s", replaced[0].Name, replaced[0].Version, replaced[1].Name, replaced[1].Version))
+	if len(g.RequiredVersions) > 0 || len(g.ReplacedVersions) > 0 {
+		data = append(data, "replace (")
 	}
-	if len(g.ReplacedVersions) != 0 {
+
+	pinned := make(map[string]bool, len(g.RequiredVersions))
+	for _, required := range g.RequiredVersions {
+		if pinned[required.Name] || replacedMods[required.Name] {
+			continue
+		}
+		pinned[required.Name] = true
+		data = append(data, fmt.Sprintf("\t%s => %s %s", required.Name, required.Name, required.Version))
+	}
+
+	// Add all the replaced versions from source to destination. Running go
+	// mod tidy after the utility will perform the cleanup in the destination
+	// go.mod and remove unused entries. Instead of trying to intelligently
+	// perform diffs, it is better to let `go mod tidy` do the cleanup.
+	for _, replaced := range g.ReplacedVersions {
+		data = append(data, formatReplaceLine(replaced))
+	}
+
+	if len(g.RequiredVersions) > 0 || len(g.ReplacedVersions) > 0 {
 		data = append(data, ")")
 	}
 	gomod = strings.Join(data, "\n")
 	return
+}
+
+// formatReplaceLine renders a single replace directive. The "from" version
+// is optional (e.g. `foo => ../foo`); the "to" version is absent for
+// local-path replacements.
+func formatReplaceLine(r []Package) string {
+	if len(r) < 2 {
+		return ""
+	}
+	from, to := r[0], r[1]
+
+	left := from.Name
+	if from.Version != "" {
+		left = from.Name + " " + from.Version
+	}
+
+	right := to.Name
+	if to.Version != "" {
+		right = to.Name + " " + to.Version
+	}
+	return "\t" + left + " => " + right
 }
 
 // NewGoMod takes an io.Reader to a go.mod and returns GoMod struct
