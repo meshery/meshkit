@@ -170,11 +170,17 @@ func stripConflictingReplaces(data []string, conflicts map[string]bool) []string
 			switch {
 			case inReplaceBlock:
 				rest = trim
-			case strings.HasPrefix(trim, "replace "):
-				rest = strings.TrimPrefix(trim, "replace ")
 			default:
-				out = append(out, line)
-				continue
+				// go.mod allows arbitrary whitespace after the `replace`
+				// keyword (e.g. `replace\tfoo => bar`), so tokenize rather
+				// than match a fixed "replace " prefix. Skip any other line
+				// containing "=>" (e.g. an in-comment arrow).
+				fields := strings.Fields(trim)
+				if len(fields) == 0 || fields[0] != "replace" {
+					out = append(out, line)
+					continue
+				}
+				rest = strings.TrimSpace(strings.TrimPrefix(trim, fields[0]))
 			}
 			parts := strings.SplitN(rest, "=>", 2)
 			from := strings.Fields(strings.TrimSpace(parts[0]))
@@ -252,6 +258,7 @@ func getRequiredVersionsFromString(s string) (p []Package) {
 	return p
 }
 func getReplacedVersionsFromString(s string) (p [][]Package) {
+	// Block form: replace ( ... )
 	reps := ReplacePatternRegex.FindAllString(s, -1)
 	for _, req := range reps {
 		data := getStringWithinCharacters(req, '(', ')')
@@ -266,6 +273,36 @@ func getReplacedVersionsFromString(s string) (p [][]Package) {
 			if len(p0) != 0 {
 				p = append(p, p0)
 			}
+		}
+	}
+
+	// Single-line form: `replace foo [v] => bar [v]` outside any block.
+	// go.mod allows arbitrary whitespace after the `replace` keyword, so
+	// tokenize rather than match a fixed prefix.
+	inBlock := false
+	for _, line := range strings.Split(s, "\n") {
+		trim := strings.TrimSpace(line)
+		if !inBlock && (trim == "replace (" || trim == "replace(") {
+			inBlock = true
+			continue
+		}
+		if inBlock {
+			if trim == ")" {
+				inBlock = false
+			}
+			continue
+		}
+		if !strings.Contains(trim, "=>") {
+			continue
+		}
+		fields := strings.Fields(trim)
+		if len(fields) == 0 || fields[0] != "replace" {
+			continue
+		}
+		rest := strings.TrimSpace(strings.TrimPrefix(trim, fields[0]))
+		p0 := getPackagesAndVersionsFromPackageVersions(rest)
+		if len(p0) != 0 {
+			p = append(p, p0)
 		}
 	}
 	return p
