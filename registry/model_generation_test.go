@@ -4,11 +4,45 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	artifacthubgen "github.com/meshery/meshkit/generators/artifacthub"
+	githubgen "github.com/meshery/meshkit/generators/github"
+	"github.com/meshery/meshkit/generators/models"
 	"github.com/stretchr/testify/assert"
 )
+
+type stubPackageManager struct {
+	pkg       models.Package
+	callCount *atomic.Int32
+	delay     time.Duration
+}
+
+func (spm stubPackageManager) GetPackage() (models.Package, error) {
+	spm.callCount.Add(1)
+	if spm.delay > 0 {
+		time.Sleep(spm.delay)
+	}
+	return spm.pkg, nil
+}
+
+func stubPackageForRegistrant(registrant, url, packageName string) models.Package {
+	switch registrant {
+	case "artifacthub":
+		return artifacthubgen.AhPackage{
+			Name:     fmt.Sprintf("%s:%s", registrant, packageName),
+			ChartUrl: url,
+			Version:  "v1.0.0",
+		}
+	default:
+		return githubgen.GitHubPackage{
+			Name:      packageName,
+			SourceURL: url,
+		}
+	}
+}
 
 func TestGenerationOptionsTimeoutBehavior(t *testing.T) {
 	// Test that timeout value is respected when set
@@ -42,6 +76,103 @@ func TestGenerationOptionsTimeoutBehavior(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, opts.ModelTimeout)
 		})
 	}
+}
+
+func TestPackageFetcherCachesGitHubPackagesByRegistrantAndSourceURL(t *testing.T) {
+	t.Parallel()
+
+	callCount := &atomic.Int32{}
+	fetcher := newPackageFetcher(func(registrant, url, packageName string) (models.PackageManager, error) {
+		return stubPackageManager{
+			pkg:       stubPackageForRegistrant(registrant, url, packageName),
+			callCount: callCount,
+		}, nil
+	})
+
+	firstPkg, err := fetcher.getPackage("github", "https://example.com/aso.yaml", "azure-network")
+	assert.NoError(t, err)
+
+	secondPkg, err := fetcher.getPackage("github", "https://example.com/aso.yaml", "azure-compute")
+	assert.NoError(t, err)
+
+	assert.EqualValues(t, 1, callCount.Load())
+	assert.Equal(t, "azure-network", firstPkg.GetName())
+	assert.Equal(t, "azure-compute", secondPkg.GetName())
+}
+
+func TestPackageFetcherDoesNotShareArtifactHubPackagesAcrossModelNames(t *testing.T) {
+	t.Parallel()
+
+	callCount := &atomic.Int32{}
+	fetcher := newPackageFetcher(func(registrant, url, packageName string) (models.PackageManager, error) {
+		return stubPackageManager{
+			pkg:       stubPackageForRegistrant(registrant, url, packageName),
+			callCount: callCount,
+		}, nil
+	})
+
+	_, err := fetcher.getPackage("artifacthub", "https://example.com/shared.yaml", "azure-network")
+	assert.NoError(t, err)
+
+	_, err = fetcher.getPackage("artifacthub", "https://example.com/shared.yaml", "azure-compute")
+	assert.NoError(t, err)
+
+	assert.EqualValues(t, 2, callCount.Load())
+}
+
+func TestPackageFetcherDoesNotShareAcrossRegistrants(t *testing.T) {
+	t.Parallel()
+
+	callCount := &atomic.Int32{}
+	fetcher := newPackageFetcher(func(registrant, url, packageName string) (models.PackageManager, error) {
+		return stubPackageManager{
+			pkg:       stubPackageForRegistrant(registrant, url, packageName),
+			callCount: callCount,
+		}, nil
+	})
+
+	_, err := fetcher.getPackage("github", "https://example.com/shared.yaml", "azure-network")
+	assert.NoError(t, err)
+
+	_, err = fetcher.getPackage("artifacthub", "https://example.com/shared.yaml", "azure-network")
+	assert.NoError(t, err)
+
+	assert.EqualValues(t, 2, callCount.Load())
+}
+
+func TestPackageFetcherDeduplicatesConcurrentGitHubRequests(t *testing.T) {
+	t.Parallel()
+
+	callCount := &atomic.Int32{}
+	fetcher := newPackageFetcher(func(registrant, url, packageName string) (models.PackageManager, error) {
+		return stubPackageManager{
+			pkg:       stubPackageForRegistrant(registrant, url, packageName),
+			callCount: callCount,
+			delay:     25 * time.Millisecond,
+		}, nil
+	})
+
+	modelNames := []string{
+		"azure-network",
+		"azure-compute",
+		"azure-storage",
+		"azure-network",
+		"azure-compute",
+		"azure-storage",
+	}
+	var wg sync.WaitGroup
+	for _, modelName := range modelNames {
+		wg.Add(1)
+		go func(modelName string) {
+			defer wg.Done()
+			pkg, err := fetcher.getPackage("github", "https://example.com/aso.yaml", modelName)
+			assert.NoError(t, err)
+			assert.Equal(t, modelName, pkg.GetName())
+		}(modelName)
+	}
+	wg.Wait()
+
+	assert.EqualValues(t, 1, callCount.Load())
 }
 
 func TestProgressTrackerIntegration(t *testing.T) {
