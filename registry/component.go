@@ -16,9 +16,9 @@ import (
 	"github.com/meshery/meshkit/utils/manifests"
 	"github.com/meshery/schemas"
 	"github.com/meshery/schemas/models/core"
-	schmeaVersion "github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/capability"
-	"github.com/meshery/schemas/models/v1beta1/component"
+	schmeaVersion "github.com/meshery/schemas/models/v1beta3"
+	"github.com/meshery/schemas/models/v1beta3/component"
 )
 
 const (
@@ -469,7 +469,7 @@ func getSVGForComponent(model ModelCSV, component ComponentCSV) (colorSVG string
 }
 
 func getMinimalUICapabilitiesFromSchema() ([]capability.Capability, error) {
-	schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta1/component/component.yaml")
+	schema, err := schemas.Schemas.ReadFile("schemas/constructs/v1beta3/component/component.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read component schema: %v", err)
 	}

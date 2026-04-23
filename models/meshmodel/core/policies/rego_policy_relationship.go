@@ -9,6 +9,13 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/registry/v1alpha3"
 	"github.com/meshery/meshkit/utils"
 	patching "github.com/meshery/meshkit/utils/patching"
+	// NOTE: This file continues to reference v1beta1/pattern for `PatternFile`
+	// and `EvaluationResponse` because the evaluation helper types live only
+	// in v1beta1/pattern today. v1beta3/design does not yet ship an
+	// EvaluationResponse equivalent (its Design field is
+	// v1beta1/pattern.PatternFile). Migrating this handler is a follow-up
+	// that requires a schemas-side change to add an evaluation package
+	// parallel to v1beta3/design. Tracked in meshery/schemas.
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"github.com/open-policy-agent/opa/v1/rego"
 	storagepkg "github.com/open-policy-agent/opa/v1/storage"

@@ -14,7 +14,7 @@ import (
 	"github.com/gocarina/gocsv"
 	"github.com/meshery/meshkit/utils"
 	csvUtils "github.com/meshery/meshkit/utils/csv"
-	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta3/component"
 	"google.golang.org/api/sheets/v4"
 )
 

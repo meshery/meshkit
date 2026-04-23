@@ -9,7 +9,7 @@ import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/utils"
 	core "github.com/meshery/schemas/models/core"
-	v1beta1 "github.com/meshery/schemas/models/v1beta1/model"
+	modelv1beta2 "github.com/meshery/schemas/models/v1beta2/model"
 	"gorm.io/gorm/clause"
 
 	"github.com/meshery/meshkit/models/meshmodel/entity"
@@ -21,7 +21,7 @@ type PolicyDefinition struct {
 	Kind       string                  `json:"kind,omitempty" yaml:"kind"`
 	Version    string                  `json:"version,omitempty" yaml:"version"`
 	ModelID    core.Uuid               `json:"-" gorm:"column:modelID"`
-	Model      v1beta1.ModelDefinition `json:"model"`
+	Model      modelv1beta2.ModelDefinition `json:"model"`
 	SubType    string                  `json:"subType" yaml:"subType"`
 	Expression map[string]interface{}  `json:"expression" yaml:"expression" gorm:"type:bytes;serializer:json"`
 	CreatedAt  time.Time               `json:"-"`
