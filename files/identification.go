@@ -18,7 +18,8 @@ import (
 	"github.com/meshery/meshkit/utils/walker"
 	"github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1beta1"
-	"github.com/meshery/schemas/models/v1beta1/pattern"
+	"github.com/meshery/schemas/models/v1beta3"
+	pattern "github.com/meshery/schemas/models/v1beta3/design"
 
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart"
@@ -174,16 +175,25 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 
 	ext := strings.ToLower(file.FileExt)
 
+	// Accept both the legacy v1beta1 and the canonical-casing v1beta3 design
+	// schema versions. Existing on-disk designs that were saved before the
+	// v1beta3 migration carry `designs.meshery.io/v1beta1` on the wire and
+	// remain valid for parsing; new designs authored against the
+	// canonical-casing contract carry `designs.meshery.io/v1beta3`.
+	validSchemaVersion := func(actual string) bool {
+		return actual == v1beta1.DesignSchemaVersion || actual == v1beta3.DesignSchemaVersion
+	}
+
 	if ext == ".yaml" || ext == ".yml" {
 		decoder := yaml.NewDecoder(bytes.NewReader(file.RawData))
 		err := decoder.Decode(&parsed)
 		if err != nil {
 			return pattern.PatternFile{}, err
 		}
-		if parsed.SchemaVersion == v1beta1.DesignSchemaVersion {
+		if validSchemaVersion(parsed.SchemaVersion) {
 			return parsed, nil
 		}
-		return pattern.PatternFile{}, utils.ErrInvalidConstructSchemaVersion("design", parsed.SchemaVersion, v1beta1.DesignSchemaVersion)
+		return pattern.PatternFile{}, utils.ErrInvalidConstructSchemaVersion("design", parsed.SchemaVersion, v1beta3.DesignSchemaVersion)
 
 	} else if ext == ".json" {
 		decoder := json.NewDecoder(bytes.NewReader(file.RawData))
@@ -191,10 +201,10 @@ func ParseFileAsMesheryDesign(file SanitizedFile) (pattern.PatternFile, error) {
 		if err != nil {
 			return pattern.PatternFile{}, err
 		}
-		if parsed.SchemaVersion == v1beta1.DesignSchemaVersion {
+		if validSchemaVersion(parsed.SchemaVersion) {
 			return parsed, nil
 		}
-		return pattern.PatternFile{}, utils.ErrInvalidConstructSchemaVersion("design", parsed.SchemaVersion, v1beta1.DesignSchemaVersion)
+		return pattern.PatternFile{}, utils.ErrInvalidConstructSchemaVersion("design", parsed.SchemaVersion, v1beta3.DesignSchemaVersion)
 
 	} else if strings.HasPrefix(ext, ".tar") || strings.HasSuffix(ext, ".tgz") || strings.HasSuffix(ext, ".zip") {
 		parsedDesign, err := ParseCompressedOCIArtifactIntoDesign(file.RawData)

@@ -1,6 +1,6 @@
 package orchestration
 
-import "github.com/meshery/schemas/models/v1beta1/component"
+import "github.com/meshery/schemas/models/v1beta3/component"
 
 const (
 	ResourceSourceDesignIdLabelKey      = "design.meshery.io/id"

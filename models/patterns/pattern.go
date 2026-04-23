@@ -9,8 +9,9 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/registry"
 	regv1beta1 "github.com/meshery/meshkit/models/meshmodel/registry/v1beta1"
 	"github.com/meshery/meshkit/utils"
-	"github.com/meshery/schemas/models/v1beta1/component"
-	"github.com/meshery/schemas/models/v1beta1/pattern"
+	component "github.com/meshery/schemas/models/v1beta2/component"
+	registrycomponent "github.com/meshery/schemas/models/v1beta3/component"
+	pattern "github.com/meshery/schemas/models/v1beta3/design"
 )
 
 func GetNextVersion(p *pattern.PatternFile) (string, error) {
@@ -100,7 +101,14 @@ func HydratePattern(pattern *pattern.PatternFile, registryManager *registry.Regi
 			errors = append(errors, fmt.Errorf("component %s:%s not found in registry", comp.Component.Kind, comp.Component.Version))
 			continue // component not found in registry
 		}
-		componentDef := componentList[0].(*component.ComponentDefinition)
+		// Registry stores v1beta3/component.ComponentDefinition (canonical
+		// casing, implements entity.Entity). design.PatternFile.Components is
+		// typed v1beta2/component.ComponentDefinition per the schemas type
+		// graph (see v1beta3/const.go). The inner Model pointer type
+		// (*modelv1beta1.ModelDefinition), Component struct, and Capabilities
+		// slice are the same underlying types across both component versions,
+		// so these field assignments are safe.
+		componentDef := componentList[0].(*registrycomponent.ComponentDefinition)
 
 		comp.Model = componentDef.Model
 		comp.Component.Schema = componentDef.Component.Schema

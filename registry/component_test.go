@@ -3,7 +3,7 @@ package registry
 import (
     "testing"
     "github.com/stretchr/testify/assert"
-    "github.com/meshery/schemas/models/v1beta1/component"
+    "github.com/meshery/schemas/models/v1beta3/component"
 )
 
 func TestUpdateCompDefinitionWithDefaultCapabilities(t *testing.T) {

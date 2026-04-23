@@ -27,13 +27,18 @@ func TestBuiltinRegistrationsDiscoverCoreSchemas(t *testing.T) {
 	require.Contains(t, byType, TypeEnvironment)
 	require.Contains(t, byType, TypeWorkspace)
 
-	assert.Equal(t, "schemas/constructs/v1beta1/model/model.yaml", byType[TypeModel].Location)
-	assert.Equal(t, "schemas/constructs/v1beta2/component/component.yaml", byType[TypeComponent].Location)
-	assert.Equal(t, "schemas/constructs/v1beta2/connection/connection.yaml", byType[TypeConnection].Location)
-	assert.Equal(t, "schemas/constructs/v1beta2/design/design.yaml", byType[TypeDesign].Location)
-	assert.Equal(t, "schemas/constructs/v1beta2/relationship/relationship.yaml", byType[TypeRelationship].Location)
-	assert.Equal(t, "schemas/constructs/v1beta1/environment/environment.yaml", byType[TypeEnvironment].Location)
-	assert.Equal(t, "schemas/constructs/v1beta1/workspace/workspace.yaml", byType[TypeWorkspace].Location)
+	// With the canonical-casing migration, discovery sorts registrations by
+	// location string and "latest wins" — so the v1beta3 assets become the
+	// default for each document type where a v1beta3 YAML exists. Model is
+	// an exception: the schemas FS does not ship a v1beta3/model/ YAML; the
+	// latest published model YAML is v1beta2/model/model.yaml.
+	assert.Equal(t, "schemas/constructs/v1beta2/model/model.yaml", byType[TypeModel].Location)
+	assert.Equal(t, "schemas/constructs/v1beta3/component/component.yaml", byType[TypeComponent].Location)
+	assert.Equal(t, "schemas/constructs/v1beta3/connection/connection.yaml", byType[TypeConnection].Location)
+	assert.Equal(t, "schemas/constructs/v1beta3/design/design.yaml", byType[TypeDesign].Location)
+	assert.Equal(t, "schemas/constructs/v1beta3/relationship/relationship.yaml", byType[TypeRelationship].Location)
+	assert.Equal(t, "schemas/constructs/v1beta3/environment/environment.yaml", byType[TypeEnvironment].Location)
+	assert.Equal(t, "schemas/constructs/v1beta3/workspace/workspace.yaml", byType[TypeWorkspace].Location)
 }
 
 func TestBuiltinRegistrationsIncludeSelectorAndSubcategorySchemas(t *testing.T) {
@@ -67,12 +72,16 @@ func TestBuiltinRegistrationsExtractSchemaVersionsWhenAvailable(t *testing.T) {
 		actual[registration.Ref.Type] = registration.Ref.SchemaVersion
 	}
 
-	assert.Equal(t, "models.meshery.io/v1beta1", actual[TypeModel])
-	assert.Equal(t, "components.meshery.io/v1beta2", actual[TypeComponent])
-	assert.Equal(t, "connections.meshery.io/v1beta2", actual[TypeConnection])
-	assert.Equal(t, "relationships.meshery.io/v1beta2", actual[TypeRelationship])
-	assert.Equal(t, "designs.meshery.io/v1beta2", actual[TypeDesign])
-	assert.Equal(t, "environments.meshery.io/v1beta1", actual[TypeEnvironment])
+	// "latest wins" by asset-path ordering selects the v1beta3 YAMLs except
+	// for Model (v1beta2/model/model.yaml is the latest model asset). The
+	// extracted `schemaVersion` is the one literally embedded in each
+	// resource's template file or the YAML's schemaVersion property const.
+	assert.Equal(t, "models.meshery.io/v1beta2", actual[TypeModel])
+	assert.Equal(t, "components.meshery.io/v1beta3", actual[TypeComponent])
+	assert.Equal(t, "connections.meshery.io/v1beta3", actual[TypeConnection])
+	assert.Equal(t, "relationships.meshery.io/v1beta3", actual[TypeRelationship])
+	assert.Equal(t, "designs.meshery.io/v1beta3", actual[TypeDesign])
+	assert.Equal(t, "environments.meshery.io/v1beta3", actual[TypeEnvironment])
 	assert.Empty(t, actual[TypeWorkspace])
 }
 
