@@ -31,10 +31,20 @@ func (e *EventStreamer) Subscribe(ch chan interface{}) {
 	e.clientChannels = append(e.clientChannels, ch)
 }
 
-// Unsubscribe removes ch from the broadcaster's fan-out list so subsequent
-// Publish calls do not target it. Safe to call multiple times — a channel
-// that is not subscribed is a no-op. Callers must still drain ch if other
-// goroutines may already be mid-send when Unsubscribe runs.
+// Unsubscribe removes every occurrence of ch from the broadcaster's fan-out
+// list so subsequent Publish calls do not target it. Subscribe does not
+// deduplicate, so a channel that was subscribed N times is fully detached
+// after a single Unsubscribe — callers that want "unsubscribe exactly one
+// logical subscription" must manage that counting themselves.
+//
+// Unsubscribe is safe to call multiple times; a channel that is not
+// subscribed is a no-op. It does not, however, wait for sender goroutines
+// already launched by an earlier Publish: those goroutines hold ch by
+// reference and will proceed to `ch <- i`. Callers must therefore:
+//   - drain ch (or keep a reader around) if an in-flight send could block,
+//     and
+//   - NOT close ch immediately after Unsubscribe returns, since a racing
+//     Publish sender would panic with send-on-closed-channel.
 func (e *EventStreamer) Unsubscribe(ch chan interface{}) {
 	e.clmx.Lock()
 	defer e.clmx.Unlock()

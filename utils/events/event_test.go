@@ -6,7 +6,8 @@ import (
 	"time"
 )
 
-// awaitDelivery returns the next value on ch, or a boolean indicating timeout.
+// awaitDelivery returns the next value received on ch and true if it arrived
+// within d; on timeout it returns nil and false.
 func awaitDelivery(t *testing.T, ch chan interface{}, d time.Duration) (interface{}, bool) {
 	t.Helper()
 	select {
@@ -119,27 +120,37 @@ func TestEventStreamer_UnsubscribeOneOfMany(t *testing.T) {
 }
 
 func TestEventStreamer_UnsubscribeConcurrent(t *testing.T) {
-	// Exercises the mutex: many goroutines subscribing/unsubscribing the
-	// same channel must not corrupt the subscriber slice or race on Publish.
+	// Exercises the mutex: many goroutines Subscribe, Unsubscribe, and
+	// Publish against the SAME channel concurrently — in interleaved
+	// orderings — must not corrupt the subscriber slice or race on
+	// Publish's per-channel sender goroutines.
 	s := NewEventStreamer()
-	const workers = 16
+	// Buffer is sized for the worst case: rounds*rounds sends (each of
+	// the `rounds` Publish calls fans out to up to `rounds` subscribers).
+	// Over-sizing is cheap; under-sizing would block a sender goroutine
+	// past the test, which -race flags as a leak.
+	const rounds = 32
+	shared := make(chan interface{}, rounds*rounds)
+
 	var wg sync.WaitGroup
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func() {
-			defer wg.Done()
-			ch := make(chan interface{}, 1)
-			s.Subscribe(ch)
-			s.Unsubscribe(ch)
-		}()
+	wg.Add(rounds * 3)
+	for i := 0; i < rounds; i++ {
+		go func() { defer wg.Done(); s.Subscribe(shared) }()
+		go func() { defer wg.Done(); s.Unsubscribe(shared) }()
+		go func() { defer wg.Done(); s.Publish("churn") }()
 	}
 	wg.Wait()
 
+	// Post-churn the broadcaster must still be usable. Detach any
+	// residual `shared` subscriptions left by the race so they don't
+	// intercept the final publish, then verify a fresh Subscribe
+	// receives a fresh Publish.
+	s.Unsubscribe(shared)
 	final := make(chan interface{}, 1)
 	s.Subscribe(final)
-	s.Publish("payload")
+	s.Publish("final")
 
-	if got, ok := awaitDelivery(t, final, 200*time.Millisecond); !ok || got != "payload" {
+	if got, ok := awaitDelivery(t, final, 200*time.Millisecond); !ok || got != "final" {
 		t.Fatalf("final subscriber did not receive: got=%v ok=%v", got, ok)
 	}
 }
