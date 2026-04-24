@@ -59,3 +59,7 @@ Learn more about the <a href="https://meshery.io/community#meshmates">MeshMates<
 # Contributing
 
 Please do! We're a warm and welcoming community of open source contributors. Please join. All types of contributions are welcome. Be sure to read the [Contributor Guides](https://docs.meshery.io/project/contributing) for a tour of resources available to you and how to get started.
+
+## Naming conventions
+
+MeshKit utilities that expose wire-facing identifiers (error constants, structured log keys, event envelopes consumed by Meshery Server or Layer5 Cloud) follow the ecosystem-wide camelCase-on-the-wire contract. See the [identifier-naming contributor guide](https://github.com/meshery/schemas/blob/master/docs/identifier-naming-contributor-guide.md) in `meshery/schemas` for the reader-friendly 26-row naming directory with before/after and do/don't examples.
