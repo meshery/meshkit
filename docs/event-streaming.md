@@ -309,13 +309,13 @@ also runs `listenForAdapterEvents` per connected adapter:
 ```go
 streamClient, _ := mClient.MClient.StreamEvents(ctx, &meshes.EventsRequest{})
 for {
-    event, err := streamClient.Recv() // gRPC server-stream from the adapter
+    res, err := streamClient.Recv() // gRPC server-stream from the adapter
     if err == io.EOF { return }
     // Translate gRPC EventsResponse -> models/events.Event:
-    event := events.NewEvent().FromSystem(...).WithDescription(event.Summary).WithCategory(event.ComponentName)...
+    event := events.NewEvent().FromSystem(...).WithDescription(res.Summary).WithCategory(res.ComponentName)...
     _ = provider.PersistEvent(*event, token)
     ec.Publish(userUUID, event)        // per-user fan-out
-    sendStreamEvent(ctx, respChan, raw) // raw EventsResponse onto the SSE write channel
+    sendStreamEvent(ctx, respChan, res) // raw EventsResponse onto the SSE write channel
 }
 ```
 
