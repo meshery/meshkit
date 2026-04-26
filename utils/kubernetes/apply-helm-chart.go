@@ -15,6 +15,8 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 // HelmDriver is the type for helm drivers
@@ -422,9 +424,9 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 
 	// Exec-auth kubeconfigs (eg: aws eks get-token) typically do not have a static bearer token.
 	// In that case, do not force /dev/null; let client-go load kubeconfig and execute the auth plugin.
-	useKubeconfigAuth := c.RestConfig.ExecProvider != nil && c.RestConfig.BearerToken == ""
+	useKubeConfigAuth := c.RestConfig.ExecProvider != nil && c.RestConfig.BearerToken == ""
 
-	if !useKubeconfigAuth {
+	if !useKubeConfigAuth {
 		// Set KubeConfig to DevNull to prevent read from local kubeconfig
 		// to prevent conflicts between "data" and "files" properties (CAFile, CAData and KeyFile, KeyData)
 		// ConfigFlags only allows setting CAFile, KeyFile but not CAData, KeyData.
@@ -478,6 +480,47 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 			kubeConfig.KeyFile = &keyFileName
 		}
 	}
+
+	const (
+		clusterName = "meshery-cluster"
+		authInfo    = "meshkit-helm-user"
+	)
+
+	// eksKubeConfig is just placeholder, will change these changes are reviewed
+	eksKubeConfig := clientcmdapi.NewConfig()
+
+	eksKubeConfig.Clusters[clusterName] = &clientcmdapi.Cluster{
+		Server:                   c.RestConfig.Host,
+		TLSServerName:            c.RestConfig.ServerName,
+		InsecureSkipTLSVerify:    c.RestConfig.Insecure,
+		CertificateAuthority:     c.RestConfig.CAFile,
+		CertificateAuthorityData: c.RestConfig.CAData,
+	}
+
+	eksKubeConfig.AuthInfos[clusterName] = &clientcmdapi.AuthInfo{
+		Exec:         c.RestConfig.ExecProvider,
+		AuthProvider: c.RestConfig.AuthProvider,
+	}
+
+	eksKubeConfig.Contexts[clusterName] = &clientcmdapi.Context{
+		Cluster:  clusterName,
+		AuthInfo: authInfo,
+	}
+
+	eksKubeConfig.CurrentContext = clusterName
+
+	configBytes, err := clientcmd.Write(*eksKubeConfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to write kubeconfig %v", err)
+	}
+
+	configFile, err := setDataAndReturnFilename(configBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get kubeconfig file %v", err)
+	}
+	tempFiles = append(tempFiles, configFile)
+
+	kubeConfig.KubeConfig = &configFile
 
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
