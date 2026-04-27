@@ -14,7 +14,7 @@ go 1.25.5
 
 require github.com/meshery/meshkit v0.0.0
 
-replace github.com/meshery/meshkit => ${GITHUB_WORKSPACE:-/workspace/meshkit}
+replace github.com/meshery/meshkit => ${GITHUB_WORKSPACE:-$PWD}
 MODULE
 
 cat >"$WORKDIR/smoke_test.go" <<'TEST'
@@ -43,4 +43,5 @@ func TestMeshkitAsDependency(t *testing.T) {
 TEST
 
 cd "$WORKDIR"
+go mod tidy
 go test ./... -v
