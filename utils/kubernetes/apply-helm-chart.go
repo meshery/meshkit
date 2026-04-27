@@ -486,10 +486,9 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 		authInfo    = "meshkit-helm-user"
 	)
 
-	// eksKubeConfig is just placeholder, will change these changes are reviewed
-	eksKubeConfig := clientcmdapi.NewConfig()
+	helmKubeConfig := clientcmdapi.NewConfig()
 
-	eksKubeConfig.Clusters[clusterName] = &clientcmdapi.Cluster{
+	helmKubeConfig.Clusters[clusterName] = &clientcmdapi.Cluster{
 		Server:                   c.RestConfig.Host,
 		TLSServerName:            c.RestConfig.ServerName,
 		InsecureSkipTLSVerify:    c.RestConfig.Insecure,
@@ -497,19 +496,20 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 		CertificateAuthorityData: c.RestConfig.CAData,
 	}
 
-	eksKubeConfig.AuthInfos[clusterName] = &clientcmdapi.AuthInfo{
+	helmKubeConfig.AuthInfos[clusterName] = &clientcmdapi.AuthInfo{
 		Exec:         c.RestConfig.ExecProvider,
 		AuthProvider: c.RestConfig.AuthProvider,
 	}
 
-	eksKubeConfig.Contexts[clusterName] = &clientcmdapi.Context{
+	helmKubeConfig.Contexts[clusterName] = &clientcmdapi.Context{
 		Cluster:  clusterName,
 		AuthInfo: authInfo,
 	}
 
-	eksKubeConfig.CurrentContext = clusterName
+	// explicitly setting kube context may not be required
+	helmKubeConfig.CurrentContext = clusterName
 
-	configBytes, err := clientcmd.Write(*eksKubeConfig)
+	configBytes, err := clientcmd.Write(*helmKubeConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to write kubeconfig %v", err)
 	}
