@@ -1,0 +1,37 @@
+name: Integration and functional tests
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    name: integration tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache: true
+          cache-dependency-path: go.sum
+      - name: Run integration smoke tests
+        run: go test ./integration -v
+
+  functional-tests:
+    name: functional dependency smoke tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache: true
+          cache-dependency-path: go.sum
+      - name: Validate MeshKit as a dependency
+        run: ./.github/scripts/consumer-smoke.sh
