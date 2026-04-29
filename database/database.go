@@ -27,9 +27,9 @@ type Options struct {
 
 type Model struct {
 	ID        string `json:"id,omitempty" gorm:"primarykey"`
-	CreatedAt string `json:"created_at,omitempty" gorm:"index"`
-	UpdatedAt string `json:"updated_at,omitempty" gorm:"index"`
-	DeletedAt string `json:"deleted_at,omitempty" gorm:"index"`
+	CreatedAt string `json:"createdAt,omitempty" gorm:"index"`
+	UpdatedAt string `json:"updatedAt,omitempty" gorm:"index"`
+	DeletedAt string `json:"deletedAt,omitempty" gorm:"index"`
 }
 
 type Handler struct {

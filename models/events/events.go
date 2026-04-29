@@ -34,7 +34,7 @@ type DeletedAt = time.Time
 // Event Defines model for event_trackers
 type Event struct {
 	// ActedUpon UUID of the entity on which the event was performed.
-	ActedUpon core.Uuid `db:"acted_upon" json:"acted_upon"`
+	ActedUpon core.Uuid `db:"acted_upon" json:"actedUpon"`
 
 	// Action Action taken on the resource.
 	Action string `db:"action" json:"action"`
@@ -43,10 +43,10 @@ type Event struct {
 	Category string `db:"category" json:"category"`
 
 	// CreatedAt Timestamp when the resource was created.
-	CreatedAt CreatedAt `db:"created_at" json:"created_at"`
+	CreatedAt CreatedAt `db:"created_at" json:"createdAt"`
 
 	// DeletedAt Timestamp when the resource was deleted.
-	DeletedAt *DeletedAt `db:"deleted_at" json:"deleted_at,omitempty"`
+	DeletedAt *DeletedAt `db:"deleted_at" json:"deletedAt,omitempty"`
 
 	// Description A summary/receipt of event that occurred.
 	Description string `db:"description" json:"description"`
@@ -55,18 +55,18 @@ type Event struct {
 	// Metadata Contains meaningful information, specific to the type of event.
 	// Structure of metadata can be different for different events.
 	Metadata    map[string]interface{} `db:"metadata" json:"metadata" gorm:"type:bytes;serializer:json"`
-	OperationID OperationID            `db:"operation_id" json:"operation_id"`
+	OperationID OperationID            `db:"operation_id" json:"operationId"`
 
 	// Severity A set of seven standard event levels.
 	Severity EventSeverity `db:"severity" json:"severity"`
 
 	// Status Status for the event.
 	Status   EventStatus `db:"status" json:"status"`
-	SystemID SystemID    `db:"system_id" json:"system_id"`
+	SystemID SystemID    `db:"system_id" json:"systemId"`
 
 	// UpdatedAt Timestamp when the resource was updated.
-	UpdatedAt UpdatedAt `db:"updated_at" json:"updated_at"`
-	UserID    *UserID   `db:"user_id" json:"user_id,omitempty"`
+	UpdatedAt UpdatedAt `db:"updated_at" json:"updatedAt"`
+	UserID    *UserID   `db:"user_id" json:"userId,omitempty"`
 }
 
 // EventSeverity A set of seven standard event levels.
@@ -89,16 +89,16 @@ type EventsFilter struct {
 	Status   EventStatus `json:"status"`
 	Severity []string    `json:"severity"`
 	// SortOn Field on which records are sorted
-	SortOn string `json:"sort_on"`
+	SortOn string `json:"sortOn"`
 
 	// ActedUpon UUID of the entity on which the event was performed.
-	ActedUpon []string `json:"acted_upon"`
+	ActedUpon []string `json:"actedUpon"`
 
 	// UserID UUIDs of users to filter events by.
-	UserID []string `json:"user_id"`
+	UserID []string `json:"userId"`
 
 	// SystemID UUIDs of systems to filter events by.
-	SystemID []string `json:"system_id"`
+	SystemID []string `json:"systemId"`
 }
 
 // ID defines model for id.

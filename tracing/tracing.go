@@ -16,9 +16,9 @@ import (
 // Config holds the configuration parameters for tracing
 type Config struct {
 	// ServiceName is the name of the service being traced
-	ServiceName string `yaml:"service_name" json:"service_name"`
+	ServiceName string `yaml:"service_name" json:"serviceName"`
 	// ServiceVersion is the version of the service
-	ServiceVersion string `yaml:"service_version" json:"service_version"`
+	ServiceVersion string `yaml:"service_version" json:"serviceVersion"`
 	// Environment is the deployment environment (e.g., "production", "staging", "development")
 	Environment string `yaml:"environment" json:"environment"`
 	// Endpoint is the OTLP collector endpoint (e.g., "localhost:4317")

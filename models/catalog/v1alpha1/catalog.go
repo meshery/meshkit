@@ -9,18 +9,18 @@ import (
 
 // CatalogData defines model for catalog_data.
 type CatalogData struct {
-	ContentClass ContentClass `json:"content_class,omitempty"`
+	ContentClass ContentClass `json:"contentClass,omitempty"`
 	//Tracks the specific content version that has been made available in the Catalog
-	PublishedVersion string `json:"published_version"`
+	PublishedVersion string `json:"publishedVersion"`
 
 	// Compatibility A list of technologies included in or implicated by this design; a list of relevant technology tags.
 	Compatibility []CatalogDataCompatibility `json:"compatibility"`
 
 	// PatternCaveats Specific stipulations to consider and known behaviors to be aware of when using this design.
-	PatternCaveats string `json:"pattern_caveats"`
+	PatternCaveats string `json:"patternCaveats"`
 
 	// PatternInfo Purpose of the design along with its intended and unintended uses.
-	PatternInfo string `json:"pattern_info"`
+	PatternInfo string `json:"patternInfo"`
 
 	// Contains reference to the dark and light mode snapshots of the catalog.
 	SnapshotURL []string `json:"imageURL,omitempty"` // this will require updating exisitng catalog data as well. updated the json tag to match previous key name, so changes will not be required in exisitng catgalogs

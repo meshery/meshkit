@@ -15,7 +15,7 @@ type Specification struct {
 
 // SmiResult - represents the results from Meshery smi conformance test run
 type SmiResult struct {
-	ID                 uuid.UUID       `json:"meshery_id,omitempty" db:"id"`
+	ID                 uuid.UUID       `json:"mesheryId,omitempty" db:"id"`
 	Date               string          `json:"datetime,omitempty" dc:"datetime"`
 	ServiceMesh        string          `json:"servicemesh,omitempty" db:"servicemesh"`
 	ServiceMeshVersion string          `json:"servicemeshversion,omitempty" db:"servicemeshversion"`
