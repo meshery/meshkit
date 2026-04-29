@@ -9,7 +9,7 @@ import (
 type Client struct {
 	RestConfig        rest.Config           `json:"restconfig,omitempty"`
 	KubeClient        *kubernetes.Clientset `json:"kubeclient,omitempty"`
-	DynamicKubeClient dynamic.Interface     `json:"dynamic_kubeclient,omitempty"`
+	DynamicKubeClient dynamic.Interface     `json:"dynamicKubeClient,omitempty"`
 }
 
 func New(kubeconfig []byte) (*Client, error) {

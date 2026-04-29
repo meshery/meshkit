@@ -21,7 +21,7 @@ type GitHubPackage struct {
 	branch     string
 	repository string
 	version    string
-	SourceURL  string `yaml:"source_url" json:"source_url"`
+	SourceURL  string `yaml:"source_url" json:"sourceUrl"`
 }
 
 func (gp GitHubPackage) GetVersion() string {

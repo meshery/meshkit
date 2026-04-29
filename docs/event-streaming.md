@@ -113,9 +113,9 @@ locally.
 // models/events/events.go (excerpt)
 type Event struct {
     ID          ID                     `db:"id" json:"id"`
-    UserID      *UserID                `db:"user_id"      json:"user_id,omitempty"`
-    SystemID    SystemID               `db:"system_id"    json:"system_id"`
-    OperationID OperationID            `db:"operation_id" json:"operation_id"`
+    UserID      *UserID                `db:"user_id"      json:"userId,omitempty"`
+    SystemID    SystemID               `db:"system_id"    json:"systemId"`
+    OperationID OperationID            `db:"operation_id" json:"operationId"`
 
     Category    string                 `db:"category"     json:"category"`
     Action      string                 `db:"action"       json:"action"`
@@ -123,12 +123,12 @@ type Event struct {
     Severity    EventSeverity          `db:"severity"     json:"severity"`
     Status      EventStatus            `db:"status"       json:"status"`
 
-    ActedUpon   core.Uuid              `db:"acted_upon"   json:"acted_upon"`
+    ActedUpon   core.Uuid              `db:"acted_upon"   json:"actedUpon"`
     Metadata    map[string]interface{} `db:"metadata"     json:"metadata" gorm:"type:bytes;serializer:json"`
 
-    CreatedAt   CreatedAt              `db:"created_at" json:"created_at"`
-    UpdatedAt   UpdatedAt              `db:"updated_at" json:"updated_at"`
-    DeletedAt   *DeletedAt             `db:"deleted_at" json:"deleted_at,omitempty"`
+    CreatedAt   CreatedAt              `db:"created_at" json:"createdAt"`
+    UpdatedAt   UpdatedAt              `db:"updated_at" json:"updatedAt"`
+    DeletedAt   *DeletedAt             `db:"deleted_at" json:"deletedAt,omitempty"`
 }
 
 type EventSeverity string // alert | critical | debug | emergency | error | informational | warning | success
