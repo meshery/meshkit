@@ -34,7 +34,7 @@
 ## Key conventions
 
 - Prefer **Makefile targets for final verification**. Use direct `go test ./pkg -run TestName` only for focused iteration.
-- Wire-facing identifiers follow the Meshery-wide **camelCase-on-the-wire** convention. This applies to items like structured log keys, event envelopes, and error-related identifiers that cross process boundaries.
+- Strictly honor and adhere to the established identifier naming scheme, authoritatively documented in meshery/schemas - https://github.com/meshery/schemas/blob/master/docs/identifier-naming-contributor-guide.md#canonical-naming-directory
 - Structured errors follow strict repository conventions so `errorutil` can understand them:
   - define concrete errors in each package's `error.go`
   - define code symbols matching `^Err[A-Z].+Code$`
