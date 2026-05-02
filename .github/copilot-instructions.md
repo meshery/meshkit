@@ -38,7 +38,7 @@
 - Structured errors follow strict repository conventions so `errorutil` can understand them:
   - define concrete errors in each package's `error.go`
   - define code symbols matching `^Err[A-Z].+Code$`
-  - create errors with `errors.New(...)` (or `ErrorV2` when needed)
+  - create errors with `errors.New(...)` (or `errors.NewV2(...)` when needed; the `(*errors.Error).ErrorV2(...)` helper may also be used where applicable)
   - keep static text in the description/cause/remediation arrays as string literals rather than composed constants/concatenations
 - If you add or modify structured errors, run `make errorutil` and usually `make errorutil-analyze`. `errorutil` expects `component_info.json` metadata and emits `errorutil_analyze_*.json` plus `errorutil_errors_export.json` artifacts under `helpers/`.
 - MeshModel registration assumes an imported package/directory contains **exactly one model definition** and then any number of components/relationships associated with it.
