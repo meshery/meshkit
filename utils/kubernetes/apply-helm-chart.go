@@ -15,6 +15,8 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 // HelmDriver is the type for helm drivers
@@ -54,12 +56,10 @@ const (
 	Latest = ">0.0.0-0"
 )
 
-var (
-	// downloadLocaton is the location where downloaded helm charts
-	// will be stored. os.TempDir will ensure that the path is cross
-	// platform
-	downloadLocation = os.TempDir()
-)
+// downloadLocaton is the location where downloaded helm charts
+// will be stored. os.TempDir will ensure that the path is cross
+// platform
+var downloadLocation = os.TempDir()
 
 // HelmIndex holds the index.yaml data in the struct format
 type HelmIndex struct {
@@ -421,57 +421,106 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 
 	// KubeConfig setup
 	kubeConfig := genericclioptions.NewConfigFlags(false)
-	// Set KubeConfig to DevNull to prevent read from local kubeconfig
-	// to prevent conflicts between "data" and "files" properties (CAFile, CAData and KeyFile, KeyData)
-	// ConfigFlags only allows setting CAFile, KeyFile but not CAData, KeyData.
-	// When the library reads the original kubeconfig containing cert data / key data AND we specify cert file / key file, these configurations conflict
-	devNull := os.DevNull
-	kubeConfig.KubeConfig = &devNull
-	kubeConfig.APIServer = &c.RestConfig.Host
-	kubeConfig.BearerToken = &c.RestConfig.BearerToken
-	kubeConfig.Insecure = &c.RestConfig.Insecure
 
-	// Set username and password for basic auth if available
-	if c.RestConfig.Username != "" {
-		kubeConfig.Username = &c.RestConfig.Username
-	}
-	if c.RestConfig.Password != "" {
-		kubeConfig.Password = &c.RestConfig.Password
-	}
+	// Exec-auth kubeconfigs (eg: aws eks get-token) typically do not have a static bearer token.
+	// In that case, do not force /dev/null; let client-go load kubeconfig and execute the auth plugin.
+	useKubeConfigAuth := c.RestConfig.ExecProvider != nil && c.RestConfig.BearerToken == ""
 
-	// Only set CA file if not running in insecure mode
-	if !c.RestConfig.Insecure {
-		if len(c.RestConfig.CAData) > 0 {
-			caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
+	if !useKubeConfigAuth {
+		// Set KubeConfig to DevNull to prevent read from local kubeconfig
+		// to prevent conflicts between "data" and "files" properties (CAFile, CAData and KeyFile, KeyData)
+		// ConfigFlags only allows setting CAFile, KeyFile but not CAData, KeyData.
+		// When the library reads the original kubeconfig containing cert data / key data AND we specify cert file / key file, these configurations conflict
+		devNull := os.DevNull
+		kubeConfig.KubeConfig = &devNull
+		kubeConfig.APIServer = &c.RestConfig.Host
+		kubeConfig.BearerToken = &c.RestConfig.BearerToken
+		kubeConfig.Insecure = &c.RestConfig.Insecure
+
+		// Set username and password for basic auth if available
+		if c.RestConfig.Username != "" {
+			kubeConfig.Username = &c.RestConfig.Username
+		}
+		if c.RestConfig.Password != "" {
+			kubeConfig.Password = &c.RestConfig.Password
+		}
+
+		// Only set CA file if not running in insecure mode
+		if !c.RestConfig.Insecure {
+			if len(c.RestConfig.CAData) > 0 {
+				caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
+				if err != nil {
+					cleanup() // Clean up any files created so far
+					return nil, nil, err
+				}
+				tempFiles = append(tempFiles, caFileName)
+				kubeConfig.CAFile = &caFileName
+			}
+		}
+
+		// Set client certificate data if available
+		if len(c.RestConfig.CertData) > 0 {
+			certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
+			if err != nil {
+				cleanup()
+				return nil, nil, err
+			}
+			tempFiles = append(tempFiles, certFileName)
+			kubeConfig.CertFile = &certFileName
+		}
+
+		// Set client key data if available
+		if len(c.RestConfig.KeyData) > 0 {
+			keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
 			if err != nil {
 				cleanup() // Clean up any files created so far
 				return nil, nil, err
 			}
-			tempFiles = append(tempFiles, caFileName)
-			kubeConfig.CAFile = &caFileName
+			tempFiles = append(tempFiles, keyFileName)
+			kubeConfig.KeyFile = &keyFileName
 		}
-	}
+	} else {
 
-	// Set client certificate data if available
-	if len(c.RestConfig.CertData) > 0 {
-		certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
-		if err != nil {
-			cleanup()
-			return nil, nil, err
-		}
-		tempFiles = append(tempFiles, certFileName)
-		kubeConfig.CertFile = &certFileName
-	}
+		const (
+			clusterName = "meshery-cluster"
+			authInfo    = "meshkit-helm-user"
+		)
 
-	// Set client key data if available
-	if len(c.RestConfig.KeyData) > 0 {
-		keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
-		if err != nil {
-			cleanup() // Clean up any files created so far
-			return nil, nil, err
+		helmKubeConfig := clientcmdapi.NewConfig()
+
+		helmKubeConfig.Clusters[clusterName] = &clientcmdapi.Cluster{
+			Server:                   c.RestConfig.Host,
+			TLSServerName:            c.RestConfig.ServerName,
+			InsecureSkipTLSVerify:    c.RestConfig.Insecure,
+			CertificateAuthority:     c.RestConfig.CAFile,
+			CertificateAuthorityData: c.RestConfig.CAData,
 		}
-		tempFiles = append(tempFiles, keyFileName)
-		kubeConfig.KeyFile = &keyFileName
+
+		helmKubeConfig.AuthInfos[authInfo] = &clientcmdapi.AuthInfo{
+			Exec:         c.RestConfig.ExecProvider,
+			AuthProvider: c.RestConfig.AuthProvider,
+		}
+
+		helmKubeConfig.Contexts[clusterName] = &clientcmdapi.Context{
+			Cluster:  clusterName,
+			AuthInfo: authInfo,
+		}
+
+		// explicitly setting kube context may not be required
+		helmKubeConfig.CurrentContext = clusterName
+
+		configBytes, err := clientcmd.Write(*helmKubeConfig)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to write kubeconfig %v", err)
+		}
+
+		configFile, err := setDataAndReturnFilename(configBytes)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get kubeconfig file %v", err)
+		}
+		tempFiles = append(tempFiles, configFile)
+
+		kubeConfig.KubeConfig = &configFile
 	}
 
 	actionConfig := new(action.Configuration)
@@ -554,7 +603,8 @@ func createHelmPathFromHelmChartLocation(loc HelmChartLocation) (string, error) 
 		getter.Provider{
 			Schemes: []string{"http", "https"},
 			New:     getter.NewHTTPGetter,
-		}},
+		},
+	},
 	)
 	if err != nil {
 		return "", ErrApplyHelmChart(err)
