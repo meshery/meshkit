@@ -29,6 +29,8 @@ type Model struct {
 	DeletedAt string `json:"deletedAt,omitempty" gorm:"index"`
 }
 
+// TODO: Relocate Handler to a !js-gated file once schemas/*_helper.go stop
+// referencing it, to keep gorm out of wasm builds.
 type Handler struct {
 	*gorm.DB
 	*sync.Mutex

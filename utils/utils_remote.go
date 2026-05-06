@@ -122,7 +122,7 @@ func safeClose(co io.Closer) {
 	}
 }
 
-func TrackTime(logger logger.Handler, start time.Time, name string) {
+func TrackTime(l logger.Handler, start time.Time, name string) {
 	elapsed := time.Since(start)
-	logger.Debugf("%s took %s\n", name, elapsed)
+	l.Debugf("%s took %s\n", name, elapsed)
 }
