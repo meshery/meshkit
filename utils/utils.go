@@ -2,14 +2,12 @@ package utils
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	mathrand "math/rand"
-	"net/http"
 	"net/url"
 	"os"
 	"os/user"
@@ -20,16 +18,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
-	"github.com/meshery/meshkit/logger"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-
-	kubeerror "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type fileWriter interface {
@@ -126,30 +118,6 @@ func Filepath() string {
 	return fmt.Sprintf("file: %s, line: %d", fn, line)
 }
 
-func DownloadFile(filepath string, url string) error {
-	// Get the data
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("failed to get the file %d status code for %s file", resp.StatusCode, url)
-	}
-
-	// Create the file
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = out.Close() }()
-
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
-	return err
-}
-
 // GetHome returns the home path
 func GetHome() string {
 	usr, _ := user.Current()
@@ -177,44 +145,6 @@ func CreateFile(contents []byte, filename string, location string) error {
 	return nil
 }
 
-// ReadFileSource supports "http", "https" and "file" protocols.
-// it takes in the location as a uri and returns the contents of
-// file as a string.
-func ReadFileSource(uri string) (string, error) {
-	if strings.HasPrefix(uri, "http") {
-		return ReadRemoteFile(uri)
-	}
-	if strings.HasPrefix(uri, "file") {
-		return ReadLocalFile(uri)
-	}
-
-	return "", ErrInvalidProtocol
-}
-
-// ReadRemoteFile takes in the location of a remote file
-// in the format 'http://location/of/file' or 'https://location/file'
-// and returns the content of the file if the location is valid and
-// no error occurs
-func ReadRemoteFile(url string) (string, error) {
-	response, err := http.Get(url)
-	if err != nil {
-		return " ", err
-	}
-	if response.StatusCode == http.StatusNotFound {
-		return " ", ErrRemoteFileNotFound(url)
-	}
-
-	defer func() { _ = response.Body.Close() }()
-
-	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, response.Body)
-	if err != nil {
-		return " ", ErrReadingRemoteFile(err)
-	}
-
-	return buf.String(), nil
-}
-
 // ReadLocalFile takes in the location of a local file
 // in the format `file://location/of/file` and returns
 // the content of the file if the path is valid and no
@@ -233,44 +163,6 @@ func ReadLocalFile(location string) (string, error) {
 	return string(data), nil
 }
 
-// Gets the latest stable release tags from github for a given org name and repo name(in that org) in sorted order
-func GetLatestReleaseTagsSorted(org string, repo string) ([]string, error) {
-	url := "https://github.com/" + org + "/" + repo + "/releases"
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, ErrGettingLatestReleaseTag(err)
-	}
-	defer safeClose(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrGettingLatestReleaseTag(fmt.Errorf("unable to get latest release tag"))
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, ErrGettingLatestReleaseTag(err)
-	}
-	re := regexp.MustCompile("/releases/tag/(.*?)\"")
-	releases := re.FindAllString(string(body), -1)
-	if len(releases) == 0 {
-		return nil, ErrGettingLatestReleaseTag(errors.New("no release found in this repository"))
-	}
-	var versions []string
-	for _, rel := range releases {
-		latest := strings.ReplaceAll(rel, "/releases/tag/", "")
-		latest = strings.ReplaceAll(latest, "\"", "")
-		versions = append(versions, latest)
-	}
-	versions = SortDottedStringsByDigits(versions)
-	return versions, nil
-}
-
-// SafeClose is a helper function help to close the io
-func safeClose(co io.Closer) {
-	if cerr := co.Close(); cerr != nil {
-		log.Error(cerr)
-	}
-}
 
 func Contains[G []K, K comparable](slice G, ele K) bool {
 	for _, item := range slice {
@@ -568,15 +460,6 @@ func YAMLToJSON(content []byte) ([]byte, error) {
 	}
 	return content, nil
 }
-func ExtractFile(filePath string, destDir string) error {
-	if IsTarGz(filePath) {
-		return ExtractTarGz(destDir, filePath)
-	} else if IsZip(filePath) {
-		return ExtractZip(destDir, filePath)
-	}
-	return ErrExtractType
-}
-
 // Convert path to svg Data
 func ReadSVGData(baseDir, path string) (string, error) {
 	fullPath := baseDir + path
@@ -754,158 +637,6 @@ func IsDirectoryNonEmpty(dirPath string) bool {
 	return len(entries) > 0
 }
 
-// checks if the error is of type kubeerror.StatusError
-func IsErrKubeStatusErr(err error) bool {
-	switch err.(type) {
-	case *kubeerror.StatusError:
-		return true
-	default:
-		return false
-	}
-}
-
-// handleStatusReason processes the high-level reason for the error and generates appropriate messaging
-func handleStatusReason(reason v1.StatusReason) (probableCause, remedy string) {
-	switch reason {
-	case v1.StatusReasonUnauthorized:
-		return "User authentication failed or authentication credentials were not provided",
-			"Ensure you have provided valid authentication credentials and they have not expired"
-
-	case v1.StatusReasonForbidden:
-		return "The server understood the request but refuses to authorize it",
-			"Verify you have the necessary permissions to perform this operation"
-
-	case v1.StatusReasonNotFound:
-		return "The requested resource does not exist on the server",
-			"Check if the resource name and namespace are correct, and the resource exists"
-
-	case v1.StatusReasonAlreadyExists:
-		return "The resource you are trying to create already exists",
-			"Either use a different name for your resource or update the existing resource instead"
-
-	case v1.StatusReasonConflict:
-		return "The requested operation conflicts with an existing resource or operation",
-			"Retrieve the latest state of the resource and retry your operation"
-
-	case v1.StatusReasonGone:
-		return "The requested resource is no longer available",
-			"The resource has been deleted or moved. Update your configuration to reference existing resources"
-
-	case v1.StatusReasonInvalid:
-		return "The provided resource specification is invalid",
-			"Review the resource specification and correct any validation errors"
-
-	case v1.StatusReasonServerTimeout:
-		return "The server timed out while processing the request",
-			"The server is temporarily unable to handle the request. Try again later"
-
-	case v1.StatusReasonTimeout:
-		return "The operation could not be completed within the specified time",
-			"Consider increasing timeout values or retry the operation"
-
-	case v1.StatusReasonTooManyRequests:
-		return "Too many requests are being sent to the server",
-			"Reduce the rate of requests or wait before retrying"
-
-	case v1.StatusReasonBadRequest:
-		return "The request was invalid or cannot be served",
-			"Review and correct the format of your request"
-
-	case v1.StatusReasonMethodNotAllowed:
-		return "The requested operation is not supported",
-			"Verify that the operation is valid for this type of resource"
-
-	case v1.StatusReasonInternalError:
-		return "An internal error occurred while processing the request",
-			"This is a server-side issue. Contact your cluster administrator if the problem persists"
-
-	case v1.StatusReasonExpired:
-		return "The requested resource has expired",
-			"The resource needs to be recreated or refreshed"
-
-	case v1.StatusReasonServiceUnavailable:
-		return "The service is currently unavailable",
-			"The server is temporarily unable to handle requests. Try again later"
-
-	default:
-		return "An unexpected error occurred while processing the request",
-			"Review the error details and ensure your request is valid"
-	}
-}
-
-// handleStatusCause processes specific validation errors and field-level issues
-func handleStatusCause(cause v1.StatusCause, kind string) (probableCause, remedy string) {
-	switch cause.Type {
-	case v1.CauseTypeFieldValueNotFound:
-		return fmt.Sprintf("The specified value for field '%s' was not found", cause.Field),
-			fmt.Sprintf("Ensure the value referenced in field '%s' exists before creating this resource", cause.Field)
-
-	case v1.CauseTypeFieldValueRequired:
-		return fmt.Sprintf("Required field '%s' was not provided in the %s specification", cause.Field, kind),
-			fmt.Sprintf("Add the required field '%s' to your %s manifest", cause.Field, kind)
-
-	case v1.CauseTypeFieldValueDuplicate:
-		return fmt.Sprintf("Duplicate value found for field '%s'", cause.Field),
-			fmt.Sprintf("Ensure the value for field '%s' is unique", cause.Field)
-
-	case v1.CauseTypeFieldValueInvalid:
-		return fmt.Sprintf("Invalid value provided for field '%s': %s", cause.Field, cause.Message),
-			fmt.Sprintf("Correct the value for field '%s' according to the validation requirements", cause.Field)
-
-	case v1.CauseTypeUnexpectedServerResponse:
-		return "The server returned an unexpected response",
-			"This is likely a server-side issue. Contact your cluster administrator"
-
-	default:
-		return fmt.Sprintf("Issue with field '%s': %s", cause.Field, cause.Message),
-			"Review and correct the specified field according to the error message."
-	}
-}
-
-// ParseKubeStatusErr converts Kubernetes API errors into user-friendly messages
-func ParseKubeStatusErr(err *kubeerror.StatusError) (shortDescription, longDescription, probableCause, remedy []string) {
-	shortDescription = make([]string, 0)
-	longDescription = make([]string, 0)
-	probableCause = make([]string, 0)
-	remedy = make([]string, 0)
-
-	if err == nil {
-		return
-	}
-
-	status := err.Status()
-
-	// Add the high-level error message with status code to longDescription
-	longDescription = append(longDescription, fmt.Sprintf("[Status Code: %d] %s", status.Code, status.Message))
-
-	pc, rem := handleStatusReason(status.Reason)
-	probableCause = append(probableCause, pc)
-	remedy = append(remedy, rem)
-
-	// Add specific field validation errors
-	if status.Details != nil && len(status.Details.Causes) > 0 {
-		for _, cause := range status.Details.Causes {
-			longDescription = append(longDescription, fmt.Sprintf("Field '%s': %s", cause.Field, cause.Message))
-
-			pc, rem := handleStatusCause(cause, status.Details.Kind)
-			probableCause = append(probableCause, pc)
-			remedy = append(remedy, rem)
-		}
-	} else {
-		// If no specific causes are provided, add the general reason-based guidance
-		pc, rem := handleStatusReason(status.Reason)
-		probableCause = append(probableCause, pc)
-		remedy = append(remedy, rem)
-	}
-
-	return
-}
-
-func TrackTime(logger logger.Handler, start time.Time, name string) {
-
-	elapsed := time.Since(start)
-	logger.Debugf("%s took %s\n", name, elapsed)
-}
 
 // TruncateErrorMessage truncates an error message to a specified word limit.
 func TruncateErrorMessage(err error, wordLimit int) error {
