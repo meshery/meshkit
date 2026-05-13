@@ -281,8 +281,8 @@ func TestDo_NotifierNotCalledOnPermanentError(t *testing.T) {
 		}),
 	)
 	// A permanent error stops immediately; the notifier must not be spammed.
-	if notifyCount.Load() > 1 {
-		t.Fatalf("notifier called %d times for permanent error, expected <= 1", notifyCount.Load())
+	if notifyCount.Load() != 0 {
+		t.Fatalf("notifier called %d times for permanent error, expected 0", notifyCount.Load())
 	}
 }
 
