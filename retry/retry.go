@@ -60,6 +60,9 @@ type Operation func() error
 //
 // Do is safe for concurrent use; each call creates its own backoff state.
 func Do(ctx context.Context, op Operation, opts ...Option) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	cfg := defaultConfig()
 	for _, o := range opts {
 		o(&cfg)
