@@ -3,6 +3,7 @@ package retry_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -114,6 +115,16 @@ func TestDo_IsPermanent_ReturnsTrueForPermanentWrapped(t *testing.T) {
 	wrapped := retry.Permanent(inner)
 	if !retry.IsPermanent(wrapped) {
 		t.Fatal("Permanent(err) should satisfy IsPermanent")
+	}
+}
+
+func TestDo_IsPermanent_HandlesDoublyWrappedErrors(t *testing.T) {
+	t.Parallel()
+
+	inner := errors.New("the cause")
+	wrapped := fmt.Errorf("outer layer: %w", retry.Permanent(inner))
+	if !retry.IsPermanent(wrapped) {
+		t.Fatal("IsPermanent should unwrap error chains successfully")
 	}
 }
 
