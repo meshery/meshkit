@@ -16,7 +16,7 @@
 //
 // # Basic usage
 //
-//	err := retry.Do(ctx, func() error {
+//	err := retry.Do(ctx, func(ctx context.Context) error {
 //	    req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 //	    resp, err := http.DefaultClient.Do(req)
 //	    if err != nil {
@@ -44,14 +44,9 @@ import (
 
 // Operation is the function signature for retryable work.
 //
-// TODO: The Operation signature currently lacks a context.Context, which prevents
-// operations from being interrupted immediately upon context cancellation.
-// A follow-up task should be created for the full implementation to avoid bloating
-// the current pull request.
-//
 // Return nil on success, [Permanent](err) to stop without further retries,
 // or any plain error to trigger the next backoff wait and retry.
-type Operation func() error
+type Operation func(ctx context.Context) error
 
 // Do executes op with exponential backoff until one of the following occurs:
 //   - op returns nil (success)
@@ -77,7 +72,7 @@ func Do(ctx context.Context, op Operation, opts ...Option) error {
 	b := buildBackOff(cfg)
 	bCtx := backoff.WithContext(b, ctx)
 
-	return backoff.RetryNotify(backoff.Operation(op), bCtx, cfg.Notifier)
+	return backoff.RetryNotify(func() error { return op(ctx) }, bCtx, cfg.Notifier)
 }
 
 // buildBackOff constructs a cenkalti/backoff policy from the supplied Config.

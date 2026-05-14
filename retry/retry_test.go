@@ -15,12 +15,12 @@ import (
 
 // alwaysFail returns an Operation that always returns the given error.
 func alwaysFail(err error) retry.Operation {
-	return func() error { return err }
+	return func(ctx context.Context) error { return err }
 }
 
 // countingOp returns an Operation that always fails and increments *count.
 func countingOp(count *atomic.Int64, err error) retry.Operation {
-	return func() error {
+	return func(ctx context.Context) error {
 		count.Add(1)
 		return err
 	}
@@ -32,7 +32,7 @@ func TestDo_SucceedsFirstAttempt(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
-	err := retry.Do(context.Background(), func() error {
+	err := retry.Do(context.Background(), func(ctx context.Context) error {
 		calls++
 		return nil
 	}, retry.WithMaxAttempts(5))
@@ -52,7 +52,7 @@ func TestDo_SucceedsAfterTransientErrors(t *testing.T) {
 	var calls atomic.Int64
 
 	err := retry.Do(context.Background(),
-		func() error {
+		func(ctx context.Context) error {
 			n := calls.Add(1)
 			if n < 4 {
 				return transient
@@ -80,7 +80,7 @@ func TestDo_PermanentErrorStopsImmediately(t *testing.T) {
 	calls := 0
 
 	err := retry.Do(context.Background(),
-		func() error {
+		func(ctx context.Context) error {
 			calls++
 			return retry.Permanent(permanent)
 		},
@@ -143,7 +143,7 @@ func TestDo_ContextCancellationStopsLoop(t *testing.T) {
 	}()
 
 	err := retry.Do(ctx,
-		func() error {
+		func(ctx context.Context) error {
 			calls.Add(1)
 			return transient
 		},
@@ -167,7 +167,7 @@ func TestDo_ContextAlreadyCancelledBeforeFirstAttempt(t *testing.T) {
 
 	var calls atomic.Int64
 	err := retry.Do(ctx,
-		func() error {
+		func(ctx context.Context) error {
 			calls.Add(1)
 			return errors.New("should not reach")
 		},
@@ -247,7 +247,7 @@ func TestDo_NotifierCalledOnEachRetry(t *testing.T) {
 
 	var calls atomic.Int64
 	_ = retry.Do(context.Background(),
-		func() error {
+		func(ctx context.Context) error {
 			if calls.Add(1) <= failures {
 				return transient
 			}
@@ -269,7 +269,7 @@ func TestDo_NotifierNotCalledOnImmediateSuccess(t *testing.T) {
 
 	var notifyCount atomic.Int64
 	_ = retry.Do(context.Background(),
-		func() error { return nil },
+		func(ctx context.Context) error { return nil },
 		retry.WithNotifier(func(err error, wait time.Duration) {
 			notifyCount.Add(1)
 		}),
@@ -284,7 +284,7 @@ func TestDo_NotifierNotCalledOnPermanentError(t *testing.T) {
 
 	var notifyCount atomic.Int64
 	_ = retry.Do(context.Background(),
-		func() error { return retry.Permanent(errors.New("perm")) },
+		func(ctx context.Context) error { return retry.Permanent(errors.New("perm")) },
 		retry.WithMaxAttempts(5),
 		retry.WithInitialInterval(1*time.Millisecond),
 		retry.WithNotifier(func(err error, wait time.Duration) {
@@ -345,7 +345,7 @@ func TestDo_DefaultsAreApplied(t *testing.T) {
 	defer cancel()
 
 	_ = retry.Do(ctx,
-		func() error {
+		func(ctx context.Context) error {
 			if calls.Add(1) >= 2 {
 				return nil
 			}

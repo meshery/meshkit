@@ -120,6 +120,7 @@ func WithNotifier(n func(err error, wait time.Duration)) Option {
 //	err := retry.Do(ctx, op, retry.WithLogNotifier(l.Log))
 func WithLogNotifier(log logger.Handler) Option {
 	return WithNotifier(func(err error, wait time.Duration) {
-		log.Warnf("retry: transient error — retrying in %s: %v", wait.Round(time.Millisecond), err)
+		log.Infof("retry: transient error — retrying in %s", wait.Round(time.Millisecond))
+		log.Warn(err)
 	})
 }
