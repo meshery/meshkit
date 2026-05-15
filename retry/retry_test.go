@@ -11,14 +11,10 @@ import (
 	"github.com/meshery/meshkit/retry"
 )
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
-// alwaysFail returns an Operation that always returns the given error.
 func alwaysFail(err error) retry.Operation {
 	return func(ctx context.Context) error { return err }
 }
 
-// countingOp returns an Operation that always fails and increments *count.
 func countingOp(count *atomic.Int64, err error) retry.Operation {
 	return func(ctx context.Context) error {
 		count.Add(1)
@@ -26,9 +22,7 @@ func countingOp(count *atomic.Int64, err error) retry.Operation {
 	}
 }
 
-// ─── tests ──────────────────────────────────────────────────────────────────
-
-func TestDo_SucceedsFirstAttempt(t *testing.T) {
+func TestRetrySucceedsFirstAttempt(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
@@ -45,7 +39,7 @@ func TestDo_SucceedsFirstAttempt(t *testing.T) {
 	}
 }
 
-func TestDo_SucceedsAfterTransientErrors(t *testing.T) {
+func TestRetrySucceedsAfterTransientErrors(t *testing.T) {
 	t.Parallel()
 
 	transient := errors.New("transient")
@@ -73,7 +67,7 @@ func TestDo_SucceedsAfterTransientErrors(t *testing.T) {
 	}
 }
 
-func TestDo_PermanentErrorStopsImmediately(t *testing.T) {
+func TestRetryPermanentErrorStopsImmediately(t *testing.T) {
 	t.Parallel()
 
 	permanent := errors.New("permanent failure")
@@ -99,7 +93,7 @@ func TestDo_PermanentErrorStopsImmediately(t *testing.T) {
 	}
 }
 
-func TestDo_IsPermanent_ReturnsFalseForTransient(t *testing.T) {
+func TestIsPermanentReturnsFalseForTransient(t *testing.T) {
 	t.Parallel()
 
 	err := errors.New("transient")
@@ -108,7 +102,7 @@ func TestDo_IsPermanent_ReturnsFalseForTransient(t *testing.T) {
 	}
 }
 
-func TestDo_IsPermanent_ReturnsTrueForPermanentWrapped(t *testing.T) {
+func TestIsPermanentReturnsTrueForPermanentWrapped(t *testing.T) {
 	t.Parallel()
 
 	inner := errors.New("the cause")
@@ -118,7 +112,7 @@ func TestDo_IsPermanent_ReturnsTrueForPermanentWrapped(t *testing.T) {
 	}
 }
 
-func TestDo_IsPermanent_HandlesDoublyWrappedErrors(t *testing.T) {
+func TestIsPermanentHandlesDoublyWrappedErrors(t *testing.T) {
 	t.Parallel()
 
 	inner := errors.New("the cause")
@@ -128,7 +122,7 @@ func TestDo_IsPermanent_HandlesDoublyWrappedErrors(t *testing.T) {
 	}
 }
 
-func TestDo_ContextCancellationStopsLoop(t *testing.T) {
+func TestRetryContextCancellationStopsLoop(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -136,7 +130,6 @@ func TestDo_ContextCancellationStopsLoop(t *testing.T) {
 	var calls atomic.Int64
 	transient := errors.New("transient")
 
-	// Cancel the context after the first failure.
 	go func() {
 		time.Sleep(5 * time.Millisecond)
 		cancel()
@@ -159,7 +152,7 @@ func TestDo_ContextCancellationStopsLoop(t *testing.T) {
 	}
 }
 
-func TestDo_ContextAlreadyCancelledBeforeFirstAttempt(t *testing.T) {
+func TestRetryContextAlreadyCancelledBeforeFirstAttempt(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -178,14 +171,12 @@ func TestDo_ContextAlreadyCancelledBeforeFirstAttempt(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for pre-cancelled context")
 	}
-	// cenkalti/backoff checks the context before and after each attempt, so
-	// at most one call can have occurred.
 	if calls.Load() > 1 {
 		t.Fatalf("expected at most 1 call for pre-cancelled context, got %d", calls.Load())
 	}
 }
 
-func TestDo_MaxAttemptsEnforced(t *testing.T) {
+func TestRetryMaxAttemptsEnforced(t *testing.T) {
 	t.Parallel()
 
 	const maxAttempts = 4
@@ -207,7 +198,7 @@ func TestDo_MaxAttemptsEnforced(t *testing.T) {
 	}
 }
 
-func TestDo_MaxElapsedTimeEnforced(t *testing.T) {
+func TestRetryMaxElapsedTimeEnforced(t *testing.T) {
 	t.Parallel()
 
 	start := time.Now()
@@ -225,13 +216,12 @@ func TestDo_MaxElapsedTimeEnforced(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when elapsed time exceeded")
 	}
-	// Allow a 3x grace factor for slow CI runners.
 	if elapsed > 3*budget {
 		t.Fatalf("loop ran for %s, expected <= %s", elapsed, 3*budget)
 	}
 }
 
-func TestDo_NotifierCalledOnEachRetry(t *testing.T) {
+func TestRetryNotifierCalledOnEachRetry(t *testing.T) {
 	t.Parallel()
 
 	const failures = 3
@@ -264,7 +254,7 @@ func TestDo_NotifierCalledOnEachRetry(t *testing.T) {
 	}
 }
 
-func TestDo_NotifierNotCalledOnImmediateSuccess(t *testing.T) {
+func TestRetryNotifierNotCalledOnImmediateSuccess(t *testing.T) {
 	t.Parallel()
 
 	var notifyCount atomic.Int64
@@ -279,7 +269,7 @@ func TestDo_NotifierNotCalledOnImmediateSuccess(t *testing.T) {
 	}
 }
 
-func TestDo_NotifierNotCalledOnPermanentError(t *testing.T) {
+func TestRetryNotifierNotCalledOnPermanentError(t *testing.T) {
 	t.Parallel()
 
 	var notifyCount atomic.Int64
@@ -291,16 +281,14 @@ func TestDo_NotifierNotCalledOnPermanentError(t *testing.T) {
 			notifyCount.Add(1)
 		}),
 	)
-	// A permanent error stops immediately; the notifier must not be spammed.
 	if notifyCount.Load() != 0 {
 		t.Fatalf("notifier called %d times for permanent error, expected 0", notifyCount.Load())
 	}
 }
 
-func TestDo_ZeroMaxAttemptsMeansUnlimited(t *testing.T) {
+func TestRetryZeroMaxAttemptsMeansUnlimited(t *testing.T) {
 	t.Parallel()
 
-	// MaxAttempts(0) should fall back to elapsed-time only.
 	err := retry.Do(context.Background(),
 		alwaysFail(errors.New("always fails")),
 		retry.WithMaxAttempts(0),
@@ -313,7 +301,7 @@ func TestDo_ZeroMaxAttemptsMeansUnlimited(t *testing.T) {
 	}
 }
 
-func TestDo_WithMaxAttemptsOneNoRetry(t *testing.T) {
+func TestRetryWithMaxAttemptsOneNoRetry(t *testing.T) {
 	t.Parallel()
 
 	var calls atomic.Int64
@@ -331,13 +319,9 @@ func TestDo_WithMaxAttemptsOneNoRetry(t *testing.T) {
 	}
 }
 
-func TestDo_DefaultsAreApplied(t *testing.T) {
+func TestRetryDefaultsAreApplied(t *testing.T) {
 	t.Parallel()
 
-	// Smoke-test: Do with zero opts should not panic and should retry at least
-	// once. We use a 2 s context so the first retry (default 500 ms initial
-	// interval + up-to-30 % jitter = at most ~650 ms) lands well within budget
-	// even on slow CI runners.
 	transient := errors.New("transient")
 	var calls atomic.Int64
 
@@ -351,7 +335,6 @@ func TestDo_DefaultsAreApplied(t *testing.T) {
 			}
 			return transient
 		},
-		// No options — pure defaults.
 	)
 
 	if calls.Load() < 2 {
