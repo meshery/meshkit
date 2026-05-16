@@ -55,12 +55,24 @@ func WithMaxElapsedTime(d time.Duration) Option {
 }
 
 func WithMultiplier(m float64) Option {
-	return func(c *Config) { c.Multiplier = m }
+	return func(c *Config) {
+		if m <= 0 {
+			c.Multiplier = DefaultMultiplier
+			return
+		}
+		c.Multiplier = m
+	}
 }
 
 // WithJitter overrides randomization factor (range: 0.0-1.0). Do not set to 0.0 in production.
 func WithJitter(f float64) Option {
-	return func(c *Config) { c.RandomizationFactor = f }
+	return func(c *Config) {
+		if f < 0 || f > 1 {
+			c.RandomizationFactor = DefaultRandomizationFactor
+			return
+		}
+		c.RandomizationFactor = f
+	}
 }
 
 func WithNotifier(n func(err error, wait time.Duration)) Option {
