@@ -61,6 +61,13 @@ const (
 // platform
 var downloadLocation = os.TempDir()
 
+var (
+	// writeKubeConfig marshals kubeconfig bytes. Kept as a variable to enable deterministic test stubs.
+	writeKubeConfig = clientcmd.Write
+	// writeTempData writes byte payloads to temp files. Kept as a variable to enable deterministic test stubs.
+	writeTempData = setDataAndReturnFilename
+)
+
 // HelmIndex holds the index.yaml data in the struct format
 type HelmIndex struct {
 	APIVersion string      `yaml:"apiVersion"`
@@ -463,7 +470,7 @@ func (c *Client) setupKubeConfig() (*genericclioptions.ConfigFlags, func(), erro
 		// Only set CA file if not running in insecure mode
 		if !c.RestConfig.Insecure {
 			if len(c.RestConfig.CAData) > 0 {
-				caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
+				caFileName, err := writeTempData(c.RestConfig.CAData)
 				if err != nil {
 					return nil, cleanup, err
 				}
@@ -474,7 +481,7 @@ func (c *Client) setupKubeConfig() (*genericclioptions.ConfigFlags, func(), erro
 
 		// Set client certificate data if available
 		if len(c.RestConfig.CertData) > 0 {
-			certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
+			certFileName, err := writeTempData(c.RestConfig.CertData)
 			if err != nil {
 				return nil, cleanup, err
 			}
@@ -484,7 +491,7 @@ func (c *Client) setupKubeConfig() (*genericclioptions.ConfigFlags, func(), erro
 
 		// Set client key data if available
 		if len(c.RestConfig.KeyData) > 0 {
-			keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
+			keyFileName, err := writeTempData(c.RestConfig.KeyData)
 			if err != nil {
 				return nil, cleanup, err
 			}
@@ -522,12 +529,12 @@ func (c *Client) setupKubeConfig() (*genericclioptions.ConfigFlags, func(), erro
 	// explicitly setting kube context may not be required
 	helmKubeConfig.CurrentContext = clusterName
 
-	configBytes, err := clientcmd.Write(*helmKubeConfig)
+	configBytes, err := writeKubeConfig(*helmKubeConfig)
 	if err != nil {
 		return nil, cleanup, fmt.Errorf("failed to write kubeconfig %v", err)
 	}
 
-	configFile, err := setDataAndReturnFilename(configBytes)
+	configFile, err := writeTempData(configBytes)
 	if err != nil {
 		return nil, cleanup, fmt.Errorf("failed to get kubeconfig file %v", err)
 	}
