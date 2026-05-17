@@ -241,7 +241,7 @@ type ApplyHelmChartConfig struct {
 //		},
 //		OverrideValues: vals,
 //	})
-func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
+func (c *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	setupDefaults(&cfg)
 
 	if err := setupChartVersion(&cfg); err != nil {
@@ -264,8 +264,14 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	actionConfig, cleanup, err := createHelmActionConfig(client, cfg)
+	kubeConfig, cleanup, err := c.setupKubeConfig()
 	if err != nil {
+		cleanup()
+		return err
+	}
+	actionConfig, err := c.createHelmActionConfig(cfg, kubeConfig)
+	if err != nil {
+		cleanup()
 		return ErrApplyHelmChart(err)
 	}
 	defer cleanup()
@@ -408,10 +414,19 @@ func checkIfInstallable(ch *chart.Chart) error {
 }
 
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
-func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Configuration, func(), error) {
+func (c *Client) createHelmActionConfig(cfg ApplyHelmChartConfig, kubeConfig *genericclioptions.ConfigFlags) (*action.Configuration, error) {
 	// Set the environment variable needed by the Init methods
 	_ = os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
 
+	actionConfig := new(action.Configuration)
+	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
+		return nil, ErrApplyHelmChart(err)
+	}
+
+	return actionConfig, nil
+}
+
+func (c *Client) setupKubeConfig() (*genericclioptions.ConfigFlags, func(), error) {
 	var tempFiles []string
 	cleanup := func() {
 		for _, f := range tempFiles {
@@ -450,8 +465,7 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 			if len(c.RestConfig.CAData) > 0 {
 				caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
 				if err != nil {
-					cleanup() // Clean up any files created so far
-					return nil, nil, err
+					return nil, cleanup, err
 				}
 				tempFiles = append(tempFiles, caFileName)
 				kubeConfig.CAFile = &caFileName
@@ -462,8 +476,7 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 		if len(c.RestConfig.CertData) > 0 {
 			certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
 			if err != nil {
-				cleanup()
-				return nil, nil, err
+				return nil, cleanup, err
 			}
 			tempFiles = append(tempFiles, certFileName)
 			kubeConfig.CertFile = &certFileName
@@ -473,63 +486,55 @@ func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Config
 		if len(c.RestConfig.KeyData) > 0 {
 			keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
 			if err != nil {
-				cleanup() // Clean up any files created so far
-				return nil, nil, err
+				return nil, cleanup, err
 			}
 			tempFiles = append(tempFiles, keyFileName)
 			kubeConfig.KeyFile = &keyFileName
 		}
-	} else {
-
-		const (
-			clusterName = "meshery-cluster"
-			authInfo    = "meshkit-helm-user"
-		)
-
-		helmKubeConfig := clientcmdapi.NewConfig()
-
-		helmKubeConfig.Clusters[clusterName] = &clientcmdapi.Cluster{
-			Server:                   c.RestConfig.Host,
-			TLSServerName:            c.RestConfig.ServerName,
-			InsecureSkipTLSVerify:    c.RestConfig.Insecure,
-			CertificateAuthority:     c.RestConfig.CAFile,
-			CertificateAuthorityData: c.RestConfig.CAData,
-		}
-
-		helmKubeConfig.AuthInfos[authInfo] = &clientcmdapi.AuthInfo{
-			Exec:         c.RestConfig.ExecProvider,
-			AuthProvider: c.RestConfig.AuthProvider,
-		}
-
-		helmKubeConfig.Contexts[clusterName] = &clientcmdapi.Context{
-			Cluster:  clusterName,
-			AuthInfo: authInfo,
-		}
-
-		// explicitly setting kube context may not be required
-		helmKubeConfig.CurrentContext = clusterName
-
-		configBytes, err := clientcmd.Write(*helmKubeConfig)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to write kubeconfig %v", err)
-		}
-
-		configFile, err := setDataAndReturnFilename(configBytes)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get kubeconfig file %v", err)
-		}
-		tempFiles = append(tempFiles, configFile)
-
-		kubeConfig.KubeConfig = &configFile
+		return kubeConfig, cleanup, nil
 	}
 
-	actionConfig := new(action.Configuration)
-	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
-		cleanup() // Clean up any files created so far
-		return nil, nil, ErrApplyHelmChart(err)
+	const (
+		clusterName = "meshery-cluster"
+		authInfo    = "meshkit-helm-user"
+	)
+
+	helmKubeConfig := clientcmdapi.NewConfig()
+
+	helmKubeConfig.Clusters[clusterName] = &clientcmdapi.Cluster{
+		Server:                   c.RestConfig.Host,
+		TLSServerName:            c.RestConfig.ServerName,
+		InsecureSkipTLSVerify:    c.RestConfig.Insecure,
+		CertificateAuthority:     c.RestConfig.CAFile,
+		CertificateAuthorityData: c.RestConfig.CAData,
 	}
 
-	return actionConfig, cleanup, nil
+	helmKubeConfig.AuthInfos[authInfo] = &clientcmdapi.AuthInfo{
+		Exec:         c.RestConfig.ExecProvider,
+		AuthProvider: c.RestConfig.AuthProvider,
+	}
+
+	helmKubeConfig.Contexts[clusterName] = &clientcmdapi.Context{
+		Cluster:  clusterName,
+		AuthInfo: authInfo,
+	}
+
+	// explicitly setting kube context may not be required
+	helmKubeConfig.CurrentContext = clusterName
+
+	configBytes, err := clientcmd.Write(*helmKubeConfig)
+	if err != nil {
+		return nil, cleanup, fmt.Errorf("failed to write kubeconfig %v", err)
+	}
+
+	configFile, err := setDataAndReturnFilename(configBytes)
+	if err != nil {
+		return nil, cleanup, fmt.Errorf("failed to get kubeconfig file %v", err)
+	}
+	tempFiles = append(tempFiles, configFile)
+
+	kubeConfig.KubeConfig = &configFile
+	return kubeConfig, cleanup, nil
 }
 
 // Populates a file in temp directory with the passed data and returns the filename
@@ -693,7 +698,7 @@ func (helmEntries HelmEntries) GetEntryWithAppVersion(entry, appVersion string) 
 	return HelmEntryMetadata{}, false
 }
 
-// GetEntryWithAppVersion takes in the entry name and the appversion and returns the corresponding
+// GetEntryWithChartVersion takes in the entry name and the appversion and returns the corresponding
 // metadata for the parameters if it exists
 func (helmEntries HelmEntries) GetEntryWithChartVersion(entry, chartVersion string) (HelmEntryMetadata, bool) {
 	hem, ok := helmEntries[entry]
