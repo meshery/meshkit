@@ -26,7 +26,7 @@ func Do(ctx context.Context, op Operation, opts ...Option) error {
 		backoff.WithNotify(cfg.Notifier),
 	}
 	if cfg.MaxAttempts > 0 {
-		retryOpts = append(retryOpts, backoff.WithMaxTries(uint(cfg.MaxAttempts)))
+		retryOpts = append(retryOpts, backoff.WithMaxTries(cfg.MaxAttempts))
 	}
 
 	_, err := backoff.Retry(ctx, func() (struct{}, error) {

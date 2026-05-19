@@ -15,7 +15,7 @@ const (
 )
 
 type Config struct {
-	MaxAttempts         uint64
+	MaxAttempts         uint
 	InitialInterval     time.Duration
 	MaxInterval         time.Duration
 	MaxElapsedTime      time.Duration
@@ -37,7 +37,7 @@ func defaultConfig() Config {
 type Option func(*Config)
 
 // WithMaxAttempts sets a hard cap on total calls (includes first attempt).
-func WithMaxAttempts(n uint64) Option {
+func WithMaxAttempts(n uint) Option {
 	return func(c *Config) { c.MaxAttempts = n }
 }
 
