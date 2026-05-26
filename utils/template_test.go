@@ -39,10 +39,10 @@ func TestEmptyDataMap(t *testing.T) {
 }
 
 func TestMultilineTemplate(t *testing.T) {
-	template := `Layer5
+	template := `Meshery
 {{.project}} is
 best`
-	expected := `Layer5
+	expected := `Meshery
 Meshery is
 best`
 	result, err := MergeToTemplate([]byte(template), map[string]string{"project": "Meshery"})
