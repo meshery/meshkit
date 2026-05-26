@@ -442,7 +442,6 @@ featureList: [
 ]
 howItWorks: "%s"
 howItWorksDetails: "%s"
-categories: [integrations]
 ---
 `
 		markdown = fmt.Sprintf(template,
