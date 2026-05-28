@@ -5,7 +5,8 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1beta1/category"
-	"github.com/meshery/schemas/models/v1beta1/connection"
+	connectionv1beta1 "github.com/meshery/schemas/models/v1beta1/connection"
+	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 	"github.com/meshery/schemas/models/v1beta2/model"
 	"github.com/meshery/schemas/models/v1beta3/component"
 	"gorm.io/gorm/clause"
@@ -33,7 +34,7 @@ type componentDefinitionWithModel struct {
 	ComponentDefinitionDB component.ComponentDefinition `gorm:"embedded"`
 	ModelDB               model.ModelDefinition         `gorm:"embedded"`
 	CategoryDB            category.CategoryDefinition   `gorm:"embedded"`
-	ConnectionDB          connection.Connection         `gorm:"embedded"`
+	ConnectionDB          connectionv1beta1.Connection  `gorm:"embedded"`
 }
 
 func (cf *ComponentFilter) GetById(db *database.Handler) (entity.Entity, error) {
@@ -153,7 +154,14 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		cd.Model = &cm.ModelDB
 		if cd.Model != nil {
 			cd.Model.Category = cm.CategoryDB
-			cd.Model.Registrant = reg
+		cd.Model.Registrant = connectionv1beta3.Connection{
+			ID:      reg.ID,
+			Name:    reg.Name,
+			Kind:    reg.Kind,
+			Type:    reg.Type,
+			SubType: reg.SubType,
+			Status:  connectionv1beta3.ConnectionStatus(reg.Status),
+		}
 		}
 		defs = append(defs, &cd)
 	}

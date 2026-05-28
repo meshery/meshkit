@@ -5,7 +5,8 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	meshmodel "github.com/meshery/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
-	"github.com/meshery/schemas/models/v1beta1/connection"
+	connectionv1beta1 "github.com/meshery/schemas/models/v1beta1/connection"
+	"github.com/meshery/schemas/models/v1beta3/connection"
 	modelv1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 	"github.com/meshery/schemas/models/v1beta2/model"
 	"github.com/meshery/schemas/models/v1beta3/component"
@@ -17,6 +18,22 @@ type PackagingUnit struct {
 	Components    []component.ComponentDefinition
 	Relationships []relationship.RelationshipDefinition
 	_             []v1beta1.PolicyDefinition
+}
+
+// connV3ToV1 field-copies a v1beta3 Connection to v1beta1 Connection.
+// Required at the RegisterEntity boundary: the RegistryManager signature
+// expects v1beta1.Connection (stable internal API) while ModelDefinition.Registrant
+// is now v1beta3.Connection (canonical wire format). DB column tags are
+// identical in both versions so no data is lost or altered.
+func connV3ToV1(c connection.Connection) connectionv1beta1.Connection {
+	return connectionv1beta1.Connection{
+		ID:      c.ID,
+		Name:    c.Name,
+		Kind:    c.Kind,
+		Type:    c.Type,
+		SubType: c.SubType,
+		Status:  connectionv1beta1.ConnectionStatus(c.Status),
+	}
 }
 
 type RegistrationHelper struct {
@@ -90,7 +107,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	}
 
 	model.Registrant.Status = connection.ConnectionStatusRegistered
-	_, _, err := rh.regManager.RegisterEntity(model.Registrant, &model)
+	_, _, err := rh.regManager.RegisterEntity(connV3ToV1(model.Registrant), &model)
 
 	// If model cannot be registered, don't register anything else
 	if err != nil {
@@ -126,7 +143,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 			)
 		}
 
-		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &comp)
+		_, _, err := rh.regManager.RegisterEntity(connV3ToV1(model.Registrant), &comp)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(comp.Type()), comp.DisplayName)
 			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ComponentDefinition, comp.DisplayName, err)
@@ -151,7 +168,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 			Version:     v2ref.Version,
 		}
 		rel.ModelId = &model.ID
-		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
+		_, _, err := rh.regManager.RegisterEntity(connV3ToV1(model.Registrant), &rel)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
 			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.RelationshipDefinition, rel.ID.String(), err)

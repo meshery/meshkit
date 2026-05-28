@@ -24,7 +24,7 @@ import (
 	"github.com/meshery/meshkit/utils/store"
 	"github.com/meshery/schemas/models/v1beta1/capability"
 	"github.com/meshery/schemas/models/v1beta1/category"
-	"github.com/meshery/schemas/models/v1beta1/connection"
+	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 	_model "github.com/meshery/schemas/models/v1beta2/model"
 	"github.com/meshery/schemas/models/v1beta1/subcategory"
 	"github.com/meshery/schemas/models/v1beta3"
@@ -374,7 +374,7 @@ published: %s
 	markdown = strings.ReplaceAll(markdown, "\r", "\n")
 	return markdown
 }
-func createNewRegistrant(registrantName string) connection.Connection {
+func createNewRegistrant(registrantName string) connectionv1beta3.Connection {
 	kind := utils.ReplaceSpacesAndConvertToLowercase(registrantName)
 	switch kind {
 	case "artifacthub":
@@ -386,9 +386,9 @@ func createNewRegistrant(registrantName string) connection.Connection {
 	case "kubernetes":
 		registrantName = "Kubernetes"
 	}
-	newRegistrant := connection.Connection{
+	newRegistrant := connectionv1beta3.Connection{
 		Name:   registrantName,
-		Status: connection.ConnectionStatusDiscovered,
+		Status: connectionv1beta3.ConnectionStatusDiscovered,
 		Type:   "registry",
 		Kind:   kind,
 	}
