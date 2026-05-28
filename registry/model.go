@@ -25,7 +25,7 @@ import (
 	"github.com/meshery/schemas/models/v1beta1/capability"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/connection"
-	_model "github.com/meshery/schemas/models/v1beta1/model"
+	_model "github.com/meshery/schemas/models/v1beta2/model"
 	"github.com/meshery/schemas/models/v1beta1/subcategory"
 	"github.com/meshery/schemas/models/v1beta3"
 	"github.com/meshery/schemas/models/v1beta3/component"

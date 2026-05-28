@@ -6,7 +6,8 @@ import (
 	meshmodel "github.com/meshery/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/connection"
-	"github.com/meshery/schemas/models/v1beta1/model"
+	modelv1beta1 "github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta2/model"
 	"github.com/meshery/schemas/models/v1beta3/component"
 )
 
@@ -137,7 +138,18 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 
 	// 3. Register relationships
 	for _, rel := range pkg.Relationships {
-		rel.Model = model.ToReference()
+		// Convert v1beta2.ModelReference to v1beta1.ModelReference at the
+		// v1alpha3/relationship boundary. Both structs have identical fields
+		// (same names and types); only their package paths differ.
+		v2ref := model.ToReference()
+		rel.Model = modelv1beta1.ModelReference{
+			DisplayName: v2ref.DisplayName,
+			ID:          v2ref.ID,
+			Model:       modelv1beta1.Model{Version: v2ref.Model.Version},
+			Name:        v2ref.Name,
+			Registrant:  modelv1beta1.RegistrantReference{Kind: v2ref.Registrant.Kind},
+			Version:     v2ref.Version,
+		}
 		rel.ModelId = &model.ID
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
 		if err != nil {
