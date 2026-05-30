@@ -79,7 +79,7 @@ func (pkg AhPackage) GenerateComponents(group string) ([]_component.ComponentDef
 			comp.Model.Metadata.AdditionalProperties = make(map[string]interface{})
 		}
 		comp.Model.Metadata.AdditionalProperties["source_uri"] = pkg.ChartUrl
-		comp.Model.Version = pkg.Version
+		comp.Model.Version = pkg.sanitizedVersion()
 		comp.Model.Name = pkg.Name
 		comp.Model.Category = category.CategoryDefinition{
 			Name: "",
@@ -141,6 +141,10 @@ func (pkg *AhPackage) UpdatePackageData() error {
 
 func (pkg *AhPackage) Validator() {
 
+}
+
+func (pkg AhPackage) sanitizedVersion() string {
+	return strings.TrimPrefix(pkg.Version, "v")
 }
 
 // GetAllAhHelmPackages returns a list of all AhPackages and is super slow to avoid rate limits.
