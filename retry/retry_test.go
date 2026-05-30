@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -340,4 +344,343 @@ func TestRetryDefaultsAreApplied(t *testing.T) {
 	if calls.Load() < 2 {
 		t.Fatalf("expected at least 2 calls with default config, got %d", calls.Load())
 	}
+}
+
+func TestRetryClassifierStopsOnDecisionStop(t *testing.T) {
+	t.Parallel()
+
+	classifyErr := errors.New("not a chance")
+	var calls atomic.Int64
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error {
+			calls.Add(1)
+			return classifyErr
+		},
+		retry.WithErrorClassifier(func(err error) retry.ErrorDecision {
+			if errors.Is(err, classifyErr) {
+				return retry.DecisionStop
+			}
+			return retry.DecisionRetry
+		}),
+		retry.WithMaxAttempts(10),
+		retry.WithInitialInterval(1*time.Millisecond),
+	)
+
+	if err == nil {
+		t.Fatal("expected non-nil error when classifier stops")
+	}
+	if !errors.Is(err, classifyErr) {
+		t.Fatalf("expected classifier error unwrapped, got %v", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("expected exactly 1 call when classifier stops, got %d", calls.Load())
+	}
+}
+
+func TestRetryClassifierRetriesOnDecisionRetry(t *testing.T) {
+	t.Parallel()
+
+	classifyErr := errors.New("transient per classifier")
+	var calls atomic.Int64
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error {
+			n := calls.Add(1)
+			if n < 3 {
+				return classifyErr
+			}
+			return nil
+		},
+		retry.WithErrorClassifier(func(err error) retry.ErrorDecision {
+			return retry.DecisionRetry
+		}),
+		retry.WithMaxAttempts(10),
+		retry.WithInitialInterval(1*time.Millisecond),
+		retry.WithMaxInterval(5*time.Millisecond),
+	)
+
+	if err != nil {
+		t.Fatalf("expected success after classifier retries, got %v", err)
+	}
+	if calls.Load() != 3 {
+		t.Fatalf("expected 3 calls (2 classified retries + success), got %d", calls.Load())
+	}
+}
+
+func TestRetryClassifierDoesNotOverrideExplicitPermanent(t *testing.T) {
+	t.Parallel()
+
+	permErr := errors.New("explicitly permanent")
+	var calls atomic.Int64
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error {
+			calls.Add(1)
+			return retry.Permanent(permErr)
+		},
+		// Classifier says retry everything — but Permanent should still win.
+		retry.WithErrorClassifier(func(err error) retry.ErrorDecision {
+			return retry.DecisionRetry
+		}),
+		retry.WithMaxAttempts(10),
+		retry.WithInitialInterval(1*time.Millisecond),
+	)
+
+	if err == nil {
+		t.Fatal("expected non-nil error")
+	}
+	if !errors.Is(err, permErr) {
+		t.Fatalf("expected permanent error unwrapped, got %v", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("expected exactly 1 call for explicit Permanent, got %d", calls.Load())
+	}
+}
+
+func TestRetryClassifierCanMixWithPermanent(t *testing.T) {
+	t.Parallel()
+
+	permErr := errors.New("permanent")
+	transientErr := errors.New("transient")
+	var calls atomic.Int64
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error {
+			n := calls.Add(1)
+			if n == 1 {
+				return transientErr
+			}
+			return retry.Permanent(permErr)
+		},
+		retry.WithErrorClassifier(func(err error) retry.ErrorDecision {
+			if errors.Is(err, transientErr) {
+				return retry.DecisionRetry
+			}
+			return retry.DecisionStop
+		}),
+		retry.WithMaxAttempts(5),
+		retry.WithInitialInterval(1*time.Millisecond),
+		retry.WithMaxInterval(2*time.Millisecond),
+	)
+
+	if err == nil {
+		t.Fatal("expected non-nil error")
+	}
+	if !errors.Is(err, permErr) {
+		t.Fatalf("expected permanent error unwrapped, got %v", err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("expected 2 calls (transient + permanent), got %d", calls.Load())
+	}
+}
+
+func TestRetryConfigValidationInitialIntervalZero(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithInitialInterval(0),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "InitialInterval") {
+		t.Fatalf("expected InitialInterval validation error, got %v", err)
+	}
+}
+
+func TestRetryConfigValidationMaxIntervalZero(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithMaxInterval(0),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "MaxInterval") {
+		t.Fatalf("expected MaxInterval validation error, got %v", err)
+	}
+}
+
+func TestRetryConfigValidationMaxIntervalLessThanInitial(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithInitialInterval(5*time.Second),
+		retry.WithMaxInterval(1*time.Second),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "MaxInterval") || !strings.Contains(err.Error(), "InitialInterval") {
+		t.Fatalf("expected MaxInterval/InitialInterval mismatch error, got %v", err)
+	}
+}
+
+func TestRetryConfigValidationMultiplierNaN(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithMultiplier(float64(math.NaN())),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "Multiplier") {
+		t.Fatalf("expected Multiplier validation error, got %v", err)
+	}
+}
+
+func TestRetryConfigValidationMultiplierInf(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithMultiplier(float64(math.Inf(1))),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "Multiplier") {
+		t.Fatalf("expected Multiplier validation error, got %v", err)
+	}
+}
+
+func TestRetryConfigValidationMultiplierLessThanOne(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithMultiplier(0.5),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "Multiplier") {
+		t.Fatalf("expected Multiplier validation error, got %v", err)
+	}
+}
+
+func TestRetryConfigValidationJitterNaN(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithJitter(float64(math.NaN())),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "RandomizationFactor") {
+		t.Fatalf("expected RandomizationFactor validation error, got %v", err)
+	}
+}
+
+func TestRetryConfigValidationJitterOutOfRange(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithJitter(1.5),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "RandomizationFactor") {
+		t.Fatalf("expected RandomizationFactor validation error, got %v", err)
+	}
+}
+
+func TestRetryConfigValidationJitterNegative(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithJitter(-0.1),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "RandomizationFactor") {
+		t.Fatalf("expected RandomizationFactor validation error, got %v", err)
+	}
+}
+
+func TestRetryConfigValidationZeroMaxElapsedTimeIsValid(t *testing.T) {
+	t.Parallel()
+
+	// 0 for MaxElapsedTime means "no wall-clock limit". Should be valid.
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return nil },
+		retry.WithMaxElapsedTime(0),
+	)
+	if err != nil {
+		t.Fatalf("expected success (0 MaxElapsedTime is valid), got %v", err)
+	}
+}
+
+func TestRetryConfigValidationNegativeMaxElapsedTime(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("err") },
+		retry.WithMaxElapsedTime(-1),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "MaxElapsedTime") {
+		t.Fatalf("expected MaxElapsedTime validation error, got %v", err)
+	}
+}
+
+// ExampleDo demonstrates idiomatic HTTP usage with retry budget and per-attempt timeout.
+//
+// MaxElapsedTime limits the retry loop but does NOT interrupt an in-flight HTTP
+// request. Always pair it with http.Client.Timeout (or NewRequestWithContext) so
+// each attempt has its own deadline.
+func ExampleDo() {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	client := &http.Client{Timeout: 3 * time.Second}
+
+	err := retry.Do(context.Background(), func(ctx context.Context) error {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+		if err != nil {
+			return retry.Permanent(err)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		switch {
+		case resp.StatusCode == http.StatusOK:
+			return nil
+		case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:
+			return fmt.Errorf("transient response: %s", resp.Status)
+		default:
+			return retry.Permanent(fmt.Errorf("non-retryable response: %s", resp.Status))
+		}
+	},
+		retry.WithMaxAttempts(3),
+		retry.WithInitialInterval(time.Second),
+		retry.WithMaxElapsedTime(10*time.Second),
+	)
+
+	if err != nil {
+		fmt.Printf("request failed: %v\n", err)
+	}
+	// Output:
+	// request failed: non-retryable response: 404 Not Found
 }
