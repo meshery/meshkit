@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"cuelang.org/go/cue"
@@ -196,10 +197,7 @@ func getResolvedManifest(manifest string) (string, error) {
 	if doc.Components == nil || len(doc.Components.Schemas) == 0 {
 		return "", ErrNoSchemasFound
 	}
-	stack := make(map[*openapi3.Schema]bool)
-	for _, schemaRef := range doc.Components.Schemas {
-		clearSchemaRefs(schemaRef, stack)
-	}
+	clearDocRefs(doc)
 	resolved, err := json.Marshal(doc)
 	if err != nil {
 		return "", err
@@ -207,44 +205,92 @@ func getResolvedManifest(manifest string) (string, error) {
 	return string(resolved), nil
 }
 
-// clearSchemaRefs recursively clears $ref strings on all nested SchemaRefs
-// so that json.Marshal outputs fully inlined schemas. The stack set tracks
-// Schema values (not SchemaRef pointers) on the current recursion path to
-// detect circular references. kin-openapi resolves $refs by creating
-// different SchemaRef objects that share the same underlying Schema pointer,
-// so tracking by *Schema is necessary to catch all cycles.
-func clearSchemaRefs(sr *openapi3.SchemaRef, stack map[*openapi3.Schema]bool) {
-	if sr == nil {
-		return
+// clearDocRefs uses reflection to walk the entire OpenAPI document and clear
+// all $ref strings so that json.Marshal outputs fully inlined schemas.
+// It uses two tracking mechanisms:
+//   - visited: permanent set for general pointers to avoid re-processing
+//   - schemaStack: path-based set for *Schema pointers to detect circular
+//     schema references (add on enter, remove on exit), allowing the same
+//     schema to appear in multiple non-circular positions
+func clearDocRefs(doc *openapi3.T) {
+	visited := make(map[uintptr]bool)
+	schemaStack := make(map[uintptr]bool)
+	walkAndClearRefs(reflect.ValueOf(doc), visited, schemaStack)
+}
+
+var schemaRefType = reflect.TypeOf((*openapi3.SchemaRef)(nil))
+
+func walkAndClearRefs(v reflect.Value, visited map[uintptr]bool, schemaStack map[uintptr]bool) {
+	switch v.Kind() {
+	case reflect.Ptr:
+		if v.IsNil() {
+			return
+		}
+
+		// SchemaRef needs path-based cycle detection so shared (non-circular)
+		// schemas are fully expanded while true cycles are broken.
+		if v.Type() == schemaRefType {
+			sr := v.Interface().(*openapi3.SchemaRef)
+			sr.Ref = ""
+			if sr.Value == nil {
+				return
+			}
+			schemaPtr := reflect.ValueOf(sr.Value).Pointer()
+			if schemaStack[schemaPtr] {
+				sr.Value = &openapi3.Schema{}
+				return
+			}
+			schemaStack[schemaPtr] = true
+			walkAndClearRefs(reflect.ValueOf(sr.Value), visited, schemaStack)
+			delete(schemaStack, schemaPtr)
+			return
+		}
+
+		ptr := v.Pointer()
+		if visited[ptr] {
+			return
+		}
+		visited[ptr] = true
+
+		elem := v.Elem()
+		if elem.Kind() == reflect.Struct {
+			if refField := elem.FieldByName("Ref"); refField.IsValid() && refField.Kind() == reflect.String {
+				refField.SetString("")
+			}
+		}
+		walkAndClearRefs(elem, visited, schemaStack)
+
+	case reflect.Struct:
+		// Handle types with unexported map fields (Paths, Callback, Responses)
+		// accessed via a Map() method.
+		if v.CanAddr() {
+			if mapMethod := v.Addr().MethodByName("Map"); mapMethod.IsValid() {
+				results := mapMethod.Call(nil)
+				if len(results) == 1 && results[0].Kind() == reflect.Map {
+					walkAndClearRefs(results[0], visited, schemaStack)
+				}
+			}
+		}
+		for i := 0; i < v.NumField(); i++ {
+			field := v.Field(i)
+			if field.CanInterface() {
+				walkAndClearRefs(field, visited, schemaStack)
+			}
+		}
+
+	case reflect.Map:
+		for _, key := range v.MapKeys() {
+			walkAndClearRefs(v.MapIndex(key), visited, schemaStack)
+		}
+
+	case reflect.Slice:
+		for i := 0; i < v.Len(); i++ {
+			walkAndClearRefs(v.Index(i), visited, schemaStack)
+		}
+
+	case reflect.Interface:
+		if !v.IsNil() {
+			walkAndClearRefs(v.Elem(), visited, schemaStack)
+		}
 	}
-	sr.Ref = ""
-	s := sr.Value
-	if s == nil {
-		return
-	}
-	if stack[s] {
-		sr.Value = &openapi3.Schema{}
-		return
-	}
-	stack[s] = true
-	for _, child := range s.AllOf {
-		clearSchemaRefs(child, stack)
-	}
-	for _, child := range s.AnyOf {
-		clearSchemaRefs(child, stack)
-	}
-	for _, child := range s.OneOf {
-		clearSchemaRefs(child, stack)
-	}
-	clearSchemaRefs(s.Not, stack)
-	if s.Items != nil {
-		clearSchemaRefs(s.Items, stack)
-	}
-	for _, prop := range s.Properties {
-		clearSchemaRefs(prop, stack)
-	}
-	if s.AdditionalProperties.Schema != nil {
-		clearSchemaRefs(s.AdditionalProperties.Schema, stack)
-	}
-	delete(stack, s)
 }
