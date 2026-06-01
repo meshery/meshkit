@@ -20,7 +20,7 @@ type Operation func(ctx context.Context) error
 // the classifier before the retry decision is made.
 func Do(ctx context.Context, op Operation, opts ...Option) error {
 	if err := ctx.Err(); err != nil {
-		return err
+		return ErrContext(err)
 	}
 	cfg := defaultConfig()
 	for _, o := range opts {
@@ -28,7 +28,7 @@ func Do(ctx context.Context, op Operation, opts ...Option) error {
 	}
 
 	if err := validateConfig(cfg); err != nil {
-		return err
+		return ErrConfig(err)
 	}
 
 	apply := op
@@ -61,27 +61,30 @@ func Do(ctx context.Context, op Operation, opts ...Option) error {
 	_, err := backoff.Retry(ctx, func() (struct{}, error) {
 		return struct{}{}, apply(ctx)
 	}, retryOpts...)
-	return err
+	if err != nil {
+		return ErrRetry(err)
+	}
+	return nil
 }
 
 func validateConfig(cfg Config) error {
 	if cfg.InitialInterval <= 0 {
-		return fmt.Errorf("retry: InitialInterval must be > 0, got %v", cfg.InitialInterval)
+		return fmt.Errorf("%w: InitialInterval must be > 0, got %v", ErrInvalidConfig, cfg.InitialInterval)
 	}
 	if cfg.MaxInterval <= 0 {
-		return fmt.Errorf("retry: MaxInterval must be > 0, got %v", cfg.MaxInterval)
+		return fmt.Errorf("%w: MaxInterval must be > 0, got %v", ErrInvalidConfig, cfg.MaxInterval)
 	}
 	if cfg.MaxInterval < cfg.InitialInterval {
-		return fmt.Errorf("retry: MaxInterval (%v) must be >= InitialInterval (%v)", cfg.MaxInterval, cfg.InitialInterval)
+		return fmt.Errorf("%w: MaxInterval (%v) must be >= InitialInterval (%v)", ErrInvalidConfig, cfg.MaxInterval, cfg.InitialInterval)
 	}
 	if cfg.MaxElapsedTime < 0 {
-		return fmt.Errorf("retry: MaxElapsedTime must be >= 0, got %v", cfg.MaxElapsedTime)
+		return fmt.Errorf("%w: MaxElapsedTime must be >= 0, got %v", ErrInvalidConfig, cfg.MaxElapsedTime)
 	}
 	if math.IsNaN(cfg.Multiplier) || math.IsInf(cfg.Multiplier, 0) || cfg.Multiplier < 1 {
-		return fmt.Errorf("retry: Multiplier must be finite and >= 1, got %v", cfg.Multiplier)
+		return fmt.Errorf("%w: Multiplier must be finite and >= 1, got %v", ErrInvalidConfig, cfg.Multiplier)
 	}
 	if math.IsNaN(cfg.RandomizationFactor) || cfg.RandomizationFactor < 0 || cfg.RandomizationFactor > 1 {
-		return fmt.Errorf("retry: RandomizationFactor must be finite and in [0,1], got %v", cfg.RandomizationFactor)
+		return fmt.Errorf("%w: RandomizationFactor must be finite and in [0,1], got %v", ErrInvalidConfig, cfg.RandomizationFactor)
 	}
 	return nil
 }

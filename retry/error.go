@@ -4,7 +4,65 @@ import (
 	"errors"
 
 	"github.com/cenkalti/backoff/v5"
+	meshkiterrors "github.com/meshery/meshkit/errors"
 )
+
+// ErrInvalidConfig is returned when retry configuration validation fails.
+// Use errors.Is(err, ErrInvalidConfig) to distinguish config errors from
+// operation failures.
+var ErrInvalidConfig = errors.New("retry: invalid config")
+
+const (
+	ErrRetryCode   = "meshkit-10001"
+	ErrContextCode = "meshkit-10002"
+	ErrConfigCode  = "meshkit-10003"
+)
+
+type retryError struct {
+	inner   error
+	meshkit *meshkiterrors.Error
+}
+
+func (e *retryError) Error() string {
+	return e.meshkit.Error()
+}
+
+func (e *retryError) Unwrap() []error {
+	return []error{e.inner, e.meshkit}
+}
+
+func ErrRetry(err error) error {
+	return &retryError{
+		inner: err,
+		meshkit: meshkiterrors.New(ErrRetryCode, meshkiterrors.Alert,
+			[]string{"Retry operation failed"},
+			[]string{err.Error()},
+			[]string{"Operation did not succeed within retry limits"},
+			[]string{"Check the underlying operation and retry configuration"}),
+	}
+}
+
+func ErrContext(err error) error {
+	return &retryError{
+		inner: err,
+		meshkit: meshkiterrors.New(ErrContextCode, meshkiterrors.Alert,
+			[]string{"Context canceled or deadline exceeded"},
+			[]string{err.Error()},
+			[]string{"Operation timed out or context was canceled"},
+			[]string{"Check context timeout and ensure the operation completes in time"}),
+	}
+}
+
+func ErrConfig(err error) error {
+	return &retryError{
+		inner: err,
+		meshkit: meshkiterrors.New(ErrConfigCode, meshkiterrors.Alert,
+			[]string{"Invalid retry configuration"},
+			[]string{err.Error()},
+			[]string{"One or more config values are invalid"},
+			[]string{"Ensure all retry configuration values are correct"}),
+	}
+}
 
 // ErrorDecision controls retry behaviour for a single error.
 type ErrorDecision int

@@ -639,6 +639,21 @@ func TestRetryConfigValidationNegativeMaxElapsedTime(t *testing.T) {
 	}
 }
 
+func TestRetryInvalidConfigSentinelIsReachable(t *testing.T) {
+	t.Parallel()
+
+	err := retry.Do(context.Background(),
+		func(ctx context.Context) error { return errors.New("fail") },
+		retry.WithInitialInterval(0),
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !errors.Is(err, retry.ErrInvalidConfig) {
+		t.Fatalf("errors.Is(err, ErrInvalidConfig) should be true, got %v", err)
+	}
+}
+
 // ExampleDo demonstrates idiomatic HTTP usage with retry budget and per-attempt timeout.
 //
 // MaxElapsedTime limits the retry loop but does NOT interrupt an in-flight HTTP
@@ -682,5 +697,40 @@ func ExampleDo() {
 		fmt.Printf("request failed: %v\n", err)
 	}
 	// Output:
-	// request failed: non-retryable response: 404 Not Found
+	// request failed: non-retryable response: 404 Not Found | Short Description: Retry operation failed | Probable Cause: Operation did not succeed within retry limits | Suggested Remediation: Check the underlying operation and retry configuration
+}
+
+// ExampleWithErrorClassifier shows how to classify errors as retryable or
+// terminal using WithErrorClassifier. DecisionRetry keeps retrying;
+// DecisionStop ends the loop immediately.
+func ExampleWithErrorClassifier() {
+	var (
+		ErrTimeout = errors.New("request timeout")
+		ErrAuth    = errors.New("authentication failed")
+	)
+
+	var attempts int
+	err := retry.Do(context.Background(), func(ctx context.Context) error {
+		attempts++
+		if attempts < 3 {
+			return ErrTimeout
+		}
+		return ErrAuth
+	},
+		retry.WithErrorClassifier(func(err error) retry.ErrorDecision {
+			if errors.Is(err, ErrTimeout) {
+				return retry.DecisionRetry
+			}
+			return retry.DecisionStop
+		}),
+		retry.WithMaxAttempts(5),
+		retry.WithInitialInterval(10*time.Millisecond),
+		retry.WithMaxInterval(20*time.Millisecond),
+	)
+
+	fmt.Println("attempts:", attempts)
+	fmt.Println("auth error:", errors.Is(err, ErrAuth))
+	// Output:
+	// attempts: 3
+	// auth error: true
 }
