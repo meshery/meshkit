@@ -24,7 +24,7 @@ You are an expert-level software engineering agent specialized in contributing t
 
 ### Backend (MeshKit Core)
 
-- **Language**: Go 1.25.5 (always check `go.mod` for consistency)
+- **Language**: Go 1.26.4 (always check `go.mod` for consistency)
 - **Key Responsibilities**: Error definitions, helpers, and shared utilities consumed by Meshery services.
 - **Testing**: Go standard testing library with `--short`, `-race`, and coverage enabled via Makefile targets.
 - **Build System**: Make-based workflow defined in MeshKit’s Makefile.
