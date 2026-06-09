@@ -424,7 +424,7 @@ func (m ModelCSV) CreateMarkDownForMDStyle(componentsMetadata, relationshipMetad
 		template = `---
 title: %s
 subtitle: %s
-image: /extensions/models/%s/icons/color/%s-color.svg
+image: extensions/models/%s/icons/color/%s-color.svg
 aliases: /extensibility/integrations/%s
 docURL: %s
 description: %s
