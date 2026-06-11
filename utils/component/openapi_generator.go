@@ -16,7 +16,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta2/model"
 	"github.com/meshery/schemas/models/v1beta3"
 	"github.com/meshery/schemas/models/v1beta3/component"
 )

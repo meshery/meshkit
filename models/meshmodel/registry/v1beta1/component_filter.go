@@ -5,8 +5,8 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1beta1/category"
-	"github.com/meshery/schemas/models/v1beta1/connection"
-	"github.com/meshery/schemas/models/v1beta1/model"
+	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
+	"github.com/meshery/schemas/models/v1beta2/model"
 	"github.com/meshery/schemas/models/v1beta3/component"
 	"gorm.io/gorm/clause"
 )
@@ -33,7 +33,7 @@ type componentDefinitionWithModel struct {
 	ComponentDefinitionDB component.ComponentDefinition `gorm:"embedded"`
 	ModelDB               model.ModelDefinition         `gorm:"embedded"`
 	CategoryDB            category.CategoryDefinition   `gorm:"embedded"`
-	ConnectionDB          connection.Connection         `gorm:"embedded"`
+	ConnectionDB          connectionv1beta3.Connection  `gorm:"embedded"`
 }
 
 func (cf *ComponentFilter) GetById(db *database.Handler) (entity.Entity, error) {
@@ -148,12 +148,14 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 			cm.ComponentDefinitionDB.Component.Schema = ""
 		}
 
-		reg := cm.ConnectionDB
 		cd := cm.ComponentDefinitionDB
 		cd.Model = &cm.ModelDB
 		if cd.Model != nil {
 			cd.Model.Category = cm.CategoryDB
-			cd.Model.Registrant = reg
+			// ConnectionDB is now typed as v1beta3.Connection — assign directly.
+			// GORM reads all columns (description, url, sub_type, etc.) correctly
+			// since db: tags are identical to the connections table columns.
+			cd.Model.Registrant = cm.ConnectionDB
 		}
 		defs = append(defs, &cd)
 	}

@@ -151,7 +151,7 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 			}
 
 			var rel _rel.RelationshipDefinition
-			rel.SchemaVersion = schema.RelationshipSchemaVersionV1Beta2
+			rel.SchemaVersion = schema.RelationshipSchemaVersionV1Beta3
 			rel.Kind = _rel.RelationshipDefinitionKind(utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.KIND))
 			rel.RelationshipType = utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.Type)
 			rel.SubType = utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.SubType)
