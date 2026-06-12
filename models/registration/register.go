@@ -8,6 +8,7 @@ import (
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
+	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 )
 
 // PackagingUnit is the representation of the atomic unit that can be registered into the capabilities registry
@@ -15,6 +16,7 @@ type PackagingUnit struct {
 	Model         model.ModelDefinition
 	Components    []component.ComponentDefinition
 	Relationships []relationship.RelationshipDefinition
+	Connections   []connectionv1beta3.ConnectionDefinition
 	_             []v1beta1.PolicyDefinition
 }
 
@@ -149,9 +151,24 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 		}
 	}
 
-	// Update pkg with only successfully registered components and relationships
+	// 4. Register connection definitions
+	var registeredConnections []connectionv1beta3.ConnectionDefinition
+	for _, conn := range pkg.Connections {
+		conn.Model = &model
+		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &conn)
+		if err != nil {
+			err = ErrRegisterEntity(err, string(conn.Type()), conn.Name)
+			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ConnectionDefinition, conn.Name, err)
+		} else {
+			// Successful registration, add to successfulConnections
+			registeredConnections = append(registeredConnections, conn)
+		}
+	}
+
+	// Update pkg with only successfully registered components, relationships, and connections
 	pkg.Components = registeredComponents
 	pkg.Relationships = registeredRelationships
+	pkg.Connections = registeredConnections
 	pkg.Model = model
 	// Store the successfully registered PackagingUnit
 	rh.PkgUnits = append(rh.PkgUnits, pkg)

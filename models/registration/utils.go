@@ -10,6 +10,8 @@ import (
 	"github.com/meshery/schemas/models/v1beta1"
 	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta3"
+	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 )
 
 // TODO: refactor this and use CUE
@@ -44,8 +46,15 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 			return nil, ErrGetEntity(fmt.Errorf("Invalid relationship definition: %s", err.Error()))
 		}
 		et = &rel
+	case v1beta3.ConnectionSchemaVersion:
+		var connDef connectionv1beta3.ConnectionDefinition
+		err := encoding.Unmarshal(byt, &connDef)
+		if err != nil {
+			return nil, ErrGetEntity(fmt.Errorf("Invalid connection definition: %s", err.Error()))
+		}
+		et = &connDef
 	default:
-		return nil, ErrGetEntity(fmt.Errorf("Not a valid component definition, model definition, or relationship definition"))
+		return nil, ErrGetEntity(fmt.Errorf("Not a valid component definition, model definition, relationship definition, or connection definition"))
 	}
 	return et, nil
 }

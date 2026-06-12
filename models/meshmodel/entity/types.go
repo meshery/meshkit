@@ -11,6 +11,7 @@ const (
 	ComponentDefinition    EntityType = "component"
 	PolicyDefinition       EntityType = "policy"
 	RelationshipDefinition EntityType = "relationship"
+	ConnectionDefinition   EntityType = "connection"
 	Model                  EntityType = "model"
 	Category               EntityType = "category"
 )
