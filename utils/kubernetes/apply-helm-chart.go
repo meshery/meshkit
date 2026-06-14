@@ -56,15 +56,16 @@ const (
 	Latest = ">0.0.0-0"
 )
 
-// downloadLocaton is the location where downloaded helm charts
-// will be stored. os.TempDir will ensure that the path is cross
-// platform
-var downloadLocation = os.TempDir()
-
 var (
-	// writeKubeConfig marshals kubeconfig bytes. Kept as a variable to enable deterministic test stubs.
+	// downloadLocaton is the location where downloaded helm charts
+	// will be stored. os.TempDir will ensure that the path is cross
+	// platform
+	downloadLocation = os.TempDir()
+	// writeKubeConfig marshals kubeconfig bytes. Kept as a variable to enable
+	// deterministic test stubs.
 	writeKubeConfig = clientcmd.Write
-	// writeTempData writes byte payloads to temp files. Kept as a variable to enable deterministic test stubs.
+	// writeTempData writes byte payloads to temp files. Kept as a variable to
+	// enable deterministic test stubs.
 	writeTempData = setDataAndReturnFilename
 )
 
@@ -274,7 +275,7 @@ func (c *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	kubeConfig, cleanup, err := c.setupKubeConfig()
 	if err != nil {
 		cleanup()
-		return err
+		return ErrApplyHelmChart(err)
 	}
 	actionConfig, err := c.createHelmActionConfig(cfg, kubeConfig)
 	if err != nil {
