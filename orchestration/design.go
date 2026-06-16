@@ -1,6 +1,6 @@
 package orchestration
 
-import "github.com/meshery/schemas/models/v1beta1/component"
+import "github.com/meshery/schemas/models/v1beta3/component"
 
 const (
 	ResourceSourceDesignIdLabelKey      = "design.meshery.io/id"
@@ -45,7 +45,7 @@ func EnrichComponentWithMesheryMetadata(comp *component.ComponentDefinition, des
 	// Assign the new label
 	labels[ResourceSourceDesignIdLabelKey] = designId
 	annotations[ResourceSourceDesignVersionLabelKey] = designVersion
-	annotations[ResourceSourceComponentIdLabelKey] = comp.Id.String()
+	annotations[ResourceSourceComponentIdLabelKey] = comp.ID.String()
 
 	return nil
 }

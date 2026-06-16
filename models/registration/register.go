@@ -5,9 +5,9 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	meshmodel "github.com/meshery/meshkit/models/meshmodel/registry"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
-	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta3/component"
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 )
 
@@ -140,11 +140,11 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	// 3. Register relationships
 	for _, rel := range pkg.Relationships {
 		rel.Model = model.ToReference()
-		rel.ModelId = model.Id
+		rel.ModelId = &model.ID
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
-			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.RelationshipDefinition, rel.Id.String(), err)
+			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.RelationshipDefinition, rel.ID.String(), err)
 		} else {
 			// Successful registration, add to successfulRelationships
 			registeredRelationships = append(registeredRelationships, rel)

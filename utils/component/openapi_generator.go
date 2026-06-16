@@ -16,9 +16,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/meshery/schemas/models/v1beta1"
-	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta3"
+	"github.com/meshery/schemas/models/v1beta3/component"
 )
 
 func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.ComponentDefinition, error) {
@@ -124,7 +124,7 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 		}
 
 		c := component.ComponentDefinition{
-			SchemaVersion: v1beta1.ComponentSchemaVersion,
+			SchemaVersion: v1beta3.ComponentSchemaVersion,
 			Format:        component.JSON,
 			Component: component.Component{
 				Kind:    kind,
@@ -136,7 +136,7 @@ func GenerateFromOpenAPI(resource string, pkg models.Package) ([]component.Compo
 				IsNamespaced: isNamespaced,
 			},
 			Model: &model.ModelDefinition{
-				SchemaVersion: v1beta1.ModelSchemaVersion,
+				SchemaVersion: v1beta3.ModelSchemaVersion,
 				Model: model.Model{
 					Version: pkg.GetVersion(),
 				},

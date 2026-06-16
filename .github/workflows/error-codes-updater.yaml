@@ -13,16 +13,16 @@ jobs:
     if: github.repository == 'meshery/meshkit'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v6
         # token here with write access to meshkit repo
         with:
           token: ${{ secrets.GH_ACCESS_TOKEN }}
           ref: "master"
 
       - name: Setup Go
-        uses: actions/setup-go@master
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.25"
+          go-version: "1.26"
 
       - name: Run utility
         run: |
@@ -44,7 +44,7 @@ jobs:
 
       # to push changes to meshery docs
       - name: Checkout meshery
-        uses: actions/checkout@master
+        uses: actions/checkout@v6
         with:
           repository: "meshery/meshery"
           # token with write access to meshery repository
@@ -54,7 +54,7 @@ jobs:
 
       - name: Update and push docs
         run: |
-          echo '{ "errors_export": "" }' | jq --slurpfile export ./helpers/errorutil_errors_export.json '.errors_export = $export[0]' > ./meshery/docs/_data/errorref/meshkit_errors_export.json
+          echo '{ "errors_export": "" }' | jq --slurpfile export ./helpers/errorutil_errors_export.json '.errors_export = $export[0]' > ./meshery/docs/data/errorref/meshkit_errors_export.json
 
           cd ./meshery
           git config user.name l5io
@@ -64,6 +64,6 @@ jobs:
             echo "No changes to commit"
             exit
           fi
-          git add ./docs/_data/errorref/meshkit_errors_export.json
+          git add ./docs/data/errorref/meshkit_errors_export.json
           git commit -m "[Docs] Error Code Reference: Updated codes for MeshKit library" --signoff
           git push origin master

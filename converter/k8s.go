@@ -5,8 +5,8 @@ import (
 
 	"github.com/meshery/meshkit/models/patterns"
 	"github.com/meshery/meshkit/utils"
-	"github.com/meshery/schemas/models/v1beta1/component"
-	"github.com/meshery/schemas/models/v1beta1/pattern"
+	component "github.com/meshery/schemas/models/v1beta2/component"
+	pattern "github.com/meshery/schemas/models/v1beta3/design"
 	"gopkg.in/yaml.v3"
 )
 

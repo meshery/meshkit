@@ -4,6 +4,7 @@ import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/models/meshmodel/registry"
+	modelv1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 	"gorm.io/gorm/clause"
 )
@@ -45,17 +46,22 @@ func (cf *ConnectionFilter) Create(m map[string]interface{}) {
 func (cf *ConnectionFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	var connectionDefinitions []connectionv1beta3.ConnectionDefinition
 
-	finder := db.Model(&connectionv1beta3.ConnectionDefinition{}).
-		Preload("Model").
-		Select("connection_definition_dbs.*")
+	// Query the connection_definition_dbs table directly and hydrate the related
+	// model via Preload. We intentionally avoid a JOIN with a `table.*` SELECT:
+	// GORM's SQLite dialector mis-quotes `connection_definition_dbs.*` as a single
+	// identifier (notably inside the Count() rewrite), yielding
+	// "no such column: connection_definition_dbs.*". Filtering by model is done via
+	// a subquery on model_id so the main query stays single-table.
+	finder := db.Model(&connectionv1beta3.ConnectionDefinition{}).Preload("Model")
 
 	if cf.ModelName != "" && cf.ModelName != "all" {
-		finder = finder.
-			Joins("JOIN model_dbs ON model_dbs.id = connection_definition_dbs.model_id").
-			Where("model_dbs.name = ?", cf.ModelName)
+		modelIDs := db.Model(&modelv1beta1.ModelDefinition{}).
+			Select("id").
+			Where("name = ?", cf.ModelName)
 		if cf.Version != "" {
-			finder = finder.Where("model_dbs.model->>'version' = ?", cf.Version)
+			modelIDs = modelIDs.Where("model->>'version' = ?", cf.Version)
 		}
+		finder = finder.Where("connection_definition_dbs.model_id IN (?)", modelIDs)
 	}
 
 	if cf.Name != "" {
@@ -69,7 +75,9 @@ func (cf *ConnectionFilter) Get(db *database.Handler) ([]entity.Entity, int64, i
 		finder = finder.Where("connection_definition_dbs.kind = ?", cf.Kind)
 	}
 	if cf.Type != "" {
-		finder = finder.Where("connection_definition_dbs.type = ?", cf.Type)
+		// The Go field is ConnectionType to avoid colliding with the registry
+		// Entity interface's Type(); the DB column is `connection_type`.
+		finder = finder.Where("connection_definition_dbs.connection_type = ?", cf.Type)
 	}
 	if cf.Status != "" {
 		finder = finder.Where("connection_definition_dbs.status = ?", cf.Status)

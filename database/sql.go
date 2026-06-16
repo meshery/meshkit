@@ -71,8 +71,8 @@ func (m *Map) UnmarshalJSON(b []byte) error {
 
 // UnmarshalText will unmarshall text value into
 // the map representation of this value.
-func (m Map) UnmarshalText(text []byte) error {
-	if err := json.Unmarshal(text, &m); err != nil {
+func (m *Map) UnmarshalText(text []byte) error {
+	if err := json.Unmarshal(text, m); err != nil {
 		return ErrSQLMapUnmarshalText(err)
 	}
 

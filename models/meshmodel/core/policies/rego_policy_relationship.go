@@ -9,6 +9,13 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/registry/v1alpha3"
 	"github.com/meshery/meshkit/utils"
 	patching "github.com/meshery/meshkit/utils/patching"
+	// NOTE: This file continues to reference v1beta1/pattern for `PatternFile`
+	// and `EvaluationResponse` because the evaluation helper types live only
+	// in v1beta1/pattern today. v1beta3/design does not yet ship an
+	// EvaluationResponse equivalent (its Design field is
+	// v1beta1/pattern.PatternFile). Migrating this handler is a follow-up
+	// that requires a schemas-side change to add an evaluation package
+	// parallel to v1beta3/design. Tracked in meshery/schemas.
 	"github.com/meshery/schemas/models/v1beta1/pattern"
 	"github.com/open-policy-agent/opa/v1/rego"
 	storagepkg "github.com/open-policy-agent/opa/v1/storage"
@@ -20,10 +27,10 @@ import (
 var SyncRelationship sync.Mutex
 
 type Rego struct {
-	store       storagepkg.Store
-	txn         storagepkg.Transaction
-	ctx         context.Context
-	policyDir   string
+	store     storagepkg.Store
+	txn       storagepkg.Transaction
+	ctx       context.Context
+	policyDir string
 }
 
 // NewRegoInstance creates a new Rego evaluator with relationships loaded
@@ -52,7 +59,7 @@ func NewRegoInstance(policyDir string, regManager *registry.RegistryManager) (*R
 }
 
 // CustomPrint implements the print.Hook interface to capture print statements
-type CustomPrint struct{
+type CustomPrint struct {
 	Messages []string
 }
 
@@ -136,7 +143,7 @@ func (r *Rego) RegoPolicyHandler(
 	for _, comp := range resp.Design.Components {
 		var patches []patching.Patch
 		for _, up := range updates {
-			if up.Id == comp.Id.String() {
+			if up.Id == comp.ID.String() {
 				patches = append(patches, patching.Patch{Path: up.Path[1:], Value: up.Value})
 			}
 		}

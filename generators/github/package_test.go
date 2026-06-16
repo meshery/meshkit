@@ -40,8 +40,8 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 
 		{ // Source pointing to a directly downloadable file (not a repo per se)
 			ghPackageManager: GitHubPackageManager{
-				PackageName: "k8s-config-connector",
-				SourceURL:   "https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-config-connector/master/crds/alloydb_v1beta1_alloydbbackup.yaml",
+				PackageName: "gateway-api",
+				SourceURL:   "https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/main/config/crd/standard/gateway.networking.k8s.io_gatewayclasses.yaml",
 			},
 			want: 1,
 		},

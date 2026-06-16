@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -11,12 +12,15 @@ import (
 	"strings"
 )
 
+var (
+	openZipEntry   = func(file *zip.File) (io.ReadCloser, error) { return file.Open() }
+	copyZipBuffer  = io.CopyBuffer
+	nextTarHeader  = func(reader *tar.Reader) (*tar.Header, error) { return reader.Next() }
+	copyTarContent = io.Copy
+)
+
 func IsTarGz(name string) bool {
 	buffer, err := readData(name)
-	if err != nil && err != io.EOF {
-		return false
-	}
-
 	if err != nil && err != io.EOF {
 		return false
 	}
@@ -72,44 +76,44 @@ func readData(name string) (buffer []byte, err error) {
 
 func ExtractZip(path, artifactPath string) error {
 	zipReader, err := zip.OpenReader(artifactPath)
-	defer func() {
-		_ = zipReader.Close()
-	}()
-
 	if err != nil {
 		return ErrExtractZip(err, path)
 	}
+	defer func() {
+		_ = zipReader.Close()
+	}()
 	buffer := make([]byte, 1<<4)
 	for _, file := range zipReader.File {
-
-		fd, err := file.Open()
+		fd, err := openZipEntry(file)
+		if err != nil {
+			return ErrExtractZip(err, path)
+		}
 		defer func() {
 			_ = fd.Close()
 		}()
 
-		if err != nil {
-			return ErrExtractZip(err, path)
-		}
-
 		filePath := filepath.Join(path, file.Name)
 
 		if file.FileInfo().IsDir() {
-			err := os.Mkdir(file.Name, file.Mode())
+			err := os.MkdirAll(filePath, file.Mode())
 			if err != nil {
 				return ErrExtractZip(err, path)
 			}
 		} else {
-			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-			if err != nil {
+			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 				return ErrExtractZip(err, path)
 			}
-			_, err = io.CopyBuffer(openedFile, fd, buffer)
+			openedFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 			if err != nil {
 				return ErrExtractZip(err, path)
 			}
 			defer func() {
 				_ = openedFile.Close()
 			}()
+			_, err = copyZipBuffer(openedFile, fd, buffer)
+			if err != nil {
+				return ErrExtractZip(err, path)
+			}
 		}
 
 	}
@@ -134,7 +138,7 @@ func ExtractTarGz(path, downloadfilePath string) error {
 	tarReader := tar.NewReader(uncompressedStream)
 
 	for {
-		header, err := tarReader.Next()
+		header, err := nextTarHeader(tarReader)
 
 		if err == io.EOF {
 			break
@@ -155,13 +159,13 @@ func ExtractTarGz(path, downloadfilePath string) error {
 			if err != nil {
 				return ErrExtractTarXZ(err, path)
 			}
-			if _, err = io.Copy(outFile, tarReader); err != nil {
+			if _, err = copyTarContent(outFile, tarReader); err != nil {
 				return ErrExtractTarXZ(err, path)
 			}
 			_ = outFile.Close()
 
 		default:
-			return ErrExtractTarXZ(err, path)
+			return ErrExtractTarXZ(fmt.Errorf("unsupported tar entry type %d", header.Typeflag), path)
 		}
 
 	}

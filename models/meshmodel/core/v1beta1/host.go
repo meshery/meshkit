@@ -5,8 +5,8 @@ import (
 
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/kubernetes"
-	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/connection"
+	"github.com/meshery/schemas/models/v1beta3/component"
 )
 
 type MeshModelHostsWithEntitySummary struct {

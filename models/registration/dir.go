@@ -13,8 +13,8 @@ import (
 	"github.com/meshery/meshkit/utils"
 
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
-	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta3/component"
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 )
 

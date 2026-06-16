@@ -9,9 +9,9 @@ import (
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/files"
+	"github.com/meshery/meshkit/schema"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/csv"
-	"github.com/meshery/schemas/models/v1alpha3"
 	_rel "github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/model"
 )
@@ -151,7 +151,7 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 			}
 
 			var rel _rel.RelationshipDefinition
-			rel.SchemaVersion = v1alpha3.RelationshipSchemaVersion
+			rel.SchemaVersion = schema.RelationshipSchemaVersionV1Beta2
 			rel.Kind = _rel.RelationshipDefinitionKind(utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.KIND))
 			rel.RelationshipType = utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.Type)
 			rel.SubType = utils.ReplaceSpacesWithHyphenAndConvertToLowercase(relationship.SubType)
@@ -173,14 +173,14 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 					continue
 				}
 				if rel.Metadata == nil {
-					rel.Metadata = &_rel.Relationship_Metadata{}
+					rel.Metadata = &_rel.RelationshipMetadata{}
 				}
 			}
 			annotation := false
 			if utils.ReplaceSpacesAndConvertToLowercase(relationship.IsAnnotation) == "true" {
 				annotation = true
 			}
-			rel.Metadata = &_rel.Relationship_Metadata{
+			rel.Metadata = &_rel.RelationshipMetadata{
 				Description:  &relationship.Description,
 				IsAnnotation: &annotation,
 				Styles:       &styles,

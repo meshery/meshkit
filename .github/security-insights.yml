@@ -9,9 +9,9 @@ header:
 project:
   name: meshery
   administrators:
-    - name: Lee Calcote
-      affiliation: Layer5
-      email: lee.calcote@layer5.io
+    - name: Meshery Authors
+      affiliation: Meshery
+      email: security@meshery.io
       primary: true
   repositories:
     - name: meshkit
@@ -28,9 +28,9 @@ repository:
   accepts-change-request: true
   accepts-automated-change-request: false
   core-team:
-    - name: Lee Calcote
-      affiliation: Layer5
-      email: lee.calcote@layer5.io
+    - name: Meshery Authors
+      affiliation: Meshery
+      email: security@meshery.io
       primary: true
   license:
     url: https://github.com/meshery/meshkit/blob/master/LICENSE

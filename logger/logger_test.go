@@ -12,10 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type dummyError struct{}
-
-func (d dummyError) Error() string { return "dummy error" }
-
 var mError = meshkitError.New(
 	"code",
 	meshkitError.Alert,

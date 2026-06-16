@@ -1,5 +1,5 @@
 # MeshKit for Meshery and it's ecosystem
-A toolkit for Meshery's microservices and various individual architectural components to reuse and share common functionality. Learn more: [Introducing MeshKit and the Meshery Adapter Library](https://layer5.io/blog/meshery/introducing-meshkit-and-the-meshery-adapter-library)
+A toolkit for Meshery's microservices and various individual architectural components to reuse and share common functionality.
 
 [![](https://github.com/meshery/meshkit/actions/workflows/ci.yml/badge.svg)](https://github.com/meshery/meshkit/actions/workflows/ci.yml)
 [![](https://github.com/meshery/meshkit/actions/workflows/release-drafter.yml/badge.svg)](https://github.com/meshery/meshkit/actions/workflows/release-drafter.yml)
@@ -59,3 +59,7 @@ Learn more about the <a href="https://meshery.io/community#meshmates">MeshMates<
 # Contributing
 
 Please do! We're a warm and welcoming community of open source contributors. Please join. All types of contributions are welcome. Be sure to read the [Contributor Guides](https://docs.meshery.io/project/contributing) for a tour of resources available to you and how to get started.
+
+## Naming conventions
+
+MeshKit utilities that expose wire-facing identifiers (error constants, structured log keys, event envelopes consumed by Meshery Server or Meshery Cloud) follow the ecosystem-wide camelCase-on-the-wire contract. See the [identifier-naming contributor guide](https://github.com/meshery/schemas/blob/master/docs/identifier-naming-contributor-guide.md) in `meshery/schemas` for the reader-friendly 26-row naming directory with before/after and do/don't examples.

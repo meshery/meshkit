@@ -10,11 +10,12 @@ import (
 	"github.com/meshery/meshkit/database"
 	models "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
+	core "github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/category"
-	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
+	"github.com/meshery/schemas/models/v1beta3/component"
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -71,9 +72,9 @@ func (c *RegistryEntityCache) Set(f entity.Filter, value EntityCacheValue) {
 }
 
 type Registry struct {
-	ID           uuid.UUID
-	RegistrantID uuid.UUID
-	Entity       uuid.UUID
+	ID           core.Uuid
+	RegistrantID core.Uuid
+	Entity       core.Uuid
 	Type         entity.EntityType
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
@@ -155,7 +156,7 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityTy
 	}
 	switch entityType {
 	case "models":
-		model := model.ModelDefinition{Id: entityID}
+		model := model.ModelDefinition{ID: entityID}
 		err := model.UpdateStatus(rm.db, entity.EntityStatus(status))
 		if err != nil {
 			return err

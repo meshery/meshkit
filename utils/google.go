@@ -11,6 +11,7 @@ import (
 
 var (
 	GoogleSpreadSheetURL = "https://docs.google.com/spreadsheets/d/"
+	newSheetsService     = sheets.NewService
 )
 
 func NewSheetSRV(cred string) (*sheets.Service, error) {
@@ -24,7 +25,7 @@ func NewSheetSRV(cred string) (*sheets.Service, error) {
 	// create client with config and context
 	client := config.Client(ctx)
 	// create new service using client
-	srv, err := sheets.NewService(ctx, option.WithHTTPClient(client))
+	srv, err := newSheetsService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, ErrGoogleSheetSRV(err)
 	}

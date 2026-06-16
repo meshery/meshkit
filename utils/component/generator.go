@@ -8,8 +8,8 @@ import (
 	"cuelang.org/go/cue"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/manifests"
-	"github.com/meshery/schemas/models/v1beta1"
-	"github.com/meshery/schemas/models/v1beta1/component"
+	"github.com/meshery/schemas/models/v1beta3"
+	"github.com/meshery/schemas/models/v1beta3/component"
 	"github.com/sirupsen/logrus"
 )
 
@@ -81,7 +81,7 @@ func IncludeComponentBasedOnGroup(resource string, groupFilter string) (bool, er
 
 func Generate(resource string) (component.ComponentDefinition, error) {
 	cmp := component.ComponentDefinition{}
-	cmp.SchemaVersion = v1beta1.ComponentSchemaVersion
+	cmp.SchemaVersion = v1beta3.ComponentSchemaVersion
 
 	cmp.Metadata = component.ComponentDefinition_Metadata{}
 	crdCue, err := utils.YamlToCue(resource)

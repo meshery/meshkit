@@ -22,13 +22,13 @@ import (
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/csv"
 	"github.com/meshery/meshkit/utils/store"
-	"github.com/meshery/schemas/models/v1alpha1/capability"
-	"github.com/meshery/schemas/models/v1beta1"
+	"github.com/meshery/schemas/models/v1beta1/capability"
 	"github.com/meshery/schemas/models/v1beta1/category"
-	"github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	_model "github.com/meshery/schemas/models/v1beta1/model"
 	"github.com/meshery/schemas/models/v1beta1/subcategory"
+	"github.com/meshery/schemas/models/v1beta3"
+	"github.com/meshery/schemas/models/v1beta3/component"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/api/sheets/v4"
@@ -187,7 +187,7 @@ func (mcv *ModelCSV) CreateModelDefinition(version, defVersion string) _model.Mo
 		Description: mcv.Description,
 		DisplayName: mcv.ModelDisplayName,
 
-		SchemaVersion: v1beta1.ModelSchemaVersion,
+		SchemaVersion: v1beta3.ModelSchemaVersion,
 		Name:          mcv.Model,
 		Status:        _model.ModelDefinitionStatus(status),
 		Registrant:    registrant,
@@ -424,7 +424,7 @@ func (m ModelCSV) CreateMarkDownForMDStyle(componentsMetadata, relationshipMetad
 		template = `---
 title: %s
 subtitle: %s
-image: /extensions/models/%s/icons/color/%s-color.svg
+image: extensions/models/%s/icons/color/%s-color.svg
 aliases: /extensibility/integrations/%s
 docURL: %s
 description: %s

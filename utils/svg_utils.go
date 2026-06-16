@@ -10,6 +10,15 @@ import (
 
 const XMLTAG = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE svg>"
 
+type xmlTokenEncoder interface {
+	EncodeToken(xml.Token) error
+	Flush() error
+}
+
+var newXMLTokenEncoder = func(w io.Writer) xmlTokenEncoder {
+	return xml.NewEncoder(w)
+}
+
 // UpdateSVGString updates the width and height attributes of an SVG file and returns the modified SVG as a string.
 func UpdateSVGString(svgStr string, width, height int, skipHeader bool) (string, error) {
 	// Create a reader for the SVG string.
@@ -22,7 +31,7 @@ func UpdateSVGString(svgStr string, width, height int, skipHeader bool) (string,
 	var b bytes.Buffer
 
 	// Create an encoder for the buffer.
-	e := xml.NewEncoder(&b)
+	e := newXMLTokenEncoder(&b)
 
 	// Iterate through the tokens in the SVG string.
 	for {
