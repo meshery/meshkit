@@ -40,7 +40,9 @@ func (cf *ConnectionFilter) Create(m map[string]interface{}) {
 	if m == nil {
 		return
 	}
-	cf.Name = m["name"].(string)
+	if name, ok := m["name"].(string); ok {
+		cf.Name = name
+	}
 }
 
 func (cf *ConnectionFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
