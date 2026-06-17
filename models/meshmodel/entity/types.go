@@ -13,6 +13,11 @@ const (
 	RelationshipDefinition EntityType = "relationship"
 	Model                  EntityType = "model"
 	Category               EntityType = "category"
+	// ConnectionDefinition is the registry entity type for connection
+	// definitions: uninitialized, per-model connection templates registered
+	// alongside components and relationships. The schemas connection helper
+	// (github.com/meshery/schemas/models/v1beta3/connection) reports this type.
+	ConnectionDefinition EntityType = "connection"
 )
 
 // Each entity will have it's own Filter implementation via which it exposes the nobs and dials to fetch entities
