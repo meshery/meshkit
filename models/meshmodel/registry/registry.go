@@ -8,14 +8,15 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
-	core "github.com/meshery/schemas/models/core"
 	models "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
+	core "github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
 	"github.com/meshery/schemas/models/v1beta3/component"
+	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gorm.io/gorm/clause"
@@ -98,6 +99,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 		&connection.Connection{},
 		&component.ComponentDefinition{},
 		&relationship.RelationshipDefinition{},
+		&connectionv1beta3.ConnectionDefinition{},
 		&models.PolicyDefinition{},
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
@@ -112,6 +114,7 @@ func (rm *RegistryManager) Cleanup() {
 		&Registry{},
 		&connection.Connection{},
 		&component.ComponentDefinition{},
+		&connectionv1beta3.ConnectionDefinition{},
 		&model.ModelDefinition{},
 		&category.CategoryDefinition{},
 		&relationship.RelationshipDefinition{},
