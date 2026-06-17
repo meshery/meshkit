@@ -1,42 +1,15 @@
+//go:build !js
+
 package database
 
 import (
 	"fmt"
 	"sync"
 
-	"github.com/meshery/meshkit/logger"
 	"gorm.io/driver/postgres"
 	sqlite "gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
-
-const (
-	POSTGRES = "postgres"
-	SQLITE   = "sqlite"
-)
-
-type Options struct {
-	Username string `json:"username,omitempty"`
-	Host     string `json:"host,omitempty"`
-	Port     string `json:"port,omitempty"`
-	Password string `json:"password,omitempty"`
-	Filename string `json:"filename,omitempty"`
-	Engine   string `json:"engine,omitempty"`
-	Logger   logger.Handler
-}
-
-type Model struct {
-	ID        string `json:"id,omitempty" gorm:"primarykey"`
-	CreatedAt string `json:"createdAt,omitempty" gorm:"index"`
-	UpdatedAt string `json:"updatedAt,omitempty" gorm:"index"`
-	DeletedAt string `json:"deletedAt,omitempty" gorm:"index"`
-}
-
-type Handler struct {
-	*gorm.DB
-	*sync.Mutex
-	// Implement methods if necessary
-}
 
 func (h *Handler) DBClose() error {
 	db, err := h.DB.DB()
@@ -49,6 +22,7 @@ func (h *Handler) DBClose() error {
 	}
 	return nil
 }
+
 func New(opts Options) (Handler, error) {
 	switch opts.Engine {
 	case POSTGRES:
