@@ -42,7 +42,7 @@ func TestEventBuilder_FullChain(t *testing.T) {
 		WithMetadata(metadata).
 		WithSeverity(Informational).
 		WithStatus(Read).
-		FromUser(userID).
+		FromOwner(userID).
 		FromSystem(systemID).
 		Build()
 
