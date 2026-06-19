@@ -58,7 +58,7 @@ func (e *EventBuilder) WithStatus(status EventStatus) *EventBuilder {
 }
 
 func (e *EventBuilder) FromUser(id core.Uuid) *EventBuilder {
-	e.event.UserID = &id
+	e.event.Owner = &id
 	return e
 }
 

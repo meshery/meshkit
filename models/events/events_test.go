@@ -67,8 +67,8 @@ func TestEventBuilder_FullChain(t *testing.T) {
 	if event.Status != Read {
 		t.Errorf("expected status Read, got %s", event.Status)
 	}
-	if event.UserID == nil || *event.UserID != userID {
-		t.Error("UserID mismatch")
+	if event.Owner == nil || *event.Owner != userID {
+		t.Error("Owner mismatch")
 	}
 	if event.SystemID != systemID {
 		t.Error("SystemID mismatch")

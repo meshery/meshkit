@@ -66,7 +66,7 @@ type Event struct {
 
 	// UpdatedAt Timestamp when the resource was updated.
 	UpdatedAt UpdatedAt `db:"updated_at" json:"updatedAt"`
-	UserID    *UserID   `db:"user_id" json:"userId,omitempty"`
+	Owner     *Owner    `db:"owner" json:"owner,omitempty"`
 }
 
 // EventSeverity A set of seven standard event levels.
@@ -94,8 +94,8 @@ type EventsFilter struct {
 	// ActedUpon UUID of the entity on which the event was performed.
 	ActedUpon []string `json:"actedUpon"`
 
-	// UserID UUIDs of users to filter events by.
-	UserID []string `json:"userId"`
+	// Owner UUIDs of owners to filter events by.
+	Owner []string `json:"owner"`
 
 	// SystemID UUIDs of systems to filter events by.
 	SystemID []string `json:"systemId"`
@@ -116,5 +116,5 @@ type Time = time.Time
 // UpdatedAt Timestamp when the resource was updated.
 type UpdatedAt = time.Time
 
-// UserID defines model for user_uuid.
-type UserID = core.Uuid
+// Owner defines model for owner uuid.
+type Owner = core.Uuid
