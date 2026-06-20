@@ -527,7 +527,6 @@ func (c *Client) setupKubeConfig() (*genericclioptions.ConfigFlags, func(), erro
 		AuthInfo: authInfo,
 	}
 
-	// explicitly setting kube context may not be required
 	helmKubeConfig.CurrentContext = clusterName
 
 	configBytes, err := writeKubeConfig(*helmKubeConfig)
