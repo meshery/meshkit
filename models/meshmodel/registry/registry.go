@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
 	models "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
@@ -130,7 +130,7 @@ func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Ent
 	if err != nil {
 		return false, true, err
 	}
-	id, err := uuid.NewRandom()
+	id, err := uuid.NewV4()
 	if err != nil {
 		return false, false, err
 	}
@@ -153,7 +153,7 @@ func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Ent
 // By default during models generation ignore is set to false
 func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityType string) error {
 	// Convert string UUID to google UUID
-	entityID, err := uuid.Parse(ID)
+	entityID, err := uuid.FromString(ID)
 	if err != nil {
 		return err
 	}

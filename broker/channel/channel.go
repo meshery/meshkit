@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/broker"
 	"github.com/meshery/meshkit/logger"
 	"github.com/meshery/meshkit/utils"
@@ -46,7 +46,7 @@ func NewChannelBrokerHandler(optsSetters ...OptionsSetter) *ChannelBrokerHandler
 	return &ChannelBrokerHandler{
 		name: fmt.Sprintf(
 			"channel-broker-handler--%s",
-			uuid.New().String(),
+			uuid.Must(uuid.NewV4()).String(),
 		),
 		Options: options,
 		storage: make(map[string]map[string]chan *broker.Message),

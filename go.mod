@@ -8,8 +8,6 @@ replace (
 	// github.com/docker/libcompose => github.com/docker/libcompose v0.4.1-0.20190808084053-143e0f3f1ab9
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
-
-//github.com/meshery/schemas => ../schemas
 )
 
 require (
@@ -23,11 +21,11 @@ require (
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/go-logr/logr v1.4.3
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
+	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/go-containerregistry v0.20.3
-	github.com/google/uuid v1.6.0
 	github.com/kubernetes/kompose v1.37.0
 	github.com/meshery/meshery-operator v0.8.11
-	github.com/meshery/schemas v1.3.12
+	github.com/meshery/schemas v1.3.13
 	github.com/nats-io/nats.go v1.47.0
 	github.com/open-policy-agent/opa v1.11.0
 	github.com/opencontainers/image-spec v1.1.1
@@ -162,7 +160,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
-	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
@@ -172,6 +169,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.16 // indirect
 	github.com/googleapis/gax-go/v2 v2.22.0 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
