@@ -130,7 +130,10 @@ func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Ent
 	if err != nil {
 		return false, true, err
 	}
-	id := uuid.New()
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return false, false, err
+	}
 	entry := Registry{
 		ID:           id,
 		RegistrantID: registrantID,

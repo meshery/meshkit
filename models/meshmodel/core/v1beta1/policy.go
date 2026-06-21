@@ -33,7 +33,7 @@ func (p PolicyDefinition) GetID() core.Uuid {
 }
 
 func (p *PolicyDefinition) GenerateID() (core.Uuid, error) {
-	return uuid.New(), nil
+	return uuid.NewRandom()
 }
 
 func (p PolicyDefinition) Type() entity.EntityType {
@@ -45,7 +45,11 @@ func (p *PolicyDefinition) GetEntityDetail() string {
 }
 
 func (p *PolicyDefinition) Create(db *database.Handler, hostID core.Uuid) (core.Uuid, error) {
-	p.ID, _ = p.GenerateID()
+	var err error
+	p.ID, err = p.GenerateID()
+	if err != nil {
+		return core.Uuid{}, err
+	}
 
 	mid, err := p.Model.Create(db, hostID)
 	if err != nil {
