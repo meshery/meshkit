@@ -3,7 +3,7 @@ package registry
 import (
 	"testing"
 
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/schemas/models/v1beta1"
@@ -27,8 +27,7 @@ func TestUpdateEntityStatusUpdatesModel(t *testing.T) {
 		assert.NoError(t, db.DBClose())
 	})
 
-	hostID, err := uuid.NewV4()
-	require.NoError(t, err)
+	hostID := uuid.New()
 
 	modelDef := model.ModelDefinition{
 		SchemaVersion: v1beta1.ModelSchemaVersion,

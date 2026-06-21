@@ -3,12 +3,12 @@ package events
 import (
 	"fmt"
 
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
-	e.ID, _ = uuid.NewV4()
+	e.ID = uuid.New()
 	err = isEventStatusSupported(e)
 	return
 }
