@@ -3,7 +3,7 @@ package events
 import (
 	"testing"
 
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 )
 
 func TestNewEvent(t *testing.T) {
@@ -20,15 +20,15 @@ func TestNewEvent(t *testing.T) {
 }
 
 func TestEventBuilder_FullChain(t *testing.T) {
-	resourceID, err := uuid.FromString("11111111-1111-1111-1111-111111111111")
+	resourceID, err := uuid.Parse("11111111-1111-1111-1111-111111111111")
 	if err != nil {
 		t.Fatalf("failed to parse resourceID UUID: %v", err)
 	}
-	userID, err := uuid.FromString("22222222-2222-2222-2222-222222222222")
+	userID, err := uuid.Parse("22222222-2222-2222-2222-222222222222")
 	if err != nil {
 		t.Fatalf("failed to parse userID UUID: %v", err)
 	}
-	systemID, err := uuid.FromString("33333333-3333-3333-3333-333333333333")
+	systemID, err := uuid.Parse("33333333-3333-3333-3333-333333333333")
 	if err != nil {
 		t.Fatalf("failed to parse systemID UUID: %v", err)
 	}
