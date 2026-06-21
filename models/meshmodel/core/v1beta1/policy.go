@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/utils"
 	core "github.com/meshery/schemas/models/core"
@@ -33,7 +33,7 @@ func (p PolicyDefinition) GetID() core.Uuid {
 }
 
 func (p *PolicyDefinition) GenerateID() (core.Uuid, error) {
-	return uuid.NewRandom()
+	return uuid.NewV4()
 }
 
 func (p PolicyDefinition) Type() entity.EntityType {

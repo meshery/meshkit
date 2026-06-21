@@ -3,7 +3,7 @@ package events
 import (
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	core "github.com/meshery/schemas/models/core"
 )
 
@@ -12,7 +12,7 @@ type EventBuilder struct {
 }
 
 func NewEvent() *EventBuilder {
-	operationId := uuid.New()
+	operationId := uuid.Must(uuid.NewV4())
 	return &EventBuilder{
 		event: Event{
 			CreatedAt:   time.Now(),

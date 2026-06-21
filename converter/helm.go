@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/models/patterns"
 	"github.com/meshery/meshkit/utils/helm"
 	"helm.sh/helm/v3/pkg/action"
@@ -70,7 +70,7 @@ func createHelmChartContent(manifestContent, chartName, chartVersion string) (st
 		return "", ErrCreateHelmChart(err, "creating temp directory")
 	}
 
-	buildID := uuid.New().String()
+	buildID := uuid.Must(uuid.NewV4()).String()
 	buildDir := filepath.Join(tempDir, buildID)
 	chartSourcePath := filepath.Join(buildDir, chartName)
 

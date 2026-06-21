@@ -3,12 +3,12 @@ package events
 import (
 	"fmt"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 )
 
 func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
-	e.ID, err = uuid.NewRandom()
+	e.ID, err = uuid.NewV4()
 	if err != nil {
 		return
 	}

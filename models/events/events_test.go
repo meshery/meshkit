@@ -3,7 +3,7 @@ package events
 import (
 	"testing"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 )
 
 func TestNewEvent(t *testing.T) {
@@ -15,20 +15,20 @@ func TestNewEvent(t *testing.T) {
 	if event.Status != Unread {
 		t.Errorf("expected default status Unread, got %s", event.Status)
 	}
-	// OperationID is generated via uuid.NewV4() in NewEvent which ignores errors.
-	// We only verify default status here; OperationID may be Nil if entropy is unavailable.
+	// OperationID is generated via uuid.Must(uuid.NewV4()) in NewEvent, which
+	// panics only if entropy is unavailable, so it is always a valid non-Nil UUID.
 }
 
 func TestEventBuilder_FullChain(t *testing.T) {
-	resourceID, err := uuid.Parse("11111111-1111-1111-1111-111111111111")
+	resourceID, err := uuid.FromString("11111111-1111-1111-1111-111111111111")
 	if err != nil {
 		t.Fatalf("failed to parse resourceID UUID: %v", err)
 	}
-	userID, err := uuid.Parse("22222222-2222-2222-2222-222222222222")
+	userID, err := uuid.FromString("22222222-2222-2222-2222-222222222222")
 	if err != nil {
 		t.Fatalf("failed to parse userID UUID: %v", err)
 	}
-	systemID, err := uuid.Parse("33333333-3333-3333-3333-333333333333")
+	systemID, err := uuid.FromString("33333333-3333-3333-3333-333333333333")
 	if err != nil {
 		t.Fatalf("failed to parse systemID UUID: %v", err)
 	}

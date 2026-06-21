@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 )
 
 type Specification struct {
