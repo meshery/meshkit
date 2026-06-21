@@ -8,7 +8,10 @@ import (
 )
 
 func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
-	e.ID = uuid.New()
+	e.ID, err = uuid.NewRandom()
+	if err != nil {
+		return
+	}
 	err = isEventStatusSupported(e)
 	return
 }

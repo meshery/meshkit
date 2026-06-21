@@ -33,7 +33,7 @@ func (p PolicyDefinition) GetID() core.Uuid {
 }
 
 func (p *PolicyDefinition) GenerateID() (core.Uuid, error) {
-	return uuid.New(), nil
+	return uuid.NewRandom()
 }
 
 func (p PolicyDefinition) Type() entity.EntityType {
