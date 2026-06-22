@@ -3,13 +3,11 @@ package manifests
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"strings"
-
-	"gopkg.in/yaml.v3"
-
 	"github.com/meshery/meshkit/utils"
 	k8s "github.com/meshery/meshkit/utils/kubernetes"
+	"gopkg.in/yaml.v3"
+	"io"
+	"strings"
 )
 
 func GetFromManifest(ctx context.Context, url string, resource int, cfg Config) (*Component, error) {
@@ -41,6 +39,9 @@ func GetCrdsFromHelm(url string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	manifest = repairYaml(manifest)
+
 	dec := yaml.NewDecoder(strings.NewReader(manifest))
 	var mans []string
 	for {
@@ -61,10 +62,24 @@ func GetCrdsFromHelm(url string) ([]string, error) {
 	return removeNonCrdValues(mans), nil
 }
 
+func repairYaml(doc string) string {
+	fixed := strings.ReplaceAll(doc, "\napiVersion:", "\n---\napiVersion:")
+	for strings.Contains(fixed, "\n---\n---\n") {
+		fixed = strings.ReplaceAll(fixed, "\n---\n---\n", "\n---\n")
+	}
+
+	return fixed
+}
+
 func removeNonCrdValues(crds []string) []string {
 	out := make([]string, 0)
 	for _, crd := range crds {
-		if crd != "" && crd != " " && crd != "null" {
+		var crdMap map[string]interface{}
+		if err := json.Unmarshal([]byte(crd), &crdMap); err != nil {
+			continue
+		}
+
+		if crdMap["kind"] == "CustomResourceDefinition" {
 			out = append(out, crd)
 		}
 	}
