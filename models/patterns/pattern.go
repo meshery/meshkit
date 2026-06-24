@@ -92,7 +92,13 @@ func DehydratePattern(pattern *pattern.PatternFile) {
 // Call SanitizePattern at the design-save boundary, alongside DehydratePattern,
 // so that clean data is always persisted to the database.
 func SanitizePattern(p *pattern.PatternFile) {
+	if p == nil {
+		return
+	}
 	for _, comp := range p.Components {
+		if comp == nil {
+			continue
+		}
 		comp.DisplayName = strings.TrimSpace(comp.DisplayName)
 		comp.Configuration = sanitizeConfigMap(comp.Configuration)
 	}

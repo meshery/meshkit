@@ -113,3 +113,16 @@ func TestSanitizePattern_EmptyPatternIsNoop(t *testing.T) {
 	// Must not panic on empty component list.
 	patterns.SanitizePattern(p)
 }
+
+func TestSanitizePattern_NilPatternFileIsNoop(t *testing.T) {
+	// Must not panic when called with a nil *PatternFile.
+	patterns.SanitizePattern(nil)
+}
+
+func TestSanitizePattern_NilComponentInSliceIsSkipped(t *testing.T) {
+	// Must not panic when the Components slice contains a nil pointer.
+	p := &pattern.PatternFile{
+		Components: []*component.ComponentDefinition{nil},
+	}
+	patterns.SanitizePattern(p)
+}
