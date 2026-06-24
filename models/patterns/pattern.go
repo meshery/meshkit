@@ -2,6 +2,7 @@ package patterns
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -79,6 +80,54 @@ func DehydratePattern(pattern *pattern.PatternFile) {
 			comp.ModelReference = comp.Model.ToReference()
 		}
 		comp.Model = nil
+	}
+}
+
+// SanitizePattern trims leading and trailing whitespace from every string key
+// and string value inside each component's Configuration map, and from each
+// component's DisplayName. This prevents gopkg.in/yaml.v3 from quoting map
+// keys or values that contain incidental whitespace (e.g. 'storage ': 2Gi)
+// when the design is exported as a Kubernetes manifest or Helm chart.
+//
+// Call SanitizePattern at the design-save boundary, alongside DehydratePattern,
+// so that clean data is always persisted to the database.
+func SanitizePattern(p *pattern.PatternFile) {
+	for _, comp := range p.Components {
+		comp.DisplayName = strings.TrimSpace(comp.DisplayName)
+		comp.Configuration = sanitizeConfigMap(comp.Configuration)
+	}
+}
+
+// sanitizeConfigMap recursively trims string keys and string values in a
+// map[string]interface{} configuration tree. Non-string leaves (bool, number,
+// nil) are passed through unchanged so that schema-typed fields are not
+// corrupted.
+func sanitizeConfigMap(m map[string]interface{}) map[string]interface{} {
+	if m == nil {
+		return nil
+	}
+	result := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		result[strings.TrimSpace(k)] = sanitizeConfigValue(v)
+	}
+	return result
+}
+
+func sanitizeConfigValue(v interface{}) interface{} {
+	switch val := v.(type) {
+	case string:
+		return strings.TrimSpace(val)
+	case map[string]interface{}:
+		return sanitizeConfigMap(val)
+	case []interface{}:
+		result := make([]interface{}, len(val))
+		for i, item := range val {
+			result[i] = sanitizeConfigValue(item)
+		}
+		return result
+	default:
+		// bool, int64, float64, nil — pass through unchanged.
+		return v
 	}
 }
 
