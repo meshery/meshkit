@@ -4,7 +4,6 @@ import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/models/meshmodel/registry"
-	modelv1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 	"gorm.io/gorm/clause"
 )
@@ -28,7 +27,9 @@ type ConnectionFilter struct {
 
 func (cf *ConnectionFilter) GetById(db *database.Handler) (entity.Entity, error) {
 	c := &connectionv1beta3.ConnectionDefinition{}
-	err := db.Preload("Model").First(c, "id = ?", cf.Id).Error
+	// model_reference is a JSON column on connection_definition_dbs (hydrated by
+	// the type's Scan), not a GORM association, so there is nothing to Preload.
+	err := db.First(c, "id = ?", cf.Id).Error
 	if err != nil {
 		return nil, registry.ErrGetById(err, cf.Id)
 	}
@@ -48,22 +49,21 @@ func (cf *ConnectionFilter) Create(m map[string]interface{}) {
 func (cf *ConnectionFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	var connectionDefinitions []connectionv1beta3.ConnectionDefinition
 
-	// Query the connection_definition_dbs table directly and hydrate the related
-	// model via Preload. We intentionally avoid a JOIN with a `table.*` SELECT:
+	// Query the connection_definition_dbs table directly. The owning model is no
+	// longer a GORM association/FK (model_id is gone); it is carried inline as the
+	// JSON `model_reference` column, which the type's Scan hydrates on Find, so
+	// there is nothing to Preload. We also avoid a JOIN with a `table.*` SELECT:
 	// GORM's SQLite dialector mis-quotes `connection_definition_dbs.*` as a single
 	// identifier (notably inside the Count() rewrite), yielding
 	// "no such column: connection_definition_dbs.*". Filtering by model is done via
-	// a subquery on model_id so the main query stays single-table.
-	finder := db.Model(&connectionv1beta3.ConnectionDefinition{}).Preload("Model")
+	// JSON extraction on model_reference so the query stays single-table.
+	finder := db.Model(&connectionv1beta3.ConnectionDefinition{})
 
 	if cf.ModelName != "" && cf.ModelName != "all" {
-		modelIDs := db.Model(&modelv1beta1.ModelDefinition{}).
-			Select("id").
-			Where("name = ?", cf.ModelName)
+		finder = finder.Where("connection_definition_dbs.model_reference->>'name' = ?", cf.ModelName)
 		if cf.Version != "" {
-			modelIDs = modelIDs.Where("model->>'version' = ?", cf.Version)
+			finder = finder.Where("connection_definition_dbs.model_reference->'model'->>'version' = ?", cf.Version)
 		}
-		finder = finder.Where("connection_definition_dbs.model_id IN (?)", modelIDs)
 	}
 
 	if cf.Name != "" {
