@@ -154,7 +154,8 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	// 4. Register connection definitions
 	var registeredConnections []connectionv1beta3.ConnectionDefinition
 	for _, conn := range pkg.Connections {
-		conn.Model = &model
+		ref := model.ToReference()
+		conn.ModelReference = &ref
 		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &conn)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(conn.Type()), conn.Name)
