@@ -587,7 +587,7 @@ func AssignDefaultsForCompDefs(componentDef *component.ComponentDefinition, mode
 				return strings.EqualFold(k, name)
 			}); field.IsValid() && field.CanSet() {
 				switch field.Kind() {
-				case reflect.Ptr:
+				case reflect.Pointer:
 					ptrType := field.Type().Elem()
 					val := reflect.New(ptrType).Elem()
 
