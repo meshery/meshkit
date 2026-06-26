@@ -4,7 +4,6 @@ import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/models/meshmodel/registry"
-	modelv1beta1 "github.com/meshery/schemas/models/v1beta1/model"
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 	"gorm.io/gorm/clause"
 )
@@ -54,16 +53,17 @@ func (cf *ConnectionFilter) Get(db *database.Handler) ([]entity.Entity, int64, i
 	// identifier (notably inside the Count() rewrite), yielding
 	// "no such column: connection_definition_dbs.*". Filtering by model is done via
 	// a subquery on model_id so the main query stays single-table.
-	finder := db.Model(&connectionv1beta3.ConnectionDefinition{}).Preload("Model")
+	finder := db.Model(&connectionv1beta3.ConnectionDefinition{})
 
 	if cf.ModelName != "" && cf.ModelName != "all" {
-		modelIDs := db.Model(&modelv1beta1.ModelDefinition{}).
-			Select("id").
-			Where("name = ?", cf.ModelName)
+		// v1beta3 ConnectionDefinition stores its model association as a serialized
+		// ModelReference in the `model_reference` column; there is no model_id FK
+		// column (that was the v1beta1 shape). Filter on the reference's name and
+		// version directly via JSON extraction.
+		finder = finder.Where("connection_definition_dbs.model_reference->>'name' = ?", cf.ModelName)
 		if cf.Version != "" {
-			modelIDs = modelIDs.Where("model->>'version' = ?", cf.Version)
+			finder = finder.Where("connection_definition_dbs.model_reference->>'version' = ?", cf.Version)
 		}
-		finder = finder.Where("connection_definition_dbs.model_id IN (?)", modelIDs)
 	}
 
 	if cf.Name != "" {

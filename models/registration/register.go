@@ -91,7 +91,11 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	}
 
 	model.Registrant.Status = connection.ConnectionStatusRegistered
-	_, _, err := rh.regManager.RegisterEntity(model.Registrant, &model)
+	// ModelDefinition.Registrant is a schema-fixed v1beta1 connection, while the
+	// registry now expects a v1beta3 host. Adapt it once and reuse for every entity
+	// registered under this model so they all attach to the same registrant.
+	host := meshmodel.RegistrantHostToV1beta3(model.Registrant)
+	_, _, err := rh.regManager.RegisterEntity(host, &model)
 
 	// If model cannot be registered, don't register anything else
 	if err != nil {
@@ -127,7 +131,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 			)
 		}
 
-		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &comp)
+		_, _, err := rh.regManager.RegisterEntity(host, &comp)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(comp.Type()), comp.DisplayName)
 			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ComponentDefinition, comp.DisplayName, err)
@@ -141,7 +145,7 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	for _, rel := range pkg.Relationships {
 		rel.Model = model.ToReference()
 		rel.ModelId = &model.ID
-		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &rel)
+		_, _, err := rh.regManager.RegisterEntity(host, &rel)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(rel.Type()), string(rel.Kind))
 			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.RelationshipDefinition, rel.ID.String(), err)
@@ -154,8 +158,9 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	// 4. Register connection definitions
 	var registeredConnections []connectionv1beta3.ConnectionDefinition
 	for _, conn := range pkg.Connections {
-		conn.Model = &model
-		_, _, err := rh.regManager.RegisterEntity(model.Registrant, &conn)
+		modelRef := model.ToReference()
+		conn.ModelReference = &modelRef
+		_, _, err := rh.regManager.RegisterEntity(host, &conn)
 		if err != nil {
 			err = ErrRegisterEntity(err, string(conn.Type()), conn.Name)
 			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ConnectionDefinition, conn.Name, err)

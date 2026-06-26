@@ -13,7 +13,7 @@ import (
 	core "github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/category"
-	"github.com/meshery/schemas/models/v1beta1/connection"
+	connectionv1beta1 "github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
 	"github.com/meshery/schemas/models/v1beta3/component"
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
@@ -30,9 +30,9 @@ import (
 // 2. Entity type
 // 3. Entity
 type MeshModelRegistrantData struct {
-	Connection connection.Connection `json:"connection"`
-	EntityType entity.EntityType     `json:"entityType"`
-	Entity     []byte                `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
+	Connection connectionv1beta3.Connection `json:"connection"`
+	EntityType entity.EntityType            `json:"entityType"`
+	Entity     []byte                       `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
 }
 
 type EntityCacheValue struct {
@@ -96,7 +96,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	}
 	err := rm.db.AutoMigrate(
 		&Registry{},
-		&connection.Connection{},
+		&connectionv1beta1.Connection{},
 		&component.ComponentDefinition{},
 		&relationship.RelationshipDefinition{},
 		&connectionv1beta3.ConnectionDefinition{},
@@ -112,7 +112,7 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 func (rm *RegistryManager) Cleanup() {
 	_ = rm.db.Migrator().DropTable(
 		&Registry{},
-		&connection.Connection{},
+		&connectionv1beta1.Connection{},
 		&component.ComponentDefinition{},
 		&connectionv1beta3.ConnectionDefinition{},
 		&model.ModelDefinition{},
@@ -120,8 +120,16 @@ func (rm *RegistryManager) Cleanup() {
 		&relationship.RelationshipDefinition{},
 	)
 }
-func (rm *RegistryManager) RegisterEntity(h connection.Connection, en entity.Entity) (bool, bool, error) {
-	registrantID, err := h.Create(rm.db)
+func (rm *RegistryManager) RegisterEntity(h connectionv1beta3.Connection, en entity.Entity) (bool, bool, error) {
+	// The registrant/host is exposed as a v1beta3 connection, but it is a live
+	// connection persisted in the `connections` table (the table joined by
+	// GetRegistrants and the component filter). The v1beta3 ConnectionDefinition
+	// helpers target `connection_definition_dbs`, require a parent host id, and
+	// generate a random id - none of which fit a registrant. We therefore adapt
+	// the host to the v1beta1 connection and reuse its idempotent, content-addressed
+	// Create so repeated registrations of the same host reuse a single registrant row.
+	registrant := RegistrantHostToV1beta1(h)
+	registrantID, err := registrant.Create(rm.db)
 	if err != nil {
 		return true, false, err
 	}
@@ -167,13 +175,54 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityTy
 	}
 }
 
-func (rm *RegistryManager) GetRegistrant(e entity.Entity) connection.Connection {
+func (rm *RegistryManager) GetRegistrant(e entity.Entity) connectionv1beta3.Connection {
 	eID := e.GetID()
 	var reg Registry
 	_ = rm.db.Where("entity = ?", eID).Find(&reg).Error
-	var h connection.Connection
+	// Registrants live in the `connections` table as v1beta1 connections; read them
+	// there and adapt to the v1beta3 connection type now exposed by the registry API.
+	var h connectionv1beta1.Connection
 	_ = rm.db.Where("id = ?", reg.RegistrantID).Find(&h).Error
-	return h
+	return RegistrantHostToV1beta3(h)
+}
+
+// RegistrantHostToV1beta3 adapts the schema-fixed v1beta1 registrant/host
+// connection (e.g. model.ModelDefinition.Registrant) to the v1beta3 connection
+// type now exposed by the registry API. Only the fields backed by the
+// `connections` table are carried over. Consumers (e.g. Meshery) that hold a
+// v1beta1 registrant should use this helper to build the v1beta3 host passed to
+// RegisterEntity.
+func RegistrantHostToV1beta3(c connectionv1beta1.Connection) connectionv1beta3.Connection {
+	return connectionv1beta3.Connection{
+		ID:             c.ID,
+		Name:           c.Name,
+		CredentialID:   c.CredentialID,
+		ConnectionType: c.Type,
+		SubType:        c.SubType,
+		Kind:           c.Kind,
+		Metadata:       c.Metadata,
+		Status:         connectionv1beta3.ConnectionStatus(c.Status),
+		Owner:          c.UserID,
+		SchemaVersion:  c.SchemaVersion,
+	}
+}
+
+// RegistrantHostToV1beta1 is the inverse of RegistrantHostToV1beta3. It maps a
+// v1beta3 registrant/host back to the v1beta1 connection persisted in the
+// `connections` table so the existing idempotent Create path can be reused.
+func RegistrantHostToV1beta1(h connectionv1beta3.Connection) connectionv1beta1.Connection {
+	return connectionv1beta1.Connection{
+		ID:            h.ID,
+		Name:          h.Name,
+		CredentialID:  h.CredentialID,
+		Type:          h.ConnectionType,
+		SubType:       h.SubType,
+		Kind:          h.Kind,
+		Metadata:      h.Metadata,
+		Status:        connectionv1beta1.ConnectionStatus(h.Status),
+		UserID:        h.Owner,
+		SchemaVersion: h.SchemaVersion,
+	}
 }
 
 // to be removed
