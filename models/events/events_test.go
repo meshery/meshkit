@@ -15,8 +15,8 @@ func TestNewEvent(t *testing.T) {
 	if event.Status != Unread {
 		t.Errorf("expected default status Unread, got %s", event.Status)
 	}
-	// OperationID is generated via uuid.NewV4() in NewEvent which ignores errors.
-	// We only verify default status here; OperationID may be Nil if entropy is unavailable.
+	// OperationID is generated via uuid.Must(uuid.NewV4()) in NewEvent, which
+	// panics only if entropy is unavailable, so it is always a valid non-Nil UUID.
 }
 
 func TestEventBuilder_FullChain(t *testing.T) {

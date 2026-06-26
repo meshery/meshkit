@@ -12,7 +12,7 @@ type EventBuilder struct {
 }
 
 func NewEvent() *EventBuilder {
-	operationId, _ := uuid.NewV4()
+	operationId := uuid.Must(uuid.NewV4())
 	return &EventBuilder{
 		event: Event{
 			CreatedAt:   time.Now(),

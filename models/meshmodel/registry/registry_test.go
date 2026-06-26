@@ -27,8 +27,7 @@ func TestUpdateEntityStatusUpdatesModel(t *testing.T) {
 		assert.NoError(t, db.DBClose())
 	})
 
-	hostID, err := uuid.NewV4()
-	require.NoError(t, err)
+	hostID := uuid.Must(uuid.NewV4())
 
 	modelDef := model.ModelDefinition{
 		SchemaVersion: v1beta1.ModelSchemaVersion,
