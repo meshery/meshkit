@@ -72,83 +72,87 @@ func (g *GoMod) SyncRequire(f io.Reader, throwerr bool) (gomod string, err error
 		}
 	}
 
-	// Emit a replace block that pins every package in the source (host)
-	// module graph to its exact source-selected version. Pinning via
-	// `replace` — rather than relying on `require` alone — is required for
-	// Go plugin ABI compatibility. Without it, the `go mod tidy` step that
-	// callers run after this tool can upgrade transitive dependencies past
-	// what the host binary is linked against (for example, a direct
-	// dependency on github.com/99designs/gqlgen pulling in a newer
-	// github.com/vektah/gqlparser/v2 than the host uses), causing
-	// plugin.Open to fail at runtime with:
+	// Emit a single, canonical replace block that pins every package in the
+	// source (host) module graph to its exact source-selected version.
+	// Pinning via `replace` — rather than relying on `require` alone — is
+	// required for Go plugin ABI compatibility. Without it, the `go mod tidy`
+	// step that callers run after this tool can upgrade transitive
+	// dependencies past what the host binary is linked against (for example,
+	// a direct dependency on github.com/99designs/gqlgen pulling in a newer
+	// github.com/vektah/gqlparser/v2 than the host uses), causing plugin.Open
+	// to fail at runtime with:
 	//   "plugin was built with a different version of package <pkg>".
-	// Because replace directives override require resolution, this
-	// guarantees the destination module is compiled against the exact same
-	// versions as the source. Source-declared replaces take precedence over
-	// pinning and are emitted verbatim.
-	replacedMods := make(map[string]bool, len(g.ReplacedVersions))
-	for _, r := range g.ReplacedVersions {
-		if len(r) >= 1 {
-			replacedMods[r[0].Name] = true
+	//
+	// The block is assembled by merging three sources, highest precedence
+	// first, keeping exactly one directive per module:
+	//   1. Source-declared replaces (emitted verbatim). These override
+	//      require resolution, so the destination compiles against the exact
+	//      same versions as the source.
+	//   2. Source require pins (module => module version).
+	//   3. Destination-only replaces the source does not touch, so
+	//      extension-specific overrides (e.g. a local `=> ../../meshery`
+	//      path) survive.
+	//
+	// Every pre-existing replace in the destination is stripped first and the
+	// merged set is re-emitted as one block. Emitting exactly one directive
+	// per module is what makes the tool idempotent and guarantees the output
+	// can never carry a duplicate or conflicting replacement — even when the
+	// destination arrives already corrupted by a prior run (two conflicting
+	// replaces for the same module in separate blocks, which makes the
+	// caller's `go mod tidy` fail with "conflicting replacements for
+	// <module>" before this tool can run again to heal it).
+	final := make(map[string]string, len(g.RequiredVersions)+len(g.ReplacedVersions))
+	order := make([]string, 0, len(g.RequiredVersions)+len(g.ReplacedVersions))
+	addReplace := func(name, line string) {
+		if name == "" || line == "" {
+			return
 		}
+		if _, exists := final[name]; exists {
+			return
+		}
+		final[name] = line
+		order = append(order, name)
 	}
 
-	// Compute the set of modules we will emit a replace directive for, so
-	// that any pre-existing replace in the destination for the same module
-	// can be stripped first. Leaving both in place would cause `go mod tidy`
-	// to fail with "multiple replacements for <module>".
-	emitModules := make(map[string]bool, len(g.RequiredVersions)+len(g.ReplacedVersions))
-	for _, required := range g.RequiredVersions {
-		if !replacedMods[required.Name] {
-			emitModules[required.Name] = true
-		}
-	}
-	for _, r := range g.ReplacedVersions {
-		if len(r) >= 1 {
-			emitModules[r[0].Name] = true
-		}
-	}
-	data = stripConflictingReplaces(data, emitModules)
-
-	if len(g.RequiredVersions) > 0 || len(g.ReplacedVersions) > 0 {
-		data = append(data, "replace (")
-	}
-
-	pinned := make(map[string]bool, len(g.RequiredVersions))
-	for _, required := range g.RequiredVersions {
-		if pinned[required.Name] || replacedMods[required.Name] {
-			continue
-		}
-		pinned[required.Name] = true
-		data = append(data, fmt.Sprintf("\t%s => %s %s", required.Name, required.Name, required.Version))
-	}
-
-	// Add all the replaced versions from source to destination. Running go
-	// mod tidy after the utility will perform the cleanup in the destination
-	// go.mod and remove unused entries. Instead of trying to intelligently
-	// perform diffs, it is better to let `go mod tidy` do the cleanup.
+	// 1. Source-declared replaces take precedence and are emitted verbatim.
 	for _, replaced := range g.ReplacedVersions {
-		data = append(data, formatReplaceLine(replaced))
+		if len(replaced) >= 1 {
+			addReplace(replaced[0].Name, formatReplaceLine(replaced))
+		}
+	}
+	// 2. Pin every source require to its exact version.
+	for _, required := range g.RequiredVersions {
+		addReplace(required.Name, fmt.Sprintf("\t%s => %s %s", required.Name, required.Name, required.Version))
+	}
+	// 3. Preserve destination-only replaces (deduplicated; first wins).
+	for _, replaced := range getReplacedVersionsFromString(string(b)) {
+		if len(replaced) >= 1 {
+			addReplace(replaced[0].Name, formatReplaceLine(replaced))
+		}
 	}
 
-	if len(g.RequiredVersions) > 0 || len(g.ReplacedVersions) > 0 {
+	data = stripAllReplaces(data)
+
+	if len(order) > 0 {
+		data = append(data, "replace (")
+		for _, name := range order {
+			data = append(data, final[name])
+		}
 		data = append(data, ")")
 	}
 	gomod = strings.Join(data, "\n")
 	return
 }
 
-// stripConflictingReplaces removes any replace directive from the
-// destination go.mod lines whose "from" module is in the conflicts set.
-// Both forms are handled: single-line (`replace foo => bar v1`) and lines
-// inside an existing `replace (...)` block. Replaces for modules not in
-// conflicts are preserved — including destination-specific overrides that
-// the source does not touch. Empty replace blocks that may be left behind
-// are valid go.mod syntax; `go mod tidy` cleans them up.
-func stripConflictingReplaces(data []string, conflicts map[string]bool) []string {
-	if len(conflicts) == 0 {
-		return data
-	}
+// stripAllReplaces removes every replace directive from the destination
+// go.mod lines — both block form (`replace ( ... )`, including the wrapping
+// lines) and single-line form (`replace foo => bar v1`). The caller re-emits
+// a single canonical, deduplicated replace block. Removing all pre-existing
+// replaces (rather than only those being re-emitted) is what guarantees the
+// result can never carry a duplicate or conflicting replacement, even when
+// the destination arrived corrupted from a prior run. Any blank lines left
+// where blocks were removed are normalized by the caller's `go mod tidy`.
+func stripAllReplaces(data []string) []string {
 	out := make([]string, 0, len(data))
 	inReplaceBlock := false
 	for _, line := range data {
@@ -156,35 +160,22 @@ func stripConflictingReplaces(data []string, conflicts map[string]bool) []string
 
 		if !inReplaceBlock && (trim == "replace (" || trim == "replace(") {
 			inReplaceBlock = true
-			out = append(out, line)
-			continue
+			continue // drop the opening line
 		}
-		if inReplaceBlock && trim == ")" {
-			inReplaceBlock = false
-			out = append(out, line)
-			continue
+		if inReplaceBlock {
+			if trim == ")" {
+				inReplaceBlock = false
+			}
+			continue // drop block-interior lines and the closing ")"
 		}
 
+		// Single-line replace outside any block. go.mod allows arbitrary
+		// whitespace after the `replace` keyword, so tokenize rather than
+		// match a fixed prefix. Lines that merely contain "=>" elsewhere
+		// (e.g. an in-comment arrow) are left untouched.
 		if strings.Contains(trim, "=>") {
-			var rest string
-			switch {
-			case inReplaceBlock:
-				rest = trim
-			default:
-				// go.mod allows arbitrary whitespace after the `replace`
-				// keyword (e.g. `replace\tfoo => bar`), so tokenize rather
-				// than match a fixed "replace " prefix. Skip any other line
-				// containing "=>" (e.g. an in-comment arrow).
-				fields := strings.Fields(trim)
-				if len(fields) == 0 || fields[0] != "replace" {
-					out = append(out, line)
-					continue
-				}
-				rest = strings.TrimSpace(strings.TrimPrefix(trim, fields[0]))
-			}
-			parts := strings.SplitN(rest, "=>", 2)
-			from := strings.Fields(strings.TrimSpace(parts[0]))
-			if len(from) >= 1 && conflicts[from[0]] {
+			fields := strings.Fields(trim)
+			if len(fields) > 0 && fields[0] == "replace" {
 				continue
 			}
 		}
