@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	opClient "github.com/meshery/meshery-operator/pkg/client"
+	"github.com/meshery/meshkit/logger"
 	"github.com/meshery/meshkit/utils"
 	mesherykube "github.com/meshery/meshkit/utils/kubernetes"
 	v1 "k8s.io/api/core/v1"
@@ -156,6 +157,44 @@ func (mb *mesheryBroker) GetVersion() (string, error) {
 		return getImageVersionOfContainer(statefulSet.Spec.Template, "nats"), nil
 	}
 	return "", lastErr
+}
+
+// natsAuthSecretName / natsAuthTokenKey follow the operator's convention for the
+// NATS token secret (operator >= 1.0.2 provisions NATS with token auth:
+// `authorization { token: $NATS_TOKEN }`, token stored in this secret).
+const (
+	natsAuthSecretName = "meshery-nats-auth"
+	natsAuthTokenKey   = "token"
+)
+
+// GetToken returns the NATS authorization token the operator provisioned for the
+// broker (secret meshery-nats-auth, key token). It returns ("", nil) when the
+// secret is absent — an unauthenticated broker — so callers stay backward
+// compatible with tokenless deployments.
+func (mb *mesheryBroker) GetToken() (string, error) {
+	secret, err := mb.kclient.KubeClient.CoreV1().Secrets("meshery").Get(context.TODO(), natsAuthSecretName, metav1.GetOptions{})
+	if err != nil {
+		if kubeerror.IsNotFound(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return string(secret.Data[natsAuthTokenKey]), nil
+}
+
+// natsClientPort is the NATS client port to port-forward to.
+const natsClientPort = 4222
+
+// GetPortForwarder returns a self-healing port-forwarder to the broker's NATS
+// pod, so an out-of-cluster Meshery can reach a ClusterIP-only broker without a
+// manual `kubectl port-forward`. The caller owns Start()/Stop(). The pod is
+// selected by the upstream NATS chart label and re-resolved on reconnect.
+func (mb *mesheryBroker) GetPortForwarder(log logger.Handler) (*mesherykube.PortForwarder, error) {
+	return mesherykube.NewPortForwarder(mb.kclient, mesherykube.PortForwardTarget{
+		Namespace:  "meshery",
+		PodLabels:  map[string]string{"app.kubernetes.io/name": "nats"},
+		RemotePort: natsClientPort,
+	}, log)
 }
 
 func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
