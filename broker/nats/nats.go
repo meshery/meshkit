@@ -23,9 +23,12 @@ type Options struct {
 	ConnectionName string
 	Username       string
 	Password       string
-	ReconnectWait  time.Duration
-	MaxReconnect   int
-	Logger         logger.Handler
+	// Token authenticates to a NATS server configured with
+	// `authorization { token: ... }`. Leave empty for an unauthenticated server.
+	Token         string
+	ReconnectWait time.Duration
+	MaxReconnect  int
+	Logger        logger.Handler
 	// RetryOnFailedConnect keeps (re)connecting in the background when the
 	// initial connection fails, instead of returning an error. Combined with a
 	// negative MaxReconnect (infinite), this makes the handler self-healing: it
@@ -51,6 +54,7 @@ func New(opts Options) (broker.Handler, error) {
 		nats.MaxReconnects(opts.MaxReconnect),
 		nats.RetryOnFailedConnect(opts.RetryOnFailedConnect),
 		nats.UserInfo(opts.Username, opts.Password),
+		nats.Token(opts.Token),
 		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
 			if opts.Logger != nil {
 				opts.Logger.Error(err)
