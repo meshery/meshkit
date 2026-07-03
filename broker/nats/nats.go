@@ -126,6 +126,13 @@ func (n *Nats) Info() string {
 	return n.nc.Opts.Name
 }
 
+// IsConnected reports whether the underlying NATS connection is currently live
+// (established and not closed/reconnecting). Unlike ConnectedEndpoints (which
+// reports the known server pool), this reflects the real-time connection state.
+func (n *Nats) IsConnected() bool {
+	return n != nil && n.nc != nil && n.nc.IsConnected()
+}
+
 func (n *Nats) CloseConnection() {
 	if n == nil {
 		return
