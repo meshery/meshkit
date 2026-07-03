@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	opClient "github.com/meshery/meshery-operator/pkg/client"
@@ -134,9 +135,33 @@ func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
 		return "", ErrGetControllerEndpointForPort(err)
 	}
 
-	// Try endpoints in order of preference: external first, then internal
-	endpoints := []*utils.HostPort{endpoint.External, endpoint.Internal}
-	for _, ep := range endpoints {
+	// Probe the broker the same way the data connection does (see
+	// GetBrokerEndpoint), so a status check can't report "not connected" while
+	// the data path is actually up. Candidates, in order of how Meshery is
+	// commonly deployed relative to the cluster:
+	//   1. internal            — Meshery running in-cluster
+	//   2. external            — Meshery out-of-cluster, broker exposed (NodePort/LB)
+	//   3. host.docker.internal— Meshery in Docker Desktop reaching the host
+	//   4. API server host     — reuse the kube API host with the broker port
+	// The former "external first, internal only" ordering both preferred the
+	// wrong endpoint in-cluster and gave up before trying the Docker/API-host
+	// fallbacks, which is the main source of false "not connected" reports.
+	candidates := []*utils.HostPort{endpoint.Internal, endpoint.External}
+
+	var port int32
+	if endpoint.External != nil && endpoint.External.Port != 0 {
+		port = endpoint.External.Port
+	} else if endpoint.Internal != nil {
+		port = endpoint.Internal.Port
+	}
+	if port != 0 {
+		candidates = append(candidates, &utils.HostPort{Address: "host.docker.internal", Port: port})
+		if u, perr := url.Parse(mb.kclient.RestConfig.Host); perr == nil && u.Hostname() != "" {
+			candidates = append(candidates, &utils.HostPort{Address: u.Hostname(), Port: port})
+		}
+	}
+
+	for _, ep := range candidates {
 		if ep != nil && ep.Address != "" {
 			if utils.TcpCheck(ep, nil) {
 				return ep.String(), nil
@@ -145,7 +170,7 @@ func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
 	}
 
 	return "", ErrGetControllerEndpointForPort(
-		fmt.Errorf("neither external not internal endpoint is reachable for meshery-broker port %s", portName),
+		fmt.Errorf("no reachable endpoint (internal/external/host.docker.internal/api-host) for meshery-broker port %s", portName),
 	)
 }
 

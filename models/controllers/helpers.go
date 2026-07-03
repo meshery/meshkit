@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"net/http"
 	"net/url"
@@ -16,6 +17,9 @@ import (
 )
 
 const BrokerPingEndpoint = "/connz"
+
+// connectivityTestTimeout bounds a single broker monitoring-endpoint probe.
+const connectivityTestTimeout = 5 * time.Second
 
 type Connections struct {
 	Connections []connection `json:"connections"`
@@ -96,10 +100,17 @@ func ConnectivityTest(clientName, hostPort string) bool {
 		return false
 	}
 
-	resp, err := http.Get(endpoint.String())
+	// Bound the probe: the default client has no timeout, so an endpoint that
+	// accepts the TCP connection but never responds would hang the caller
+	// (and, on the status-poll path, stall the whole status collection).
+	client := &http.Client{Timeout: connectivityTestTimeout}
+	resp, err := client.Get(endpoint.String())
 	if err != nil {
 		return false
 	}
+	// Always close the body — otherwise every probe leaks a connection/FD, which
+	// accumulates quickly on the periodic status poll.
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
