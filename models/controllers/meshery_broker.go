@@ -12,12 +12,19 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kubeerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 )
 
 var (
 	brokerMonitoringPortName = "monitor"
+
+	// natsResourceNames lists the names the operator may use for the NATS
+	// broker's StatefulSet/Service, newest first. Older operators deployed a
+	// StatefulSet/Service literally named "meshery-broker"; operator >= 1.0.2
+	// deploys NATS via the upstream Helm chart, naming them "meshery-nats".
+	natsResourceNames = []string{MesheryBroker, "meshery-nats"}
 )
 
 type mesheryBroker struct {
@@ -63,11 +70,20 @@ func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
 			}
 			return mb.status
 		}
-		// when operatorClient is not able to get meshesry-broker, we try again with kubernetes client as a fallback
-		broker, err := mb.kclient.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}).Namespace("meshery").Get(context.TODO(), MesheryBroker, metav1.GetOptions{})
-		if err != nil {
+		// when operatorClient is not able to get meshery-broker, we try again with
+		// kubernetes client as a fallback, trying each known NATS StatefulSet name.
+		stsClient := mb.kclient.DynamicKubeClient.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}).Namespace("meshery")
+		var broker *unstructured.Unstructured
+		var stsErr error
+		for _, name := range natsResourceNames {
+			broker, stsErr = stsClient.Get(context.TODO(), name, metav1.GetOptions{})
+			if stsErr == nil {
+				break
+			}
+		}
+		if stsErr != nil {
 			// if the resource is not found, then it is NotDeployed
-			if kubeerror.IsNotFound(err) {
+			if kubeerror.IsNotFound(stsErr) {
 				mb.status = Undeployed
 				return mb.status
 			}
@@ -106,31 +122,59 @@ func (mb *mesheryBroker) GetPublicEndpoint() (string, error) {
 		return "", ErrGetControllerPublicEndpoint(err)
 	}
 	broker, err := operatorClient.CoreV1Alpha1().Brokers("meshery").Get(context.TODO(), MesheryBroker, metav1.GetOptions{})
-	if broker.Status.Endpoint.External == "" {
-		if err == nil {
-			err = fmt.Errorf("Could not get the External endpoint for meshery-broker")
-		}
-		// broker is not available
+	if err != nil {
 		return "", ErrGetControllerPublicEndpoint(err)
 	}
+	// Newer operators deploy NATS as a ClusterIP-only Service, so the Broker CRD
+	// publishes only an internal endpoint (External is empty). Requiring an
+	// external endpoint here made Meshery give up before even trying the
+	// internal / host.docker.internal / API-host fallbacks in GetBrokerEndpoint,
+	// so a host-run Meshery could never obtain a broker endpoint. Only fail when
+	// the broker has published no endpoint at all.
+	if broker.Status.Endpoint.Internal == "" && broker.Status.Endpoint.External == "" {
+		return "", ErrGetControllerPublicEndpoint(fmt.Errorf("broker has no published endpoint (neither internal nor external)"))
+	}
 
-	return GetBrokerEndpoint(mb.kclient, broker), nil
+	endpoint := GetBrokerEndpoint(mb.kclient, broker)
+	if endpoint == "" {
+		return "", ErrGetControllerPublicEndpoint(fmt.Errorf(
+			"no reachable endpoint for meshery-broker (published internal=%q external=%q)",
+			broker.Status.Endpoint.Internal, broker.Status.Endpoint.External,
+		))
+	}
+	return endpoint, nil
 }
 
 func (mb *mesheryBroker) GetVersion() (string, error) {
-	statefulSet, err := mb.kclient.KubeClient.AppsV1().StatefulSets("meshery").Get(context.TODO(), MesheryBroker, metav1.GetOptions{})
-	if kubeerror.IsNotFound(err) {
-		return "", err
+	var lastErr error
+	for _, name := range natsResourceNames {
+		statefulSet, err := mb.kclient.KubeClient.AppsV1().StatefulSets("meshery").Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		return getImageVersionOfContainer(statefulSet.Spec.Template, "nats"), nil
 	}
-	return getImageVersionOfContainer(statefulSet.Spec.Template, "nats"), nil
+	return "", lastErr
 }
 
 func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
-	endpoint, err := mesherykube.GetServiceEndpoint(context.TODO(), mb.kclient.KubeClient, &mesherykube.ServiceOptions{
-		Name:         "meshery-broker",
-		Namespace:    "meshery",
-		PortSelector: portName,
-	})
+	// Resolve the broker Service under each known NATS Service name. Older
+	// operators named it "meshery-broker"; operator >= 1.0.2 names it
+	// "meshery-nats". Looking up only "meshery-broker" made the monitoring-port
+	// (and thus the connectivity) lookup fail against newer deployments.
+	var endpoint *utils.Endpoint
+	var err error
+	for _, name := range natsResourceNames {
+		endpoint, err = mesherykube.GetServiceEndpoint(context.TODO(), mb.kclient.KubeClient, &mesherykube.ServiceOptions{
+			Name:         name,
+			Namespace:    "meshery",
+			PortSelector: portName,
+		})
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		return "", ErrGetControllerEndpointForPort(err)
 	}
