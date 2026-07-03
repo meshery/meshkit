@@ -75,8 +75,12 @@ func GetBrokerEndpoint(kclient *mesherykube.Client, broker *v1alpha1.Broker) str
 	}
 	if port != 0 {
 		candidates = append(candidates, &utils.HostPort{Address: "host.docker.internal", Port: port})
-		if u, err := url.Parse(kclient.RestConfig.Host); err == nil && u.Hostname() != "" {
-			candidates = append(candidates, &utils.HostPort{Address: u.Hostname(), Port: port})
+		// kclient may be nil when this exported helper is called outside the
+		// controller (e.g. tests); only the API-host candidate needs it.
+		if kclient != nil {
+			if u, err := url.Parse(kclient.RestConfig.Host); err == nil && u.Hostname() != "" {
+				candidates = append(candidates, &utils.HostPort{Address: u.Hostname(), Port: port})
+			}
 		}
 	}
 
@@ -141,6 +145,12 @@ func ConnectivityTest(clientName, hostPort string) bool {
 	// Always close the body — otherwise every probe leaks a connection/FD, which
 	// accumulates quickly on the periodic status poll.
 	defer resp.Body.Close()
+
+	// A healthy NATS monitoring endpoint answers /connz with 200; anything else
+	// won't carry the connection list we parse below, so fail fast.
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

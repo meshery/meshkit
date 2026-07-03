@@ -151,11 +151,17 @@ func (pf *PortForwarder) forwardOnce() error {
 		return fmt.Errorf("new port-forward: %w", err)
 	}
 
+	// doneCh releases the logging goroutine when this attempt ends. Without it,
+	// a ForwardPorts() that errors before the tunnel is ready would leave the
+	// goroutine blocked on readyCh forever, leaking one goroutine per retry.
+	doneCh := make(chan struct{})
+	defer close(doneCh)
 	go func() {
 		select {
 		case <-readyCh:
 			pf.logf("port-forward ready: %s -> %s/%s:%d", pf.LocalAddr(), pf.target.Namespace, pod, pf.target.RemotePort)
 		case <-pf.stopCh:
+		case <-doneCh:
 		}
 	}()
 
