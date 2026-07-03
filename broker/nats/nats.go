@@ -26,6 +26,12 @@ type Options struct {
 	ReconnectWait  time.Duration
 	MaxReconnect   int
 	Logger         logger.Handler
+	// RetryOnFailedConnect keeps (re)connecting in the background when the
+	// initial connection fails, instead of returning an error. Combined with a
+	// negative MaxReconnect (infinite), this makes the handler self-healing: it
+	// connects as soon as the broker becomes reachable and reconnects if the
+	// broker (or a port-forward in front of it) drops — no restart needed.
+	RetryOnFailedConnect bool
 }
 
 // Nats will implement Nats subscribe and publish functionality
@@ -43,6 +49,7 @@ func New(opts Options) (broker.Handler, error) {
 		nats.Name(opts.ConnectionName),
 		nats.ReconnectWait(opts.ReconnectWait),
 		nats.MaxReconnects(opts.MaxReconnect),
+		nats.RetryOnFailedConnect(opts.RetryOnFailedConnect),
 		nats.UserInfo(opts.Username, opts.Password),
 		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
 			if opts.Logger != nil {
