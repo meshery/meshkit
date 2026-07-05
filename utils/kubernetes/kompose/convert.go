@@ -12,7 +12,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const DefaultDockerComposeSchemaURL = "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json"
+// Pinned to an immutable ref: validation semantics must not drift with the
+// upstream master branch (its 2026-07-03 schema update made empty manifests
+// pass validation). Bump deliberately, re-running the kompose package tests.
+const DefaultDockerComposeSchemaURL = "https://raw.githubusercontent.com/compose-spec/compose-spec/a08f8d51631b7127ddac3d2c65537db429d0f1d0/schema/compose-spec.json"
 
 // Checks whether the given manifest is a valid docker-compose file.
 // schemaURL is assigned a default url if not specified
