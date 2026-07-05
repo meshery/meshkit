@@ -47,6 +47,9 @@ func (mb *mesheryBroker) GetName() string {
 }
 
 func (mb *mesheryBroker) GetStatus() MesheryControllerStatus {
+	if mb.kclient == nil {
+		return Unknown
+	}
 	operatorClient, err := opClient.New(&mb.kclient.RestConfig)
 	if err != nil || operatorClient == nil {
 		return Unknown
@@ -147,6 +150,9 @@ func (mb *mesheryBroker) GetPublicEndpoint() (string, error) {
 }
 
 func (mb *mesheryBroker) GetVersion() (string, error) {
+	if mb.kclient == nil {
+		return "", fmt.Errorf("kubernetes client is not initialized")
+	}
 	var lastErr error
 	for _, name := range natsResourceNames {
 		statefulSet, err := mb.kclient.KubeClient.AppsV1().StatefulSets("meshery").Get(context.TODO(), name, metav1.GetOptions{})
@@ -172,6 +178,9 @@ const (
 // secret is absent — an unauthenticated broker — so callers stay backward
 // compatible with tokenless deployments.
 func (mb *mesheryBroker) GetToken() (string, error) {
+	if mb.kclient == nil {
+		return "", fmt.Errorf("kubernetes client is not initialized")
+	}
 	secret, err := mb.kclient.KubeClient.CoreV1().Secrets("meshery").Get(context.TODO(), natsAuthSecretName, metav1.GetOptions{})
 	if err != nil {
 		if kubeerror.IsNotFound(err) {
@@ -198,6 +207,9 @@ func (mb *mesheryBroker) GetPortForwarder(log logger.Handler) (*mesherykube.Port
 }
 
 func (mb *mesheryBroker) GetEndpointForPort(portName string) (string, error) {
+	if mb.kclient == nil {
+		return "", ErrGetControllerEndpointForPort(fmt.Errorf("kubernetes client is not initialized"))
+	}
 	// Resolve the broker Service under each known NATS Service name. Older
 	// operators named it "meshery-broker"; operator >= 1.0.2 names it
 	// "meshery-nats". Looking up only "meshery-broker" made the monitoring-port
