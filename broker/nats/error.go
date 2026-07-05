@@ -10,6 +10,7 @@ const (
 	ErrPublishCode        = "meshkit-11120"
 	ErrPublishRequestCode = "meshkit-11121"
 	ErrQueueSubscribeCode = "meshkit-11122"
+	ErrUnsubscribeCode    = "meshkit-11327"
 )
 
 func ErrConnect(err error) error {
@@ -26,4 +27,7 @@ func ErrPublishRequest(err error) error {
 }
 func ErrQueueSubscribe(err error) error {
 	return errors.New(ErrQueueSubscribeCode, errors.Alert, []string{"Subscription failed"}, []string{err.Error()}, []string{"NATS is unhealthy"}, []string{"Make sure NATS is up and running"})
+}
+func ErrUnsubscribe(err error) error {
+	return errors.New(ErrUnsubscribeCode, errors.Alert, []string{"Unsubscribe failed"}, []string{err.Error()}, []string{"NATS is unhealthy"}, []string{"Make sure NATS is up and running"})
 }

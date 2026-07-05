@@ -188,6 +188,27 @@ func (h *ChannelBrokerHandler) SubscribeWithChannel(subject, queue string, msgch
 	return nil
 }
 
+// Unsubscribe closes and removes every queue channel registered for the subject,
+// which ends the delivery goroutines started by SubscribeWithChannel. It is a
+// no-op for a subject with no subscriptions and is safe to call more than once.
+func (h *ChannelBrokerHandler) Unsubscribe(subject string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	qstorage, ok := h.storage[subject]
+	if !ok {
+		return nil
+	}
+	for queue, ch := range qstorage {
+		if !utils.IsClosed(ch) {
+			close(ch)
+		}
+		delete(qstorage, queue)
+	}
+	delete(h.storage, subject)
+	return nil
+}
+
 // DeepCopyInto is a deepcopy function, copying the receiver, writing into out. in must be non-nil.
 func (h *ChannelBrokerHandler) DeepCopyInto(out broker.Handler) {
 	// Not supported: deep copy is not implemented for ChannelBrokerHandler

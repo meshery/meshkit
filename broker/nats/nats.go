@@ -3,6 +3,7 @@ package nats
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -28,6 +29,40 @@ type Options struct {
 	Logger         logger.Handler
 }
 
+// subscriptions tracks the live nats.Subscription handles per subject so they
+// can be torn down by Unsubscribe. It is held behind a pointer on Nats so the
+// shallow DeepCopyInto copy shares it (and does not copy the mutex by value).
+type subscriptions struct {
+	mu    sync.Mutex
+	items map[string][]*nats.Subscription
+}
+
+func newSubscriptions() *subscriptions {
+	return &subscriptions{items: make(map[string][]*nats.Subscription)}
+}
+
+// add records a subscription for a subject.
+func (s *subscriptions) add(subject string, sub *nats.Subscription) {
+	if s == nil || sub == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.items[subject] = append(s.items[subject], sub)
+}
+
+// take removes and returns all subscriptions recorded for a subject.
+func (s *subscriptions) take(subject string) []*nats.Subscription {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	subs := s.items[subject]
+	delete(s.items, subject)
+	return subs
+}
+
 // Nats will implement Nats subscribe and publish functionality
 type Nats struct {
 	nc     *nats.Conn
@@ -35,6 +70,7 @@ type Nats struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	log    logger.Handler
+	subs   *subscriptions
 }
 
 // New - constructor
@@ -106,7 +142,7 @@ func New(opts Options) (broker.Handler, error) {
 		}
 	}
 
-	return &Nats{nc: nc, wg: &sync.WaitGroup{}, ctx: ctx, cancel: cancel, log: lg}, nil
+	return &Nats{nc: nc, wg: &sync.WaitGroup{}, ctx: ctx, cancel: cancel, log: lg, subs: newSubscriptions()}, nil
 }
 
 func (n *Nats) ConnectedEndpoints() (endpoints []string) {
@@ -200,7 +236,7 @@ func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 	}
 
 	n.wg.Add(1)
-	_, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
+	sub, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
 		copied := copy(message, msg.Data)
 		if copied < len(msg.Data) {
 			if n.log != nil {
@@ -219,6 +255,7 @@ func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 		}
 		return ErrQueueSubscribe(err)
 	}
+	n.subs.add(subject, sub)
 	n.wg.Wait()
 	return nil
 }
@@ -229,7 +266,7 @@ func (n *Nats) SubscribeWithChannel(subject, queue string, msgch chan *broker.Me
 		return ErrQueueSubscribe(fmt.Errorf("nats connection is not initialized"))
 	}
 
-	_, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
+	sub, err := n.nc.QueueSubscribe(subject, queue, func(msg *nats.Msg) {
 		var parsed broker.Message
 		if err := json.Unmarshal(msg.Data, &parsed); err != nil {
 			if n.log != nil {
@@ -248,6 +285,37 @@ func (n *Nats) SubscribeWithChannel(subject, queue string, msgch chan *broker.Me
 			log.Printf("queue subscribe error: %v", err)
 		}
 		return ErrQueueSubscribe(err)
+	}
+	n.subs.add(subject, sub)
+	return nil
+}
+
+// Unsubscribe tears down every subscription previously created for the subject
+// and removes them from tracking. A nil/uninitialized connection has no
+// subscriptions, so it is a no-op; it is also safe to call more than once.
+func (n *Nats) Unsubscribe(subject string) error {
+	if n == nil || n.nc == nil {
+		return nil
+	}
+
+	subs := n.subs.take(subject)
+	var errs []error
+	for _, sub := range subs {
+		if sub == nil {
+			continue
+		}
+		if err := sub.Unsubscribe(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		err := ErrUnsubscribe(errors.Join(errs...))
+		if n.log != nil {
+			n.log.Error(err)
+		} else {
+			log.Printf("unsubscribe error: %v", err)
+		}
+		return err
 	}
 	return nil
 }

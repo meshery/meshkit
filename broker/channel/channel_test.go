@@ -362,3 +362,38 @@ func TestChannelBrokerHandler_Publish_Timeout(t *testing.T) {
 	// If we get here, the timeout didn't work as expected
 	t.Fatal("Expected timeout error but none occurred")
 }
+
+func TestChannelBrokerHandler_Unsubscribe(t *testing.T) {
+	handler := NewChannelBrokerHandler()
+	const subject = "test-subject"
+	msgch := make(chan *broker.Message, 4)
+
+	require.NoError(t, handler.SubscribeWithChannel(subject, "q1", msgch))
+	require.NoError(t, handler.Publish(subject, &broker.Message{Object: "before"}))
+
+	select {
+	case got := <-msgch:
+		require.NotNil(t, got)
+		assert.Equal(t, "before", got.Object)
+	case <-time.After(time.Second):
+		t.Fatal("expected a message before unsubscribe")
+	}
+
+	// Unsubscribe removes every subscription for the subject.
+	require.NoError(t, handler.Unsubscribe(subject))
+	assert.True(t, handler.IsEmpty(), "storage should be empty after unsubscribe")
+	assert.Empty(t, handler.ConnectedEndpoints())
+
+	// Publishing after unsubscribe delivers nothing: there are no subscribers.
+	require.NoError(t, handler.Publish(subject, &broker.Message{Object: "after"}))
+	select {
+	case msg := <-msgch:
+		t.Fatalf("unexpected message after unsubscribe: %v", msg)
+	case <-time.After(200 * time.Millisecond):
+		// expected: no delivery
+	}
+
+	// Idempotent: unsubscribing again and unsubscribing an unknown subject are no-ops.
+	require.NoError(t, handler.Unsubscribe(subject))
+	require.NoError(t, handler.Unsubscribe("no-such-subject"))
+}
