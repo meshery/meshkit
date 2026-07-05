@@ -217,3 +217,10 @@ func (h *ChannelBrokerHandler) IsEmpty() bool {
 	defer h.mu.RUnlock()
 	return len(h.storage) <= 0
 }
+
+// IsConnected reports whether this in-process channel broker is usable. It has
+// no network connection to drop, so it is "connected" whenever the handler
+// exists.
+func (h *ChannelBrokerHandler) IsConnected() bool {
+	return h != nil
+}

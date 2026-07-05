@@ -23,4 +23,5 @@ type Handler interface {
 	IsEmpty() bool
 	CloseConnection()
 	ConnectedEndpoints() []string //To get the IP addresses of connected endpoints
+	IsConnected() bool            //Whether the underlying connection is currently live
 }
