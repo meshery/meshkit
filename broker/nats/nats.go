@@ -251,6 +251,9 @@ func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 		n.wg.Done()
 	})
 	if err != nil {
+		// The callback (which calls wg.Done) will never run, so balance the Add(1)
+		// here; otherwise a later wg.Wait would block forever.
+		n.wg.Done()
 		if n.log != nil {
 			n.log.Error(err)
 		} else {
@@ -258,11 +261,12 @@ func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 		}
 		return ErrQueueSubscribe(err)
 	}
-	// Auto-unsubscribe after the first message: this method returns once wg.Done
-	// fires, but the subscription would otherwise stay active and a later message
-	// would call wg.Done() again on an already-zero WaitGroup (panic).
+	// Single-shot: auto-unsubscribe after the first message so a later message
+	// cannot fire the callback again and call wg.Done() on an already-zero
+	// WaitGroup (panic). The subscription is deliberately not tracked in n.subs,
+	// because AutoUnsubscribe already tears it down and a tracked entry would
+	// otherwise accumulate across repeated Subscribe calls.
 	_ = sub.AutoUnsubscribe(1)
-	n.subs.add(subject, sub)
 	n.wg.Wait()
 	return nil
 }
