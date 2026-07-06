@@ -4,6 +4,7 @@ import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
@@ -73,11 +74,11 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		Joins("JOIN connections ON connections.id = model_dbs.connection_id")
 
 	componentStatus := "enabled"
-    if componentFilter.Status != "" {
-        componentStatus = componentFilter.Status
-    }
-    finder = finder.Where("component_definition_dbs.status = ?", componentStatus)
-	
+	if componentFilter.Status != "" {
+		componentStatus = componentFilter.Status
+	}
+	finder = finder.Where("component_definition_dbs.status = ?", componentStatus)
+
 	if componentFilter.Greedy {
 		if componentFilter.Name != "" && componentFilter.DisplayName != "" {
 			finder = finder.Where("component_definition_dbs.component->>'kind' LIKE ? OR display_name LIKE ?", "%"+componentFilter.Name+"%", componentFilter.DisplayName+"%")
@@ -158,7 +159,63 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 		defs = append(defs, &cd)
 	}
 
+	// The four-table `SELECT *` scan above does not apply the json serializer to
+	// the component's `styles` column: GORM cannot resolve the serializer through
+	// a multi-embedded composite scan, so every scanned ComponentDefinition.Styles
+	// comes back nil even though the column holds valid JSON. Re-hydrate it with a
+	// simple single-table query, which applies the serializer correctly, so the
+	// meshmodel API serves component-level icons/colors instead of null styles.
+	if err := hydrateComponentStyles(db, defs); err != nil {
+		return nil, 0, 0, err
+	}
+
 	uniqueCount := countUniqueComponents(componentDefinitionsWithModel)
 
 	return defs, count, uniqueCount, nil
+}
+
+// hydrateComponentStyles reloads the serializer-backed `styles` for the given
+// components (see Get). It only touches components whose Styles is nil, so it is
+// a no-op once the underlying multi-table scan is able to populate them. The
+// query error is returned so callers can surface it rather than silently serving
+// null styles.
+func hydrateComponentStyles(db *database.Handler, defs []entity.Entity) error {
+	seen := make(map[core.Uuid]struct{}, len(defs))
+	ids := make([]core.Uuid, 0, len(defs))
+	for _, e := range defs {
+		cd, ok := e.(*component.ComponentDefinition)
+		if !ok || cd.Styles != nil {
+			continue
+		}
+		if _, dup := seen[cd.ID]; dup {
+			continue
+		}
+		seen[cd.ID] = struct{}{}
+		ids = append(ids, cd.ID)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	var rows []component.ComponentDefinition
+	if err := db.Model(&component.ComponentDefinition{}).
+		Select("id", "styles").
+		Find(&rows, "id IN ?", ids).Error; err != nil {
+		return err
+	}
+
+	stylesByID := make(map[core.Uuid]*component.ComponentDefinition, len(rows))
+	for i := range rows {
+		stylesByID[rows[i].ID] = &rows[i]
+	}
+	for _, e := range defs {
+		cd, ok := e.(*component.ComponentDefinition)
+		if !ok || cd.Styles != nil {
+			continue
+		}
+		if src := stylesByID[cd.ID]; src != nil {
+			cd.Styles = src.Styles
+		}
+	}
+	return nil
 }
