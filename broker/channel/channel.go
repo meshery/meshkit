@@ -8,7 +8,6 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/broker"
 	"github.com/meshery/meshkit/logger"
-	"github.com/meshery/meshkit/utils"
 )
 
 type ChannelBrokerHandler struct {
@@ -90,9 +89,11 @@ func (h *ChannelBrokerHandler) CloseConnection() {
 
 	for subject, qstorage := range h.storage {
 		for queue, ch := range qstorage {
-			if !utils.IsClosed(ch) {
-				close(ch)
-			}
+			// Closing directly is safe: CloseConnection and Unsubscribe both hold
+			// h.mu and delete the key after closing, so a channel is never closed
+			// twice. A non-blocking IsClosed check would instead consume a buffered
+			// message and skip the close, leaking the delivery goroutine.
+			close(ch)
 			delete(qstorage, queue)
 		}
 		delete(h.storage, subject)
@@ -200,9 +201,9 @@ func (h *ChannelBrokerHandler) Unsubscribe(subject string) error {
 		return nil
 	}
 	for queue, ch := range qstorage {
-		if !utils.IsClosed(ch) {
-			close(ch)
-		}
+		// Safe to close directly (see CloseConnection): held under h.mu and the
+		// key is deleted after closing, so a channel is never closed twice.
+		close(ch)
 		delete(qstorage, queue)
 	}
 	delete(h.storage, subject)

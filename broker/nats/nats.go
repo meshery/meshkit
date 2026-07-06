@@ -48,6 +48,9 @@ func (s *subscriptions) add(subject string, sub *nats.Subscription) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.items == nil {
+		s.items = make(map[string][]*nats.Subscription)
+	}
 	s.items[subject] = append(s.items[subject], sub)
 }
 
@@ -255,6 +258,10 @@ func (n *Nats) Subscribe(subject, queue string, message []byte) error {
 		}
 		return ErrQueueSubscribe(err)
 	}
+	// Auto-unsubscribe after the first message: this method returns once wg.Done
+	// fires, but the subscription would otherwise stay active and a later message
+	// would call wg.Done() again on an already-zero WaitGroup (panic).
+	_ = sub.AutoUnsubscribe(1)
 	n.subs.add(subject, sub)
 	n.wg.Wait()
 	return nil
@@ -304,7 +311,10 @@ func (n *Nats) Unsubscribe(subject string) error {
 		if sub == nil {
 			continue
 		}
-		if err := sub.Unsubscribe(); err != nil {
+		// An already-unsubscribed subscription (e.g. via AutoUnsubscribe on the
+		// blocking Subscribe, or a concurrent Unsubscribe) reports
+		// ErrBadSubscription; ignore it so Unsubscribe stays idempotent.
+		if err := sub.Unsubscribe(); err != nil && !errors.Is(err, nats.ErrBadSubscription) {
 			errs = append(errs, err)
 		}
 	}
