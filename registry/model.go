@@ -51,10 +51,8 @@ var (
 	shouldRegisterMod = "publishToSites"
 )
 var (
-	artifactHubCount        = 0
-	artifactHubRateLimit    = 100
-	artifactHubRateLimitDur = 5 * time.Minute
-	artifactHubMutex        sync.Mutex
+	artifactHubCount = 0
+	artifactHubMutex sync.Mutex
 )
 var defVersion = "v1.0.0"
 
@@ -660,13 +658,20 @@ func GenerateModels(registrant string, sourceURl string, modelName string) (mode
 	return pkg, version, nil
 }
 
-func RateLimitArtifactHub() {
+func RateLimitArtifactHub(requestLimit int, waitDuration time.Duration) {
+	if requestLimit <= 0 {
+		requestLimit = 100
+	}
+	if waitDuration <= 0 {
+		waitDuration = 5 * time.Minute
+	}
+
 	artifactHubMutex.Lock()
 	defer artifactHubMutex.Unlock()
 
-	if artifactHubCount > 0 && artifactHubCount%artifactHubRateLimit == 0 {
-		Log.Info("Rate limit reached for Artifact Hub. Waiting for ", artifactHubRateLimitDur)
-		time.Sleep(artifactHubRateLimitDur)
+	if artifactHubCount > 0 && artifactHubCount%requestLimit == 0 {
+		Log.Info("Rate limit reached for Artifact Hub. Waiting for ", waitDuration)
+		time.Sleep(waitDuration)
 	}
 	artifactHubCount++
 }
@@ -932,7 +937,7 @@ func InvokeGenerationFromSheetWithOptions(wg *sync.WaitGroup, path string, model
 				}
 
 				if utils.ReplaceSpacesAndConvertToLowercase(model.Registrant) == "artifacthub" {
-					RateLimitArtifactHub()
+					RateLimitArtifactHub(opts.ArtifactHubRequestLimit, opts.ArtifactHubWaitDuration)
 				}
 
 				Log.Debug(fmt.Sprintf("Model %s: Fetching package from source", model.Model))
