@@ -46,13 +46,38 @@ func TestHydrateComponentStylesRestoresDroppedStyles(t *testing.T) {
 		defs = append(defs, &dropped)
 	}
 
-	hydrateComponentStyles(&db, defs)
+	require.NoError(t, hydrateComponentStyles(&db, defs))
 
 	for _, e := range defs {
 		cd := e.(*component.ComponentDefinition)
 		require.NotNilf(t, cd.Styles, "styles not re-hydrated for %s", cd.Component.Kind)
 		assert.Equal(t, "#00c1d5", cd.Styles.PrimaryColor)
 		assert.Equal(t, wantSvg[cd.ID.String()], cd.Styles.SvgColor)
+	}
+}
+
+// Duplicate component rows in the input (the join can return duplicates) must be
+// de-duplicated and still hydrated correctly.
+func TestHydrateComponentStylesDeduplicatesIDs(t *testing.T) {
+	db, err := database.New(database.Options{Engine: database.SQLITE, Filename: ":memory:"})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&component.ComponentDefinition{}))
+
+	id, err := uuid.NewV4()
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&component.ComponentDefinition{
+		ID:        id,
+		Component: component.Component{Kind: "Egress", Version: "v1"},
+		Styles:    &core.ComponentStyles{PrimaryColor: "#00c1d5", SvgColor: "egress-color.svg"},
+	}).Error)
+
+	first := &component.ComponentDefinition{ID: id, Component: component.Component{Kind: "Egress", Version: "v1"}}
+	second := &component.ComponentDefinition{ID: id, Component: component.Component{Kind: "Egress", Version: "v1"}}
+	require.NoError(t, hydrateComponentStyles(&db, []entity.Entity{first, second}))
+
+	for _, cd := range []*component.ComponentDefinition{first, second} {
+		require.NotNil(t, cd.Styles)
+		assert.Equal(t, "egress-color.svg", cd.Styles.SvgColor)
 	}
 }
 
@@ -63,13 +88,13 @@ func TestHydrateComponentStylesNoopWhenPopulated(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&component.ComponentDefinition{}))
 
-	hydrateComponentStyles(&db, nil) // must not panic on empty input
+	require.NoError(t, hydrateComponentStyles(&db, nil)) // must not error on empty input
 
 	existing := &core.ComponentStyles{PrimaryColor: "#123456", SvgColor: "keep.svg"}
 	cd := &component.ComponentDefinition{
 		Component: component.Component{Kind: "Keep", Version: "v1"},
 		Styles:    existing,
 	}
-	hydrateComponentStyles(&db, []entity.Entity{cd})
+	require.NoError(t, hydrateComponentStyles(&db, []entity.Entity{cd}))
 	assert.Same(t, existing, cd.Styles, "already-populated styles must be left untouched")
 }

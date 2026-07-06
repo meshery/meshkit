@@ -4,6 +4,7 @@ import (
 	"github.com/meshery/meshkit/database"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/models/meshmodel/registry"
+	"github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
@@ -164,7 +165,9 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 	// comes back nil even though the column holds valid JSON. Re-hydrate it with a
 	// simple single-table query, which applies the serializer correctly, so the
 	// meshmodel API serves component-level icons/colors instead of null styles.
-	hydrateComponentStyles(db, defs)
+	if err := hydrateComponentStyles(db, defs); err != nil {
+		return nil, 0, 0, err
+	}
 
 	uniqueCount := countUniqueComponents(componentDefinitionsWithModel)
 
@@ -173,36 +176,46 @@ func (componentFilter *ComponentFilter) Get(db *database.Handler) ([]entity.Enti
 
 // hydrateComponentStyles reloads the serializer-backed `styles` for the given
 // components (see Get). It only touches components whose Styles is nil, so it is
-// a no-op once the underlying multi-table scan is able to populate them.
-func hydrateComponentStyles(db *database.Handler, defs []entity.Entity) {
-	ids := make([]string, 0, len(defs))
+// a no-op once the underlying multi-table scan is able to populate them. The
+// query error is returned so callers can surface it rather than silently serving
+// null styles.
+func hydrateComponentStyles(db *database.Handler, defs []entity.Entity) error {
+	seen := make(map[core.Uuid]struct{}, len(defs))
+	ids := make([]core.Uuid, 0, len(defs))
 	for _, e := range defs {
-		if cd, ok := e.(*component.ComponentDefinition); ok && cd.Styles == nil {
-			ids = append(ids, cd.ID.String())
+		cd, ok := e.(*component.ComponentDefinition)
+		if !ok || cd.Styles != nil {
+			continue
 		}
+		if _, dup := seen[cd.ID]; dup {
+			continue
+		}
+		seen[cd.ID] = struct{}{}
+		ids = append(ids, cd.ID)
 	}
 	if len(ids) == 0 {
-		return
+		return nil
 	}
 
 	var rows []component.ComponentDefinition
 	if err := db.Model(&component.ComponentDefinition{}).
 		Select("id", "styles").
 		Find(&rows, "id IN ?", ids).Error; err != nil {
-		return
+		return err
 	}
 
-	stylesByID := make(map[string]*component.ComponentDefinition, len(rows))
+	stylesByID := make(map[core.Uuid]*component.ComponentDefinition, len(rows))
 	for i := range rows {
-		stylesByID[rows[i].ID.String()] = &rows[i]
+		stylesByID[rows[i].ID] = &rows[i]
 	}
 	for _, e := range defs {
 		cd, ok := e.(*component.ComponentDefinition)
 		if !ok || cd.Styles != nil {
 			continue
 		}
-		if src := stylesByID[cd.ID.String()]; src != nil {
+		if src := stylesByID[cd.ID]; src != nil {
 			cd.Styles = src.Styles
 		}
 	}
+	return nil
 }
