@@ -57,9 +57,9 @@ type GenerationOptions struct {
 // DefaultGenerationOptions returns GenerationOptions with default values
 func DefaultGenerationOptions() GenerationOptions {
 	return GenerationOptions{
-		ModelTimeout:              DefaultModelTimeout,
-		LatestVersionOnly:         false,
-		ProgressCallback:          nil,
+		ModelTimeout:      DefaultModelTimeout,
+		LatestVersionOnly: false,
+		ProgressCallback:  nil,
 		ArtifactHubRequestLimit:   DefaultArtifactHubRequestLimit,
 		ArtifactHubWaitDuration:   DefaultArtifactHubWaitDuration,
 	}
