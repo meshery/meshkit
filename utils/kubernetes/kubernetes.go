@@ -4,16 +4,18 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Client struct {
 	RestConfig        rest.Config           `json:"restconfig,omitempty"`
 	KubeClient        *kubernetes.Clientset `json:"kubeclient,omitempty"`
 	DynamicKubeClient dynamic.Interface     `json:"dynamicKubeClient,omitempty"`
+	kubeConfigLoader  clientcmd.ClientConfig
 }
 
 func New(kubeconfig []byte) (*Client, error) {
-	restConfig, err := DetectKubeConfig(kubeconfig)
+	restConfig, kubeConfigLoader, err := detectKubeConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -41,5 +43,10 @@ func New(kubeconfig []byte) (*Client, error) {
 		RestConfig:        *restConfig,
 		DynamicKubeClient: dyclient,
 		KubeClient:        kclient,
+		kubeConfigLoader:  kubeConfigLoader,
 	}, nil
+}
+
+func (c *Client) rawKubeConfigLoader() clientcmd.ClientConfig {
+	return c.kubeConfigLoader
 }
