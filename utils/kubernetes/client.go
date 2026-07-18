@@ -12,22 +12,27 @@ import (
 
 // DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
+	config, _, err = detectKubeConfig(configfile)
+	return config, err
+}
+
+func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.ClientConfig, err error) {
 	if len(configfile) > 0 {
 		var cfgFile []byte
 
 		_, cfgFile, err = ProcessConfig(configfile, "")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-			return config, nil
+		if config, loader, err = loadClientConfigFromKubeconfig(cfgFile); err == nil {
+			return config, loader, nil
 		}
 	}
 
 	// If deployed within the cluster
 	if config, err = rest.InClusterConfig(); err == nil {
-		return config, nil
+		return config, nil, nil
 	}
 
 	// Look for kubeconfig from the path mentioned in $KUBECONFIG
@@ -35,10 +40,10 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	if kubeconfig != "" {
 		_, cfgFile, err := ProcessConfig(kubeconfig, "")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-			return config, nil
+		if config, loader, err = loadClientConfigFromKubeconfig(cfgFile); err == nil {
+			return config, loader, nil
 		}
 	}
 
@@ -46,13 +51,27 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	path := filepath.Join(utils.GetHome(), ".kube", "config")
 	_, cfgFile, err := ProcessConfig(path, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-		return config, nil
+	if config, loader, err = loadClientConfigFromKubeconfig(cfgFile); err == nil {
+		return config, loader, nil
 	}
 
-	return nil, ErrRestConfigFromKubeConfig(err)
+	return nil, nil, ErrRestConfigFromKubeConfig(err)
+}
+
+func loadClientConfigFromKubeconfig(kubeconfig []byte) (*rest.Config, clientcmd.ClientConfig, error) {
+	loader, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	config, err := loader.ClientConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return config, loader, nil
 }
 
 // ProcessConfig handles loading, validating, and optionally saving or returning a kubeconfig

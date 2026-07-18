@@ -272,12 +272,12 @@ func (c *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	kubeConfig, cleanup, err := c.setupKubeConfig()
+	restClientGetter, cleanup, err := c.helmRESTClientGetter()
 	if err != nil {
 		cleanup()
 		return ErrApplyHelmChart(err)
 	}
-	actionConfig, err := c.createHelmActionConfig(cfg, kubeConfig)
+	actionConfig, err := c.createHelmActionConfig(cfg, restClientGetter)
 	if err != nil {
 		cleanup()
 		return ErrApplyHelmChart(err)
@@ -422,16 +422,24 @@ func checkIfInstallable(ch *chart.Chart) error {
 }
 
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
-func (c *Client) createHelmActionConfig(cfg ApplyHelmChartConfig, kubeConfig *genericclioptions.ConfigFlags) (*action.Configuration, error) {
+func (c *Client) createHelmActionConfig(cfg ApplyHelmChartConfig, restClientGetter genericclioptions.RESTClientGetter) (*action.Configuration, error) {
 	// Set the environment variable needed by the Init methods
 	_ = os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
 
 	actionConfig := new(action.Configuration)
-	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
+	if err := actionConfig.Init(restClientGetter, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
 		return nil, ErrApplyHelmChart(err)
 	}
 
 	return actionConfig, nil
+}
+
+func (c *Client) helmRESTClientGetter() (genericclioptions.RESTClientGetter, func(), error) {
+	if loader := c.rawKubeConfigLoader(); loader != nil {
+		return newClientConfigRESTClientGetter(loader), func() {}, nil
+	}
+
+	return c.setupKubeConfig()
 }
 
 func (c *Client) setupKubeConfig() (*genericclioptions.ConfigFlags, func(), error) {
