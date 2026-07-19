@@ -9,10 +9,16 @@ import (
 	"github.com/meshery/schemas/models/v1beta3/component"
 )
 
-type MeshModelHostsWithEntitySummary struct {
+// RegistryHostsWithEntitySummary represents a registry host along with a summary of its entities.
+type RegistryHostsWithEntitySummary struct {
 	connection.Connection
 	Summary EntitySummary `json:"summary"`
 }
+
+// MeshModelHostsWithEntitySummary is a deprecated alias for RegistryHostsWithEntitySummary.
+// Deprecated: use RegistryHostsWithEntitySummary instead.
+type MeshModelHostsWithEntitySummary = RegistryHostsWithEntitySummary
+
 type EntitySummary struct {
 	Models        int64 `json:"models"`
 	Components    int64 `json:"components"`

@@ -2,8 +2,8 @@ package v1beta1
 
 import (
 	"github.com/meshery/meshkit/database"
-	"github.com/meshery/meshkit/models/meshmodel/entity"
-	"github.com/meshery/meshkit/models/meshmodel/registry"
+	"github.com/meshery/meshkit/models/registry/entity"
+	"github.com/meshery/meshkit/models/registry/manager"
 	"github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1beta1/category"
 	"github.com/meshery/schemas/models/v1beta1/connection"

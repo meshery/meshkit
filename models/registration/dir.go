@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/registry/entity"
 	"github.com/meshery/meshkit/models/oci"
 
 	meshkitFileUtils "github.com/meshery/meshkit/files"

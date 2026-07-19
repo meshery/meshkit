@@ -12,7 +12,7 @@ import (
 	modelv1beta2 "github.com/meshery/schemas/models/v1beta2/model"
 	"gorm.io/gorm/clause"
 
-	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/registry/entity"
 )
 
 // swagger:response PolicyDefinition
