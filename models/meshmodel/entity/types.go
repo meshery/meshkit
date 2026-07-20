@@ -10,7 +10,7 @@
 // Deprecated: import github.com/meshery/meshkit/models/registry/entity
 // directly. This shim should be deleted once meshkit's go.mod pin on
 // github.com/meshery/schemas is bumped past v1.3.26 to a version that no
-// longer references the old meshmodel path. Tracked in <ISSUE_LINK>.
+// longer references the old meshmodel path.
 package entity
 
 import (

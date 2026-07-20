@@ -17,15 +17,15 @@ import (
 
 // swagger:response PolicyDefinition
 type PolicyDefinition struct {
-	ID         core.Uuid               `json:"-"`
-	Kind       string                  `json:"kind,omitempty" yaml:"kind"`
-	Version    string                  `json:"version,omitempty" yaml:"version"`
-	ModelID    core.Uuid               `json:"-" gorm:"column:modelID"`
+	ID         core.Uuid                    `json:"-"`
+	Kind       string                       `json:"kind,omitempty" yaml:"kind"`
+	Version    string                       `json:"version,omitempty" yaml:"version"`
+	ModelID    core.Uuid                    `json:"-" gorm:"column:modelID"`
 	Model      modelv1beta2.ModelDefinition `json:"model"`
-	SubType    string                  `json:"subType" yaml:"subType"`
-	Expression map[string]interface{}  `json:"expression" yaml:"expression" gorm:"type:bytes;serializer:json"`
-	CreatedAt  time.Time               `json:"-"`
-	UpdatedAt  time.Time               `json:"-"`
+	SubType    string                       `json:"subType" yaml:"subType"`
+	Expression map[string]interface{}       `json:"expression" yaml:"expression" gorm:"type:bytes;serializer:json"`
+	CreatedAt  time.Time                    `json:"-"`
+	UpdatedAt  time.Time                    `json:"-"`
 }
 
 func (p PolicyDefinition) GetID() core.Uuid {
