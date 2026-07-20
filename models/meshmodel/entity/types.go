@@ -1,38 +1,39 @@
+// Package entity is a deprecated compatibility shim for the registry entity
+// package.
+//
+// It exists solely because github.com/meshery/schemas@v1.3.26 (our currently
+// pinned dependency) has helper files that import this path directly by
+// convention. All types here are pure aliases (type X = Y) of their
+// counterparts in github.com/meshery/meshkit/models/registry/entity, so
+// nothing drifts between the two paths.
+//
+// Deprecated: import github.com/meshery/meshkit/models/registry/entity
+// directly. This shim should be deleted once meshkit's go.mod pin on
+// github.com/meshery/schemas is bumped past v1.3.26 to a version that no
+// longer references the old meshmodel path.
 package entity
 
 import (
-	"github.com/meshery/meshkit/database"
-	core "github.com/meshery/schemas/models/core"
+	registryentity "github.com/meshery/meshkit/models/registry/entity"
 )
 
-type EntityType string
+// EntityType is a deprecated alias for registryentity.EntityType.
+// Deprecated: use registryentity.EntityType instead.
+type EntityType = registryentity.EntityType
 
 const (
-	ComponentDefinition    EntityType = "component"
-	PolicyDefinition       EntityType = "policy"
-	RelationshipDefinition EntityType = "relationship"
-	Model                  EntityType = "model"
-	Category               EntityType = "category"
-	// ConnectionDefinition is the registry entity type for connection
-	// definitions: uninitialized, per-model connection templates registered
-	// alongside components and relationships. The schemas connection helper
-	// (github.com/meshery/schemas/models/v1beta3/connection) reports this type.
-	ConnectionDefinition EntityType = "connection"
+	ComponentDefinition    = registryentity.ComponentDefinition
+	PolicyDefinition       = registryentity.PolicyDefinition
+	RelationshipDefinition = registryentity.RelationshipDefinition
+	Model                  = registryentity.Model
+	Category               = registryentity.Category
+	ConnectionDefinition   = registryentity.ConnectionDefinition
 )
 
-// Each entity will have it's own Filter implementation via which it exposes the nobs and dials to fetch entities
-type Filter interface {
-	Create(map[string]interface{})
-	Get(db *database.Handler) (entities []Entity, count int64, unique int, err error)
-	GetById(db *database.Handler) (entity Entity, err error)
-}
+// Filter is a deprecated alias for registryentity.Filter.
+// Deprecated: use registryentity.Filter instead.
+type Filter = registryentity.Filter
 
-type Entity interface {
-	// Entity is referred as any type of schema managed by the registry
-	// ComponentDefinitions and PolicyDefinitions are examples of entities
-	Type() EntityType
-	GetEntityDetail() string
-	GenerateID() (core.Uuid, error)
-	GetID() core.Uuid
-	Create(db *database.Handler, hostID core.Uuid) (entityID core.Uuid, err error)
-}
+// Entity is a deprecated alias for registryentity.Entity.
+// Deprecated: use registryentity.Entity instead.
+type Entity = registryentity.Entity

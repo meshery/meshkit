@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/meshery/meshkit/encoding"
-	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/registry/entity"
 	"github.com/meshery/meshkit/schema"
 	"github.com/meshery/schemas/models/v1alpha3"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"

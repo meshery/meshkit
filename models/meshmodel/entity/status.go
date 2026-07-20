@@ -1,15 +1,17 @@
 package entity
 
-import "github.com/meshery/meshkit/database"
+import registryentity "github.com/meshery/meshkit/models/registry/entity"
 
-type EntityStatus string
+// EntityStatus is a deprecated alias for registryentity.EntityStatus.
+// Deprecated: use registryentity.EntityStatus instead.
+type EntityStatus = registryentity.EntityStatus
 
 const (
-	Ignored   EntityStatus = "ignored"
-	Enabled   EntityStatus = "enabled"
-	Duplicate EntityStatus = "duplicate"
+	Ignored   = registryentity.Ignored
+	Enabled   = registryentity.Enabled
+	Duplicate = registryentity.Duplicate
 )
 
-type Status interface {
-	UpdateStatus(db *database.Handler, status EntityStatus) error
-}
+// Status is a deprecated alias for registryentity.Status.
+// Deprecated: use registryentity.Status instead.
+type Status = registryentity.Status

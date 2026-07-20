@@ -64,7 +64,7 @@ Meshery Cloud, adapters, operators, CLIs) depends on it, so changes fan out down
 
 - [architecture](docs/agent-instructions/architecture.md) - orientation: package map, the two core pipelines, cross-cutting packages.
 - [errors](docs/agent-instructions/errors.md) - read before adding or changing any error: conventions, errorutil workflow, code allocation.
-- [registration](docs/agent-instructions/registration.md) - read before touching `models/registration/` or `models/meshmodel/registry/`.
+- [registration](docs/agent-instructions/registration.md) - read before touching `models/registration/` or `models/registry/manager/`.
 - [testing](docs/agent-instructions/testing.md) - make targets, flags, single-test forms, lint and tidy discipline.
 - [naming-conventions](docs/agent-instructions/naming-conventions.md) - full identifier-naming contract and authority links.
 - [event-streaming](docs/event-streaming.md) - read when working on events, broadcasters, or the `Event`/`EventBuilder` types shared with Meshery Server.

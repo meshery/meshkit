@@ -6,8 +6,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/meshery/meshkit/encoding"
-	"github.com/meshery/meshkit/models/meshmodel/registry"
-	regv1beta1 "github.com/meshery/meshkit/models/meshmodel/registry/v1beta1"
+	"github.com/meshery/meshkit/models/registry/manager"
+	regv1beta1 "github.com/meshery/meshkit/models/registry/manager/v1beta1"
 	"github.com/meshery/meshkit/utils"
 	component "github.com/meshery/schemas/models/v1beta2/component"
 	registrycomponent "github.com/meshery/schemas/models/v1beta3/component"
