@@ -49,3 +49,22 @@ func TestDatabase_Trace(t *testing.T) {
 	}, nil)
 	assert.Contains(t, outBuffer.String(), "[rows:-]")
 }
+
+func TestDatabase_Trace_NilReceiverAndArgs(t *testing.T) {
+	var nilDB *Database
+	assert.NotPanics(t, func() {
+		nilDB.Trace(context.Background(), time.Now(), func() (string, int64) { return "", 0 }, nil)
+	})
+
+	assert.NotPanics(t, func() {
+		(&Database{}).Trace(context.Background(), time.Now(), func() (string, int64) { return "", 0 }, nil)
+	})
+
+	opts := Options{Format: TerminalLogFormat, LogLevel: int(logrus.DebugLevel)}
+	log, err := New("testapp", opts)
+	assert.NoError(t, err)
+	db := log.(*Logger).DatabaseLogger()
+	assert.NotPanics(t, func() {
+		db.Trace(context.Background(), time.Now(), nil, nil)
+	})
+}

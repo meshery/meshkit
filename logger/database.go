@@ -45,6 +45,9 @@ func (c *Database) Error(ctx context.Context, msg string, data ...interface{}) {
 // time, the affected row count and any error to the underlying logger, matching the format used
 // by GORM's own logger.
 func (c *Database) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+	if c == nil || c.base == nil || fc == nil {
+		return
+	}
 	sql, rows := fc()
 	elapsed := float64(time.Since(begin).Nanoseconds()) / 1e6
 
