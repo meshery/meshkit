@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/models/oci"
@@ -83,7 +84,7 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 
 		// Skip files that are not Meshery model entity definitions.
 		// The registration pipeline only understands JSON, YAML, and archive
-		ext := filepath.Ext(path)
+		ext := strings.ToLower(filepath.Ext(path))
 		nonEntityExtensions := map[string]bool{
 			".rego":     true, // OPA policy scripts (e.g. meshery-core/policies/)
 			".template": true, // Rego template files
