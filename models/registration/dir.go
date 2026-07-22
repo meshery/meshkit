@@ -81,6 +81,20 @@ func processDir(dirPath string, pkg *PackagingUnit, regErrStore RegistrationErro
 			return nil
 		}
 
+		// Skip files that are not Meshery model entity definitions.
+		// The registration pipeline only understands JSON, YAML, and archive
+		ext := filepath.Ext(path)
+		nonEntityExtensions := map[string]bool{
+			".rego":     true, // OPA policy scripts (e.g. meshery-core/policies/)
+			".template": true, // Rego template files
+			".svg":      true, // SVG icon assets
+			".png":      true, // PNG image assets
+			".md":       true, // Markdown documentation
+		}
+		if nonEntityExtensions[ext] {
+			return nil
+		}
+
 		// Read the file content
 		data, err := os.ReadFile(path)
 		if err != nil {
