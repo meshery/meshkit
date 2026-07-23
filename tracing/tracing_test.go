@@ -14,10 +14,14 @@ import (
 
 func TestInitTracer(t *testing.T) {
 	// Note: These tests validate configuration without attempting real connections
+	falseVal := false
+	trueVal := true
+
 	tests := []struct {
-		name    string
-		config  Config
-		wantErr bool
+		name        string
+		config      Config
+		wantErr     bool
+		wantNilProv bool
 	}{
 		{
 			name: "missing service name",
@@ -29,24 +33,77 @@ func TestInitTracer(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "missing endpoint",
+			name: "missing endpoint is a no-op, not an error",
 			config: Config{
 				ServiceName:    "test-service",
 				ServiceVersion: "1.0.0",
 				Insecure:       true,
 			},
-			wantErr: true,
+			wantErr:     false,
+			wantNilProv: true,
+		},
+		{
+			name: "explicitly disabled is a no-op, even with endpoint set",
+			config: Config{
+				ServiceName: "test-service",
+				Endpoint:    "localhost:4317",
+				Enabled:     &falseVal,
+			},
+			wantErr:     false,
+			wantNilProv: true,
+		},
+		{
+			name: "explicitly enabled with empty endpoint is still a no-op",
+			config: Config{
+				ServiceName: "test-service",
+				Enabled:     &trueVal,
+			},
+			wantErr:     false,
+			wantNilProv: true,
+		},
+		{
+			name: "enabled with valid endpoint returns a real provider",
+			config: Config{
+				ServiceName: "test-service",
+				Endpoint:    "localhost:4317",
+				Insecure:    true,
+				Enabled:     &trueVal,
+			},
+			wantErr:     false,
+			wantNilProv: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			prevProvider := otel.GetTracerProvider()
+			prevHandler := otel.GetErrorHandler()
+			prevPropagator := otel.GetTextMapPropagator()
+			t.Cleanup(func() {
+				otel.SetTracerProvider(prevProvider)
+				otel.SetErrorHandler(prevHandler)
+				otel.SetTextMapPropagator(prevPropagator)
+			})
 			ctx := context.Background()
-			_, err := InitTracer(ctx, tt.config)
+			tp, err := InitTracer(ctx, tt.config)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitTracer() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			// Only check provider state when no error was expected —
+			// error cases always return a nil provider, which is correct
+			// but not meaningfully described by wantNilProv.
+			if !tt.wantErr {
+				if tt.wantNilProv && tp != nil {
+					t.Errorf("InitTracer() expected nil provider, got %v", tp)
+				}
+				if !tt.wantNilProv && tp == nil {
+					t.Errorf("InitTracer() expected non-nil provider, got nil")
+				}
+			}
+			if tp != nil {
+				_ = tp.Shutdown(ctx)
 			}
 		})
 	}
