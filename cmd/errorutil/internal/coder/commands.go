@@ -231,7 +231,7 @@ func commandCheck() *cobra.Command {
 				isNewName := !baselineErrors[entry.Name]
 
 				if isNewName && entry.CodeIsInt {
-					fmt.Printf("Error: New error %s uses a manually assigned code \"%s\"; use \"replace_me\" and let errorutil allocate the code\n", entry.Name, entry.Code)
+					cmd.Printf("Error: New error %s uses a manually assigned code \"%s\"; use \"replace_me\" and let errorutil allocate the code\n", entry.Name, entry.Code)
 					hasError = true
 				}
 			}

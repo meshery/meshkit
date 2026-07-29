@@ -92,12 +92,12 @@ func TestCheckLogic(t *testing.T) {
 			name: "Move existing error passes",
 			baseline: mesherr.InfoAll{
 				Entries: []mesherr.Info{
-					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true, Path: "pkg/old/error.go"},
 				},
 			},
 			current: mesherr.InfoAll{
 				Entries: []mesherr.Info{
-					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true, Path: "pkg/new/error.go"},
 				},
 			},
 			wantErrors: false,
