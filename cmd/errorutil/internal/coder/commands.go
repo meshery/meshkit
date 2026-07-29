@@ -2,6 +2,7 @@ package coder
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -195,6 +196,54 @@ Meshery components and this tool:
 	}
 }
 
+func commandCheck() *cobra.Command {
+	return &cobra.Command{
+		Use:          "check [baseline JSON] [current JSON]",
+		Short:        "Checks that newly introduced error codes use a placeholder (e.g. replace_me)",
+		Long:         `check compares the errors from the current working tree against a baseline, and ensures that any newly introduced error code does not use a manually assigned integer code, but rather a placeholder string.`,
+		Args:         cobra.ExactArgs(2),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			baselineBytes, err := os.ReadFile(args[0])
+			if err != nil {
+				return err
+			}
+			currentBytes, err := os.ReadFile(args[1])
+			if err != nil {
+				return err
+			}
+			var baseline mesherr.InfoAll
+			if err := json.Unmarshal(baselineBytes, &baseline); err != nil {
+				return err
+			}
+			var current mesherr.InfoAll
+			if err := json.Unmarshal(currentBytes, &current); err != nil {
+				return err
+			}
+
+			baselineErrors := make(map[string]bool)
+			for _, entry := range baseline.Entries {
+				baselineErrors[entry.Name] = true
+			}
+
+			hasError := false
+			for _, entry := range current.Entries {
+				isNewName := !baselineErrors[entry.Name]
+
+				if isNewName && entry.CodeIsInt {
+					fmt.Printf("Error: New error %s uses a manually assigned code \"%s\"; use \"replace_me\" and let errorutil allocate the code\n", entry.Name, entry.Code)
+					hasError = true
+				}
+			}
+
+			if hasError {
+				return fmt.Errorf("newly introduced error codes must use placeholder 'replace_me'")
+			}
+			return nil
+		},
+	}
+}
+
 func RootCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: config.App}
 	cmd.PersistentFlags().BoolP(verboseCmdFlag, "v", false, "verbose output")
@@ -205,5 +254,6 @@ func RootCommand() *cobra.Command {
 	cmd.AddCommand(commandAnalyze())
 	cmd.AddCommand(commandUpdate())
 	cmd.AddCommand(commandDoc())
+	cmd.AddCommand(commandCheck())
 	return cmd
 }
