@@ -91,6 +91,11 @@ you will not connect to a settings change days later:
    `tools/hooks/helm-chart-audit.py`. That path does not exist in this repo, which is why the
    tracked file omits it; left in your local file it keeps firing locally.
 
+The same pull also untracks six generated `__pycache__/*.pyc` files under `.claude/` and
+`.agents/`. If Python rewrote yours since you cloned, the pull aborts naming those paths - delete
+the `__pycache__` directories and pull again. They are git-ignored from here on and regenerate on
+next use.
+
 ## Detailed Docs
 
 - [architecture](docs/agent-instructions/architecture.md) - orientation: package map, the two core pipelines, cross-cutting packages.
