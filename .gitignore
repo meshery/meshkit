@@ -26,3 +26,4 @@ coverage.txt
 
 
 .claude/worktrees
+.claude/settings.local.json

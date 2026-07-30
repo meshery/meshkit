@@ -60,6 +60,18 @@ Meshery Cloud, adapters, operators, CLIs) depends on it, so changes fan out down
 - Run `quota-axi` to check local agent-provider quota windows before long-running work.
 - Use the `lavish` skill (`lavish-axi` CLI) to turn a plan, comparison, or report into a reviewable HTML artifact.
 
+## Claude Code Settings
+
+- `.claude/settings.json` is **tracked** shared config: hook registrations every contributor gets
+  from a fresh clone. Every `command` path in it must resolve to a script that exists - a
+  registration pointing at a missing script is a guard the repo silently never runs.
+- `.claude/settings.local.json` is **git-ignored** per-developer state. Claude Code rewrites it on
+  every session, so tracking it produces spurious diffs and truncation. Keep MCP server toggles,
+  `permissions`, and `additionalDirectories` (e.g. `../schemas`) there.
+- Of the registered guards, only `no-ai-attribution.sh` is active repo-wide. `meshkit-errors.sh`
+  and `guard-local-models.sh` match `server/**`, which MeshKit does not have, and `session-start.sh`
+  runs only when `CLAUDE_CODE_REMOTE=true` - do not assume they enforce anything here.
+
 ## Detailed Docs
 
 - [architecture](docs/agent-instructions/architecture.md) - orientation: package map, the two core pipelines, cross-cutting packages.

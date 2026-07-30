@@ -1,14 +1,4 @@
 {
-  "enabledMcpjsonServers": [
-    "github",
-    "playwright",
-    "postgres-dev",
-    "postgres-prod"
-  ],
-  "disabledMcpjsonServers": [
-    "context7",
-    "postgres-staging"
-  ],
   "hooks": {
     "SessionStart": [
       {
@@ -48,25 +38,6 @@
           }
         ]
       }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "tools/hooks/helm-chart-audit.py"
-          }
-        ]
-      }
-    ]
-  },
-  "additionalDirectories": [
-    "../schemas"
-  ],
-  "permissions": {
-    "allow": [
-      "mcp__playwright__browser_navigate"
     ]
   }
 }
