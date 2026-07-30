@@ -72,6 +72,21 @@ Meshery Cloud, adapters, operators, CLIs) depends on it, so changes fan out down
   and `guard-local-models.sh` match `server/**`, which MeshKit does not have, and `session-start.sh`
   runs only when `CLAUDE_CODE_REMOTE=true` - do not assume they enforce anything here.
 
+**Already have this repo cloned?** `.claude/settings.local.json` used to be tracked and carried the
+hook registrations that now live in `.claude/settings.json`. Claude Code merges the two files
+additively, so if you skip these steps every promoted guard fires twice on your machine - a symptom
+you will not connect to a settings change days later:
+
+1. **Back up `.claude/settings.local.json` before pulling.** It goes from tracked to ignored here, so
+   the pull may abort on local modifications or remove your copy.
+2. **After pulling, delete the `hooks` block from your local file.** Those registrations now come
+   from the tracked `.claude/settings.json`; leaving the block in place is what double-fires them.
+3. **Keep everything else**: `enabledMcpjsonServers` / `disabledMcpjsonServers`, `permissions`, and
+   `additionalDirectories` (e.g. `../schemas`) are per-machine and belong in the local file.
+4. **Drop the dead registration** your old copy carries: the `PostToolUse` entry pointing at
+   `tools/hooks/helm-chart-audit.py`. That path does not exist in this repo, which is why the
+   tracked file omits it; left in your local file it keeps firing locally.
+
 ## Detailed Docs
 
 - [architecture](docs/agent-instructions/architecture.md) - orientation: package map, the two core pipelines, cross-cutting packages.
