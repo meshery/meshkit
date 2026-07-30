@@ -23,6 +23,7 @@ cmd/errorutil/errorutil
 **errorutil_errors_export.json
 *.DS_Store
 coverage.txt
+__pycache__/
 
 
 .claude/worktrees

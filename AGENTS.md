@@ -71,6 +71,10 @@ Meshery Cloud, adapters, operators, CLIs) depends on it, so changes fan out down
 - Of the registered guards, only `no-ai-attribution.sh` is active repo-wide. `meshkit-errors.sh`
   and `guard-local-models.sh` match `server/**`, which MeshKit does not have, and `session-start.sh`
   runs only when `CLAUDE_CODE_REMOTE=true` - do not assume they enforce anything here.
+  - `session-start.sh` enforces nothing, but it is not inert. When `CLAUDE_CODE_REMOTE=true` it
+    overwrites your **global** git identity - `git config --global user.name` and `user.email`,
+    resolved from the authenticated `gh` user - and shallow-clones sibling repos such as
+    `meshery/schemas` into the **parent** directory. Decide whether you want both before it runs.
 
 **Already have this repo cloned?** `.claude/settings.local.json` used to be tracked and carried the
 hook registrations that now live in `.claude/settings.json`. Claude Code merges the two files
