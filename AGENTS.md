@@ -75,21 +75,32 @@ Meshery Cloud, adapters, operators, CLIs) depends on it, so changes fan out down
     overwrites your **global** git identity - `git config --global user.name` and `user.email`,
     resolved from the authenticated `gh` user - and shallow-clones sibling repos such as
     `meshery/schemas` into the **parent** directory. Decide whether you want both before it runs.
+- The tracked `.claude/hookify.*.local.md` rule files are a **second, independent** guard mechanism,
+  read directly by the hookify plugin and not wired through `settings.json` at all.
+  `hookify.no-ai-attribution-bash.local.md` and `hookify.no-ai-attribution-file.local.md` carry no
+  path filter and do fire here; `hookify.meshkit-errors.local.md` requires `file_path` matching
+  `/server/.*\.go$` and is inert in MeshKit, the same dead-guard pattern as above. So three guards
+  are live in this repo, not one.
 
 **Already have this repo cloned?** `.claude/settings.local.json` used to be tracked and carried the
-hook registrations that now live in `.claude/settings.json`. Claude Code merges the two files
-additively, so if you skip these steps every promoted guard fires twice on your machine - a symptom
-you will not connect to a settings change days later:
+hook registrations that now live in `.claude/settings.json`. Migrate in exactly this order:
 
-1. **Back up `.claude/settings.local.json` before pulling.** It goes from tracked to ignored here, so
-   the pull may abort on local modifications or remove your copy.
-2. **After pulling, delete the `hooks` block from your local file.** Those registrations now come
-   from the tracked `.claude/settings.json`; leaving the block in place is what double-fires them.
-3. **Keep everything else**: `enabledMcpjsonServers` / `disabledMcpjsonServers`, `permissions`, and
-   `additionalDirectories` (e.g. `../schemas`) are per-machine and belong in the local file.
-4. **Drop the dead registration** your old copy carries: the `PostToolUse` entry pointing at
-   `tools/hooks/helm-chart-audit.py`. That path does not exist in this repo, which is why the
-   tracked file omits it; left in your local file it keeps firing locally.
+1. **Back up `.claude/settings.local.json` before pulling - required, not precautionary.** The file
+   goes from tracked to ignored here, so the pull removes it from your working tree, and may first
+   abort with a modify/delete conflict if you have local modifications (common - Claude Code
+   rewrites this file constantly). Skip the backup and your MCP server selection, `permissions`,
+   and `additionalDirectories` are gone for good.
+2. **After pulling, restore the backup to `.claude/settings.local.json`.** The pull removed it. The
+   path is git-ignored from here on, so the restored file stays local and is never tracked again.
+3. **Then delete the `hooks` block from the restored file** - after the restore, not before, because
+   restoring the whole backup reinstates the stale block. Claude Code merges `settings.json` and
+   `settings.local.json` additively, so leaving the block in place fires every promoted guard twice,
+   a symptom you will not connect to a settings change days later. Deleting the whole block is also
+   what drops the dead `PostToolUse` registration pointing at `tools/hooks/helm-chart-audit.py` -
+   that path does not exist in this repo, which is why the tracked file omits it.
+4. **Keep everything else in the restored file**: `enabledMcpjsonServers` /
+   `disabledMcpjsonServers`, `permissions`, and `additionalDirectories` (e.g. `../schemas`) are
+   per-machine and belong there.
 
 The same pull also untracks six generated `__pycache__/*.pyc` files under `.claude/` and
 `.agents/`. If Python rewrote yours since you cloned, the pull aborts naming those paths - delete
