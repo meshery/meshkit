@@ -53,6 +53,13 @@ Meshery Cloud, adapters, operators, CLIs) depends on it, so changes fan out down
 - **Sign off every commit** (`git commit -s`).
 - **No AI attribution** in commits, PR descriptions, comments, or code.
 
+## AXI Agent Tooling
+
+- Use the `gh-axi` CLI tool to interact with GitHub. Prefer `gh-axi` over `gh`.
+- Use `chrome-devtools-axi` for browser automation (navigate, snapshot, click, fill forms, run JS, inspect console/network) in place of raw Playwright/chrome-devtools MCP for ad hoc tasks.
+- Run `quota-axi` to check local agent-provider quota windows before long-running work.
+- Use the `lavish` skill (`lavish-axi` CLI) to turn a plan, comparison, or report into a reviewable HTML artifact.
+
 ## Detailed Docs
 
 - [architecture](docs/agent-instructions/architecture.md) - orientation: package map, the two core pipelines, cross-cutting packages.
