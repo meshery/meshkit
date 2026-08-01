@@ -285,8 +285,8 @@ func TestConcurrentCompletionLogsAreSingleLine(t *testing.T) {
 	// interleave them on stdout and mismatch the model name with the count.
 
 	var buf bytes.Buffer
-	Log = SetupLogger("registry-test", false, &buf)
 	origLog := Log
+	Log = SetupLogger("registry-test", false, &buf)
 	defer func() { Log = origLog }()
 
 	models := []string{
