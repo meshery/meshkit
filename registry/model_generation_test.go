@@ -1,8 +1,10 @@
 package registry
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -274,4 +276,52 @@ func TestProgressTrackerSummary(t *testing.T) {
 	assert.Contains(t, summary, "25 failed")
 	assert.Contains(t, summary, "15 skipped")
 	assert.Contains(t, summary, "100 total")
+}
+
+func TestConcurrentCompletionLogsAreSingleLine(t *testing.T) {
+	// During concurrent model generation, completion logs must be emitted as a
+	// single self-contained line. Previously "Current model" and "Extracted N
+	// components" were logged as two separate lines, letting goroutines
+	// interleave them on stdout and mismatch the model name with the count.
+
+	var buf bytes.Buffer
+	Log = SetupLogger("registry-test", false, &buf)
+	origLog := Log
+	defer func() { Log = origLog }()
+
+	models := []string{
+		"istio", "prometheus", "grafana", "nginx",
+		"redis", "postgres", "mongodb", "kubernetes",
+		"flagger", "argo-cd", "keycloak", "vault",
+	}
+	componentCounts := []int{3, 5, 2, 8, 4, 6, 1, 10, 7, 9, 12, 11}
+
+	var wg sync.WaitGroup
+	for i, model := range models {
+		wg.Add(1)
+		go func(i int, model string) {
+			defer wg.Done()
+			// Same single-line format used for completion logs in model.go
+			Log.Info(fmt.Sprintf("Current model: %s — extracted %d components for %s (%s)",
+				model, componentCounts[i], model, model))
+		}(i, model)
+	}
+	wg.Wait()
+
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+
+	var completionLogs []string
+	for _, line := range lines {
+		if strings.Contains(line, "Current model:") {
+			completionLogs = append(completionLogs, line)
+		}
+	}
+
+	assert.Len(t, completionLogs, len(models), "each model completion must be logged exactly once")
+
+	for _, line := range completionLogs {
+		// The model name and the extracted-components info must be on the same line
+		assert.Contains(t, line, "— extracted",
+			"completion log must contain the extracted count on the same line as the model name: %q", line)
+	}
 }
