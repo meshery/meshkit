@@ -3,6 +3,7 @@ package coder
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 
 	mesherr "github.com/meshery/meshkit/cmd/errorutil/internal/error"
@@ -147,32 +148,19 @@ func TestCheckLogic(t *testing.T) {
 				t.Fatalf("Failed to marshal current: %v", err)
 			}
 
-			bFile, err := os.CreateTemp("", "baseline*.json")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			cFile, err := os.CreateTemp("", "current*.json")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			defer os.Remove(bFile.Name())
-			defer os.Remove(cFile.Name())
+			dir := t.TempDir()
+			bFile := filepath.Join(dir, "baseline.json")
+			cFile := filepath.Join(dir, "current.json")
 
-			if _, err := bFile.Write(bBytes); err != nil {
+			if err := os.WriteFile(bFile, bBytes, 0644); err != nil {
 				t.Fatalf("Failed to write baseline: %v", err)
 			}
-			if _, err := cFile.Write(cBytes); err != nil {
+			if err := os.WriteFile(cFile, cBytes, 0644); err != nil {
 				t.Fatalf("Failed to write current: %v", err)
-			}
-			if err := bFile.Close(); err != nil {
-				t.Fatalf("Failed to close baseline: %v", err)
-			}
-			if err := cFile.Close(); err != nil {
-				t.Fatalf("Failed to close current: %v", err)
 			}
 
 			cmd := commandCheck()
-			cmd.SetArgs([]string{bFile.Name(), cFile.Name()})
+			cmd.SetArgs([]string{bFile, cFile})
 			cmd.SetOut(os.Stdout)
 			cmd.SetErr(os.Stderr)
 			err = cmd.Execute()
