@@ -200,7 +200,7 @@ func commandCheck() *cobra.Command {
 	return &cobra.Command{
 		Use:          "check [baseline JSON] [current JSON]",
 		Short:        "Checks that newly introduced error codes use a placeholder (e.g. replace_me)",
-		Long:         `check compares the errors from the current working tree against a baseline, and ensures that any newly introduced error code does not use a manually assigned integer code, but rather a placeholder string.`,
+		Long:         `check compares the errors from the two provided JSON files (baseline and current) and ensures that any newly introduced error code does not use a manually assigned integer code, but rather a placeholder string.`,
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

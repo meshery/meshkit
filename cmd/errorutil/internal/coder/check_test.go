@@ -138,24 +138,44 @@ func TestCheckLogic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bBytes, _ := json.Marshal(tt.baseline)
-			cBytes, _ := json.Marshal(tt.current)
+			bBytes, err := json.Marshal(tt.baseline)
+			if err != nil {
+				t.Fatalf("Failed to marshal baseline: %v", err)
+			}
+			cBytes, err := json.Marshal(tt.current)
+			if err != nil {
+				t.Fatalf("Failed to marshal current: %v", err)
+			}
 
-			bFile, _ := os.CreateTemp("", "baseline*.json")
-			cFile, _ := os.CreateTemp("", "current*.json")
+			bFile, err := os.CreateTemp("", "baseline*.json")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			cFile, err := os.CreateTemp("", "current*.json")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
 			defer os.Remove(bFile.Name())
 			defer os.Remove(cFile.Name())
 
-			bFile.Write(bBytes)
-			cFile.Write(cBytes)
-			bFile.Close()
-			cFile.Close()
+			if _, err := bFile.Write(bBytes); err != nil {
+				t.Fatalf("Failed to write baseline: %v", err)
+			}
+			if _, err := cFile.Write(cBytes); err != nil {
+				t.Fatalf("Failed to write current: %v", err)
+			}
+			if err := bFile.Close(); err != nil {
+				t.Fatalf("Failed to close baseline: %v", err)
+			}
+			if err := cFile.Close(); err != nil {
+				t.Fatalf("Failed to close current: %v", err)
+			}
 
 			cmd := commandCheck()
 			cmd.SetArgs([]string{bFile.Name(), cFile.Name()})
 			cmd.SetOut(os.Stdout)
 			cmd.SetErr(os.Stderr)
-			err := cmd.Execute()
+			err = cmd.Execute()
 			if (err != nil) != tt.wantErrors {
 				t.Errorf("commandCheck() error = %v, wantErrors %v", err, tt.wantErrors)
 			}
