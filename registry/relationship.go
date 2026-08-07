@@ -85,7 +85,9 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) erro
 	currentRow := rowIndex
 
 	go func() {
-		Log.Info("Parsing Relationships...")
+		if Log != nil {
+			Log.Info("Parsing Relationships...")
+		}
 
 		err := csvReader.Parse(ch, errorChan)
 		if err != nil {
@@ -103,7 +105,12 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) erro
 			currentRow++
 			mrh.Relationships = append(mrh.Relationships, data)
 		case err := <-errorChan:
-			Log.Error(err)
+			if err != nil {
+				if Log != nil {
+					Log.Error(err)
+				}
+				return err
+			}
 		case <-csvReader.Context.Done():
 			return nil
 		}
