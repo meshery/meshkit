@@ -31,6 +31,8 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 			fmt.Println(err)
 			return
 		}
+		defer func() { _ = f.Close() }()
+
 		_, err = f.WriteString(svgColor)
 		if err != nil {
 			fmt.Println(err)
@@ -53,6 +55,8 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 			fmt.Println(err)
 			return
 		}
+		defer func() { _ = f.Close() }()
+
 		_, err = f.WriteString(svgWhite)
 		if err != nil {
 			fmt.Println(err)
@@ -75,6 +79,8 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 			fmt.Println(err)
 			return
 		}
+		defer func() { _ = f.Close() }()
+
 		_, err = f.WriteString(svgComplete)
 		if err != nil {
 			fmt.Println(err)
