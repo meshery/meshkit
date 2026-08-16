@@ -57,8 +57,12 @@ func New(kubeconfig []byte) (*Client, error) {
 }
 
 func configureRESTConfig(config *rest.Config) {
-	config.QPS = float32(50)
-	config.Burst = int(100)
+	if config.QPS == 0 {
+		config.QPS = float32(50)
+	}
+	if config.Burst == 0 {
+		config.Burst = int(100)
+	}
 }
 
 func (c *Client) getRESTClientGetter() genericclioptions.RESTClientGetter {
