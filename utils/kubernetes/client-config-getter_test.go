@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -56,7 +57,7 @@ func renewableExecKubeConfig(t *testing.T, serverURL, stateFile string) []byte {
 		Exec: &clientcmdapi.ExecConfig{
 			APIVersion: "client.authentication.k8s.io/v1",
 			Command:    os.Args[0],
-			Args:       []string{"-test.run=TestExecCredentialHelperProcess"},
+			Args:       []string{"-test.run=^TestExecCredentialHelperProcess$"},
 			Env: []clientcmdapi.ExecEnvVar{
 				{Name: execCredentialHelperEnv, Value: "1"},
 				{Name: "MESHKIT_EXEC_CREDENTIAL_STATE_FILE", Value: stateFile},
@@ -187,8 +188,8 @@ func TestRESTClientGetterFallsBackForDirectClient(t *testing.T) {
 	if config.Host != client.RestConfig.Host || config.BearerToken != client.RestConfig.BearerToken {
 		t.Fatalf("REST config = (%q, %q), want (%q, %q)", config.Host, config.BearerToken, client.RestConfig.Host, client.RestConfig.BearerToken)
 	}
-	if config.QPS != 50 || config.Burst != 100 {
-		t.Fatalf("REST config rate limits = (%v, %d), want (50, 100)", config.QPS, config.Burst)
+	if config.QPS != 1 || config.Burst != 2 {
+		t.Fatalf("REST config rate limits = (%v, %d), want caller values (1, 2)", config.QPS, config.Burst)
 	}
 
 	namespace, explicit, err := getter.ToRawKubeConfigLoader().Namespace()
@@ -228,6 +229,75 @@ func TestRESTConfigGetterReturnsIndependentCopies(t *testing.T) {
 	}
 	if second.Host != "https://cluster.example.com" || second.BearerToken != "test-token" {
 		t.Fatalf("second REST config = (%q, %q), want original values", second.Host, second.BearerToken)
+	}
+}
+
+func TestRESTConfigClientConfigRawConfigPreservesAuthentication(t *testing.T) {
+	proxyURL, err := url.Parse("http://proxy.example.com:8080")
+	if err != nil {
+		t.Fatalf("url.Parse() error = %v", err)
+	}
+
+	source := &rest.Config{
+		Host:            "https://cluster.example.com",
+		Username:        "test-user",
+		Password:        "test-password",
+		BearerToken:     "test-token",
+		BearerTokenFile: "/var/run/secrets/token",
+		Impersonate: rest.ImpersonationConfig{
+			UserName: "impersonated-user",
+			UID:      "impersonated-uid",
+			Groups:   []string{"test-group"},
+			Extra:    map[string][]string{"scope": {"test-scope"}},
+		},
+		ExecProvider: &clientcmdapi.ExecConfig{
+			APIVersion:      "client.authentication.k8s.io/v1",
+			Command:         "credential-plugin",
+			InteractiveMode: clientcmdapi.NeverExecInteractiveMode,
+		},
+		TLSClientConfig: rest.TLSClientConfig{
+			CAData:   []byte("ca-data"),
+			CertData: []byte("cert-data"),
+			KeyData:  []byte("key-data"),
+		},
+		Proxy: http.ProxyURL(proxyURL),
+	}
+
+	rawConfig, err := (&restConfigClientConfig{restConfig: source}).RawConfig()
+	if err != nil {
+		t.Fatalf("RawConfig() error = %v", err)
+	}
+
+	const connectionName = "meshkit-connection"
+	context := rawConfig.Contexts[connectionName]
+	if context == nil || context.Cluster != connectionName || context.AuthInfo != connectionName {
+		t.Fatalf("context = %#v, want cluster and auth info %q", context, connectionName)
+	}
+	cluster := rawConfig.Clusters[connectionName]
+	if cluster == nil || cluster.ProxyURL != proxyURL.String() || string(cluster.CertificateAuthorityData) != "ca-data" {
+		t.Fatalf("cluster = %#v, want proxy %q and CA data", cluster, proxyURL.String())
+	}
+	authInfo := rawConfig.AuthInfos[connectionName]
+	if authInfo == nil {
+		t.Fatal("RawConfig() did not include authentication information")
+	}
+	if authInfo.Token != source.BearerToken || authInfo.TokenFile != source.BearerTokenFile {
+		t.Fatalf("token configuration = (%q, %q), want (%q, %q)", authInfo.Token, authInfo.TokenFile, source.BearerToken, source.BearerTokenFile)
+	}
+	if authInfo.Exec == nil || authInfo.Exec.Command != source.ExecProvider.Command {
+		t.Fatalf("exec configuration = %#v, want command %q", authInfo.Exec, source.ExecProvider.Command)
+	}
+	if authInfo.Impersonate != source.Impersonate.UserName || authInfo.ImpersonateUID != source.Impersonate.UID {
+		t.Fatalf("impersonation = (%q, %q), want (%q, %q)", authInfo.Impersonate, authInfo.ImpersonateUID, source.Impersonate.UserName, source.Impersonate.UID)
+	}
+
+	cluster.CertificateAuthorityData[0] = 'X'
+	authInfo.ClientCertificateData[0] = 'X'
+	authInfo.Exec.Command = "changed-plugin"
+	authInfo.ImpersonateGroups[0] = "changed-group"
+	authInfo.ImpersonateUserExtra["scope"][0] = "changed-scope"
+	if string(source.CAData) != "ca-data" || string(source.CertData) != "cert-data" || source.ExecProvider.Command != "credential-plugin" || source.Impersonate.Groups[0] != "test-group" || source.Impersonate.Extra["scope"][0] != "test-scope" {
+		t.Fatal("mutating RawConfig() changed the source REST config")
 	}
 }
 

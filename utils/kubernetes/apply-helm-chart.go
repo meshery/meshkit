@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/meshery/meshkit/utils"
 	"gopkg.in/yaml.v3"
@@ -52,6 +53,8 @@ const (
 
 	// Latest is the default version for helm charts
 	Latest = ">0.0.0-0"
+
+	helmDriverSQLConnectionStringEnv = "HELM_DRIVER_SQL_CONNECTION_STRING"
 )
 
 var (
@@ -59,6 +62,10 @@ var (
 	// will be stored. os.TempDir will ensure that the path is cross
 	// platform
 	downloadLocation = os.TempDir()
+	// Helm's SQL driver accepts its connection string only through the process
+	// environment. Serialize the set/init/restore sequence to prevent concurrent
+	// Helm initializations from reading one another's connection strings.
+	helmDriverEnvMu sync.Mutex
 )
 
 // HelmIndex holds the index.yaml data in the struct format
@@ -408,15 +415,48 @@ func checkIfInstallable(ch *chart.Chart) error {
 
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
 func (c *Client) createHelmActionConfig(cfg ApplyHelmChartConfig, restClientGetter genericclioptions.RESTClientGetter) (*action.Configuration, error) {
-	// Set the environment variable needed by the Init methods
-	_ = os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
-
 	actionConfig := new(action.Configuration)
-	if err := actionConfig.Init(restClientGetter, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
-		return nil, ErrApplyHelmChart(err)
+	initialize := func() error {
+		return actionConfig.Init(restClientGetter, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger)
+	}
+
+	var err error
+	if cfg.HelmDriver == SQL && cfg.SQLConnectionString != "" {
+		err = withHelmSQLConnectionString(cfg.SQLConnectionString, initialize)
+	} else {
+		err = initialize()
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	return actionConfig, nil
+}
+
+// withHelmSQLConnectionString exposes the SQL connection string only while
+// Helm initializes its SQL storage driver, then restores the previous process
+// environment. Helm does not provide a direct configuration parameter for it.
+func withHelmSQLConnectionString(connectionString string, initialize func() error) (err error) {
+	helmDriverEnvMu.Lock()
+	defer helmDriverEnvMu.Unlock()
+
+	previousValue, wasSet := os.LookupEnv(helmDriverSQLConnectionStringEnv)
+	if err = os.Setenv(helmDriverSQLConnectionStringEnv, connectionString); err != nil {
+		return err
+	}
+	defer func() {
+		var restoreErr error
+		if wasSet {
+			restoreErr = os.Setenv(helmDriverSQLConnectionStringEnv, previousValue)
+		} else {
+			restoreErr = os.Unsetenv(helmDriverSQLConnectionStringEnv)
+		}
+		if err == nil {
+			err = restoreErr
+		}
+	}()
+
+	return initialize()
 }
 
 // generateAction generates an action function using action.Configuration
@@ -563,7 +603,7 @@ func (helmEntries HelmEntries) GetEntryWithAppVersion(entry, appVersion string) 
 	return HelmEntryMetadata{}, false
 }
 
-// GetEntryWithChartVersion takes in the entry name and the appversion and returns the corresponding
+// GetEntryWithChartVersion takes in the entry name and the chart version and returns the corresponding
 // metadata for the parameters if it exists
 func (helmEntries HelmEntries) GetEntryWithChartVersion(entry, chartVersion string) (HelmEntryMetadata, bool) {
 	hem, ok := helmEntries[entry]

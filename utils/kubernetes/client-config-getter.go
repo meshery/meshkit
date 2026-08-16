@@ -1,6 +1,9 @@
 package kubernetes
 
 import (
+	"fmt"
+	"net/http"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
@@ -73,7 +76,7 @@ func (c *restConfigClientConfig) RawConfig() (clientcmdapi.Config, error) {
 	const connectionName = "meshkit-connection"
 
 	config := clientcmdapi.NewConfig()
-	config.Clusters[connectionName] = &clientcmdapi.Cluster{
+	cluster := &clientcmdapi.Cluster{
 		Server:                   c.restConfig.Host,
 		TLSServerName:            c.restConfig.ServerName,
 		InsecureSkipTLSVerify:    c.restConfig.Insecure,
@@ -81,8 +84,39 @@ func (c *restConfigClientConfig) RawConfig() (clientcmdapi.Config, error) {
 		CertificateAuthorityData: c.restConfig.CAData,
 		DisableCompression:       c.restConfig.DisableCompression,
 	}
+	if c.restConfig.Proxy != nil {
+		request, err := http.NewRequest(http.MethodGet, c.restConfig.Host, nil)
+		if err != nil {
+			return clientcmdapi.Config{}, fmt.Errorf("failed to create request for Kubernetes proxy resolution: %w", err)
+		}
+		proxyURL, err := c.restConfig.Proxy(request)
+		if err != nil {
+			return clientcmdapi.Config{}, fmt.Errorf("failed to resolve Kubernetes proxy: %w", err)
+		}
+		if proxyURL != nil {
+			cluster.ProxyURL = proxyURL.String()
+		}
+	}
+	config.Clusters[connectionName] = cluster.DeepCopy()
+	config.AuthInfos[connectionName] = (&clientcmdapi.AuthInfo{
+		ClientCertificate:     c.restConfig.CertFile,
+		ClientCertificateData: c.restConfig.CertData,
+		ClientKey:             c.restConfig.KeyFile,
+		ClientKeyData:         c.restConfig.KeyData,
+		Token:                 c.restConfig.BearerToken,
+		TokenFile:             c.restConfig.BearerTokenFile,
+		Impersonate:           c.restConfig.Impersonate.UserName,
+		ImpersonateUID:        c.restConfig.Impersonate.UID,
+		ImpersonateGroups:     c.restConfig.Impersonate.Groups,
+		ImpersonateUserExtra:  c.restConfig.Impersonate.Extra,
+		Username:              c.restConfig.Username,
+		Password:              c.restConfig.Password,
+		AuthProvider:          c.restConfig.AuthProvider,
+		Exec:                  c.restConfig.ExecProvider,
+	}).DeepCopy()
 	config.Contexts[connectionName] = &clientcmdapi.Context{
-		Cluster: connectionName,
+		Cluster:  connectionName,
+		AuthInfo: connectionName,
 	}
 	config.CurrentContext = connectionName
 	return *config, nil

@@ -25,9 +25,11 @@ func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.
 			return nil, nil, err
 		}
 
-		if config, loader, err = loadClientConfigFromKubeconfig(cfgFile); err == nil {
-			return config, loader, nil
+		config, loader, err = loadClientConfigFromKubeconfig(cfgFile)
+		if err != nil {
+			return nil, nil, ErrRestConfigFromKubeConfig(err)
 		}
+		return config, loader, nil
 	}
 
 	// If deployed within the cluster
@@ -38,18 +40,24 @@ func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.
 	// Look for kubeconfig from the path mentioned in $KUBECONFIG
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig != "" {
-		_, cfgFile, err := ProcessConfig(kubeconfig, "")
+		// KUBECONFIG expresses an explicit target. Fail closed instead of falling
+		// back to the default file, which could target another cluster.
+		var cfgFile []byte
+		_, cfgFile, err = ProcessConfig(kubeconfig, "")
 		if err != nil {
 			return nil, nil, err
 		}
-		if config, loader, err = loadClientConfigFromKubeconfig(cfgFile); err == nil {
-			return config, loader, nil
+		config, loader, err = loadClientConfigFromKubeconfig(cfgFile)
+		if err != nil {
+			return nil, nil, ErrRestConfigFromKubeConfig(err)
 		}
+		return config, loader, nil
 	}
 
 	// Look for kubeconfig at the default path
 	path := filepath.Join(utils.GetHome(), ".kube", "config")
-	_, cfgFile, err := ProcessConfig(path, "")
+	var cfgFile []byte
+	_, cfgFile, err = ProcessConfig(path, "")
 	if err != nil {
 		return nil, nil, err
 	}
