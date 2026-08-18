@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"net/url"
 	"os"
@@ -452,8 +451,6 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 			}
 		}
 
-		pathSep := string(os.PathSeparator)
-		rootDepth := strings.Count(rootPath, pathSep)
 		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
 			if er != nil {
 				return er
@@ -530,6 +527,9 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 			continue
 		}
 		if f.IsDir() {
+			continue
+		}
+		if !g.isAllowedFile(f.Name()) {
 			continue
 		}
 		if g.skipOnClone(clonePath, fPath, f, standingInForTrees) {
