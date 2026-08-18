@@ -41,7 +41,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.39.0
 	go.opentelemetry.io/otel/sdk v1.43.0
 	golang.org/x/oauth2 v0.36.0
-	golang.org/x/sync v0.21.0
+	golang.org/x/sync v0.22.0
 	golang.org/x/text v0.38.0
 	google.golang.org/api v0.287.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -55,7 +55,7 @@ require (
 	k8s.io/cli-runtime v0.34.2
 	k8s.io/client-go v0.34.3
 	k8s.io/kubectl v0.34.2
-	oras.land/oras-go/v2 v2.6.0
+	oras.land/oras-go/v2 v2.6.2
 	sigs.k8s.io/kustomize/api v0.20.1
 	sigs.k8s.io/kustomize/kyaml v0.20.1
 	sigs.k8s.io/yaml v1.6.0
