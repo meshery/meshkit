@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/meshery/meshkit/generators/github"
@@ -15,6 +16,7 @@ func TestNewGeneratorWithOptions(t *testing.T) {
 		opts        GeneratorOptions
 		wantRec     bool
 		wantDepth   int
+		wantExt     []string
 	}{
 		{
 			name:        "Github Recursive",
@@ -22,11 +24,13 @@ func TestNewGeneratorWithOptions(t *testing.T) {
 			url:         "https://github.com/owner/repo",
 			packageName: "test",
 			opts: GeneratorOptions{
-				Recursive: true,
-				MaxDepth:  5,
+				Recursive:  true,
+				MaxDepth:   5,
+				Extensions: []string{".yaml", ".yml"},
 			},
 			wantRec:   true,
 			wantDepth: 5,
+			wantExt:   []string{".yaml", ".yml"},
 		},
 		{
 			name:        "Github Default",
@@ -39,6 +43,7 @@ func TestNewGeneratorWithOptions(t *testing.T) {
 			},
 			wantRec:   false,
 			wantDepth: 0,
+			wantExt:   nil,
 		},
 	}
 
@@ -55,6 +60,9 @@ func TestNewGeneratorWithOptions(t *testing.T) {
 				}
 				if ghpm.MaxDepth != tt.wantDepth {
 					t.Errorf("NewGeneratorWithOptions() MaxDepth = %v, want %v", ghpm.MaxDepth, tt.wantDepth)
+				}
+				if !reflect.DeepEqual(ghpm.Extensions, tt.wantExt) {
+					t.Errorf("NewGeneratorWithOptions() Extensions = %v, want %v", ghpm.Extensions, tt.wantExt)
 				}
 			} else {
 				t.Errorf("NewGeneratorWithOptions() returned unexpected type")

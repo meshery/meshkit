@@ -3,7 +3,6 @@ package walker
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -295,6 +294,9 @@ func clonewalk(g *Git) error {
 		if f.IsDir() {
 			continue
 		}
+		if !g.isAllowedFile(f.Name()) {
+			continue
+		}
 		err := g.readFile(f, fPath)
 		if err != nil {
 			fmt.Println(err.Error())
@@ -308,11 +310,7 @@ func (g *Git) readFile(f fs.FileInfo, path string) error {
 	if f.Size() > g.maxFileSizeInBytes {
 		return ErrInvalidSizeFile(errors.New("File exceeding size limit"))
 	}
-	filename, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	content, err := io.ReadAll(filename)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
