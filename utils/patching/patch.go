@@ -46,8 +46,11 @@ func ApplyPatches(data map[string]interface{}, patches []Patch) (map[string]inte
 }
 
 // sjsonPathSpecials are the characters gjson/sjson path syntax assigns meaning
-// to inside a key. Escaping them makes every path segment a literal key.
-const sjsonPathSpecials = `.*?|#@`
+// to inside a key. Escaping them makes every path segment a literal key. The
+// colon is included because sjson treats a leading ":" as force-object-key
+// syntax (":2313" addresses the key "2313" instead of an array index), so an
+// unescaped literal key beginning with ":" would be silently rewritten.
+const sjsonPathSpecials = `.*?|#@:`
 
 // convertPathToSjsonPath converts a path array to sjson path format. Each
 // segment is a literal key: dotted Kubernetes annotation and label keys such

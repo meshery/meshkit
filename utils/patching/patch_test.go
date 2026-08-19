@@ -77,6 +77,8 @@ func TestEscapeSjsonKey(t *testing.T) {
 		"a*b?c":                          `a\*b\?c`,
 		`back\slash`:                     `back\\slash`,
 		"pipe|hash#at@":                  `pipe\|hash\#at\@`,
+		":2313":                          `\:2313`,
+		"a:b":                            `a\:b`,
 	}
 	for in, want := range cases {
 		if got := escapeSjsonKey(in); got != want {
