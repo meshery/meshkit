@@ -9,14 +9,43 @@ import (
 
 var UISVGPaths = make([]string, 1)
 
+type svgFile interface {
+	WriteString(string) (int, error)
+	Close() error
+}
+
+var createSVGFile = func(path string) (svgFile, error) {
+	return os.Create(path)
+}
+
+func writeAndCloseSVG(path, content string) error {
+	f, err := createSVGFile(path)
+	if err != nil {
+		return err
+	}
+
+	if _, err := f.WriteString(content); err != nil {
+		_ = f.Close()
+		return err
+	}
+
+	if err := f.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string, baseDir, dirname, filename string, isModel bool) (svgColorPath, svgWhitePath, svgCompletePath string) {
 	filename = strings.ToLower(filename)
 	successCreatingDirectory := false
+
 	defer func() {
 		if successCreatingDirectory {
 			UISVGPaths = append(UISVGPaths, filepath.Join(baseDir, dirname))
 		}
 	}()
+
 	if svgColor != "" {
 		path := filepath.Join(baseDir, dirname, "color")
 		err := os.MkdirAll(path, 0777)
@@ -26,20 +55,21 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 		}
 		successCreatingDirectory = true
 
-		f, err := os.Create(filepath.Join(path, filename+"-color.svg"))
-		if err != nil {
+		if err := writeAndCloseSVG(
+			filepath.Join(path, filename+"-color.svg"),
+			svgColor,
+		); err != nil {
 			fmt.Println(err)
+			svgColorPath, svgWhitePath, svgCompletePath = "", "", ""
 			return
 		}
-		_, err = f.WriteString(svgColor)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		f.Close()
-		svgColorPath = getRelativePathForAPI(baseDir, filepath.Join(dirname, "color", filename+"-color.svg")) //Replace the actual SVG with path to SVG
 
+		svgColorPath = getRelativePathForAPI(
+			baseDir,
+			filepath.Join(dirname, "color", filename+"-color.svg"),
+		)
 	}
+
 	if svgWhite != "" {
 		path := filepath.Join(baseDir, dirname, "white")
 		err := os.MkdirAll(path, 0777)
@@ -49,20 +79,21 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 		}
 		successCreatingDirectory = true
 
-		f, err := os.Create(filepath.Join(path, filename+"-white.svg"))
-		if err != nil {
+		if err := writeAndCloseSVG(
+			filepath.Join(path, filename+"-white.svg"),
+			svgWhite,
+		); err != nil {
 			fmt.Println(err)
+			svgColorPath, svgWhitePath, svgCompletePath = "", "", ""
 			return
 		}
-		_, err = f.WriteString(svgWhite)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		f.Close()
-		svgWhitePath = getRelativePathForAPI(baseDir, filepath.Join(dirname, "white", filename+"-white.svg")) //Replace the actual SVG with path to SVG
 
+		svgWhitePath = getRelativePathForAPI(
+			baseDir,
+			filepath.Join(dirname, "white", filename+"-white.svg"),
+		)
 	}
+
 	if svgComplete != "" {
 		path := filepath.Join(baseDir, dirname, "complete")
 		err := os.MkdirAll(path, 0777)
@@ -72,20 +103,21 @@ func WriteAndReplaceSVGWithFileSystemPath(svgColor, svgWhite, svgComplete string
 		}
 		successCreatingDirectory = true
 
-		f, err := os.Create(filepath.Join(path, filename+"-complete.svg"))
-		if err != nil {
+		if err := writeAndCloseSVG(
+			filepath.Join(path, filename+"-complete.svg"),
+			svgComplete,
+		); err != nil {
 			fmt.Println(err)
+			svgColorPath, svgWhitePath, svgCompletePath = "", "", ""
 			return
 		}
-		_, err = f.WriteString(svgComplete)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		f.Close()
-		svgCompletePath = getRelativePathForAPI(baseDir, filepath.Join(dirname, "complete", filename+"-complete.svg")) //Replace the actual SVG with path to SVG
 
+		svgCompletePath = getRelativePathForAPI(
+			baseDir,
+			filepath.Join(dirname, "complete", filename+"-complete.svg"),
+		)
 	}
+
 	return
 }
 
