@@ -25,6 +25,13 @@ func TestWriteAndReplaceSVGWithFileSystemPathClosesFiles(t *testing.T) {
 		t.Skip("fd-count check relies on /proc/self/fd, only available on linux")
 	}
 
+	// WriteAndReplaceSVGWithFileSystemPath appends to the package-level UISVGPaths on
+	// every successful call, so 50 iterations would leave 50 entries behind in shared
+	// process state and make any later test that reads UISVGPaths order-dependent.
+	// Snapshot and restore it rather than leaking that across the package.
+	originalUISVGPaths := UISVGPaths
+	t.Cleanup(func() { UISVGPaths = originalUISVGPaths })
+
 	tmp := t.TempDir()
 	before := openFDCount(t)
 
