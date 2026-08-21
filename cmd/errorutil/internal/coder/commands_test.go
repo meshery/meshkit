@@ -1,9 +1,7 @@
 package coder
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
+	"bytes"
 	"testing"
 
 	mesherr "github.com/meshery/meshkit/cmd/errorutil/internal/error"
@@ -139,33 +137,10 @@ func TestCheckLogic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bBytes, err := json.Marshal(tt.baseline)
-			if err != nil {
-				t.Fatalf("Failed to marshal baseline: %v", err)
-			}
-			cBytes, err := json.Marshal(tt.current)
-			if err != nil {
-				t.Fatalf("Failed to marshal current: %v", err)
-			}
-
-			dir := t.TempDir()
-			bFile := filepath.Join(dir, "baseline.json")
-			cFile := filepath.Join(dir, "current.json")
-
-			if err := os.WriteFile(bFile, bBytes, 0644); err != nil {
-				t.Fatalf("Failed to write baseline: %v", err)
-			}
-			if err := os.WriteFile(cFile, cBytes, 0644); err != nil {
-				t.Fatalf("Failed to write current: %v", err)
-			}
-
-			cmd := commandCheck()
-			cmd.SetArgs([]string{bFile, cFile})
-			cmd.SetOut(os.Stdout)
-			cmd.SetErr(os.Stderr)
-			err = cmd.Execute()
+			var buf bytes.Buffer
+			err := ValidateNewErrors(tt.baseline, tt.current, &buf)
 			if (err != nil) != tt.wantErrors {
-				t.Errorf("commandCheck() error = %v, wantErrors %v", err, tt.wantErrors)
+				t.Errorf("ValidateNewErrors() error = %v, wantErrors %v", err, tt.wantErrors)
 			}
 		})
 	}

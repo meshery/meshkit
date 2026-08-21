@@ -3,6 +3,7 @@ package coder
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -196,6 +197,26 @@ Meshery components and this tool:
 	}
 }
 
+func ValidateNewErrors(baseline, current mesherr.InfoAll, out io.Writer) error {
+	baselineErrors := make(map[string]bool)
+	for _, entry := range baseline.Entries {
+		baselineErrors[entry.Name] = true
+	}
+
+	hasError := false
+	for _, entry := range current.Entries {
+		if _, exists := baselineErrors[entry.Name]; !exists && entry.CodeIsInt {
+			fmt.Fprintf(out, "Error: New error %s uses a manually assigned code \"%s\"; use \"replace_me\" and let errorutil allocate the code\n", entry.Name, entry.Code)
+			hasError = true
+		}
+	}
+
+	if hasError {
+		return fmt.Errorf("newly introduced error codes must use placeholder 'replace_me'")
+	}
+	return nil
+}
+
 func commandCheck() *cobra.Command {
 	return &cobra.Command{
 		Use:          "check [baseline JSON] [current JSON]",
@@ -221,25 +242,7 @@ func commandCheck() *cobra.Command {
 				return err
 			}
 
-			baselineErrors := make(map[string]bool)
-			for _, entry := range baseline.Entries {
-				baselineErrors[entry.Name] = true
-			}
-
-			hasError := false
-			for _, entry := range current.Entries {
-				isNewName := !baselineErrors[entry.Name]
-
-				if isNewName && entry.CodeIsInt {
-					cmd.Printf("Error: New error %s uses a manually assigned code \"%s\"; use \"replace_me\" and let errorutil allocate the code\n", entry.Name, entry.Code)
-					hasError = true
-				}
-			}
-
-			if hasError {
-				return fmt.Errorf("newly introduced error codes must use placeholder 'replace_me'")
-			}
-			return nil
+			return ValidateNewErrors(baseline, current, cmd.OutOrStdout())
 		},
 	}
 }
