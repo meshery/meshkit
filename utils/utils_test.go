@@ -158,6 +158,28 @@ func TestSanitizePattern(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "collision in a nested map returns an error",
+			input: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					" labels": "foo",
+					"labels ": "bar",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "collision inside a map within a slice returns an error",
+			input: map[string]interface{}{
+				"items": []interface{}{
+					map[string]interface{}{
+						" name": "foo",
+						"name ": "bar",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "nil slice is preserved as nil, not an empty slice",
 			input: map[string]interface{}{
 				"items": []interface{}(nil),
