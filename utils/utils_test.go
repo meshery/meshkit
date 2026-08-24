@@ -81,9 +81,10 @@ func TestTransformMapKeys(t *testing.T) {
 
 func TestSanitizePattern(t *testing.T) {
 	var tests = []struct {
-		name  string
-		input map[string]interface{}
-		want  map[string]interface{}
+		name    string
+		input   map[string]interface{}
+		want    map[string]interface{}
+		wantErr bool
 	}{
 		{
 			name: "trims whitespace from keys and string values",
@@ -148,11 +149,38 @@ func TestSanitizePattern(t *testing.T) {
 			input: nil,
 			want:  nil,
 		},
+		{
+			name: "distinct keys colliding after trim return an error",
+			input: map[string]interface{}{
+				" name": "foo",
+				"name ": "bar",
+			},
+			wantErr: true,
+		},
+		{
+			name: "nil slice is preserved as nil, not an empty slice",
+			input: map[string]interface{}{
+				"items": []interface{}(nil),
+			},
+			want: map[string]interface{}{
+				"items": []interface{}(nil),
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ans := SanitizePattern(tt.input)
+			ans, err := SanitizePattern(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected an error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
 			if !reflect.DeepEqual(ans, tt.want) {
 				t.Errorf("got %v, want %v", ans, tt.want)
 			}
