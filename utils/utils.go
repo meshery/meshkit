@@ -923,3 +923,38 @@ func TruncateErrorMessage(err error, wordLimit int) error {
 
 	return err
 }
+
+// SanitizePattern recursively trims leading and trailing whitespace from all
+// string keys and string values within a map (such as a component's
+// Configuration). Non-string types (bool, int, float64, nil, etc.) are
+// passed through unchanged.
+func SanitizePattern(input map[string]interface{}) map[string]interface{} {
+	if input == nil {
+		return nil
+	}
+	output := make(map[string]interface{}, len(input))
+	for k, v := range input {
+		trimmedKey := strings.TrimSpace(k)
+		output[trimmedKey] = sanitizeValue(v)
+	}
+	return output
+}
+
+// sanitizeValue trims strings, recurses into maps and slices, and leaves
+// every other type untouched.
+func sanitizeValue(v interface{}) interface{} {
+	switch val := v.(type) {
+	case string:
+		return strings.TrimSpace(val)
+	case map[string]interface{}:
+		return SanitizePattern(val)
+	case []interface{}:
+		out := make([]interface{}, len(val))
+		for i, item := range val {
+			out[i] = sanitizeValue(item)
+		}
+		return out
+	default:
+		return v
+	}
+}
