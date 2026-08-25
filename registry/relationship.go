@@ -106,10 +106,7 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) erro
 			mrh.Relationships = append(mrh.Relationships, data)
 		case err := <-errorChan:
 			if err != nil {
-				if Log != nil {
-					Log.Error(err)
-				}
-				return err
+				return csv.ErrReadCSVRow(err, "relationship")
 			}
 		case <-csvReader.Context.Done():
 			return nil
