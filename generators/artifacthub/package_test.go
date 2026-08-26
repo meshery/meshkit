@@ -4,10 +4,35 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 )
+
+func TestUpdatePackageDataMalformedIndex(t *testing.T) {
+	// A helm index whose chart entry has an empty version list used to panic
+	// with "index out of range [0] with length 0" instead of returning an error.
+	cases := map[string]string{
+		"empty version list": "entries:\n  mychart: []\n",
+		"empty urls list":    "entries:\n  mychart:\n  - urls: []\n",
+		"entry not a list":   "entries:\n  mychart: notalist\n",
+	}
+	for name, index := range cases {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(index))
+			}))
+			defer srv.Close()
+
+			pkg := AhPackage{Name: "mychart", RepoUrl: srv.URL}
+			if err := pkg.UpdatePackageData(); err == nil {
+				t.Error("expected an error for a malformed helm index, got nil")
+			}
+		})
+	}
+}
 
 func TestGetChartUrl(t *testing.T) {
 	var tests = []struct {
