@@ -45,7 +45,41 @@ func ApplyPatches(data map[string]interface{}, patches []Patch) (map[string]inte
 	return result, nil
 }
 
-// convertPathToSjsonPath converts a path array to sjson path format
+// sjsonPathSpecials are the characters gjson/sjson path syntax assigns meaning
+// to inside a key. Escaping them makes every path segment a literal key. The
+// colon is included because sjson treats a leading ":" as force-object-key
+// syntax (":2313" addresses the key "2313" instead of an array index), so an
+// unescaped literal key beginning with ":" would be silently rewritten.
+const sjsonPathSpecials = `.*?|#@:`
+
+// convertPathToSjsonPath converts a path array to sjson path format. Each
+// segment is a literal key: dotted Kubernetes annotation and label keys such
+// as "cert-manager.io/cluster-issuer" or "kubernetes.io/service-name" must
+// reach sjson as one key, so path specials inside a segment are escaped before
+// segments are joined with the "." separator. A bare join split such keys into
+// nested objects and silently corrupted the patched configuration.
 func convertPathToSjsonPath(pathArray []string) string {
-	return strings.Join(pathArray, ".")
+	escaped := make([]string, len(pathArray))
+	for i, segment := range pathArray {
+		escaped[i] = escapeSjsonKey(segment)
+	}
+	return strings.Join(escaped, ".")
+}
+
+// escapeSjsonKey backslash-escapes gjson/sjson path specials in a single key.
+// The escape character itself is escaped first so pre-existing backslashes in
+// a key survive the round trip.
+func escapeSjsonKey(key string) string {
+	if !strings.ContainsAny(key, sjsonPathSpecials+`\`) {
+		return key
+	}
+	var b strings.Builder
+	b.Grow(len(key) + 4)
+	for _, r := range key {
+		if r == '\\' || strings.ContainsRune(sjsonPathSpecials, r) {
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
