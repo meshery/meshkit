@@ -11,6 +11,9 @@ import (
 type GitHubPackageManager struct {
 	PackageName string
 	SourceURL   string
+	Recursive   bool
+	MaxDepth    int
+	Extensions  []string
 }
 
 func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
@@ -21,7 +24,7 @@ func (ghpm GitHubPackageManager) GetPackage() (models.Package, error) {
 	}
 	protocol := url.Scheme
 
-	downloader := NewDownloaderForScheme(protocol, url, ghpm.PackageName)
+	downloader := NewDownloaderForScheme(protocol, url, ghpm)
 	if downloader == nil {
 		err = errors.New("unsupported protocol")
 		return nil, ErrGenerateGitHubPackage(err, ghpm.PackageName)
