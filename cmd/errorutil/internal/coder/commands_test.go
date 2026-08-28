@@ -514,7 +514,7 @@ func TestCommandCheck(t *testing.T) {
 				bErr := writeJSON(t, dir, "b_err.json", makeErrors("1000", true))
 				cErr := writeJSON(t, dir, "c_err.json", makeErrors("1001", true))
 				cSum := writeJSON(t, dir, "c_sum.json", analysisSummary{NextCode: 1002})
-				
+
 				bSum := filepath.Join(dir, "b_sum.json")
 				os.WriteFile(bSum, []byte("not valid json"), 0644)
 
@@ -534,7 +534,7 @@ func TestCommandCheck(t *testing.T) {
 				bErr := writeJSON(t, dir, "b_err.json", makeErrors("1000", true))
 				cErr := writeJSON(t, dir, "c_err.json", makeErrors("1001", true))
 				bSum := writeJSON(t, dir, "b_sum.json", analysisSummary{NextCode: 1001})
-				
+
 				cSum := filepath.Join(dir, "c_sum.json")
 				os.WriteFile(cSum, []byte("not valid json"), 0644)
 
@@ -598,7 +598,7 @@ func TestCommandCheck(t *testing.T) {
 			args := tt.setup(t, dir)
 
 			cmd := commandCheck()
-			
+
 			// We only want to capture out/err, not pollute real stdout
 			var stdout, stderr bytes.Buffer
 			cmd.SetOut(&stdout)
@@ -609,7 +609,7 @@ func TestCommandCheck(t *testing.T) {
 			if (err != nil) != tt.wantError {
 				t.Fatalf("commandCheck().Execute() error = %v, wantError %v", err, tt.wantError)
 			}
-			
+
 			if tt.wantError && tt.wantErrorMatch != "" {
 				if err == nil {
 					t.Fatalf("expected error containing %q, got nil", tt.wantErrorMatch)
