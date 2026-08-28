@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 
 	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 
@@ -176,7 +178,7 @@ This tool produces three files:
 - errorutil_errors_export.json: export of errors which can be used to create the error code reference on the Meshery website
 
 Typically, the 'analyze' command of the tool is used by the developer to verify errors, i.e. that there are no duplicate names or details.
-A CI workflow is used to replace the placeholder code strings with integer code, and export errors. Using this export, the workflow updates 
+A CI workflow is used to replace the placeholder code strings with integer code, and export errors. Using this export, the workflow updates
 the error code reference documentation in the Meshery repository.
 
 Meshery components and this tool:
@@ -191,37 +193,99 @@ Meshery components and this tool:
     "next_error_code": 1014
   }
 - next_error_code is the value used by the tool to replace the error code placeholder string with the next integer.
-- The tool updates next_error_code. 
+- The tool updates next_error_code.
 `)
 		},
 	}
 }
 
-func ValidateNewErrors(baseline, current mesherr.InfoAll, out io.Writer) error {
-	baselineErrors := make(map[string]bool)
+func ValidateNewErrors(baseline, current mesherr.InfoAll, baselineNext, currentNext int, out io.Writer) error {
+	baselineCodes := make(map[string]bool)
+	baselineCounts := make(map[string]int)
+	baselineDup := make(map[string]bool)
 	for _, entry := range baseline.Entries {
-		baselineErrors[entry.Name] = true
+		if entry.CodeIsInt {
+			baselineCodes[entry.Code] = true
+			baselineCounts[entry.Code]++
+			if baselineCounts[entry.Code] > 1 {
+				baselineDup[entry.Code] = true
+			}
+		}
 	}
 
 	hasError := false
+
+	// R1: Duplicate codes in current state (ignoring inherited baseline duplicates)
+	seen := make(map[string][]string)
 	for _, entry := range current.Entries {
-		if _, exists := baselineErrors[entry.Name]; !exists && entry.CodeIsInt {
-			fmt.Fprintf(out, "Error: New error %s uses a manually assigned code \"%s\"; use \"replace_me\" and let errorutil allocate the code\n", entry.Name, entry.Code)
+		if entry.CodeIsInt {
+			seen[entry.Code] = append(seen[entry.Code], entry.Name)
+		}
+	}
+
+	var duplicateCodes []string
+	for code, names := range seen {
+		if len(names) > 1 && !baselineDup[code] {
+			duplicateCodes = append(duplicateCodes, code)
+		}
+	}
+	sort.Strings(duplicateCodes)
+
+	for _, code := range duplicateCodes {
+		fmt.Fprintf(out, "Error: duplicate error code \"%s\" used by %v\n", code, seen[code])
+		hasError = true
+	}
+
+	// R2: Counter regression
+	if baselineNext > 0 && currentNext > 0 && currentNext < baselineNext {
+		fmt.Fprintf(out, "Error: Allocation counter regression detected (baseline: %d, current: %d)\n", baselineNext, currentNext)
+		hasError = true
+	}
+
+	for _, entry := range current.Entries {
+		if !entry.CodeIsInt {
+			continue
+		}
+
+		// R3: Identify newly introduced integer codes BY CODE, NOT NAME
+		if baselineCodes[entry.Code] {
+			continue // Legitimate rename or no-op
+		}
+
+		// R4: Validate genuinely new integer codes
+		validLocalAllocation := false
+		if baselineNext > 0 && currentNext > 0 {
+			codeInt, err := strconv.Atoi(entry.Code)
+			if err == nil {
+				if codeInt >= baselineNext && codeInt < currentNext {
+					validLocalAllocation = true
+				}
+			}
+		}
+
+		if !validLocalAllocation {
+			if baselineNext > 0 && currentNext > 0 {
+				fmt.Fprintf(out, "Error: New error %s uses manually assigned code \"%s\"; must use \"replace_me\" or be in valid local allocation range [%d, %d)\n", entry.Name, entry.Code, baselineNext, currentNext)
+			} else {
+				fmt.Fprintf(out, "Error: New error %s uses manually assigned code \"%s\"; use \"replace_me\" and let errorutil allocate the code\n", entry.Name, entry.Code)
+			}
 			hasError = true
 		}
 	}
 
 	if hasError {
-		return fmt.Errorf("newly introduced error codes must use placeholder 'replace_me'")
+		return fmt.Errorf("error validation failed")
 	}
 	return nil
 }
 
 func commandCheck() *cobra.Command {
-	return &cobra.Command{
+	var baselineSummaryPath, currentSummaryPath string
+
+	cmd := &cobra.Command{
 		Use:          "check [baseline JSON] [current JSON]",
 		Short:        "Checks that newly introduced error codes use a placeholder (e.g. replace_me)",
-		Long:         `check compares the errors from the two provided JSON files (baseline and current) and ensures that any newly introduced error code does not use a manually assigned integer code, but rather a placeholder string.`,
+		Long:         `check compares the errors from the two provided JSON files (baseline and current) and ensures that any newly introduced error code does not use a manually assigned integer code, but rather a placeholder string. It validates local allocations if summary files are provided.`,
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -242,9 +306,49 @@ func commandCheck() *cobra.Command {
 				return err
 			}
 
-			return ValidateNewErrors(baseline, current, cmd.OutOrStdout())
+			baselineNext := -1
+			currentNext := -1
+
+			if baselineSummaryPath != "" && currentSummaryPath != "" {
+				type analysisSummary struct {
+					NextCode int `json:"next_code"`
+				}
+
+				bSumBytes, err := os.ReadFile(baselineSummaryPath)
+				if err != nil {
+					return fmt.Errorf("failed to read baseline summary: %w", err)
+				}
+				var bSum analysisSummary
+				if err := json.Unmarshal(bSumBytes, &bSum); err != nil {
+					return fmt.Errorf("failed to parse baseline summary: %w", err)
+				}
+				if bSum.NextCode <= 0 {
+					return fmt.Errorf("%s: next_code missing or zero — expected an errorutil_analyze_summary.json", baselineSummaryPath)
+				}
+				baselineNext = bSum.NextCode
+
+				cSumBytes, err := os.ReadFile(currentSummaryPath)
+				if err != nil {
+					return fmt.Errorf("failed to read current summary: %w", err)
+				}
+				var cSum analysisSummary
+				if err := json.Unmarshal(cSumBytes, &cSum); err != nil {
+					return fmt.Errorf("failed to parse current summary: %w", err)
+				}
+				if cSum.NextCode <= 0 {
+					return fmt.Errorf("%s: next_code missing or zero — expected an errorutil_analyze_summary.json", currentSummaryPath)
+				}
+				currentNext = cSum.NextCode
+			} else if baselineSummaryPath != "" || currentSummaryPath != "" {
+				return fmt.Errorf("both --baseline-summary and --current-summary must be provided if one is provided")
+			}
+
+			return ValidateNewErrors(baseline, current, baselineNext, currentNext, cmd.OutOrStdout())
 		},
 	}
+	cmd.Flags().StringVar(&baselineSummaryPath, "baseline-summary", "", "path to baseline errorutil_analyze_summary.json")
+	cmd.Flags().StringVar(&currentSummaryPath, "current-summary", "", "path to current errorutil_analyze_summary.json")
+	return cmd
 }
 
 func RootCommand() *cobra.Command {
