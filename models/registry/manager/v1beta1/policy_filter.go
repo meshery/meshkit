@@ -2,9 +2,9 @@ package v1beta1
 
 import (
 	"github.com/meshery/meshkit/database"
-	"github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
-	"github.com/meshery/meshkit/models/meshmodel/entity"
-	"github.com/meshery/meshkit/models/meshmodel/registry"
+	"github.com/meshery/meshkit/models/registry/core/v1beta1"
+	"github.com/meshery/meshkit/models/registry/entity"
+	"github.com/meshery/meshkit/models/registry/manager"
 )
 
 type PolicyFilter struct {

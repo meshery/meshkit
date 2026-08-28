@@ -1,6 +1,6 @@
 # MeshModel Registration Pipeline
 
-Read this before touching `models/registration/` or `models/meshmodel/registry/`.
+Read this before touching `models/registration/` or `models/registry/manager/`.
 
 ## Shape of the pipeline
 
@@ -11,7 +11,7 @@ Read this before touching `models/registration/` or `models/meshmodel/registry/`
   and a `RegistrationErrorStore`) drives `Register(entity)` for each
   `RegisterableEntity` - currently directory (`dir.go`), tar (`tar.go`), and OCI
   (`oci.go`) sources.
-- `models/meshmodel/registry/` persists registrants, models, components, and
+- `models/registry/manager/` persists registrants, models, components, and
   relationships through GORM-backed helpers (`RegistryManager`), with versioned entity
   handling under `registry/v1alpha3` and `registry/v1beta1`.
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
-	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/registry/entity"
 	"github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1beta3/component"
 	"github.com/stretchr/testify/assert"

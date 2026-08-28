@@ -18,7 +18,7 @@ import (
 	"github.com/meshery/meshkit/files"
 	"github.com/meshery/meshkit/generators"
 	"github.com/meshery/meshkit/generators/models"
-	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/registry/entity"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/csv"
 	"github.com/meshery/meshkit/utils/store"

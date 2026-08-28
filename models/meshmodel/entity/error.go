@@ -1,15 +1,11 @@
 package entity
 
-import (
-	"fmt"
+import registryentity "github.com/meshery/meshkit/models/registry/entity"
 
-	"github.com/meshery/meshkit/errors"
-)
+const ErrUpdateEntityStatusCode = registryentity.ErrUpdateEntityStatusCode
 
-const (
-	ErrUpdateEntityStatusCode = "meshkit-11243"
-)
-
+// ErrUpdateEntityStatus is a deprecated wrapper for registryentity.ErrUpdateEntityStatus.
+// Deprecated: use registryentity.ErrUpdateEntityStatus instead.
 func ErrUpdateEntityStatus(err error, entity string, status EntityStatus) error {
-	return errors.New(ErrUpdateEntityStatusCode, errors.Alert, []string{fmt.Sprintf("unable to update %s to %s", entity, status)}, []string{err.Error()}, []string{}, []string{})
+	return registryentity.ErrUpdateEntityStatus(err, entity, status)
 }

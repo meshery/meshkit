@@ -1,9 +1,9 @@
 package registration
 
 import (
-	"github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
-	"github.com/meshery/meshkit/models/meshmodel/entity"
-	meshmodel "github.com/meshery/meshkit/models/meshmodel/registry"
+	"github.com/meshery/meshkit/models/registry/core/v1beta1"
+	"github.com/meshery/meshkit/models/registry/entity"
+	meshmodel "github.com/meshery/meshkit/models/registry/manager"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
