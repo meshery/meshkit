@@ -116,11 +116,31 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	if pkgEntry == nil || !ok {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
-	urls, ok := pkgEntry.([]interface{})[0].(map[interface{}]interface{})["urls"]
+	// The helm index maps each chart name to a list of version entries. Every
+	// type assertion and index access below operates on data parsed from a
+	// remote index.yaml (utils.ReadRemoteFile), so an unexpected shape — a
+	// non-list entry, an empty version list, a missing/empty urls list, or a
+	// non-string url — must return an error rather than panic. The previous
+	// code asserted and indexed (`pkgEntry.([]interface{})[0]` and
+	// `urls.([]interface{})[0]`) without guarding, so a malformed index
+	// crashed the generator with an index-out-of-range / type-assertion panic.
+	entryVersions, ok := pkgEntry.([]interface{})
+	if !ok || len(entryVersions) == 0 {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	firstVersion, ok := entryVersions[0].(map[interface{}]interface{})
+	if !ok {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	urls, ok := firstVersion["urls"]
 	if urls == nil || !ok {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
-	chartUrl, ok := urls.([]interface{})[0].(string)
+	urlList, ok := urls.([]interface{})
+	if !ok || len(urlList) == 0 {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	chartUrl, ok := urlList[0].(string)
 	if !ok || chartUrl == "" {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
