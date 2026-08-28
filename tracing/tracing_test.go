@@ -232,3 +232,20 @@ func TestNewTransport(t *testing.T) {
 		t.Error("NewTransport(customTransport) returned nil")
 	}
 }
+func TestInitTracerDisabled(t *testing.T) {
+	ctx := context.Background()
+	enabled := false
+
+	cfg := Config{
+		Enabled: &enabled,
+	}
+
+	tp, err := InitTracer(ctx, cfg)
+	if err != nil {
+		t.Fatalf("expected no error when tracing is disabled, got %v", err)
+	}
+
+	if tp != nil {
+		t.Fatalf("expected nil tracer provider when tracing is disabled")
+	}
+}
