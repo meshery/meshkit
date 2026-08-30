@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 	mesherr "github.com/meshery/meshkit/cmd/errorutil/internal/error"
 )
 
@@ -19,6 +20,7 @@ func TestCheckLogic(t *testing.T) {
 		baselineNext int
 		currentNext  int
 		wantErrors   bool
+		wantOut      []string
 	}{
 		// 1. new + replace_me -> PASS
 		{
@@ -31,7 +33,7 @@ func TestCheckLogic(t *testing.T) {
 			current: mesherr.InfoAll{
 				Entries: []mesherr.Info{
 					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
-					{Name: "ErrNew", Code: "replace_me", CodeIsInt: false},
+					{Name: "ErrNew", Code: "replace_", CodeIsInt: false},
 				},
 			},
 			baselineNext: -1,
@@ -256,7 +258,7 @@ func TestCheckLogic(t *testing.T) {
 			// This represents a legitimate workflow where an error code (e.g. 1001)
 			// was allocated, but later deleted from the PR. We shouldn't enforce
 			// strict equality between the count of new errors and currentNext - baselineNext.
-			wantErrors:   false,
+			wantErrors: false,
 		},
 		// 13. unrelated integer/string constant -> unaffected
 		{
@@ -293,7 +295,124 @@ func TestCheckLogic(t *testing.T) {
 			currentNext:  -1,
 			wantErrors:   false,
 		},
-		// 15. Two new errors both left as replace_me (simulating the 'place_' normalization collision)
+		// Third user of a pre-existing duplicate
+		{
+			name: "Third user of a pre-existing duplicate",
+			baseline: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrA", Code: "1000", CodeIsInt: true},
+					{Name: "ErrB", Code: "1000", CodeIsInt: true},
+				},
+			},
+			current: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrA", Code: "1000", CodeIsInt: true},
+					{Name: "ErrB", Code: "1000", CodeIsInt: true},
+					{Name: "ErrC", Code: "1000", CodeIsInt: true},
+				},
+			},
+			baselineNext: -1,
+			currentNext:  -1,
+			wantErrors:   true,
+			wantOut:      []string{"1000"},
+		},
+		// Stale/regressed baseline with NO new codes
+		{
+			name: "Stale/regressed baseline with NO new codes",
+			baseline: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+				},
+			},
+			current: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+				},
+			},
+			baselineNext: 1050,
+			currentNext:  1010,
+			wantErrors:   true,
+			wantOut:      []string{"1050", "1010"},
+		},
+		// Code equal to currentNext
+		{
+			name: "Code equal to currentNext",
+			baseline: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+				},
+			},
+			current: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+					{Name: "ErrNew", Code: "1005", CodeIsInt: true},
+				},
+			},
+			baselineNext: 1001,
+			currentNext:  1005,
+			wantErrors:   true,
+			wantOut:      []string{"1005"},
+		},
+		// Code one below baselineNext
+		{
+			name: "Code one below baselineNext",
+			baseline: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "900", CodeIsInt: true},
+				},
+			},
+			current: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "900", CodeIsInt: true},
+					{Name: "ErrNew", Code: "1000", CodeIsInt: true},
+				},
+			},
+			baselineNext: 1001,
+			currentNext:  1010,
+			wantErrors:   true,
+			wantOut:      []string{"1000"},
+		},
+		// Only one of baselineNext/currentNext supplied
+		{
+			name: "Only one of baselineNext/currentNext supplied",
+			baseline: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+				},
+			},
+			current: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+					{Name: "ErrNew", Code: "1001", CodeIsInt: true},
+				},
+			},
+			baselineNext: -1,
+			currentNext:  1002,
+			wantErrors:   true,
+			wantOut:      []string{"1001"},
+		},
+		// Restore the mixed-additions case dropped from #1080
+		{
+			name: "Restore the mixed-additions case",
+			baseline: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+				},
+			},
+			current: mesherr.InfoAll{
+				Entries: []mesherr.Info{
+					{Name: "ErrOld", Code: "1000", CodeIsInt: true},
+					{Name: "ErrNew1", Code: "replace_", CodeIsInt: false},
+					{Name: "ErrNew2", Code: "1002", CodeIsInt: true},
+				},
+			},
+			baselineNext: -1,
+			currentNext:  -1,
+			wantErrors:   true,
+			wantOut:      []string{"ErrNew2", "1002"},
+		},
+
+		// 15. Two new errors both left as replace_me (simulating two new replace_-normalized placeholders colliding)
 		{
 			name: "Multiple new placeholders simulating normalization collision passes",
 			baseline: mesherr.InfoAll{
@@ -304,8 +423,8 @@ func TestCheckLogic(t *testing.T) {
 			current: mesherr.InfoAll{
 				Entries: []mesherr.Info{
 					{Name: "ErrExistingCode", Code: "1463", CodeIsInt: true},
-					{Name: "ErrNewOneCode", Code: "place_", CodeIsInt: false},
-					{Name: "ErrNewTwoCode", Code: "place_", CodeIsInt: false},
+					{Name: "ErrNewOneCode", Code: "replace_", CodeIsInt: false},
+					{Name: "ErrNewTwoCode", Code: "replace_", CodeIsInt: false},
 				},
 			},
 			baselineNext: 1464,
@@ -339,6 +458,11 @@ func TestCheckLogic(t *testing.T) {
 			err := ValidateNewErrors(tt.baseline, tt.current, tt.baselineNext, tt.currentNext, &buf)
 			if (err != nil) != tt.wantErrors {
 				t.Errorf("ValidateNewErrors() error = %v, wantErrors %v. Output: %s", err, tt.wantErrors, buf.String())
+			}
+			for _, want := range tt.wantOut {
+				if !strings.Contains(buf.String(), want) {
+					t.Errorf("ValidateNewErrors() output missing expected substring %q. Full output: %s", want, buf.String())
+				}
 			}
 		})
 	}
@@ -382,10 +506,26 @@ func TestCommandCheck(t *testing.T) {
 		{
 			name: "Both summary flags with valid local allocation",
 			setup: func(t *testing.T, dir string) []string {
-				bErr := writeJSON(t, dir, "b_err.json", makeErrors("1000", true))
-				cErr := writeJSON(t, dir, "c_err.json", makeErrors("1001", true))
-				bSum := writeJSON(t, dir, "b_sum.json", analysisSummary{NextCode: 1001})
-				cSum := writeJSON(t, dir, "c_sum.json", analysisSummary{NextCode: 1002})
+				err1 := makeErrors("1000", true)
+				err2 := makeErrors("1001", true)
+				bErr := writeJSON(t, dir, "b_err.json", err1)
+				cErr := writeJSON(t, dir, "c_err.json", err2)
+
+				comp1 := &component.Info{NextErrorCode: 1001}
+				err := mesherr.SummarizeAnalysis(comp1, &err1, dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				os.Rename(filepath.Join(dir, "errorutil_analyze_summary.json"), filepath.Join(dir, "b_sum.json"))
+				bSum := filepath.Join(dir, "b_sum.json")
+
+				comp2 := &component.Info{NextErrorCode: 1002}
+				err = mesherr.SummarizeAnalysis(comp2, &err2, dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				os.Rename(filepath.Join(dir, "errorutil_analyze_summary.json"), filepath.Join(dir, "c_sum.json"))
+				cSum := filepath.Join(dir, "c_sum.json")
 
 				return []string{
 					"--baseline-summary", bSum,
@@ -411,7 +551,7 @@ func TestCommandCheck(t *testing.T) {
 				}
 			},
 			wantError:      true,
-			wantErrorMatch: "error validation failed",
+			wantErrorMatch: "error code validation failed; see details above",
 		},
 		// 3. No summary flags (legacy strict behavior)
 		{
@@ -423,7 +563,7 @@ func TestCommandCheck(t *testing.T) {
 				return []string{bErr, cErr}
 			},
 			wantError:      true,
-			wantErrorMatch: "error validation failed",
+			wantErrorMatch: "error code validation failed; see details above",
 		},
 		// 4. Only baseline summary supplied
 		{
@@ -516,7 +656,9 @@ func TestCommandCheck(t *testing.T) {
 				cSum := writeJSON(t, dir, "c_sum.json", analysisSummary{NextCode: 1002})
 
 				bSum := filepath.Join(dir, "b_sum.json")
-				os.WriteFile(bSum, []byte("not valid json"), 0644)
+				if err := os.WriteFile(bSum, []byte("not valid json"), 0644); err != nil {
+					t.Fatal(err)
+				}
 
 				return []string{
 					"--baseline-summary", bSum,
@@ -536,7 +678,9 @@ func TestCommandCheck(t *testing.T) {
 				bSum := writeJSON(t, dir, "b_sum.json", analysisSummary{NextCode: 1001})
 
 				cSum := filepath.Join(dir, "c_sum.json")
-				os.WriteFile(cSum, []byte("not valid json"), 0644)
+				if err := os.WriteFile(cSum, []byte("not valid json"), 0644); err != nil {
+					t.Fatal(err)
+				}
 
 				return []string{
 					"--baseline-summary", bSum,
