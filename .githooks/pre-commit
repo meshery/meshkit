@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# MeshKit error-code pre-commit validation.
+#
+# Validates the STAGED (index) state against HEAD using the same
+# `errorutil check` that runs in CI (.github/workflows/error-codes-updater.yaml).
+# Does not allocate codes, does not modify any file, and is not the security
+# boundary - `git commit --no-verify` bypasses this; CI remains authoritative.
+set -eu
+
+PAT_ERR='*error.go'
+PAT_INFO='helpers/component_info.json'
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- $PAT_ERR $PAT_INFO)
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+cur="$tmp/current"
+base="$tmp/baseline"
+mkdir -p "$cur/helpers" "$base/helpers"
+
+all_tracked=$(git ls-files -- $PAT_ERR $PAT_INFO)
+if [ -n "$all_tracked" ]; then
+  git checkout-index --prefix="$cur/" -- $all_tracked
+fi
+
+# IMPORTANT: pass patterns directly to `git archive`, do not pre-resolve via
+# `git ls-tree ... -- <pattern>` - ls-tree's pathspec matching for a bare
+# `*error.go` does not recurse into subdirectories and silently drops nested
+# matches, which corrupts the baseline (every unchanged code looks "new").
+if git rev-parse --verify -q HEAD >/dev/null 2>&1; then
+  git archive HEAD -- $PAT_ERR $PAT_INFO 2>/dev/null | tar -x -C "$base" 2>/dev/null || true
+fi
+
+go run ./cmd/errorutil -d "$base" analyze --skip-dirs meshery -i "$base/helpers" -o "$base/helpers" >/dev/null 2>&1 || true
+go run ./cmd/errorutil -d "$cur"  analyze --skip-dirs meshery -i "$cur/helpers"  -o "$cur/helpers"  >/dev/null 2>&1 || true
+
+if [ ! -f "$base/helpers/errorutil_analyze_summary.json" ] || [ ! -f "$cur/helpers/errorutil_analyze_summary.json" ]; then
+  echo "pre-commit: could not analyze error codes locally - skipping (CI will still validate this)" >&2
+  exit 0
+fi
+
+go run ./cmd/errorutil check \
+  "$base/helpers/errorutil_analyze_errors.json" "$cur/helpers/errorutil_analyze_errors.json" \
+  --baseline-summary "$base/helpers/errorutil_analyze_summary.json" \
+  --current-summary  "$cur/helpers/errorutil_analyze_summary.json"

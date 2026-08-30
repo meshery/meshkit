@@ -34,6 +34,15 @@ See the package documentation in `errors/errors.go` and
    `go run github.com/meshery/meshkit/cmd/errorutil -d . <update|analyze> --skip-dirs meshery -i ./helpers -o ./helpers`.
 3. Commit the changed source files together with the regenerated artifacts.
 
+## Pre-commit validation
+
+Run `make setup-hooks` once to install a local pre-commit hook that runs
+`errorutil check` against your staged changes before each commit - it accepts
+`replace_me` and codes allocated by `make errorutil` locally, and rejects
+hand-typed integers. It validates only what's staged, not your full working
+tree. It can be bypassed with `git commit --no-verify`; PR CI runs the same
+check and is authoritative regardless of whether the hook is installed.
+
 `make build-errorutil` builds a standalone `errorutil` binary from `cmd/errorutil/main.go`.
 
 ## Artifacts and code allocation (`helpers/`)

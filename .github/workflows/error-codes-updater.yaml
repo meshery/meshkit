@@ -6,6 +6,13 @@ on:
       - "master"
     paths:
       - "**.go"
+  pull_request:
+    branches:
+      - "master"
+    paths:
+      - "**.go"
+      - ".github/workflows/error-codes-updater.yaml"
+
 
 jobs:
   Update-error-codes:
@@ -14,6 +21,20 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - name: Checkout base branch
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .baseline
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        if: ${{ github.event_name != 'pull_request' }}
         # token here with write access to meshkit repo
         with:
           token: ${{ secrets.GH_ACCESS_TOKEN }}
@@ -24,15 +45,31 @@ jobs:
         with:
           go-version: "1.26"
 
+      - name: Validate error codes (PR only)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          go run github.com/meshery/meshkit/cmd/errorutil -d .baseline analyze --skip-dirs meshery -i .baseline/helpers -o .baseline/helpers
+          go run github.com/meshery/meshkit/cmd/errorutil -d . analyze --skip-dirs meshery,.baseline -i ./helpers -o ./helpers
+          go run github.com/meshery/meshkit/cmd/errorutil check \
+            .baseline/helpers/errorutil_analyze_errors.json ./helpers/errorutil_analyze_errors.json \
+            --baseline-summary .baseline/helpers/errorutil_analyze_summary.json \
+            --current-summary  ./helpers/errorutil_analyze_summary.json
+
       - name: Run utility
+        if: ${{ github.event_name != 'pull_request' }}
+
         run: |
           go run github.com/meshery/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
 
       - name: Pull changes from remote
+        if: ${{ github.event_name != 'pull_request' }}
+
         run: git pull origin master
 
       # to update errorutil* files in meshkit repo
       - name: Commit changes
+        if: ${{ github.event_name != 'pull_request' }}
+
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_user_name: meshery-ci
@@ -44,6 +81,8 @@ jobs:
 
       # to push changes to meshery docs
       - name: Checkout meshery
+        if: ${{ github.event_name != 'pull_request' }}
+
         uses: actions/checkout@v6
         with:
           repository: "meshery/meshery"
@@ -53,6 +92,8 @@ jobs:
           ref: "master"
 
       - name: Update and push docs
+        if: ${{ github.event_name != 'pull_request' }}
+
         run: |
           echo '{ "errors_export": "" }' | jq --slurpfile export ./helpers/errorutil_errors_export.json '.errors_export = $export[0]' > ./meshery/docs/data/errorref/meshkit_errors_export.json
 
