@@ -7,10 +7,10 @@
 # boundary - `git commit --no-verify` bypasses this; CI remains authoritative.
 set -eu
 
-PAT_ERR='*error.go'
+PAT_ERR='*.go'
 PAT_INFO='helpers/component_info.json'
 
-staged=$(git diff --cached --name-only --diff-filter=ACMR -- $PAT_ERR $PAT_INFO)
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- $PAT_ERR $PAT_INFO | grep -v '_test\.go$' || true)
 if [ -z "$staged" ]; then
   exit 0
 fi
