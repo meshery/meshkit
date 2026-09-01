@@ -34,8 +34,15 @@ if git rev-parse --verify -q HEAD >/dev/null 2>&1; then
   git archive HEAD -- "$PAT_ERR" "$PAT_INFO" 2>/dev/null | tar -x -C "$base" 2>/dev/null || true
 fi
 
-go run ./cmd/errorutil -d "$base" analyze --skip-dirs meshery -i "$base/helpers" -o "$base/helpers" >/dev/null 2>&1 || true
-go run ./cmd/errorutil -d "$cur"  analyze --skip-dirs meshery -i "$cur/helpers"  -o "$cur/helpers"  >/dev/null 2>&1 || true
+cur_go="$cur"
+base_go="$base"
+if command -v cygpath >/dev/null 2>&1; then
+  cur_go=$(cygpath -m "$cur")
+  base_go=$(cygpath -m "$base")
+fi
+
+go run ./cmd/errorutil -d "$base_go" analyze --skip-dirs meshery -i "$base_go/helpers" -o "$base_go/helpers" >/dev/null 2>&1 || true
+go run ./cmd/errorutil -d "$cur_go"  analyze --skip-dirs meshery -i "$cur_go/helpers"  -o "$cur_go/helpers"  >/dev/null 2>&1 || true
 
 if [ ! -f "$base/helpers/errorutil_analyze_summary.json" ] || [ ! -f "$cur/helpers/errorutil_analyze_summary.json" ]; then
   echo "pre-commit: could not analyze error codes locally - skipping (CI will still validate this)" >&2
@@ -43,6 +50,6 @@ if [ ! -f "$base/helpers/errorutil_analyze_summary.json" ] || [ ! -f "$cur/helpe
 fi
 
 go run ./cmd/errorutil check \
-  "$base/helpers/errorutil_analyze_errors.json" "$cur/helpers/errorutil_analyze_errors.json" \
-  --baseline-summary "$base/helpers/errorutil_analyze_summary.json" \
-  --current-summary  "$cur/helpers/errorutil_analyze_summary.json"
+  "$base_go/helpers/errorutil_analyze_errors.json" "$cur_go/helpers/errorutil_analyze_errors.json" \
+  --baseline-summary "$base_go/helpers/errorutil_analyze_summary.json" \
+  --current-summary  "$cur_go/helpers/errorutil_analyze_summary.json"

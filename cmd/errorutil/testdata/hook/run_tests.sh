@@ -163,4 +163,29 @@ if git commit -a -m "should fail" >/dev/null 2>&1; then
     exit 1
 fi
 
+echo "12. Repeated runs (reliability / no fail-open skips)"
+git reset --hard HEAD >/dev/null 2>&1
+cat > pkg/error.go <<EOF
+package pkg
+const ErrCode = "meshkit-10001"
+const ErrNewCode = "replace_me"
+EOF
+git add pkg/error.go
+for i in $(seq 1 5); do
+    assert_pass run_hook
+done
+
+echo "13. cygpath execution path verification"
+MOCK_BIN=$(mktemp -d)
+cat > "$MOCK_BIN/cygpath" <<'EOF'
+#!/bin/sh
+echo "$2"
+EOF
+chmod +x "$MOCK_BIN/cygpath"
+(
+  export PATH="$MOCK_BIN:$PATH"
+  assert_pass run_hook
+)
+rm -rf "$MOCK_BIN"
+
 echo "ALL TESTS PASSED!"
