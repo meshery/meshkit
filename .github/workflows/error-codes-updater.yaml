@@ -6,13 +6,17 @@ on:
       - "master"
     paths:
       - "**.go"
+      - "helpers/component_info.json"
   pull_request:
     branches:
       - "master"
     paths:
       - "**.go"
+      - "helpers/component_info.json"
       - ".github/workflows/error-codes-updater.yaml"
 
+permissions:
+  contents: read
 
 jobs:
   Update-error-codes:
@@ -25,6 +29,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Determine merge-base
         if: ${{ github.event_name == 'pull_request' }}
         run: |
