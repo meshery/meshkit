@@ -914,7 +914,19 @@ func InvokeGenerationFromSheetWithOptions(wg *sync.WaitGroup, path string, model
 			// Channel to receive generation result
 			done := make(chan error, 1)
 
+			// Tracked on wg independently of the outer goroutine: if this
+			// model times out, the outer goroutine returns via the
+			// modelCtx.Done() case below and its own wg.Done() fires, but
+			// this inner goroutine is not cancelled and keeps running
+			// (GetPackage takes no context). Without its own wg entry,
+			// wg.Wait() below can return - and close(spreadsheeetChan) can
+			// run - while this goroutine is still alive, so its later send
+			// on spreadsheeetChan panics on the closed channel. Adding it
+			// here keeps the channel open until every producer, including
+			// orphaned ones from timed-out models, is done with it.
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				var genErr error
 
 				if utils.ReplaceSpacesAndConvertToLowercase(model.Registrant) == "meshery" {
