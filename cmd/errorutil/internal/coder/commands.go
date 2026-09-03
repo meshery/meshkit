@@ -325,6 +325,23 @@ func ValidateNewErrors(baseline, current mesherr.InfoAll, baselineNext, currentN
 	return nil
 }
 
+func readSummaryNextCode(path, label string) (int, error) {
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read %s summary: %w", label, err)
+	}
+	var sum struct {
+		NextCode int `json:"next_code"`
+	}
+	if err := json.Unmarshal(bytes, &sum); err != nil {
+		return 0, fmt.Errorf("failed to parse %s summary: %w", label, err)
+	}
+	if sum.NextCode <= 0 {
+		return 0, fmt.Errorf("%s: next_code missing or zero — expected an errorutil_analyze_summary.json", path)
+	}
+	return sum.NextCode, nil
+}
+
 func commandCheck() *cobra.Command {
 	var baselineSummaryPath, currentSummaryPath string
 
@@ -334,6 +351,12 @@ func commandCheck() *cobra.Command {
 		Long:         `check compares the errors from the two provided JSON files (baseline and current) and ensures that any newly introduced error code does not use a manually assigned integer code, but rather a placeholder string. It validates local allocations if summary files are provided. Precondition: baseline must be the analysis of current's merge-base (the commit this branch forked from), NOT the current tip of the base branch.`,
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if (baselineSummaryPath != "" && currentSummaryPath == "") || (baselineSummaryPath == "" && currentSummaryPath != "") {
+				return fmt.Errorf("both --baseline-summary and --current-summary must be provided if one is provided")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			baselineBytes, err := os.ReadFile(args[0])
 			if err != nil {
@@ -356,37 +379,15 @@ func commandCheck() *cobra.Command {
 			currentNext := -1
 
 			if baselineSummaryPath != "" && currentSummaryPath != "" {
-				type analysisSummary struct {
-					NextCode int `json:"next_code"`
-				}
-
-				bSumBytes, err := os.ReadFile(baselineSummaryPath)
+				var err error
+				baselineNext, err = readSummaryNextCode(baselineSummaryPath, "baseline")
 				if err != nil {
-					return fmt.Errorf("failed to read baseline summary: %w", err)
+					return err
 				}
-				var bSum analysisSummary
-				if err := json.Unmarshal(bSumBytes, &bSum); err != nil {
-					return fmt.Errorf("failed to parse baseline summary: %w", err)
-				}
-				if bSum.NextCode <= 0 {
-					return fmt.Errorf("%s: next_code missing or zero — expected an errorutil_analyze_summary.json", baselineSummaryPath)
-				}
-				baselineNext = bSum.NextCode
-
-				cSumBytes, err := os.ReadFile(currentSummaryPath)
+				currentNext, err = readSummaryNextCode(currentSummaryPath, "current")
 				if err != nil {
-					return fmt.Errorf("failed to read current summary: %w", err)
+					return err
 				}
-				var cSum analysisSummary
-				if err := json.Unmarshal(cSumBytes, &cSum); err != nil {
-					return fmt.Errorf("failed to parse current summary: %w", err)
-				}
-				if cSum.NextCode <= 0 {
-					return fmt.Errorf("%s: next_code missing or zero — expected an errorutil_analyze_summary.json", currentSummaryPath)
-				}
-				currentNext = cSum.NextCode
-			} else if baselineSummaryPath != "" || currentSummaryPath != "" {
-				return fmt.Errorf("both --baseline-summary and --current-summary must be provided if one is provided")
 			}
 
 			return ValidateNewErrors(baseline, current, baselineNext, currentNext, cmd.OutOrStdout())
