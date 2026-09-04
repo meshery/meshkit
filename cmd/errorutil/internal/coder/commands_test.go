@@ -601,6 +601,19 @@ func TestCommandCheck(t *testing.T) {
 			wantError:      true,
 			wantErrorMatch: "both --baseline-summary and --current-summary must be provided",
 		},
+		// 5.5. Only one summary supplied with nonexistent positional error files (proves PreRunE exits before RunE file I/O)
+		{
+			name: "Only one summary supplied fails in PreRunE before opening positional files",
+			setup: func(t *testing.T, dir string) []string {
+				return []string{
+					"--baseline-summary", filepath.Join(dir, "b_sum.json"),
+					filepath.Join(dir, "nonexistent_baseline_err.json"),
+					filepath.Join(dir, "nonexistent_current_err.json"),
+				}
+			},
+			wantError:      true,
+			wantErrorMatch: "both --baseline-summary and --current-summary must be provided",
+		},
 		// 6. Wrong file supplied as summary
 		{
 			name: "Wrong file supplied as summary",
@@ -758,6 +771,128 @@ func TestCommandCheck(t *testing.T) {
 				t.Fatalf("commandCheck().Execute() error = %v, wantError %v", err, tt.wantError)
 			}
 
+			if tt.wantError && tt.wantErrorMatch != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tt.wantErrorMatch)
+				}
+				if !strings.Contains(err.Error(), tt.wantErrorMatch) {
+					t.Errorf("error %q does not contain %q", err.Error(), tt.wantErrorMatch)
+				}
+			}
+		})
+	}
+}
+
+func TestReadSummaryNextCode(t *testing.T) {
+	dir := t.TempDir()
+
+	validFile := filepath.Join(dir, "valid_summary.json")
+	if err := os.WriteFile(validFile, []byte(`{"next_code": 1042}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	invalidJSONFile := filepath.Join(dir, "invalid.json")
+	if err := os.WriteFile(invalidJSONFile, []byte(`{invalid json`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	zeroCodeFile := filepath.Join(dir, "zero_code.json")
+	if err := os.WriteFile(zeroCodeFile, []byte(`{"next_code": 0}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	negativeCodeFile := filepath.Join(dir, "neg_code.json")
+	if err := os.WriteFile(negativeCodeFile, []byte(`{"next_code": -5}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	missingCodeFile := filepath.Join(dir, "missing_code.json")
+	if err := os.WriteFile(missingCodeFile, []byte(`{"other_field": "val"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name           string
+		path           string
+		label          string
+		wantCode       int
+		wantError      bool
+		wantErrorMatch string
+	}{
+		{
+			name:      "Valid summary file parses next_code",
+			path:      validFile,
+			label:     "baseline",
+			wantCode:  1042,
+			wantError: false,
+		},
+		{
+			name:           "Nonexistent baseline file returns read error",
+			path:           filepath.Join(dir, "does_not_exist.json"),
+			label:          "baseline",
+			wantCode:       0,
+			wantError:      true,
+			wantErrorMatch: "failed to read baseline summary",
+		},
+		{
+			name:           "Nonexistent current file returns read error",
+			path:           filepath.Join(dir, "does_not_exist.json"),
+			label:          "current",
+			wantCode:       0,
+			wantError:      true,
+			wantErrorMatch: "failed to read current summary",
+		},
+		{
+			name:           "Malformed JSON baseline returns parse error",
+			path:           invalidJSONFile,
+			label:          "baseline",
+			wantCode:       0,
+			wantError:      true,
+			wantErrorMatch: "failed to parse baseline summary",
+		},
+		{
+			name:           "Malformed JSON current returns parse error",
+			path:           invalidJSONFile,
+			label:          "current",
+			wantCode:       0,
+			wantError:      true,
+			wantErrorMatch: "failed to parse current summary",
+		},
+		{
+			name:           "Zero next_code returns validation error",
+			path:           zeroCodeFile,
+			label:          "baseline",
+			wantCode:       0,
+			wantError:      true,
+			wantErrorMatch: "next_code missing or zero — expected an errorutil_analyze_summary.json",
+		},
+		{
+			name:           "Negative next_code returns validation error",
+			path:           negativeCodeFile,
+			label:          "current",
+			wantCode:       0,
+			wantError:      true,
+			wantErrorMatch: "next_code missing or zero — expected an errorutil_analyze_summary.json",
+		},
+		{
+			name:           "Missing next_code field returns validation error",
+			path:           missingCodeFile,
+			label:          "baseline",
+			wantCode:       0,
+			wantError:      true,
+			wantErrorMatch: "next_code missing or zero — expected an errorutil_analyze_summary.json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code, err := readSummaryNextCode(tt.path, tt.label)
+			if (err != nil) != tt.wantError {
+				t.Fatalf("readSummaryNextCode() error = %v, wantError %v", err, tt.wantError)
+			}
+			if code != tt.wantCode {
+				t.Errorf("readSummaryNextCode() code = %d, wantCode %d", code, tt.wantCode)
+			}
 			if tt.wantError && tt.wantErrorMatch != "" {
 				if err == nil {
 					t.Fatalf("expected error containing %q, got nil", tt.wantErrorMatch)
