@@ -7,6 +7,7 @@ on:
     paths:
       - "**.go"
       - "helpers/component_info.json"
+      - ".github/workflows/error-codes-updater.yaml"
   pull_request:
     branches:
       - "master"
@@ -32,9 +33,34 @@ jobs:
           persist-credentials: false
       - name: Determine merge-base
         if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          git fetch origin ${{ github.base_ref }}
-          echo "MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }})" >> $GITHUB_ENV
+          set -euo pipefail
+
+          # The baseline for `errorutil check` MUST be this branch's merge-base with
+          # the base branch. If we cannot resolve it we fail the job: a missing
+          # baseline previously left MERGE_BASE empty, which made actions/checkout
+          # fall back to the event's default ref and silently turned this check into
+          # a no-op.
+          if ! git fetch --no-tags --quiet origin \
+                 "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"; then
+            echo "::error::Unable to fetch base branch '${BASE_REF}' of meshery/meshkit; cannot establish an error-code validation baseline."
+            exit 1
+          fi
+
+          if ! MERGE_BASE="$(git merge-base HEAD "refs/remotes/origin/${BASE_REF}")"; then
+            echo "::error::Unable to determine the merge-base between this pull request and '${BASE_REF}' of meshery/meshkit. Error-code validation cannot run without a baseline, so this check fails closed."
+            exit 1
+          fi
+
+          if ! printf '%s' "${MERGE_BASE}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::Resolved merge-base '${MERGE_BASE}' is not a 40-character commit SHA; refusing to continue."
+            exit 1
+          fi
+
+          echo "Resolved merge-base: ${MERGE_BASE}"
+          echo "MERGE_BASE=${MERGE_BASE}" >> "$GITHUB_ENV"
       - name: Checkout base branch
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v6
@@ -43,6 +69,17 @@ jobs:
           path: .baseline
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Verify baseline checkout
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          ACTUAL="$(git -C .baseline rev-parse HEAD)"
+          if [ "${ACTUAL}" != "${MERGE_BASE}" ]; then
+            echo "::error::Baseline checkout resolved to ${ACTUAL} but the merge-base is ${MERGE_BASE}; refusing to validate against the wrong tree."
+            exit 1
+          fi
+          echo "Baseline verified at ${ACTUAL}"
       - uses: actions/checkout@v6
         if: ${{ github.event_name != 'pull_request' }}
         # token here with write access to meshkit repo

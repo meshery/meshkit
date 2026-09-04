@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 11 cases test script for errorutil pre-commit hook
+# Regression suite for the errorutil pre-commit hook (.githooks/pre-commit).
+#
+# Runs in CI on Linux via `make test-hooks`. Requires: bash, git, go, make.
+#
+# NOT covered here: real Windows/MSYS path conversion. Case 13 only proves the
+# cygpath branch executes; it uses a pass-through mock and asserts nothing about
+# Windows semantics. See docs/agent-instructions/errors.md for the manual
+# Git Bash procedure.
 echo "Setting up test environment..."
 
 ROOT_DIR=$(pwd)
@@ -175,7 +182,7 @@ for i in $(seq 1 5); do
     assert_pass run_hook
 done
 
-echo "13. cygpath execution path verification"
+echo "13. cygpath branch executes (Linux mock; does NOT validate Windows conversion)"
 MOCK_BIN=$(mktemp -d)
 cat > "$MOCK_BIN/cygpath" <<'EOF'
 #!/bin/sh
@@ -187,5 +194,25 @@ chmod +x "$MOCK_BIN/cygpath"
   assert_pass run_hook
 )
 rm -rf "$MOCK_BIN"
+
+echo "14. Tracked path containing spaces, valid placeholder staged"
+git reset --hard HEAD >/dev/null 2>&1
+mkdir -p "pkg with space"
+cat > "pkg with space/error.go" <<EOF
+package pkgwithspace
+const ErrSpacedCode = "replace_me"
+EOF
+git add "pkg with space/error.go"
+assert_pass run_hook
+
+echo "15. Tracked path containing spaces, hand-typed integer staged"
+cat > "pkg with space/error.go" <<EOF
+package pkgwithspace
+const ErrSpacedCode = "meshkit-11005"
+EOF
+git add "pkg with space/error.go"
+assert_fail run_hook
+git reset --hard HEAD >/dev/null 2>&1
+rm -rf "pkg with space"
 
 echo "ALL TESTS PASSED!"

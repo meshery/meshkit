@@ -5,12 +5,16 @@
 # `errorutil check` that runs in CI (.github/workflows/error-codes-updater.yaml).
 # Does not allocate codes, does not modify any file, and is not the security
 # boundary - `git commit --no-verify` bypasses this; CI remains authoritative.
-set -eu
+set -euo pipefail
 
 PAT_ERR='*.go'
 PAT_INFO='helpers/component_info.json'
 
-staged=$(git diff --cached --name-only --diff-filter=ACMR -- "$PAT_ERR" "$PAT_INFO" | grep -v '_test\.go$' || true)
+# `|| true` must cover ONLY grep's "no match" exit status. A real failure of
+# `git diff --cached` must abort the hook (via set -e), not silently yield an
+# empty file list that skips validation.
+staged_all=$(git diff --cached --name-only --diff-filter=ACMR -- "$PAT_ERR" "$PAT_INFO")
+staged=$(printf '%s' "$staged_all" | grep -v '_test\.go$' || true)
 if [ -z "$staged" ]; then
   exit 0
 fi
@@ -21,10 +25,11 @@ cur="$tmp/current"
 base="$tmp/baseline"
 mkdir -p "$cur/helpers" "$base/helpers"
 
-all_tracked=$(git ls-files -- "$PAT_ERR" "$PAT_INFO")
-if [ -n "$all_tracked" ]; then
-  git checkout-index --prefix="$cur/" -- $all_tracked
-fi
+# NUL-delimited: an unquoted "$all_tracked" word-splits on IFS, so any tracked
+# path containing a space made `git checkout-index` fail and silently drop that
+# file from the analyzed tree.
+git ls-files -z -- "$PAT_ERR" "$PAT_INFO" \
+  | git checkout-index -z --stdin --prefix="$cur/"
 
 # IMPORTANT: pass patterns directly to `git archive`, do not pre-resolve via
 # `git ls-tree ... -- <pattern>` - ls-tree's pathspec matching for a bare

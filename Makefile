@@ -30,3 +30,7 @@ build-errorutil:
 setup-hooks:
 	git config core.hooksPath .githooks
 	chmod +x .githooks/pre-commit
+
+## Run the pre-commit hook regression suite (bash; also runs in CI).
+test-hooks:
+	bash .githooks/test/run_tests.sh
