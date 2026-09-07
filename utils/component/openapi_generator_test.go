@@ -261,6 +261,57 @@ components:
 			checkPath: "paths./widgets.post.requestBody.content.application/json.schema.properties.name",
 			wantType:  "string",
 		},
+		{
+			// Regression test: an operation's callbacks are themselves a map
+			// of runtime expression to PathItem, one level below the
+			// operation rather than under doc.Paths directly, and were not
+			// walked at all before this fix.
+			name: "Ref inside an inline operation callback is resolved",
+			input: `{
+				"openapi": "3.0.0",
+				"info": {"title": "test", "version": "1.0"},
+				"paths": {
+					"/subscriptions": {
+						"post": {
+							"operationId": "createSubscription",
+							"responses": {
+								"201": {"description": "Created"}
+							},
+							"callbacks": {
+								"onEvent": {
+									"{$request#/callbackUrl}": {
+										"post": {
+											"requestBody": {
+												"content": {
+													"application/json": {
+														"schema": {"$ref": "#/components/schemas/Widget"}
+													}
+												}
+											},
+											"responses": {
+												"200": {"description": "Acknowledged"}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"components": {
+					"schemas": {
+						"Widget": {
+							"type": "object",
+							"properties": {
+								"name": {"type": "string"}
+							}
+						}
+					}
+				}
+			}`,
+			checkPath: "paths./subscriptions.post.callbacks.onEvent.{$request#/callbackUrl}.post.requestBody.content.application/json.schema.properties.name",
+			wantType:  "string",
+		},
 	}
 
 	for _, tt := range tests {
@@ -355,18 +406,104 @@ func TestGetResolvedManifest_AllOf(t *testing.T) {
 	}
 }
 
+// TestGetResolvedManifest_EncodingHeaderRefDoesNotPanic is a regression test
+// for a crash surfaced while extending getResolvedManifest to walk
+// encoding.headers (issue #926): kin-openapi's loader never resolves a
+// $ref at that specific location, so its SchemaRef.Value stays nil even
+// though .Ref is set. clearSchemaRefs used to clear .Ref unconditionally,
+// which turned that into an empty, invalid SchemaRef{Ref:"", Value:nil}
+// that panicked deep inside SchemaRef.MarshalJSON. clearSchemaRefs now
+// leaves an unresolved ref's .Ref string alone instead of clearing it.
+//
+// The $ref is intentionally still a $ref in the assertion below, not
+// inlined: the loader never resolved it in the first place, and resolving
+// it ourselves would mean reimplementing $ref resolution, out of scope
+// here. What matters is that marshaling no longer panics and the
+// reference is not silently corrupted into something invalid.
+func TestGetResolvedManifest_EncodingHeaderRefDoesNotPanic(t *testing.T) {
+	input := `{
+		"openapi": "3.0.0",
+		"info": {"title": "test", "version": "1.0"},
+		"paths": {
+			"/uploads": {
+				"post": {
+					"operationId": "upload",
+					"requestBody": {
+						"content": {
+							"multipart/form-data": {
+								"schema": {"type": "object"},
+								"encoding": {
+									"file": {
+										"headers": {
+											"X-Meta": {
+												"schema": {"$ref": "#/components/schemas/Widget"}
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"responses": {
+						"200": {"description": "OK"}
+					}
+				}
+			}
+		},
+		"components": {
+			"schemas": {
+				"Widget": {
+					"type": "object",
+					"properties": {
+						"name": {"type": "string"}
+					}
+				}
+			}
+		}
+	}`
+
+	out, err := getResolvedManifest(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+
+	schema := navigatePath(t, parsed,
+		"paths./uploads.post.requestBody.content.multipart/form-data.encoding.file.headers.X-Meta.schema").(map[string]any)
+	if got := schema["$ref"]; got != "#/components/schemas/Widget" {
+		t.Errorf("$ref = %v, want it left intact as #/components/schemas/Widget", got)
+	}
+}
+
 func TestClearSchemaRefs(t *testing.T) {
 	tests := []struct {
-		name string
-		sr   *openapi3.SchemaRef
+		name    string
+		sr      *openapi3.SchemaRef
+		wantRef string
 	}{
 		{
 			name: "Nil SchemaRef does not panic",
 			sr:   nil,
 		},
 		{
-			name: "Nil Value clears Ref",
-			sr:   &openapi3.SchemaRef{Ref: "#/components/schemas/Foo"},
+			// A SchemaRef with a Ref but a nil Value is a ref the loader
+			// never resolved, which does happen in practice (see
+			// TestGetResolvedManifest_EncodingHeaderRefDoesNotPanic).
+			// Clearing .Ref here with nothing to put in its place would
+			// leave an empty, invalid SchemaRef{Ref:"", Value:nil} that
+			// panics on marshal, so the ref must be left intact instead.
+			name:    "Nil Value leaves Ref intact",
+			sr:      &openapi3.SchemaRef{Ref: "#/components/schemas/Foo"},
+			wantRef: "#/components/schemas/Foo",
+		},
+		{
+			name:    "Resolved Value clears Ref",
+			sr:      &openapi3.SchemaRef{Ref: "#/components/schemas/Foo", Value: &openapi3.Schema{Type: &openapi3.Types{"object"}}},
+			wantRef: "",
 		},
 	}
 
@@ -374,8 +511,8 @@ func TestClearSchemaRefs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			visited := make(map[*openapi3.Schema]bool)
 			clearSchemaRefs(tt.sr, visited)
-			if tt.sr != nil && tt.sr.Ref != "" {
-				t.Errorf("Ref = %q, want empty", tt.sr.Ref)
+			if tt.sr != nil && tt.sr.Ref != tt.wantRef {
+				t.Errorf("Ref = %q, want %q", tt.sr.Ref, tt.wantRef)
 			}
 		})
 	}

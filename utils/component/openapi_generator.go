@@ -218,11 +218,19 @@ func clearSchemaRefs(sr *openapi3.SchemaRef, stack map[*openapi3.Schema]bool) {
 	if sr == nil {
 		return
 	}
-	sr.Ref = ""
 	s := sr.Value
 	if s == nil {
+		// sr.Ref is set but was never resolved to a value. This happens for
+		// $refs in locations kin-openapi's loader does not walk during
+		// resolution (encoding.headers[].schema is one such spot). Clearing
+		// .Ref here without a .Value to put in its place would leave a
+		// SchemaRef{Ref: "", Value: nil}, an empty, invalid ref that panics
+		// deep inside SchemaRef.MarshalJSON. Leaving the original $ref
+		// string in place is honest: it names something real, it is just
+		// something this function was not able to resolve.
 		return
 	}
+	sr.Ref = ""
 	if stack[s] {
 		sr.Value = &openapi3.Schema{}
 		return
@@ -281,6 +289,9 @@ func clearDocumentSchemaRefs(doc *openapi3.T, stack map[*openapi3.Schema]bool) {
 		for _, href := range doc.Components.Headers {
 			clearHeaderSchemaRefs(href, stack)
 		}
+		for _, cbref := range doc.Components.Callbacks {
+			clearCallbackSchemaRefs(cbref, stack)
+		}
 	}
 	if doc.Paths == nil {
 		return
@@ -290,6 +301,8 @@ func clearDocumentSchemaRefs(doc *openapi3.T, stack map[*openapi3.Schema]bool) {
 	}
 }
 
+// clearPathItemSchemaRefs clears the path-level parameters and every
+// operation (GET, POST, PUT, etc.) defined on this path item.
 func clearPathItemSchemaRefs(pathItem *openapi3.PathItem, stack map[*openapi3.Schema]bool) {
 	if pathItem == nil {
 		return
@@ -305,6 +318,8 @@ func clearPathItemSchemaRefs(pathItem *openapi3.PathItem, stack map[*openapi3.Sc
 	}
 }
 
+// clearOperationSchemaRefs clears an operation's parameters, request body,
+// responses, and callbacks.
 func clearOperationSchemaRefs(op *openapi3.Operation, stack map[*openapi3.Schema]bool) {
 	if op == nil {
 		return
@@ -318,8 +333,28 @@ func clearOperationSchemaRefs(op *openapi3.Operation, stack map[*openapi3.Schema
 			clearResponseSchemaRefs(rref, stack)
 		}
 	}
+	for _, cbref := range op.Callbacks {
+		clearCallbackSchemaRefs(cbref, stack)
+	}
 }
 
+// clearCallbackSchemaRefs walks a callback's path items the same way
+// doc.Paths is walked: a Callback is a map of runtime expression to
+// PathItem, so the actual operations and their request/response schemas
+// live one level down.
+func clearCallbackSchemaRefs(cbref *openapi3.CallbackRef, stack map[*openapi3.Schema]bool) {
+	if cbref == nil || cbref.Ref != "" || cbref.Value == nil {
+		return
+	}
+	for _, key := range cbref.Value.Keys() {
+		clearPathItemSchemaRefs(cbref.Value.Value(key), stack)
+	}
+}
+
+// clearParameterSchemaRefs clears an inline parameter's schema and, if it
+// declares content instead of a bare schema, that content's media types.
+// Skipped entirely if pref is itself a $ref, see the package-level note on
+// clearDocumentSchemaRefs for why.
 func clearParameterSchemaRefs(pref *openapi3.ParameterRef, stack map[*openapi3.Schema]bool) {
 	if pref == nil || pref.Ref != "" || pref.Value == nil {
 		return
@@ -328,6 +363,8 @@ func clearParameterSchemaRefs(pref *openapi3.ParameterRef, stack map[*openapi3.S
 	clearContentSchemaRefs(pref.Value.Content, stack)
 }
 
+// clearRequestBodySchemaRefs clears the schemas in an inline request body's
+// content.
 func clearRequestBodySchemaRefs(rbref *openapi3.RequestBodyRef, stack map[*openapi3.Schema]bool) {
 	if rbref == nil || rbref.Ref != "" || rbref.Value == nil {
 		return
@@ -335,6 +372,8 @@ func clearRequestBodySchemaRefs(rbref *openapi3.RequestBodyRef, stack map[*opena
 	clearContentSchemaRefs(rbref.Value.Content, stack)
 }
 
+// clearResponseSchemaRefs clears an inline response's content and its
+// response headers.
 func clearResponseSchemaRefs(rref *openapi3.ResponseRef, stack map[*openapi3.Schema]bool) {
 	if rref == nil || rref.Ref != "" || rref.Value == nil {
 		return
@@ -345,6 +384,8 @@ func clearResponseSchemaRefs(rref *openapi3.ResponseRef, stack map[*openapi3.Sch
 	}
 }
 
+// clearHeaderSchemaRefs clears an inline header's schema and content, the
+// same shape as a parameter since Header embeds Parameter.
 func clearHeaderSchemaRefs(href *openapi3.HeaderRef, stack map[*openapi3.Schema]bool) {
 	if href == nil || href.Ref != "" || href.Value == nil {
 		return
@@ -353,11 +394,24 @@ func clearHeaderSchemaRefs(href *openapi3.HeaderRef, stack map[*openapi3.Schema]
 	clearContentSchemaRefs(href.Value.Content, stack)
 }
 
+// clearContentSchemaRefs clears every media type's schema in content, plus
+// any per-part headers declared under a multipart encoding entry.
 func clearContentSchemaRefs(content openapi3.Content, stack map[*openapi3.Schema]bool) {
 	for _, mediaType := range content {
 		if mediaType == nil {
 			continue
 		}
 		clearSchemaRefs(mediaType.Schema, stack)
+		// Each multipart/form-data part can declare its own Content-Type and
+		// headers via an Encoding entry; those headers are ordinary Header
+		// objects and can carry their own schema $refs.
+		for _, encoding := range mediaType.Encoding {
+			if encoding == nil {
+				continue
+			}
+			for _, href := range encoding.Headers {
+				clearHeaderSchemaRefs(href, stack)
+			}
+		}
 	}
 }
