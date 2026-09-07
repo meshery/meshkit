@@ -213,6 +213,54 @@ components:
 			checkPath: "components.schemas.JSONSchemaProps.properties.description",
 			wantType:  "string",
 		},
+		{
+			// Regression test for #926: getResolvedManifest previously only
+			// cleared $refs in components.schemas. A $ref inside an inline
+			// (non-$ref) path operation's requestBody or response is just as
+			// reachable in the final marshaled document and must be cleared
+			// too.
+			name: "Ref inside inline path requestBody and response is resolved",
+			input: `{
+				"openapi": "3.0.0",
+				"info": {"title": "test", "version": "1.0"},
+				"paths": {
+					"/widgets": {
+						"post": {
+							"operationId": "createWidget",
+							"requestBody": {
+								"content": {
+									"application/json": {
+										"schema": {"$ref": "#/components/schemas/Widget"}
+									}
+								}
+							},
+							"responses": {
+								"201": {
+									"description": "Created",
+									"content": {
+										"application/json": {
+											"schema": {"$ref": "#/components/schemas/Widget"}
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"components": {
+					"schemas": {
+						"Widget": {
+							"type": "object",
+							"properties": {
+								"name": {"type": "string"}
+							}
+						}
+					}
+				}
+			}`,
+			checkPath: "paths./widgets.post.requestBody.content.application/json.schema.properties.name",
+			wantType:  "string",
+		},
 	}
 
 	for _, tt := range tests {
