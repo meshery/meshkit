@@ -479,6 +479,64 @@ func TestGetResolvedManifest_EncodingHeaderRefDoesNotPanic(t *testing.T) {
 	}
 }
 
+// TestGetResolvedManifest_Webhooks is a regression test for a gap CodeRabbit
+// caught after the initial fix for #926: doc.Webhooks (OpenAPI >=3.1) is a
+// map of name to PathItem describing requests the API sends out, the same
+// shape as doc.Paths and reachable the same way, but was not walked at all.
+func TestGetResolvedManifest_Webhooks(t *testing.T) {
+	input := `{
+		"openapi": "3.1.0",
+		"info": {"title": "test", "version": "1.0"},
+		"paths": {},
+		"webhooks": {
+			"newWidget": {
+				"post": {
+					"requestBody": {
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/Widget"}
+							}
+						}
+					},
+					"responses": {
+						"200": {"description": "Acknowledged"}
+					}
+				}
+			}
+		},
+		"components": {
+			"schemas": {
+				"Widget": {
+					"type": "object",
+					"properties": {
+						"name": {"type": "string"}
+					}
+				}
+			}
+		}
+	}`
+
+	out, err := getResolvedManifest(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+
+	node := navigatePath(t, parsed,
+		"webhooks.newWidget.post.requestBody.content.application/json.schema.properties.name")
+	m, ok := node.(map[string]any)
+	if !ok {
+		t.Fatalf("expected resolved schema map, got %T", node)
+	}
+	if m["type"] != "string" {
+		t.Errorf("type = %v, want string", m["type"])
+	}
+}
+
 func TestClearSchemaRefs(t *testing.T) {
 	tests := []struct {
 		name    string

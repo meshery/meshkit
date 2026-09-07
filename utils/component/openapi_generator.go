@@ -293,10 +293,15 @@ func clearDocumentSchemaRefs(doc *openapi3.T, stack map[*openapi3.Schema]bool) {
 			clearCallbackSchemaRefs(cbref, stack)
 		}
 	}
-	if doc.Paths == nil {
-		return
+	if doc.Paths != nil {
+		for _, pathItem := range doc.Paths.Map() {
+			clearPathItemSchemaRefs(pathItem, stack)
+		}
 	}
-	for _, pathItem := range doc.Paths.Map() {
+	// Webhooks (OpenAPI >=3.1) are keyed the same way as Paths: a map of
+	// name to PathItem, describing requests the API sends out rather than
+	// ones it serves. Same shape, same traversal.
+	for _, pathItem := range doc.Webhooks {
 		clearPathItemSchemaRefs(pathItem, stack)
 	}
 }
