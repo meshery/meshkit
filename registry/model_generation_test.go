@@ -275,3 +275,24 @@ func TestProgressTrackerSummary(t *testing.T) {
 	assert.Contains(t, summary, "15 skipped")
 	assert.Contains(t, summary, "100 total")
 }
+
+func TestSafeSendSpreadsheetDataOnClosedChannel(t *testing.T) {
+	// Regression test for #1102: an orphaned inner goroutine from a
+	// timed-out model can attempt to send after spreadsheeetChan has
+	// already been closed. safeSendSpreadsheetData must recover from
+	// that instead of letting the panic crash the process.
+	ch := make(chan SpreadsheetData)
+	close(ch)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	returned := false
+	go func() {
+		defer wg.Done()
+		safeSendSpreadsheetData(ch, SpreadsheetData{})
+		returned = true
+	}()
+	wg.Wait()
+
+	assert.True(t, returned, "safeSendSpreadsheetData should recover and return, not panic")
+}

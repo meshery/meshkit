@@ -793,6 +793,28 @@ func InvokeGenerationFromSheet(wg *sync.WaitGroup, path string, modelsheetID, co
 	return InvokeGenerationFromSheetWithOptions(wg, path, modelsheetID, componentSheetID, spreadsheeetID, modelName, modelCSVFilePath, componentCSVFilePath, spreadsheeetCred, relationshipCSVFilePath, relationshipSheetID, srv, DefaultGenerationOptions())
 }
 
+// safeSendSpreadsheetData sends to spreadsheeetChan without letting a send on
+// an already-closed channel crash the process.
+//
+// The per-model timeout in InvokeGenerationFromSheetWithOptions only bounds
+// how long the *outer* goroutine waits; generator.GetPackage() takes no
+// context, so a timed-out model's inner goroutine keeps running and is
+// orphaned, not cancelled. spreadsheeetChan is closed once every outer
+// goroutine has returned, which can happen before that orphan reaches this
+// send. Tying the inner goroutine to the same WaitGroup would fix the panic
+// but reintroduce a worse problem: wg.Wait() would then block on a model
+// whose generation may never return (a hung fetch, not just a slow one),
+// defeating the reason ModelTimeout exists. Swallowing the late send instead
+// keeps the timeout's bound on the overall run intact - a model that was
+// already counted as timed out simply has its late result discarded rather
+// than crashing every other model's output with it.
+func safeSendSpreadsheetData(ch chan<- SpreadsheetData, data SpreadsheetData) {
+	defer func() {
+		_ = recover()
+	}()
+	ch <- data
+}
+
 // InvokeGenerationFromSheetWithOptions generates models from a spreadsheet with configurable options.
 // This is the primary function for model generation with support for:
 // - Per-model timeout (configurable, default 5 minutes)
@@ -914,19 +936,7 @@ func InvokeGenerationFromSheetWithOptions(wg *sync.WaitGroup, path string, model
 			// Channel to receive generation result
 			done := make(chan error, 1)
 
-			// Tracked on wg independently of the outer goroutine: if this
-			// model times out, the outer goroutine returns via the
-			// modelCtx.Done() case below and its own wg.Done() fires, but
-			// this inner goroutine is not cancelled and keeps running
-			// (GetPackage takes no context). Without its own wg entry,
-			// wg.Wait() below can return - and close(spreadsheeetChan) can
-			// run - while this goroutine is still alive, so its later send
-			// on spreadsheeetChan panics on the closed channel. Adding it
-			// here keeps the channel open until every producer, including
-			// orphaned ones from timed-out models, is done with it.
-			wg.Add(1)
 			go func() {
-				defer wg.Done()
 				var genErr error
 
 				if utils.ReplaceSpacesAndConvertToLowercase(model.Registrant) == "meshery" {
@@ -1033,10 +1043,10 @@ func InvokeGenerationFromSheetWithOptions(wg *sync.WaitGroup, path string, model
 					}
 				}
 
-				spreadsheeetChan <- SpreadsheetData{
+				safeSendSpreadsheetData(spreadsheeetChan, SpreadsheetData{
 					Model:      &model,
 					Components: comps,
-				}
+				})
 
 				modelToCompGenerateTracker.Set(model.Model, compGenerateTracker{
 					totalComps: lengthOfComps,
