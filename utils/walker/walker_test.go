@@ -3,6 +3,7 @@ package walker
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -264,7 +265,7 @@ func TestGitWalkTraversesLocalRepository(t *testing.T) {
 		dirs := map[string]struct{}{}
 
 		g := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root("configs/**").
@@ -308,7 +309,7 @@ func TestGitWalkTraversesLocalRepository(t *testing.T) {
 		dirs := map[string]struct{}{}
 
 		g := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root("configs").
@@ -346,7 +347,7 @@ func TestGitWalkTraversesLocalRepository(t *testing.T) {
 	t.Run("file root", func(t *testing.T) {
 		var intercepted File
 		g := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root("configs/root.txt").
@@ -366,6 +367,54 @@ func TestGitWalkTraversesLocalRepository(t *testing.T) {
 			t.Errorf("expected file root content to be %q, got %q", "root file", intercepted.Content)
 		}
 	})
+}
+
+func TestGitWalkFilteredNonRecursive(t *testing.T) {
+	baseDir := t.TempDir()
+	repoPath := filepath.Join(baseDir, "owner", "filtered")
+	createCommittedRepo(t, repoPath, map[string]string{
+		"configs/app.yaml":  "yaml content",
+		"configs/data.json": "json content",
+		"configs/notes.txt": "txt content",
+	})
+
+	var mu sync.Mutex
+	files := map[string]string{}
+
+	g := NewGit().
+		BaseURL(fileBaseURL(baseDir)).
+		Owner("owner").
+		Repo("filtered").
+		Root("configs").
+		AllowedExtensions([]string{".yaml"}).
+		RegisterFileInterceptor(func(file File) error {
+			mu.Lock()
+			defer mu.Unlock()
+			files[file.Name] = file.Content
+			return nil
+		})
+
+	if err := g.Walk(); err != nil {
+		t.Fatalf("Walk() returned error: %v", err)
+	}
+
+	if len(files) != 1 {
+		t.Fatalf("expected 1 intercepted file with .yaml extension, got %d", len(files))
+	}
+	if files["app.yaml"] != "yaml content" {
+		t.Errorf("expected app.yaml content to be %q, got %q", "yaml content", files["app.yaml"])
+	}
+	if _, ok := files["data.json"]; ok {
+		t.Error("did not expect data.json to be intercepted")
+	}
+}
+
+func fileBaseURL(dir string) string {
+	slashDir := filepath.ToSlash(dir)
+	if !strings.HasPrefix(slashDir, "/") {
+		slashDir = "/" + slashDir
+	}
+	return "file://" + slashDir
 }
 
 func createCommittedRepo(t *testing.T, repoPath string, files map[string]string) {
