@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 
 	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 
@@ -176,7 +178,7 @@ This tool produces three files:
 - errorutil_errors_export.json: export of errors which can be used to create the error code reference on the Meshery website
 
 Typically, the 'analyze' command of the tool is used by the developer to verify errors, i.e. that there are no duplicate names or details.
-A CI workflow is used to replace the placeholder code strings with integer code, and export errors. Using this export, the workflow updates 
+A CI workflow is used to replace the placeholder code strings with integer code, and export errors. Using this export, the workflow updates
 the error code reference documentation in the Meshery repository.
 
 Meshery components and this tool:
@@ -191,39 +193,170 @@ Meshery components and this tool:
     "next_error_code": 1014
   }
 - next_error_code is the value used by the tool to replace the error code placeholder string with the next integer.
-- The tool updates next_error_code. 
+- The tool updates next_error_code.
+
+Both "replace_me" and locally-running 'errorutil update' are valid ways to arrive at an integer code.
+Note a precondition for the check command: baseline must be the analysis of current's merge-base (the commit this branch forked from), NOT the current tip of the base branch. This tool does not resolve two independent branches allocating the same code from the same baseline — that is handled by the post-merge allocation process re-encountering the collision, not by this check.
 `)
 		},
 	}
 }
 
-func ValidateNewErrors(baseline, current mesherr.InfoAll, out io.Writer) error {
-	baselineErrors := make(map[string]bool)
+// ValidateNewErrors rejects newly introduced integer error codes that are
+// not backed by a legitimate local allocation.
+//
+// Precondition: baseline must be the analysis of current's merge-base (the
+// commit this branch forked from), NOT the current tip of the base branch.
+// The allocation-counter checks (R2, R4) assume baseline is an ancestor of
+// current; if baseline's own next_error_code has advanced past current's
+// (e.g. because the base branch's post-merge allocation bot ran on
+// unrelated PRs after this branch diverged), R2 reports a false counter
+// regression. Callers wiring this into CI must construct baseline from the
+// PR's merge-base, not from the base branch's tip at CI-run time.
+func ValidateNewErrors(baseline, current mesherr.InfoAll, baselineNext, currentNext int, out io.Writer) error {
+	baselineCodes := make(map[string]bool) // normalized numeric key
+	baselineCounts := make(map[string]int) // normalized numeric key -> baseline occurrence count
 	for _, entry := range baseline.Entries {
-		baselineErrors[entry.Name] = true
+		if !entry.CodeIsInt {
+			continue
+		}
+		n, err := strconv.Atoi(entry.Code)
+		if err != nil {
+			continue // defensive; CodeIsInt already guarantees this parses
+		}
+		key := strconv.Itoa(n)
+		baselineCodes[key] = true
+		baselineCounts[key]++
 	}
 
 	hasError := false
+
+	// R1: a code's occurrence count in `current` must not exceed its baseline
+	// count. Baseline debt (a code already duplicated pre-PR) is tolerated as
+	// long as it doesn't grow; any growth - including a duplicated code gaining
+	// a THIRD user - is a newly introduced collision and must fail.
+	seen := make(map[string][]string)
 	for _, entry := range current.Entries {
-		if _, exists := baselineErrors[entry.Name]; !exists && entry.CodeIsInt {
-			fmt.Fprintf(out, "Error: New error %s uses a manually assigned code \"%s\"; use \"replace_me\" and let errorutil allocate the code\n", entry.Name, entry.Code)
-			hasError = true
+		if !entry.CodeIsInt {
+			continue
 		}
+		n, err := strconv.Atoi(entry.Code)
+		if err != nil {
+			continue
+		}
+		key := strconv.Itoa(n)
+		seen[key] = append(seen[key], entry.Name)
+	}
+
+	var duplicateCodes []string
+	for code, names := range seen {
+		if len(names) > 1 && len(names) > baselineCounts[code] {
+			duplicateCodes = append(duplicateCodes, code)
+		}
+	}
+	sort.Slice(duplicateCodes, func(i, j int) bool {
+		a, _ := strconv.Atoi(duplicateCodes[i])
+		b, _ := strconv.Atoi(duplicateCodes[j])
+		return a < b
+	})
+
+	for _, code := range duplicateCodes {
+		fmt.Fprintf(out, "Error: duplicate error code %q used by %v (was %d occurrence(s) in baseline, now %d)\n",
+			code, seen[code], baselineCounts[code], len(seen[code]))
+		hasError = true
+	}
+
+	// R2: the allocation counter must never appear to move backwards from
+	// baseline to current. This is only a sound check when baseline is the
+	// analysis of current's merge-base (fork point) with the base branch, NOT
+	// the base branch's current tip - see the precondition documented on
+	// ValidateNewErrors below.
+	if baselineNext > 0 && currentNext > 0 && currentNext < baselineNext {
+		fmt.Fprintf(out, "Error: allocation counter went backwards (baseline next_error_code: %d, current next_error_code: %d). "+
+			"This usually means the baseline analysis is not the merge-base of this branch - "+
+			"if the base branch's own error-code counter has advanced since this branch diverged "+
+			"(e.g. post-merge allocation on unrelated PRs), re-analyze against the merge-base, not the base branch tip.\n",
+			baselineNext, currentNext)
+		hasError = true
+	}
+
+	for _, entry := range current.Entries {
+		if !entry.CodeIsInt {
+			continue
+		}
+		codeInt, err := strconv.Atoi(entry.Code)
+		if err != nil {
+			continue // CodeIsInt guarantees this parses; defensive only
+		}
+		key := strconv.Itoa(codeInt)
+
+		// R3: identify newly introduced integer codes BY CODE, NOT NAME, so a
+		// rename or a package move of an existing code is never treated as new.
+		if baselineCodes[key] {
+			continue
+		}
+
+		// R4: a genuinely new integer code is only valid if it falls inside the
+		// allocation window errorutil update actually produced.
+		if baselineNext > 0 && currentNext > 0 {
+			if codeInt >= baselineNext && codeInt < currentNext {
+				continue // legitimate local allocation
+			}
+			if baselineNext == currentNext {
+				fmt.Fprintf(out, "Error: %s (%s) uses integer code %q; the allocation counter did not advance between baseline and current, so no new integer code can be valid - use \"replace_me\", or run `errorutil update` to allocate it\n",
+					entry.Name, entry.Path, entry.Code)
+			} else {
+				fmt.Fprintf(out, "Error: %s (%s) uses integer code %q which is not present in the baseline and not within the recorded local allocation range [%d, %d); use \"replace_me\", or run `errorutil update` to allocate it\n",
+					entry.Name, entry.Path, entry.Code, baselineNext, currentNext)
+			}
+			hasError = true
+			continue
+		}
+
+		// No allocation metadata supplied: fall back to strict mode.
+		fmt.Fprintf(out, "Error: %s (%s) uses integer code %q; use \"replace_me\" and let errorutil allocate the code\n",
+			entry.Name, entry.Path, entry.Code)
+		hasError = true
 	}
 
 	if hasError {
-		return fmt.Errorf("newly introduced error codes must use placeholder 'replace_me'")
+		return fmt.Errorf("error code validation failed; see details above")
 	}
 	return nil
 }
 
+func readSummaryNextCode(path, label string) (int, error) {
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read %s summary: %w", label, err)
+	}
+	var sum struct {
+		NextCode int `json:"next_code"`
+	}
+	if err := json.Unmarshal(bytes, &sum); err != nil {
+		return 0, fmt.Errorf("failed to parse %s summary: %w", label, err)
+	}
+	if sum.NextCode <= 0 {
+		return 0, fmt.Errorf("%s: next_code missing or zero — expected an errorutil_analyze_summary.json", path)
+	}
+	return sum.NextCode, nil
+}
+
 func commandCheck() *cobra.Command {
-	return &cobra.Command{
+	var baselineSummaryPath, currentSummaryPath string
+
+	cmd := &cobra.Command{
 		Use:          "check [baseline JSON] [current JSON]",
 		Short:        "Checks that newly introduced error codes use a placeholder (e.g. replace_me)",
-		Long:         `check compares the errors from the two provided JSON files (baseline and current) and ensures that any newly introduced error code does not use a manually assigned integer code, but rather a placeholder string.`,
+		Long:         `check compares the errors from the two provided JSON files (baseline and current) and ensures that any newly introduced error code does not use a manually assigned integer code, but rather a placeholder string. It validates local allocations if summary files are provided. Precondition: baseline must be the analysis of current's merge-base (the commit this branch forked from), NOT the current tip of the base branch.`,
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if (baselineSummaryPath != "" && currentSummaryPath == "") || (baselineSummaryPath == "" && currentSummaryPath != "") {
+				return fmt.Errorf("both --baseline-summary and --current-summary must be provided if one is provided")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			baselineBytes, err := os.ReadFile(args[0])
 			if err != nil {
@@ -242,9 +375,27 @@ func commandCheck() *cobra.Command {
 				return err
 			}
 
-			return ValidateNewErrors(baseline, current, cmd.OutOrStdout())
+			baselineNext := -1
+			currentNext := -1
+
+			if baselineSummaryPath != "" && currentSummaryPath != "" {
+				var err error
+				baselineNext, err = readSummaryNextCode(baselineSummaryPath, "baseline")
+				if err != nil {
+					return err
+				}
+				currentNext, err = readSummaryNextCode(currentSummaryPath, "current")
+				if err != nil {
+					return err
+				}
+			}
+
+			return ValidateNewErrors(baseline, current, baselineNext, currentNext, cmd.OutOrStdout())
 		},
 	}
+	cmd.Flags().StringVar(&baselineSummaryPath, "baseline-summary", "", "path to baseline errorutil_analyze_summary.json")
+	cmd.Flags().StringVar(&currentSummaryPath, "current-summary", "", "path to current errorutil_analyze_summary.json")
+	return cmd
 }
 
 func RootCommand() *cobra.Command {
