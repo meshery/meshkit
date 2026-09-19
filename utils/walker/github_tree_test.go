@@ -50,7 +50,19 @@ func (s *githubAPIStub) server(t *testing.T) *httptest.Server {
 	mux.HandleFunc("/repos/owner/repo/commits/", func(w http.ResponseWriter, r *http.Request) {
 		s.record(r, &s.commitURIs, r.RequestURI)
 		s.record(r, &s.requestedRefs, strings.TrimPrefix(r.URL.Path, "/repos/owner/repo/commits/"))
-		writeJSON(t, w, githubCommitAPI{SHA: s.commitSHA})
+
+		// The SHA media type is what keeps a commit's patches off the wire, so
+		// the walk is answered only when it asks for one.
+		if accept := r.Header.Get("Accept"); accept != acceptCommitSHA {
+			w.WriteHeader(http.StatusUnsupportedMediaType)
+			writeJSON(t, w, map[string]string{"message": fmt.Sprintf("the walker must ask for %s, not %q", acceptCommitSHA, accept)})
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		if _, err := fmt.Fprintln(w, s.commitSHA); err != nil {
+			t.Errorf("failed to write stub response: %v", err)
+		}
 	})
 	mux.HandleFunc("/repos/owner/repo/git/trees/", func(w http.ResponseWriter, r *http.Request) {
 		s.record(r, nil, "")

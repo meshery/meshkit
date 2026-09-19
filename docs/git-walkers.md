@@ -18,10 +18,12 @@ The package offers three walkers:
 `Git.Walk` has always shallow-cloned the whole repository and then filtered it, which is
 expensive on large repositories. `Git.UseGithubAPI()` opts into a hybrid crawl instead:
 
-1. **Resolve** the configured reference to a commit SHA (`GET /repos/{owner}/{repo}/commits/{ref}`).
-   When neither `Branch` nor `ReferenceName` was set the reference is `HEAD`, which that same
-   endpoint resolves to the head commit of the repository's default branch - the branch the clone
-   route would have checked out - so no extra request is needed to name it.
+1. **Resolve** the configured reference to a commit SHA (`GET /repos/{owner}/{repo}/commits/{ref}`),
+   asked for with `Accept: application/vnd.github.sha` so the answer is the SHA alone rather than
+   a commit with a patch per changed file. When neither `Branch` nor `ReferenceName` was set the
+   reference is `HEAD`, which that same endpoint resolves to the head commit of the repository's
+   default branch - the branch the clone route would have checked out - so no extra request is
+   needed to name it.
 2. **List** that commit's tree once, recursively (`GET /repos/{owner}/{repo}/git/trees/{sha}?recursive=1`).
 3. **Filter and rank** the returned entries from their metadata alone - path, type, mode and
    size. Symlinks are dropped here: the Trees API reports one as a blob whose content is the
@@ -33,7 +35,21 @@ expensive on large repositories. `Git.UseGithubAPI()` opts into a hybrid crawl i
 The size limit set by `MaxFileSize` is applied against the size the tree already reports, so
 an oversized blob is never downloaded at all.
 
-The crawl is **opt-in**. Callers that do not enable it keep cloning exactly as before.
+The crawl is **opt-in**: without `UseGithubAPI()` no request is made to the GitHub API, the walk
+clones as it always has, and the ranking, the selective fetch and the repository-relative
+`File.Path` are all out of the picture.
+
+Two changes do reach callers that never opt in, and both are deliberate:
+
+- **An explicitly set `Branch` now reaches the clone.** `Branch` used to be recorded and never put
+  on the clone options, so only `ReferenceName` selected anything; the clone always took the
+  remote's default branch. Fixing that gap is the first acceptance criterion of
+  [#1119](https://github.com/meshery/meshkit/issues/1119), and it means `Branch("master")` against
+  a repository whose default branch is `main` now fails with `ErrCloningRepo` instead of quietly
+  cloning `main`. A caller that never calls `Branch` is unaffected.
+- **A symlink is read only while its target resolves inside the repository copy.** On every clone,
+  a link whose target lands outside the copy the walk made, or that cannot be resolved, is passed
+  over silently rather than read through. Links that stay inside the copy are followed as before.
 
 ### When the crawl falls back to go-git
 

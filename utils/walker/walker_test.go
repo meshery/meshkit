@@ -690,7 +690,7 @@ func TestGitCloneRouteFiltersOnlyWhenStandingInForTheTreesWalk(t *testing.T) {
 
 	// A walk against a non-github.com host takes the clone route without ever
 	// standing in for a Trees walk, however the caller configured the crawl.
-	walk := func(t *testing.T, repo string, _ bool) ([]string, error) {
+	walk := func(t *testing.T, repo string) ([]string, error) {
 		t.Helper()
 
 		delivered := []string{}
@@ -709,7 +709,7 @@ func TestGitCloneRouteFiltersOnlyWhenStandingInForTheTreesWalk(t *testing.T) {
 	}
 
 	t.Run("an ordinary clone receives every file", func(t *testing.T) {
-		delivered, err := walk(t, "plain", false)
+		delivered, err := walk(t, "plain")
 		if err != nil {
 			t.Fatalf("Walk() returned error: %v", err)
 		}
@@ -729,7 +729,7 @@ func TestGitCloneRouteFiltersOnlyWhenStandingInForTheTreesWalk(t *testing.T) {
 	})
 
 	t.Run("an ordinary clone still fails on an oversized file", func(t *testing.T) {
-		_, err := walk(t, "oversized", false)
+		_, err := walk(t, "oversized")
 		if err == nil {
 			t.Fatal("expected the walk to fail on a file over the size limit")
 		}
@@ -751,8 +751,9 @@ func TestGitCloneRouteFiltersOnlyWhenStandingInForTheTreesWalk(t *testing.T) {
 
 func TestGitSkipOnCloneFollowsLinksOnlyInsideTheRepositoryCopy(t *testing.T) {
 	// A link is read only while its target stays inside the repository copy.
-	// A caller that opted into the GitHub API skips every link instead, since
-	// the Trees route offers none.
+	// A clone standing in for a Trees walk skips every link instead, since the
+	// Trees route offers none; opting into the GitHub API does not on its own
+	// make a clone do that.
 	clonePath := filepath.Join(t.TempDir(), "clone")
 	outsidePath := t.TempDir()
 

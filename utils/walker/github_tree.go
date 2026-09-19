@@ -120,10 +120,6 @@ type githubTreeEntry struct {
 	Size int64  `json:"size,omitempty"`
 }
 
-type githubCommitAPI struct {
-	SHA string `json:"sha,omitempty"`
-}
-
 type githubBlobAPI struct {
 	SHA      string `json:"sha,omitempty"`
 	Size     int64  `json:"size,omitempty"`
@@ -350,6 +346,11 @@ func escapeRefPath(ref string) (string, error) {
 }
 
 // resolveRef turns a branch, tag or reference name into a commit SHA.
+//
+// The commit media type asks for the SHA on its own. The JSON the endpoint
+// answers with by default carries a patch for every file the commit touched,
+// which a bulk update or a large merge makes megabytes of, and the walk wants
+// forty characters of it.
 func (g *Git) resolveRef(ctx context.Context, ref string) (string, error) {
 	escaped, err := escapeRefPath(ref)
 	if err != nil {
@@ -358,27 +359,24 @@ func (g *Git) resolveRef(ctx context.Context, ref string) (string, error) {
 
 	endpoint := fmt.Sprintf("%s/repos/%s/%s/commits/%s", g.apiBaseURL, g.owner, g.repo, escaped)
 
-	body, err := g.get(ctx, endpoint, 0)
+	body, err := g.get(ctx, endpoint, acceptCommitSHA, commitSHAResponseLimit)
 	if err != nil {
 		return "", ErrResolvingGitRef(err, ref)
 	}
 
-	commit := githubCommitAPI{}
-	if err := json.Unmarshal(body, &commit); err != nil {
-		return "", ErrResolvingGitRef(err, ref)
-	}
-	if commit.SHA == "" {
+	sha := strings.TrimSpace(string(body))
+	if sha == "" {
 		return "", ErrResolvingGitRef(fmt.Errorf("the GitHub API returned no commit SHA"), ref)
 	}
 
-	return commit.SHA, nil
+	return sha, nil
 }
 
 // fetchTree lists the whole tree of a commit in a single recursive request.
 func (g *Git) fetchTree(ctx context.Context, commitSHA string) (githubTreeAPI, error) {
 	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/trees/%s?recursive=1", g.apiBaseURL, g.owner, g.repo, url.PathEscape(commitSHA))
 
-	body, err := g.get(ctx, endpoint, 0)
+	body, err := g.get(ctx, endpoint, acceptJSON, 0)
 	if err != nil {
 		return githubTreeAPI{}, ErrFetchingGitTree(err, commitSHA)
 	}
@@ -403,7 +401,7 @@ func (g *Git) fetchBlob(ctx context.Context, candidate CandidateFile) (string, e
 
 	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/blobs/%s", g.apiBaseURL, g.owner, g.repo, url.PathEscape(candidate.SHA))
 
-	body, err := g.get(ctx, endpoint, blobResponseLimit(g.maxFileSizeInBytes))
+	body, err := g.get(ctx, endpoint, acceptJSON, blobResponseLimit(g.maxFileSizeInBytes))
 	if err != nil {
 		if errors.Is(err, errResponseTooLarge) {
 			return "", errOversizedBlob(candidate.Path, g.maxFileSizeInBytes)
@@ -446,18 +444,27 @@ func errOversizedBlob(path string, maxFileSizeInBytes int64) error {
 	return ErrInvalidSizeFile(fmt.Errorf("%s exceeds the %d byte file size limit", path, maxFileSizeInBytes))
 }
 
-// get issues an authenticated GET against the GitHub API. The token travels in
-// the Authorization header and is never placed in a URL or an error message.
+// Media types the crawl asks the GitHub API to answer in, and the ceiling a
+// commit SHA answer is read under: forty characters of hex and a newline.
+const (
+	acceptJSON             = "application/vnd.github+json"
+	acceptCommitSHA        = "application/vnd.github.sha"
+	commitSHAResponseLimit = 4096
+)
+
+// get issues an authenticated GET against the GitHub API, asking for accept.
+// The token travels in the Authorization header and is never placed in a URL
+// or an error message.
 //
 // A limit above zero bounds how much of the body is read: a response that runs
 // past it fails with errResponseTooLarge rather than being buffered whole or
 // silently truncated.
-func (g *Git) get(ctx context.Context, endpoint string, limit int64) ([]byte, error) {
+func (g *Git) get(ctx context.Context, endpoint, accept string, limit int64) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("Accept", accept)
 	if g.token != "" {
 		request.Header.Set("Authorization", "Bearer "+g.token)
 	}
