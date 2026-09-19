@@ -160,9 +160,13 @@ in hand.
 - **Branch vs reference.** `ReferenceName` wins when set. Otherwise an explicitly set `Branch`
   is expanded to `refs/heads/<branch>`. A caller that sets neither gets the remote's default
   branch on both routes: the clone lets go-git pick it, and the API route resolves `HEAD`, which
-  the commits endpoint answers with that branch's head commit. The `NewGit()` default of
-  `"master"` (and `NewGithub()`'s `"main"`) only applies once `Branch` has been called, so it is
-  never forced onto either route.
+  the commits endpoint answers with that branch's head commit. `NewGit()`'s `"master"` default is
+  only reached once `Branch` has been called, so it is never forced onto either of `Git`'s routes.
+- **`Github` always sends its branch.** The Contents walker defers nothing: `NewGithub()` sets
+  `"main"` and every request carries `?ref=<branch>`, so a caller that never calls `Branch` asks
+  for `main` whatever the repository's default branch is, and a repository that defaults to
+  something else answers 404. Call `Branch` explicitly when driving `Github` from a connection
+  that does not carry one.
 - **Context.** `WalkContext`, `ListInterestingFiles` and `FetchCandidates` all take a context;
   `Walk()` delegates with `context.Background()`. `Timeout(d)` bounds a whole traversal.
 - **Progress.** `RegisterProgressHook` receives `ProgressUpdate` values as the walk moves
