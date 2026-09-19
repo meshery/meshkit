@@ -77,8 +77,7 @@ func (s *githubAPIStub) server(t *testing.T) *httptest.Server {
 			SHA:      sha,
 			Size:     int64(len(content)),
 			Encoding: "base64",
-			// GitHub wraps base64 content, so wrap it here too.
-			Content: base64.StdEncoding.EncodeToString([]byte(content))[:1] + "\n" + base64.StdEncoding.EncodeToString([]byte(content))[1:],
+			Content:  wrapBase64(base64.StdEncoding.EncodeToString([]byte(content))),
 		})
 	})
 
@@ -137,6 +136,19 @@ func apiGit(server *httptest.Server) *Git {
 	g := NewGit().Owner("owner").Repo("repo")
 	g.apiBaseURL = server.URL
 	return g
+}
+
+// wrapBase64 breaks encoded content into 60 character lines, which is the
+// width GitHub hands blob contents over at.
+func wrapBase64(encoded string) string {
+	const width = 60
+
+	lines := []string{}
+	for len(encoded) > width {
+		lines = append(lines, encoded[:width])
+		encoded = encoded[width:]
+	}
+	return strings.Join(append(lines, encoded), "\n")
 }
 
 func writeJSON(t *testing.T, w http.ResponseWriter, payload interface{}) {
@@ -836,7 +848,9 @@ func TestResolveRefRefusesReferencesGitWouldRefuse(t *testing.T) {
 func TestFetchCandidatesHonoursTheFileSizeLimit(t *testing.T) {
 	// The limit has to hold whatever the candidate claims, because a picker's
 	// selection travels through a client before it comes back as candidates.
-	const limit = 3000
+	// It is also large enough that the line breaks in the response weigh more
+	// than the envelope's slack, which is where a read ceiling goes wrong.
+	const limit = 1000000
 
 	stub := &githubAPIStub{blobs: map[string]string{
 		"at-limit":  strings.Repeat("y", limit),

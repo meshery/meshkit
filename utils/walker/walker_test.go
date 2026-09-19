@@ -561,19 +561,23 @@ func TestGitWalkHonoursConfiguredBranch(t *testing.T) {
 }
 
 func TestGitWalkPathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
-	// A caller that enabled the hybrid crawl handles repository-relative paths,
-	// so the clone it falls back to must hand it the same kind of path, for
-	// directories as much as for files. A caller that never opted in keeps the
-	// absolute path into the clone, which is the only openable form.
+	// A caller that enabled the hybrid crawl handles repository-relative file
+	// paths, so the clone it falls back to hands it the same kind of path. A
+	// directory has no second route to match - only a clone produces one - and
+	// an interceptor handed a directory can do nothing with it but open it, so
+	// its path stays the real one on disk for every caller.
 	baseDir := t.TempDir()
 	repoPath := filepath.Join(baseDir, "owner", "sample")
 	createCommittedRepo(t, repoPath, map[string]string{"configs/nested/child.yml": "nested file"})
 
-	walk := func(t *testing.T, useAPI bool) (File, []string) {
+	// The clone is removed once the walk returns, so a directory is opened
+	// while the interceptor holds it, which is the only time it is of any use.
+	walk := func(t *testing.T, useAPI bool) (File, []string, []string) {
 		t.Helper()
 
 		var intercepted File
 		directories := []string{}
+		unreadable := []string{}
 		g := NewGit().
 			BaseURL("file://" + baseDir).
 			Owner("owner").
@@ -585,6 +589,9 @@ func TestGitWalkPathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
 			}).
 			RegisterDirInterceptor(func(dir Directory) error {
 				directories = append(directories, dir.Path)
+				if _, err := os.ReadDir(dir.Path); err != nil {
+					unreadable = append(unreadable, dir.Path)
+				}
 				return nil
 			})
 		if useAPI {
@@ -594,11 +601,11 @@ func TestGitWalkPathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
 		if err := g.Walk(); err != nil {
 			t.Fatalf("Walk() returned error: %v", err)
 		}
-		return intercepted, directories
+		return intercepted, directories, unreadable
 	}
 
 	t.Run("clone-only callers keep the absolute clone path", func(t *testing.T) {
-		intercepted, directories := walk(t, false)
+		intercepted, directories, unreadable := walk(t, false)
 
 		underClone := filepath.Join(os.TempDir(), "sample") + string(os.PathSeparator)
 		if !filepath.IsAbs(intercepted.Path) {
@@ -622,10 +629,13 @@ func TestGitWalkPathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
 		if !strings.HasSuffix(directories[1], filepath.Join("configs", "nested")) {
 			t.Errorf("expected the nested directory to end at its path, got %q", directories[1])
 		}
+		if len(unreadable) != 0 {
+			t.Errorf("expected every intercepted directory to be readable, got %v", unreadable)
+		}
 	})
 
-	t.Run("callers that opted into the api get repository-relative paths", func(t *testing.T) {
-		intercepted, directories := walk(t, true)
+	t.Run("callers that opted into the api get repository-relative file paths", func(t *testing.T) {
+		intercepted, directories, unreadable := walk(t, true)
 
 		if intercepted.Path != "configs/nested/child.yml" {
 			t.Errorf("expected the repository-relative file path, got %q", intercepted.Path)
@@ -633,17 +643,26 @@ func TestGitWalkPathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
 		if intercepted.Content != "nested file" {
 			t.Errorf("expected the file contents to be unchanged, got %q", intercepted.Content)
 		}
-		if want := []string{"configs", "configs/nested"}; !reflect.DeepEqual(directories, want) {
-			t.Errorf("expected the repository-relative directory paths %v, got %v", want, directories)
+
+		if len(directories) != 2 {
+			t.Fatalf("expected the root and the nested directory to be intercepted, got %v", directories)
+		}
+		for _, directory := range directories {
+			if !filepath.IsAbs(directory) {
+				t.Errorf("expected a directory path on disk, got %q", directory)
+			}
+		}
+		if len(unreadable) != 0 {
+			t.Errorf("expected every intercepted directory to be readable, got %v", unreadable)
 		}
 	})
 }
 
-func TestGitWalkCloneRouteFiltersOnlyForOptedInCallers(t *testing.T) {
-	// The truncated-tree fallback runs the clone route for a caller that opted
-	// into the hybrid crawl, so that route owes it the same ranked,
-	// size-bounded set the API route would have delivered. A caller that never
-	// opted in keeps receiving every file, oversize error included.
+func TestGitCloneRouteFiltersOnlyWhenStandingInForTheTreesWalk(t *testing.T) {
+	// A clone standing in for a truncated Trees walk owes the caller the set
+	// that walk would have delivered. Every other clone - a non-github.com
+	// host, a registered directory interceptor - behaves as it always has,
+	// whether or not the caller enabled the hybrid crawl.
 	baseDir := t.TempDir()
 	createCommittedRepo(t, filepath.Join(baseDir, "owner", "plain"), map[string]string{
 		"configs/deployment.yaml": "kind: ConfigMap",
@@ -655,29 +674,41 @@ func TestGitWalkCloneRouteFiltersOnlyForOptedInCallers(t *testing.T) {
 		"configs/huge.yaml":       strings.Repeat("x", 2000),
 	})
 
-	walk := func(t *testing.T, repo string, useAPI bool) ([]string, error) {
-		t.Helper()
-
-		delivered := []string{}
-		g := NewGit().
+	walker := func(repo string, delivered *[]string) *Git {
+		return NewGit().
 			BaseURL("file://" + baseDir).
 			Owner("owner").
 			Repo(repo).
 			Root("configs/**").
 			MaxFileSize(1000).
+			UseGithubAPI().
 			RegisterFileInterceptor(func(file File) error {
-				delivered = append(delivered, filepath.Base(file.Path))
+				*delivered = append(*delivered, filepath.Base(file.Path))
 				return nil
 			})
-		if useAPI {
-			g = g.UseGithubAPI()
-		}
+	}
 
-		err := g.Walk()
+	// A walk against a non-github.com host takes the clone route without ever
+	// standing in for a Trees walk, however the caller configured the crawl.
+	walk := func(t *testing.T, repo string, _ bool) ([]string, error) {
+		t.Helper()
+
+		delivered := []string{}
+		err := walker(repo, &delivered).Walk()
 		return delivered, err
 	}
 
-	t.Run("clone-only callers receive every file", func(t *testing.T) {
+	// A truncated tree is what leaves the clone standing in for the Trees walk
+	// of the same repository, which no local stub can produce end to end.
+	standIn := func(t *testing.T, repo string) ([]string, error) {
+		t.Helper()
+
+		delivered := []string{}
+		err := clonewalkContext(context.Background(), walker(repo, &delivered), true)
+		return delivered, err
+	}
+
+	t.Run("an ordinary clone receives every file", func(t *testing.T) {
 		delivered, err := walk(t, "plain", false)
 		if err != nil {
 			t.Fatalf("Walk() returned error: %v", err)
@@ -687,8 +718,8 @@ func TestGitWalkCloneRouteFiltersOnlyForOptedInCallers(t *testing.T) {
 		}
 	})
 
-	t.Run("callers that opted into the api receive only ranked candidates", func(t *testing.T) {
-		delivered, err := walk(t, "plain", true)
+	t.Run("a clone standing in for a tree receives only ranked candidates", func(t *testing.T) {
+		delivered, err := standIn(t, "plain")
 		if err != nil {
 			t.Fatalf("Walk() returned error: %v", err)
 		}
@@ -697,7 +728,7 @@ func TestGitWalkCloneRouteFiltersOnlyForOptedInCallers(t *testing.T) {
 		}
 	})
 
-	t.Run("clone-only callers still fail on an oversized file", func(t *testing.T) {
+	t.Run("an ordinary clone still fails on an oversized file", func(t *testing.T) {
 		_, err := walk(t, "oversized", false)
 		if err == nil {
 			t.Fatal("expected the walk to fail on a file over the size limit")
@@ -707,8 +738,8 @@ func TestGitWalkCloneRouteFiltersOnlyForOptedInCallers(t *testing.T) {
 		}
 	})
 
-	t.Run("callers that opted into the api skip an oversized file", func(t *testing.T) {
-		delivered, err := walk(t, "oversized", true)
+	t.Run("a clone standing in for a tree skips an oversized file", func(t *testing.T) {
+		delivered, err := standIn(t, "oversized")
 		if err != nil {
 			t.Fatalf("expected an oversized file to be skipped, got error: %v", err)
 		}
@@ -751,16 +782,16 @@ func TestGitSkipOnCloneFollowsLinksOnlyInsideTheRepositoryCopy(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		entry        string
-		wantSkipped  bool
-		wantSkippedO bool
+		name              string
+		entry             string
+		wantSkipped       bool
+		wantSkippedByTree bool
 	}{
-		{name: "a regular file is read either way", entry: "real.yaml", wantSkipped: false, wantSkippedO: false},
-		{name: "a link inside the copy is read unless the caller opted in", entry: "inside.yaml", wantSkipped: false, wantSkippedO: true},
-		{name: "a chain of links inside the copy is read too", entry: "chained.yaml", wantSkipped: false, wantSkippedO: true},
-		{name: "a link resolving outside the copy is never read", entry: "outside.yaml", wantSkipped: true, wantSkippedO: true},
-		{name: "a link that cannot be resolved is never read", entry: "dangling.yaml", wantSkipped: true, wantSkippedO: true},
+		{name: "a regular file is read either way", entry: "real.yaml", wantSkipped: false, wantSkippedByTree: false},
+		{name: "a link inside the copy is read unless the clone stands in for a tree", entry: "inside.yaml", wantSkipped: false, wantSkippedByTree: true},
+		{name: "a chain of links inside the copy is read too", entry: "chained.yaml", wantSkipped: false, wantSkippedByTree: true},
+		{name: "a link resolving outside the copy is never read", entry: "outside.yaml", wantSkipped: true, wantSkippedByTree: true},
+		{name: "a link that cannot be resolved is never read", entry: "dangling.yaml", wantSkipped: true, wantSkippedByTree: true},
 	}
 
 	for _, tt := range tests {
@@ -771,21 +802,21 @@ func TestGitSkipOnCloneFollowsLinksOnlyInsideTheRepositoryCopy(t *testing.T) {
 				t.Fatalf("failed to stat %s: %v", tt.entry, err)
 			}
 
-			g := NewGit().MaxFileSize(1000).Root("configs/**")
-			if got := g.skipOnClone(clonePath, entryPath, info); got != tt.wantSkipped {
-				t.Errorf("expected skipOnClone to report %t for a clone-only caller, got %t", tt.wantSkipped, got)
+			g := NewGit().MaxFileSize(1000).Root("configs/**").UseGithubAPI()
+			if got := g.skipOnClone(clonePath, entryPath, info, false); got != tt.wantSkipped {
+				t.Errorf("expected skipOnClone to report %t for an ordinary clone, got %t", tt.wantSkipped, got)
 			}
-			if got := g.UseGithubAPI().skipOnClone(clonePath, entryPath, info); got != tt.wantSkippedO {
-				t.Errorf("expected skipOnClone to report %t for a caller that opted in, got %t", tt.wantSkippedO, got)
+			if got := g.skipOnClone(clonePath, entryPath, info, true); got != tt.wantSkippedByTree {
+				t.Errorf("expected skipOnClone to report %t while standing in for a tree, got %t", tt.wantSkippedByTree, got)
 			}
 		})
 	}
 }
 
-func TestGitWalkCloneRouteSkipsSymlinksForOptedInCallers(t *testing.T) {
-	// The API route never offers a symlink, whose blob holds the link target
-	// rather than the target's contents, so neither does the clone an opted-in
-	// caller falls back to - it must not read through the link instead.
+func TestGitCloneRouteSkipsSymlinksWhenStandingInForTheTreesWalk(t *testing.T) {
+	// The Trees route never offers a symlink, whose blob holds the link target
+	// rather than the target's contents, so neither does a clone standing in
+	// for it. An ordinary clone still reads a link that stays inside the copy.
 	baseDir := t.TempDir()
 	repoPath := filepath.Join(baseDir, "owner", "linked")
 	createCommittedRepo(t, repoPath, map[string]string{
@@ -794,30 +825,37 @@ func TestGitWalkCloneRouteSkipsSymlinksForOptedInCallers(t *testing.T) {
 	})
 	addCommittedSymlink(t, repoPath, "configs/link.yaml", "../secrets/secret.yaml")
 
-	walk := func(t *testing.T, useAPI bool) []string {
-		t.Helper()
-
-		delivered := []string{}
-		g := NewGit().
+	walker := func(root string, delivered *[]string) *Git {
+		return NewGit().
 			BaseURL("file://" + baseDir).
 			Owner("owner").
 			Repo("linked").
-			Root("configs/**").
+			Root(root).
+			UseGithubAPI().
 			RegisterFileInterceptor(func(file File) error {
-				delivered = append(delivered, filepath.Base(file.Path))
+				*delivered = append(*delivered, filepath.Base(file.Path))
 				return nil
 			})
-		if useAPI {
-			g = g.UseGithubAPI()
-		}
+	}
 
-		if err := g.Walk(); err != nil {
-			t.Fatalf("Walk() returned error: %v", err)
+	walk := func(t *testing.T, standingInForTrees bool) []string {
+		t.Helper()
+
+		delivered := []string{}
+		if err := clonewalkContext(context.Background(), walker("configs/**", &delivered), standingInForTrees); err != nil {
+			t.Fatalf("the clone walk returned error: %v", err)
 		}
 		return delivered
 	}
 
-	t.Run("callers that opted into the api never read the link", func(t *testing.T) {
+	t.Run("an ordinary clone reads a link that stays inside the copy", func(t *testing.T) {
+		want := []string{"link.yaml", "real.yaml"}
+		if got := walk(t, false); !reflect.DeepEqual(got, want) {
+			t.Errorf("expected the link inside the copy to be read, delivering %v, got %v", want, got)
+		}
+	})
+
+	t.Run("a clone standing in for a tree never reads the link", func(t *testing.T) {
 		want := []string{"real.yaml"}
 		if got := walk(t, true); !reflect.DeepEqual(got, want) {
 			t.Errorf("expected the symlink to be skipped, leaving %v, got %v", want, got)
@@ -826,19 +864,8 @@ func TestGitWalkCloneRouteSkipsSymlinksForOptedInCallers(t *testing.T) {
 
 	t.Run("a root naming the symlink itself is not read either", func(t *testing.T) {
 		delivered := []string{}
-		err := NewGit().
-			BaseURL("file://" + baseDir).
-			Owner("owner").
-			Repo("linked").
-			Root("configs/link.yaml").
-			UseGithubAPI().
-			RegisterFileInterceptor(func(file File) error {
-				delivered = append(delivered, filepath.Base(file.Path))
-				return nil
-			}).
-			Walk()
-		if err != nil {
-			t.Fatalf("Walk() returned error: %v", err)
+		if err := clonewalkContext(context.Background(), walker("configs/link.yaml", &delivered), true); err != nil {
+			t.Fatalf("the clone walk returned error: %v", err)
 		}
 		if len(delivered) != 0 {
 			t.Errorf("expected an explicitly named symlink to be skipped, got %v", delivered)

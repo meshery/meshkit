@@ -46,18 +46,21 @@ The crawl is **opt-in**. Callers that do not enable it keep cloning exactly as b
 - **A directory interceptor is registered.** Directory interception needs a directory that
   exists, which the API route never produces, so the walk clones.
 
-**All three of those clones are filtered.** Opting into `UseGithubAPI()` is what decides this, not
-the reason the clone happened, so a caller that enables the flag and then points a connection at
-GitHub Enterprise is filtered exactly as a truncated-tree fallback is: the clone route runs the
-same classifier, so `.md`, `.txt`, `.sh` and extensionless files never reach the interceptor, and
-it skips a file over `MaxFileSize` instead of failing the walk. Symlinks are skipped outright, as
-they are on the API route, which never offers one. What the caller gets is the same filtered,
-size-bounded **set** - not the same order: the clone delivers in `filepath.WalkDir`/`os.ReadDir`
-lexical order, never in score order, so an interceptor must not assume `Chart.yaml` arrives before
-`values.yaml`. Opting in also changes the paths the interceptors are handed - see **Paths** below.
+**Only the truncated-tree clone is filtered**, because it is the only one standing in for a Trees
+walk of the same repository. There the clone route runs the same classifier the ranking uses, so
+`.md`, `.txt`, `.sh` and extensionless files never reach the interceptor, it skips a file over
+`MaxFileSize` instead of failing the walk, and it skips symlinks outright as the API route does,
+which never offers one. What the caller gets is the same filtered, size-bounded **set** - not the
+same order: the clone delivers in `filepath.WalkDir`/`os.ReadDir` lexical order, never in score
+order, so an interceptor must not assume `Chart.yaml` arrives before `values.yaml`.
 
-A caller that never opted in keeps all of that behaviour: every file under `Root`, in the order it
-always arrived, with today's oversize error. Symlinks are followed for those callers too, with one
+**The other two clones are not filtered.** A non-github.com host and a registered directory
+interceptor take the clone route on their own terms, not as a substitute for a Trees walk, so they
+behave exactly as they always have even when the caller enabled `UseGithubAPI()`: every file under
+`Root`, in the order it always arrived, with the usual oversize error rather than a silent skip.
+Opting in does change the file paths the interceptor is handed on any clone - see **Paths** below.
+
+Symlinks are followed on an unfiltered clone, with one
 limit - a link is read only while its target resolves inside the repository copy the walk made. A
 link whose target lands outside that copy, or that cannot be resolved at all, is passed over
 silently; the walk continues and nothing else changes. Targets are resolved with `lstat`/`readlink`
@@ -142,14 +145,19 @@ in hand.
   `Walk()` delegates with `context.Background()`. `Timeout(d)` bounds a whole traversal.
 - **Progress.** `RegisterProgressHook` receives `ProgressUpdate` values as the walk moves
   through `resolve-ref`, `list-tree`, `rank`, `fetch-blob` and `clone`.
-- **Paths.** Under `UseGithubAPI()` **every** path handed to an interceptor is
-  repository-relative - `File.Path` and `Directory.Path` alike, on the API route and on the clone
-  it falls back to - so one import handles one kind of path. Those paths **must not be opened
-  from the filesystem**: on the API route nothing is written to disk at all, and on the clone
-  route the temporary clone is deleted when the walk returns. A caller that needs real on-disk
-  files - passing a directory to `helm.ConvertToK8sManifest`, or reading `File.Path` back off
-  disk, as `generators/github` does - should **not** opt in. Callers that never opted in keep the
-  absolute path into the (temporary) clone they have always received, byte for byte.
+- **Paths.** Under `UseGithubAPI()` every **file** path handed to an interceptor is
+  repository-relative - on the API route and on the clone it falls back to - so one import handles
+  one kind of path. A `File.Path` **must not be opened from the filesystem**: on the API route
+  nothing is written to disk at all, and on the clone route the temporary clone is deleted when
+  the walk returns. A caller that reads `File.Path` back off disk, as `generators/github` does,
+  should **not** opt in. Callers that never opted in keep the absolute path into the (temporary)
+  clone they have always received, byte for byte.
+- **Directory paths.** `Directory.Path` is always the real path on disk, for every caller. Only
+  the clone route ever produces a `Directory` - a walk with a directory interceptor registered
+  declines the API route precisely to get one - and a `Directory` carries no content, so opening
+  it is the only thing an interceptor can do with it. It is valid for as long as the walk runs and
+  is removed with the clone once `Walk` returns, so anything a directory interceptor needs from it
+  (`helm.ConvertToK8sManifest`, say) has to happen inside the interceptor.
 - **Auth.** `Token(t)` threads a GitHub App or OAuth token onto the API calls as a bearer token
   and onto the clone as `x-access-token` basic auth, for private repositories and the
   authenticated rate limit. The token is never logged, never placed in an error message and

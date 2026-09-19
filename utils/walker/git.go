@@ -178,11 +178,15 @@ func (g *Git) WalkContext(ctx context.Context) error {
 			}
 			// treeWalk declined - a truncated tree, or a registered directory
 			// interceptor - so the clone below is the only complete answer.
+			// Only the truncated tree leaves the clone standing in for a Trees
+			// walk of the same repository; a directory interceptor declines the
+			// API route to get a working tree, not a different result set.
 			g.reportProgress(ProgressUpdate{Stage: ProgressStageClone, Message: "the Trees API could not answer completely, falling back to a clone"})
+			return clonewalkContext(ctx, g, g.dirInterceptor == nil)
 		}
 	}
 
-	return clonewalkContext(ctx, g)
+	return clonewalkContext(ctx, g, false)
 }
 
 // Token sets the GitHub App or OAuth access token used to authenticate against
@@ -302,7 +306,7 @@ func errZeroMaxFileSize() error {
 	return ErrInvalidSizeFile(errors.New("max file size passed as 0. Will not read any file"))
 }
 
-func clonewalkContext(ctx context.Context, g *Git) error {
+func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) error {
 	if g.maxFileSizeInBytes == 0 {
 		return errZeroMaxFileSize()
 	}
@@ -352,7 +356,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 		if linkInfo, lerr := os.Lstat(rootPath); lerr == nil {
 			entryInfo = linkInfo
 		}
-		if g.skipOnClone(clonePath, rootPath, entryInfo) {
+		if g.skipOnClone(clonePath, rootPath, entryInfo, standingInForTrees) {
 			return nil
 		}
 		err = g.readFile(info, clonePath, rootPath)
@@ -367,7 +371,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 			if d.IsDir() && g.dirInterceptor != nil {
 				return g.dirInterceptor(Directory{
 					Name: d.Name(),
-					Path: g.interceptedPath(clonePath, path),
+					Path: path,
 				})
 			}
 			if d.IsDir() {
@@ -377,7 +381,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 			if err != nil {
 				return errInfo
 			}
-			if g.skipOnClone(clonePath, path, f) {
+			if g.skipOnClone(clonePath, path, f, standingInForTrees) {
 				return nil
 			}
 			return g.readFile(f, clonePath, path)
@@ -416,13 +420,13 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 				if err != nil {
 					fmt.Println(err.Error())
 				}
-			}(name, g.interceptedPath(clonePath, fPath), f.Name())
+			}(name, fPath, f.Name())
 			continue
 		}
 		if f.IsDir() {
 			continue
 		}
-		if g.skipOnClone(clonePath, fPath, f) {
+		if g.skipOnClone(clonePath, fPath, f, standingInForTrees) {
 			continue
 		}
 		err := g.readFile(f, clonePath, fPath)
@@ -438,18 +442,20 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 //
 // A symlink is followed only while it stays inside the repository copy: a link
 // whose target resolves outside the copy, or that cannot be resolved, is
-// passed over. A caller that opted into the GitHub API skips every symlink
-// instead, because the Trees route offers none, and otherwise gets what
-// rankTree would have given it - the same filtered, size-bounded set, an
-// oversized file skipped rather than failing the walk. Every other caller
-// keeps receiving each file under Root, oversize error included.
+// passed over. That holds for every caller.
+//
+// When the clone is standing in for a Trees walk of the same repository it
+// additionally gives what rankTree would have given - every symlink skipped,
+// since the Trees route offers none, the same filtered set, and an oversized
+// file skipped rather than failing the walk. Any other clone keeps delivering
+// each file under Root, oversize error included.
 //
 // info has to come from an lstat for the symlink bit to survive.
-func (g *Git) skipOnClone(clonePath, entryPath string, info fs.FileInfo) bool {
+func (g *Git) skipOnClone(clonePath, entryPath string, info fs.FileInfo, standingInForTrees bool) bool {
 	if info.Mode()&os.ModeSymlink != 0 {
-		return g.useAPI || !resolvesInsideClone(clonePath, entryPath)
+		return standingInForTrees || !resolvesInsideClone(clonePath, entryPath)
 	}
-	if !g.useAPI {
+	if !standingInForTrees {
 		return false
 	}
 	if info.Size() > g.maxFileSizeInBytes {
@@ -487,13 +493,13 @@ func resolvesInsideClone(clonePath, entryPath string) bool {
 	return relative != ".." && !strings.HasPrefix(relative, ".."+string(os.PathSeparator))
 }
 
-// interceptedPath reports the path a file or directory read out of a clone is
-// handed to its interceptor with. A caller that opted into the GitHub API sees
-// the repository-relative path the Trees route would have given it, so the two
-// routes stay interchangeable when the walk falls back, and File.Path and
-// Directory.Path never disagree about what a path means. Every other caller
-// keeps the absolute path into the clone, which is the only form that can be
-// opened from the filesystem.
+// interceptedPath reports the path a file read out of a clone is handed to its
+// interceptor with. A caller that opted into the GitHub API sees the
+// repository-relative path the Trees route would have given it, so the two
+// routes stay interchangeable when the walk falls back. Every other caller
+// keeps the absolute path into the clone. A Directory is not named this way:
+// only the clone route ever produces one, and an interceptor handed a
+// directory has nothing to do with it but open it.
 func (g *Git) interceptedPath(clonePath, entryPath string) string {
 	if !g.useAPI {
 		return entryPath

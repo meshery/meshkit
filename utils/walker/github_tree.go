@@ -435,10 +435,11 @@ var errResponseTooLarge = errors.New("the response ran past the configured file 
 
 // blobResponseLimit is how many bytes of a blob response are worth reading for
 // a file of at most maxFileSizeInBytes: GitHub hands the contents over as
-// base64, which inflates them by four thirds, wrapped in lines and in a JSON
-// envelope of a few fields.
+// base64, which inflates them by four thirds, wrapped every 60 characters by a
+// newline that JSON spells with two bytes, inside an envelope of a few fields.
 func blobResponseLimit(maxFileSizeInBytes int64) int64 {
-	return (maxFileSizeInBytes+2)/3*4 + maxFileSizeInBytes/50 + 8192
+	encoded := (maxFileSizeInBytes + 2) / 3 * 4
+	return encoded + encoded/60*2 + 8192
 }
 
 func errOversizedBlob(path string, maxFileSizeInBytes int64) error {
