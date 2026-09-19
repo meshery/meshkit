@@ -43,11 +43,12 @@ The crawl is **opt-in**. Callers that do not enable it keep cloning exactly as b
   the listing is incomplete, and only a clone sees every file.
 - **A directory interceptor is registered.** Directory interception hands the interceptor a
   working-tree path (`helm.ConvertToK8sManifest` needs one), which the API route never produces.
-- **The ranked listing is longer than 500 candidates.** One request per blob only beats a clone
-  while the selection stays small, so past that threshold `WalkContext` clones instead of issuing
-  hundreds of round-trips against the rate limit. Nothing is truncated: the clone delivers at
-  least every file the API route would have. The threshold applies to the automatic fetch only -
-  `FetchCandidates` downloads whatever selection it is handed.
+
+Nothing else switches routes, and the size of the repository in particular does not: the
+auto-fetch path issues **one blob request per ranked candidate**, however many there are. A
+caller that wants to spend fewer requests picks the files itself - `ListInterestingFiles` costs
+two requests and downloads nothing, and `FetchCandidates` then fetches only the selection it is
+handed.
 
 Sparse and partial clone for large non-GitHub repositories, and GitLab/Bitbucket adapters, are
 deliberately out of scope - see [ux/canvas-first-github-onboarding.md](ux/canvas-first-github-onboarding.md).
@@ -57,6 +58,16 @@ deliberately out of scope - see [ux/canvas-first-github-onboarding.md](ux/canvas
 `Git.ListInterestingFiles(ctx)` returns the ranked candidate listing without downloading a
 single blob, so Cloud and the extensions can render an import picker and then pass the user's
 selection back to `Git.FetchCandidates(ctx, selected)`.
+
+Both are GitHub-only: unlike `WalkContext` there is no clone to fall back to, so a `BaseURL` on
+any other host is refused rather than answered from github.com, which is where the API endpoint
+points regardless of `BaseURL`. Refusing it is what keeps the access token from travelling to a
+host the caller never configured.
+
+**An unset `Root` lists the whole repository**, because a picker is asking what the repository
+holds; `Root` narrows the listing exactly as it narrows a walk. This is deliberately *not* what
+an unset `Root` means to `Walk`/`WalkContext`, where it keeps its historical top-level-only
+scope for back-compatibility.
 
 Ranking is **path based**, because it runs before any content exists. `ClassifyPath` assigns:
 
@@ -75,20 +86,21 @@ buried in a test fixture. A `Root` naming one exact file always yields that file
 called, matching what the clone route does with an explicitly named file.
 
 Only `.tgz` and `.tar.gz` are ranked as chart archives, because that is all Helm packages a chart
-as. The wider table in `files/iacext` describes what an *uploaded* chart may arrive as; applying
-it here would label every `.zip`, `.gz` and `.tar` in a repository a Helm chart.
+as. The wider `files.ValidHelmChartFileExtensions` table describes what an *uploaded* chart may
+arrive as; applying it here would label every `.zip`, `.gz` and `.tar` in a repository a Helm
+chart.
 
 An empty `Kind` means the path is worth fetching but is not distinctive enough to name a type.
 Identification proper remains the caller's job: run `files.IdentifyFile` once the contents are
 in hand.
 
-### Where the extension tables live
+### Where the kustomize extension table lives
 
-`ClassifyPath` reuses the same extension tables `files` parses with, rather than restating the
-literals. Those tables live in the leaf package **`files/iacext`**: `files` imports
-`utils/walker`, so a table owned by `files` and read by the walker would close an import cycle.
-`files.ValidHelmChartFileExtensions` and `files.ValidKustomizeFileExtensions` are retained as
-aliases of the `iacext` tables, so existing callers are unaffected.
+`ClassifyPath` reuses the same kustomization extensions `files` parses with, rather than
+restating the literals. That one table lives in the leaf package **`files/iacext`**: `files`
+imports `utils/walker`, so a table owned by `files` and read by the walker would close an import
+cycle. `files.ValidKustomizeFileExtensions` still names it, so existing callers are unaffected.
+Every other extension table stays in `files`, which is the only package that reads it.
 
 ## Branch, reference, context, progress and auth
 

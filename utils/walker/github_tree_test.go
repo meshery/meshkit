@@ -105,6 +105,14 @@ func (s *githubAPIStub) repoLookupCount() int {
 	return s.repoLookups
 }
 
+// apiGit returns a walker for owner/repo pointed at the stub server. The API
+// endpoint is not part of the published API, so the tests set the field.
+func apiGit(server *httptest.Server) *Git {
+	g := NewGit().Owner("owner").Repo("repo")
+	g.apiBaseURL = server.URL
+	return g
+}
+
 func writeJSON(t *testing.T, w http.ResponseWriter, payload interface{}) {
 	t.Helper()
 	w.Header().Set("Content-Type", "application/json")
@@ -249,7 +257,7 @@ func TestRankTreeOrdersAndFilters(t *testing.T) {
 			}
 
 			got := []string{}
-			for _, candidate := range g.rankTree(tt.entries) {
+			for _, candidate := range g.rankTree(tt.entries, g.recurse) {
 				got = append(got, candidate.Path)
 			}
 
@@ -274,11 +282,8 @@ func TestListInterestingFilesFetchesNoBlobs(t *testing.T) {
 	}
 	server := stub.server(t)
 
-	listing, err := NewGit().
-		Owner("owner").
-		Repo("repo").
+	listing, err := apiGit(server).
 		Branch("release").
-		APIBaseURL(server.URL).
 		Token("s3cret").
 		ListInterestingFiles(context.Background())
 	if err != nil {
@@ -331,10 +336,7 @@ func TestWalkContextUsesTreesPathAndFetchesSelectedBlobs(t *testing.T) {
 
 	intercepted := map[string]string{}
 	stages := []ProgressStage{}
-	err := NewGit().
-		Owner("owner").
-		Repo("repo").
-		APIBaseURL(server.URL).
+	err := apiGit(server).
 		UseGithubAPI().
 		Timeout(30 * time.Second).
 		RegisterProgressHook(func(update ProgressUpdate) {
@@ -393,10 +395,7 @@ func TestTreeWalkFallsBackToClone(t *testing.T) {
 			}
 			server := stub.server(t)
 
-			g := NewGit().
-				Owner("owner").
-				Repo("repo").
-				APIBaseURL(server.URL).
+			g := apiGit(server).
 				RegisterFileInterceptor(func(File) error { return nil })
 			if tt.dirIntercep {
 				g = g.RegisterDirInterceptor(func(Directory) error { return nil })
@@ -461,11 +460,8 @@ func TestWalkContextKeepsGoGitForNonGithubHosts(t *testing.T) {
 	stub := &githubAPIStub{commitSHA: "commit-sha"}
 	server := stub.server(t)
 
-	err := NewGit().
+	err := apiGit(server).
 		BaseURL("https://git.example.com").
-		Owner("owner").
-		Repo("repo").
-		APIBaseURL(server.URL).
 		UseGithubAPI().
 		Timeout(5 * time.Second).
 		RegisterFileInterceptor(func(File) error { return nil }).
@@ -492,11 +488,8 @@ func TestResolveRefSurfacesAPIErrorsWithoutTheToken(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	_, err := NewGit().
-		Owner("owner").
-		Repo("repo").
+	_, err := apiGit(server).
 		Branch("main").
-		APIBaseURL(server.URL).
 		Token("s3cret").
 		ListInterestingFiles(context.Background())
 	if err == nil {
@@ -514,10 +507,7 @@ func TestFetchCandidatesReportsBlobFailures(t *testing.T) {
 	stub := &githubAPIStub{commitSHA: "commit-sha", blobs: map[string]string{}}
 	server := stub.server(t)
 
-	err := NewGit().
-		Owner("owner").
-		Repo("repo").
-		APIBaseURL(server.URL).
+	err := apiGit(server).
 		RegisterFileInterceptor(func(File) error { return nil }).
 		FetchCandidates(context.Background(), []CandidateFile{{Path: "Chart.yaml", Name: "Chart.yaml", SHA: "missing"}})
 	if err == nil {
@@ -563,7 +553,7 @@ func TestListInterestingFilesResolvesTheConfiguredReference(t *testing.T) {
 			}
 			server := stub.server(t)
 
-			g := NewGit().Owner("owner").Repo("repo").APIBaseURL(server.URL)
+			g := apiGit(server)
 			if tt.branch != "" {
 				g = g.Branch(tt.branch)
 			}
@@ -592,10 +582,7 @@ func TestListInterestingFilesReportsAnUnresolvableDefaultBranch(t *testing.T) {
 	stub := &githubAPIStub{commitSHA: "commit-sha"}
 	server := stub.server(t)
 
-	_, err := NewGit().
-		Owner("owner").
-		Repo("repo").
-		APIBaseURL(server.URL).
+	_, err := apiGit(server).
 		ListInterestingFiles(context.Background())
 	if err == nil {
 		t.Fatal("expected ListInterestingFiles to fail when the default branch is unknown")
@@ -637,10 +624,7 @@ func TestFetchCandidatesDownloadsConcurrentlyAndDeliversInOrder(t *testing.T) {
 	delivered := []string{}
 	done := make(chan error, 1)
 	go func() {
-		done <- NewGit().
-			Owner("owner").
-			Repo("repo").
-			APIBaseURL(server.URL).
+		done <- apiGit(server).
 			RegisterFileInterceptor(func(file File) error {
 				delivered = append(delivered, file.Path)
 				return nil
@@ -690,50 +674,155 @@ func TestFetchCandidatesDownloadsConcurrentlyAndDeliversInOrder(t *testing.T) {
 	}
 }
 
-func TestTreeWalkFallsBackWhenTheListingIsTooLargeToFetch(t *testing.T) {
-	tests := []struct {
-		name       string
-		candidates int
-		wantWalked bool
-	}{
-		{name: "at the threshold the api route fetches", candidates: maxAutoFetchCandidates, wantWalked: true},
-		{name: "past the threshold the clone is cheaper", candidates: maxAutoFetchCandidates + 1, wantWalked: false},
+func TestTreeWalkFetchesEveryRankedCandidateHoweverLargeTheListing(t *testing.T) {
+	// One route, one result set: a large listing is fetched in full rather
+	// than swapped for a clone that would deliver a different set of files.
+	const candidateCount = 600
+
+	stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", blobs: map[string]string{}}
+	wantPaths := make([]string, 0, candidateCount)
+	for i := 0; i < candidateCount; i++ {
+		sha := fmt.Sprintf("blob-%04d", i)
+		candidatePath := fmt.Sprintf("manifests/%04d.yaml", i)
+		stub.blobs[sha] = "kind: ConfigMap"
+		stub.tree.Tree = append(stub.tree.Tree, githubTreeEntry{Type: "blob", Path: candidatePath, SHA: sha, Size: 14})
+		wantPaths = append(wantPaths, candidatePath)
+	}
+	stub.tree.Tree = append(stub.tree.Tree, githubTreeEntry{Type: "blob", Path: "manifests/README.md", SHA: "readme-blob", Size: 14})
+	server := stub.server(t)
+
+	delivered := []string{}
+	walked, err := apiGit(server).
+		Root("manifests/**").
+		RegisterFileInterceptor(func(file File) error {
+			delivered = append(delivered, file.Path)
+			return nil
+		}).
+		treeWalk(context.Background())
+	if err != nil {
+		t.Fatalf("treeWalk() returned error: %v", err)
+	}
+	if !walked {
+		t.Fatal("expected the API route to fetch the whole listing rather than fall back to a clone")
+	}
+	if !reflect.DeepEqual(delivered, wantPaths) {
+		t.Fatalf("expected all %d ranked candidates to be delivered, got %d", len(wantPaths), len(delivered))
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", blobs: map[string]string{}}
-			for i := 0; i < tt.candidates; i++ {
-				sha := fmt.Sprintf("blob-%04d", i)
-				stub.blobs[sha] = "kind: ConfigMap"
-				stub.tree.Tree = append(stub.tree.Tree, githubTreeEntry{Type: "blob", Path: fmt.Sprintf("manifests/%04d.yaml", i), SHA: sha, Size: 14})
-			}
-			server := stub.server(t)
-
-			walked, err := NewGit().
-				Owner("owner").
-				Repo("repo").
-				Root("manifests/**").
-				APIBaseURL(server.URL).
-				RegisterFileInterceptor(func(File) error { return nil }).
-				treeWalk(context.Background())
-			if err != nil {
-				t.Fatalf("treeWalk() returned error: %v", err)
-			}
-			if walked != tt.wantWalked {
-				t.Fatalf("expected treeWalk to report walked=%t, got %t", tt.wantWalked, walked)
-			}
-
-			_, _, blobs := stub.snapshot()
-			wantBlobs := 0
-			if tt.wantWalked {
-				wantBlobs = tt.candidates
-			}
-			if len(blobs) != wantBlobs {
-				t.Errorf("expected %d blobs to be downloaded, got %d", wantBlobs, len(blobs))
-			}
-		})
+	_, _, blobs := stub.snapshot()
+	if len(blobs) != candidateCount {
+		t.Errorf("expected %d blobs to be downloaded, got %d", candidateCount, len(blobs))
 	}
+}
+
+func TestListingAPIRefusesRepositoriesOnOtherHosts(t *testing.T) {
+	// The API endpoint is github.com's whatever BaseURL says, so a walker
+	// configured for another forge must be refused before its token travels.
+	stub := &githubAPIStub{
+		commitSHA:     "commit-sha",
+		defaultBranch: "main",
+		tree:          githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
+		blobs:         map[string]string{"chart-blob": "name: redis"},
+	}
+	server := stub.server(t)
+
+	elsewhere := func() *Git {
+		return apiGit(server).
+			BaseURL("https://gitlab.com").
+			Token("s3cret").
+			RegisterFileInterceptor(func(File) error { return nil })
+	}
+
+	_, err := elsewhere().ListInterestingFiles(context.Background())
+	if err == nil {
+		t.Fatal("expected ListInterestingFiles to refuse a repository that is not on github.com")
+	}
+	if code := meshkiterrors.GetCode(err); code != ErrInvalidBaseURLCode {
+		t.Fatalf("expected error code %q, got %q: %v", ErrInvalidBaseURLCode, code, err)
+	}
+
+	err = elsewhere().FetchCandidates(context.Background(), []CandidateFile{{Path: "Chart.yaml", Name: "Chart.yaml", SHA: "chart-blob"}})
+	if err == nil {
+		t.Fatal("expected FetchCandidates to refuse a repository that is not on github.com")
+	}
+	if code := meshkiterrors.GetCode(err); code != ErrInvalidBaseURLCode {
+		t.Fatalf("expected error code %q, got %q: %v", ErrInvalidBaseURLCode, code, err)
+	}
+
+	auth, _, blobs := stub.snapshot()
+	if len(auth) != 0 {
+		t.Errorf("expected the access token never to reach the GitHub API, got %d request(s) carrying %v", len(auth), auth)
+	}
+	if len(blobs) != 0 {
+		t.Errorf("expected no blob to be downloaded from another host's repository, got %v", blobs)
+	}
+}
+
+func TestListInterestingFilesScopesToRoot(t *testing.T) {
+	tree := githubTreeAPI{Tree: []githubTreeEntry{
+		{Type: "blob", Path: "README.md", SHA: "readme-blob", Size: 10},
+		{Type: "blob", Path: "top.yaml", SHA: "top-blob", Size: 10},
+		{Type: "blob", Path: "charts/nginx/Chart.yaml", SHA: "nginx-blob", Size: 10},
+		{Type: "blob", Path: "charts/redis/Chart.yaml", SHA: "redis-blob", Size: 10},
+	}}
+
+	listPaths := func(t *testing.T, root string) []string {
+		t.Helper()
+
+		stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", tree: tree}
+		g := apiGit(stub.server(t))
+		if root != "" {
+			g = g.Root(root)
+		}
+
+		listing, err := g.ListInterestingFiles(context.Background())
+		if err != nil {
+			t.Fatalf("ListInterestingFiles() returned error: %v", err)
+		}
+
+		paths := []string{}
+		for _, candidate := range listing.Candidates {
+			paths = append(paths, candidate.Path)
+		}
+		return paths
+	}
+
+	t.Run("an unset root lists the whole repository", func(t *testing.T) {
+		want := []string{"charts/nginx/Chart.yaml", "charts/redis/Chart.yaml", "top.yaml"}
+		if got := listPaths(t, ""); !reflect.DeepEqual(got, want) {
+			t.Errorf("expected the nested layout to be listed as %v, got %v", want, got)
+		}
+	})
+
+	t.Run("a root still narrows the listing", func(t *testing.T) {
+		want := []string{"charts/redis/Chart.yaml"}
+		if got := listPaths(t, "charts/redis"); !reflect.DeepEqual(got, want) {
+			t.Errorf("expected the listing to be scoped to the root, got %v", got)
+		}
+	})
+
+	t.Run("an unset root leaves a walk on its top level", func(t *testing.T) {
+		// Walk's historical Root semantics are back-compat and unaffected by
+		// what an unset Root means to the listing API.
+		stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", tree: tree, blobs: map[string]string{"top-blob": "kind: ConfigMap"}}
+
+		delivered := []string{}
+		walked, err := apiGit(stub.server(t)).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, file.Path)
+				return nil
+			}).
+			treeWalk(context.Background())
+		if err != nil {
+			t.Fatalf("treeWalk() returned error: %v", err)
+		}
+		if !walked {
+			t.Fatal("expected the API route to carry out the walk")
+		}
+		if want := []string{"top.yaml"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the walk to stay on the top level as %v, got %v", want, delivered)
+		}
+	})
 }
 
 func containsStage(stages []ProgressStage, want ProgressStage) bool {

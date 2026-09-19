@@ -286,13 +286,18 @@ func FindChartDir(root string) (string, error) {
 	return filepath.Dir(matches[0]), nil
 }
 
-// ValidHelmChartFileExtensions and ValidKustomizeFileExtensions are owned by
-// files/iacext so that utils/walker can rank candidate files by extension
-// without importing this package, which would close an import cycle.
-var (
-	ValidHelmChartFileExtensions = iacext.ValidHelmChartFileExtensions
-	ValidKustomizeFileExtensions = iacext.ValidKustomizeFileExtensions
-)
+var ValidHelmChartFileExtensions = map[string]bool{
+	".tar":    true,
+	".tgz":    true,
+	".gz":     true,
+	".tar.gz": true,
+	".zip":    true,
+}
+
+// ValidKustomizeFileExtensions is owned by files/iacext so that utils/walker
+// can scope kustomization candidates by extension without importing this
+// package, which would close an import cycle.
+var ValidKustomizeFileExtensions = iacext.ValidKustomizeFileExtensions
 
 // ParseFileAsHelmChart loads a Helm chart from the extracted directory.
 func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {

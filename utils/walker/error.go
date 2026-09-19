@@ -29,8 +29,8 @@ func ErrResolvingGitRef(err error, ref string) error {
 	return errors.New(
 		ErrResolvingGitRefCode,
 		errors.Alert,
-		[]string{fmt.Sprintf("Could not resolve git reference %q to a commit", ref)},
-		[]string{err.Error()},
+		[]string{"Could not resolve the git reference to a commit"},
+		[]string{fmt.Sprintf("%s: %s", ref, err.Error())},
 		[]string{"The reference does not exist on the remote repository", "The repository is private and no access token was supplied", "The GitHub API rate limit has been exhausted"},
 		[]string{"Verify the branch, tag or reference name exists on the remote", "Supply a GitHub App or OAuth token with the Token option so private repositories and higher rate limits are available"},
 	)
@@ -41,8 +41,8 @@ func ErrFetchingGitTree(err error, ref string) error {
 	return errors.New(
 		ErrFetchingGitTreeCode,
 		errors.Alert,
-		[]string{fmt.Sprintf("Could not fetch the git tree for %q", ref)},
-		[]string{err.Error()},
+		[]string{"Could not fetch the git tree of the repository"},
+		[]string{fmt.Sprintf("%s: %s", ref, err.Error())},
 		[]string{"The commit does not exist on the remote repository", "The repository is private and no access token was supplied", "The GitHub API rate limit has been exhausted"},
 		[]string{"Verify the reference exists on the remote", "Supply a GitHub App or OAuth token with the Token option so private repositories and higher rate limits are available"},
 	)
@@ -53,22 +53,23 @@ func ErrFetchingGitBlob(err error, path string) error {
 	return errors.New(
 		ErrFetchingGitBlobCode,
 		errors.Alert,
-		[]string{fmt.Sprintf("Could not fetch the contents of %q", path)},
-		[]string{err.Error()},
+		[]string{"Could not fetch the contents of a file in the repository"},
+		[]string{fmt.Sprintf("%s: %s", path, err.Error())},
 		[]string{"The blob was removed after the tree was listed", "The repository is private and no access token was supplied", "The GitHub API rate limit has been exhausted"},
 		[]string{"Retry the import so a fresh tree is listed", "Supply a GitHub App or OAuth token with the Token option so private repositories and higher rate limits are available"},
 	)
 }
 
-// ErrInvalidBaseURL is returned when the configured base URL cannot be parsed,
-// so the walker cannot decide whether the host is GitHub.
+// ErrInvalidBaseURL is returned when the configured base URL cannot be used for
+// the GitHub API, either because it does not parse or because it names a host
+// other than github.com.
 func ErrInvalidBaseURL(err error, baseURL string) error {
 	return errors.New(
 		ErrInvalidBaseURLCode,
 		errors.Alert,
-		[]string{fmt.Sprintf("Could not parse the repository base URL %q", baseURL)},
-		[]string{err.Error()},
-		[]string{"The base URL passed to the walker is not a valid URL"},
-		[]string{"Pass a valid base URL such as https://github.com to the BaseURL option"},
+		[]string{"Could not use the repository base URL for the GitHub API"},
+		[]string{fmt.Sprintf("%s: %s", baseURL, err.Error())},
+		[]string{"The base URL passed to the walker is not a valid URL", "The base URL names a host other than github.com, which the Git Trees API cannot answer for"},
+		[]string{"Pass a valid base URL such as https://github.com to the BaseURL option", "Walk a repository hosted elsewhere with Walk or WalkContext, which clone it with go-git"},
 	)
 }

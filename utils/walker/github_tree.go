@@ -16,22 +16,14 @@ import (
 	"github.com/meshery/schemas/models/core"
 )
 
-// DefaultGithubAPIBaseURL is the GitHub REST API endpoint the hybrid crawl
-// talks to unless APIBaseURL overrides it.
+// DefaultGithubAPIBaseURL is the GitHub REST API endpoint the hybrid crawl and
+// the Contents walker talk to.
 const DefaultGithubAPIBaseURL = "https://api.github.com"
 
 // blobFetchConcurrency bounds how many blobs are downloaded at once. It also
 // bounds how many downloaded blobs are held in memory at once, because a slot
 // is only released once its blob has been handed to the interceptor.
 const blobFetchConcurrency = 8
-
-// maxAutoFetchCandidates is the largest listing WalkContext downloads blob by
-// blob. A bigger selection is read in one request by the depth-1 clone the
-// hybrid crawl replaces, so past this threshold the walk falls back to go-git
-// rather than issuing thousands of round-trips against the rate limit. It does
-// not apply to FetchCandidates, where the caller has already chosen what to
-// download.
-const maxAutoFetchCandidates = 500
 
 // Progress stages reported through a ProgressHook.
 const (
@@ -142,17 +134,30 @@ type githubBlobAPI struct {
 // candidate files. No blob is downloaded, so the result is cheap enough to
 // render an import picker from.
 //
+// With no Root configured the whole repository is listed, because a picker is
+// asking what the repository holds. Root narrows the listing exactly as it
+// narrows a walk. Walk keeps its own historical meaning for an unset Root -
+// the top level only - and is unaffected by this.
+//
 // A truncated listing is reported through InterestingFiles.Truncated rather
 // than as an error: the candidates returned are still usable, they are just
 // not the whole repository.
+//
+// The repository must be on github.com. There is no clone to fall back to on
+// this route, and the access token must never travel to a host the caller did
+// not configure.
 func (g *Git) ListInterestingFiles(ctx context.Context) (InterestingFiles, error) {
+	if err := g.requireGithubHost(); err != nil {
+		return InterestingFiles{}, err
+	}
+
 	ctx, cancel := g.withTimeout(ctx)
 	defer cancel()
 
-	return g.listInterestingFiles(ctx)
+	return g.listInterestingFiles(ctx, g.recurse || g.root == "")
 }
 
-func (g *Git) listInterestingFiles(ctx context.Context) (InterestingFiles, error) {
+func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (InterestingFiles, error) {
 	ref, err := g.apiRef(ctx)
 	if err != nil {
 		return InterestingFiles{}, err
@@ -173,7 +178,7 @@ func (g *Git) listInterestingFiles(ctx context.Context) (InterestingFiles, error
 	listing := InterestingFiles{
 		CommitSHA:  commitSHA,
 		Truncated:  tree.Truncated,
-		Candidates: g.rankTree(tree.Tree),
+		Candidates: g.rankTree(tree.Tree, recursive),
 	}
 	g.reportProgress(ProgressUpdate{
 		Stage:   ProgressStageRank,
@@ -194,7 +199,14 @@ func (g *Git) listInterestingFiles(ctx context.Context) (InterestingFiles, error
 //
 // File.Path on the intercepted file is the repository-relative path, not a
 // local filesystem path: nothing is written to disk on this route.
+//
+// The repository must be on github.com, for the reason ListInterestingFiles
+// gives.
 func (g *Git) FetchCandidates(ctx context.Context, candidates []CandidateFile) error {
+	if err := g.requireGithubHost(); err != nil {
+		return err
+	}
+
 	ctx, cancel := g.withTimeout(ctx)
 	defer cancel()
 
@@ -285,7 +297,7 @@ func (g *Git) treeWalk(ctx context.Context) (bool, error) {
 		return false, ErrInvalidSizeFile(fmt.Errorf("max file size passed as 0. Will not read any file"))
 	}
 
-	listing, err := g.listInterestingFiles(ctx)
+	listing, err := g.listInterestingFiles(ctx, g.recurse)
 	if err != nil {
 		return false, err
 	}
@@ -293,12 +305,6 @@ func (g *Git) treeWalk(ctx context.Context) (bool, error) {
 	// A truncated tree is an incomplete listing, so the clone is the only way
 	// to see every file.
 	if listing.Truncated {
-		return false, nil
-	}
-
-	// Selective blob fetching only beats the clone while the selection stays
-	// small; beyond the threshold the clone reads the same files in one go.
-	if len(listing.Candidates) > maxAutoFetchCandidates {
 		return false, nil
 	}
 
@@ -461,7 +467,7 @@ func githubAPIMessage(body []byte) string {
 
 // rankTree filters the tree entries down to the ones worth importing and ranks
 // them, most interesting first.
-func (g *Git) rankTree(entries []githubTreeEntry) []CandidateFile {
+func (g *Git) rankTree(entries []githubTreeEntry, recursive bool) []CandidateFile {
 	candidates := []CandidateFile{}
 	root := strings.Trim(g.root, "/")
 
@@ -469,7 +475,7 @@ func (g *Git) rankTree(entries []githubTreeEntry) []CandidateFile {
 		if entry.Type != "blob" {
 			continue
 		}
-		if !g.underRoot(root, entry.Path) {
+		if !underRoot(root, entry.Path, recursive) {
 			continue
 		}
 		// The tree already reports the size, so an oversized blob is skipped
@@ -511,12 +517,13 @@ func (g *Git) rankTree(entries []githubTreeEntry) []CandidateFile {
 	return candidates
 }
 
-// underRoot mirrors the scoping Root applies to the clone walk: in recursive
-// mode everything below the root counts, otherwise only the files sitting
-// directly in it, and a root naming a single file matches only that file.
-func (g *Git) underRoot(root, entryPath string) bool {
+// underRoot scopes an entry to the configured root: recursively everything
+// below it counts, otherwise only the files sitting directly in it, and a root
+// naming a single file matches only that file. An empty root is the whole
+// repository when recursive, its top level otherwise.
+func underRoot(root, entryPath string, recursive bool) bool {
 	if root == "" {
-		return g.recurse || !strings.Contains(entryPath, "/")
+		return recursive || !strings.Contains(entryPath, "/")
 	}
 	if entryPath == root {
 		return true
@@ -524,7 +531,7 @@ func (g *Git) underRoot(root, entryPath string) bool {
 	if !strings.HasPrefix(entryPath, root+"/") {
 		return false
 	}
-	if g.recurse {
+	if recursive {
 		return true
 	}
 	return path.Dir(entryPath) == root

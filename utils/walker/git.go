@@ -190,16 +190,6 @@ func (g *Git) Token(token string) *Git {
 	return g
 }
 
-// APIBaseURL overrides the GitHub API endpoint used by ListInterestingFiles
-// and FetchCandidates. It defaults to DefaultGithubAPIBaseURL and mainly exists
-// for tests. It does not make Walk or WalkContext take the API route against a
-// GitHub Enterprise repository: that decision is made from the repository
-// BaseURL, and every host other than github.com keeps the clone.
-func (g *Git) APIBaseURL(baseURL string) *Git {
-	g.apiBaseURL = strings.TrimSuffix(baseURL, "/")
-	return g
-}
-
 // UseGithubAPI opts the walker into the hybrid GitHub crawl: Trees API plus
 // selective blob downloads, with a go-git clone as the fallback. It is off by
 // default so existing callers keep the clone-and-filter behaviour.
@@ -246,6 +236,21 @@ func (g *Git) isGithubHost() (bool, error) {
 		return false, ErrInvalidBaseURL(err, g.baseURL)
 	}
 	return strings.ToLower(parsed.Hostname()) == "github.com", nil
+}
+
+// requireGithubHost refuses a repository the Git Trees API cannot answer for.
+// The API endpoint is github.com's whatever BaseURL says, so a walker pointed
+// at another forge would otherwise send that forge's access token to
+// github.com and read an unrelated repository's listing back.
+func (g *Git) requireGithubHost() error {
+	isGithub, err := g.isGithubHost()
+	if err != nil {
+		return err
+	}
+	if !isGithub {
+		return ErrInvalidBaseURL(errors.New("the Git Trees API only answers for github.com repositories"), g.baseURL)
+	}
+	return nil
 }
 
 // cloneReferenceName resolves the reference the clone should check out. An
