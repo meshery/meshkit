@@ -1011,46 +1011,73 @@ func TestFetchCandidatesHonoursTheFileSizeLimit(t *testing.T) {
 	// than the envelope's slack, which is where a read ceiling goes wrong.
 	const limit = 1000000
 
+	// A blob of this size decodes well past the small limit below while its
+	// response still fits that limit's read ceiling, so only a check on the
+	// decoded file can refuse it.
+	const (
+		smallLimit    = 1000
+		insideCeiling = 6000
+	)
+
 	stub := &githubAPIStub{blobs: map[string]string{
-		"at-limit":  strings.Repeat("y", limit),
-		"oversized": strings.Repeat("y", limit*4),
+		"at-limit":    strings.Repeat("y", limit),
+		"oversized":   strings.Repeat("y", limit*4),
+		"understated": strings.Repeat("y", insideCeiling),
 	}}
 	server := stub.server(t)
 
-	fetch := func(t *testing.T, candidate CandidateFile) (string, error) {
+	fetch := func(t *testing.T, maxFileSize int64, candidate CandidateFile) (string, int, error) {
 		t.Helper()
 
 		delivered := ""
+		calls := 0
 		err := apiGit(server).
-			MaxFileSize(limit).
+			MaxFileSize(maxFileSize).
 			RegisterFileInterceptor(func(file File) error {
+				calls++
 				delivered = file.Content
 				return nil
 			}).
 			FetchCandidates(context.Background(), []CandidateFile{candidate})
-		return delivered, err
+		return delivered, calls, err
 	}
 
 	t.Run("a blob at the limit is delivered", func(t *testing.T) {
-		delivered, err := fetch(t, CandidateFile{Path: "at-limit.yaml", Name: "at-limit.yaml", SHA: "at-limit", Size: limit})
+		delivered, calls, err := fetch(t, limit, CandidateFile{Path: "at-limit.yaml", Name: "at-limit.yaml", SHA: "at-limit", Size: limit})
 		if err != nil {
 			t.Fatalf("FetchCandidates() returned error: %v", err)
+		}
+		if calls != 1 {
+			t.Fatalf("expected the file to be delivered once, got %d calls", calls)
 		}
 		if len(delivered) != limit {
 			t.Errorf("expected the whole %d byte blob to be delivered, got %d bytes", limit, len(delivered))
 		}
 	})
 
-	t.Run("a blob past the limit is refused even when the candidate understates it", func(t *testing.T) {
-		delivered, err := fetch(t, CandidateFile{Path: "oversized.yaml", Name: "oversized.yaml", SHA: "oversized"})
+	t.Run("a response past the read ceiling is refused even when the candidate understates it", func(t *testing.T) {
+		_, calls, err := fetch(t, limit, CandidateFile{Path: "oversized.yaml", Name: "oversized.yaml", SHA: "oversized"})
 		if err == nil {
 			t.Fatal("expected a blob past the limit to be refused")
 		}
 		if code := meshkiterrors.GetCode(err); code != ErrInvalidSizeFileCode {
 			t.Fatalf("expected error code %q, got %q: %v", ErrInvalidSizeFileCode, code, err)
 		}
-		if delivered != "" {
-			t.Errorf("expected nothing to be delivered, got %d bytes", len(delivered))
+		if calls != 0 {
+			t.Errorf("expected nothing to be delivered, got %d calls", calls)
+		}
+	})
+
+	t.Run("a file past the limit is refused even when its response fits the ceiling", func(t *testing.T) {
+		_, calls, err := fetch(t, smallLimit, CandidateFile{Path: "understated.yaml", Name: "understated.yaml", SHA: "understated"})
+		if err == nil {
+			t.Fatalf("expected a %d byte file to be refused under a %d byte limit", insideCeiling, smallLimit)
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrInvalidSizeFileCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrInvalidSizeFileCode, code, err)
+		}
+		if calls != 0 {
+			t.Errorf("expected nothing to be delivered, got %d calls", calls)
 		}
 	})
 

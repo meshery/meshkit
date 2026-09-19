@@ -436,6 +436,9 @@ func (g *Git) fetchBlob(ctx context.Context, candidate CandidateFile) (string, e
 	if err != nil {
 		return "", ErrFetchingGitBlob(err, candidate.Path)
 	}
+	if int64(len(decoded)) > g.maxFileSizeInBytes {
+		return "", errOversizedBlob(candidate.Path, g.maxFileSizeInBytes)
+	}
 
 	return string(decoded), nil
 }
