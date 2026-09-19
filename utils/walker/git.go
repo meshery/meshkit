@@ -348,7 +348,11 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 	}
 
 	if !info.IsDir() {
-		if g.skipOnClone(clonePath, rootPath, info.Size()) {
+		linkInfo, lerr := os.Lstat(rootPath)
+		if lerr != nil {
+			return ErrCloningRepo(lerr)
+		}
+		if g.skipOnClone(clonePath, rootPath, linkInfo) {
 			return nil
 		}
 		err = g.readFile(info, clonePath, rootPath)
@@ -373,7 +377,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 			if err != nil {
 				return errInfo
 			}
-			if g.skipOnClone(clonePath, path, f.Size()) {
+			if g.skipOnClone(clonePath, path, f) {
 				return nil
 			}
 			return g.readFile(f, clonePath, path)
@@ -418,7 +422,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 		if f.IsDir() {
 			continue
 		}
-		if g.skipOnClone(clonePath, fPath, f.Size()) {
+		if g.skipOnClone(clonePath, fPath, f) {
 			continue
 		}
 		err := g.readFile(f, clonePath, fPath)
@@ -432,14 +436,21 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 
 // skipOnClone mirrors, for a file found in the clone, the filtering rankTree
 // applies to a tree entry: a caller that opted into the GitHub API is handed
-// the same ranked, size-bounded set whichever route ran, and an oversized file
-// is skipped rather than failing the walk. A caller that never opted in keeps
-// receiving every file under Root, oversize error included.
-func (g *Git) skipOnClone(clonePath, entryPath string, size int64) bool {
+// the same filtered, size-bounded set whichever route ran, symlinks dropped
+// and an oversized file skipped rather than failing the walk. A caller that
+// never opted in keeps receiving every file under Root, oversize error and
+// followed symlinks included.
+func (g *Git) skipOnClone(clonePath, entryPath string, info fs.FileInfo) bool {
 	if !g.useAPI {
 		return false
 	}
-	if size > g.maxFileSizeInBytes {
+	// A symlink's own bytes are its target path, and following it reads a file
+	// the Trees route never offers, so it is skipped rather than opened. info
+	// has to come from an lstat for this bit to survive.
+	if info.Mode()&os.ModeSymlink != 0 {
+		return true
+	}
+	if info.Size() > g.maxFileSizeInBytes {
 		return true
 	}
 

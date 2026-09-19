@@ -42,13 +42,22 @@ The crawl is **opt-in**. Callers that do not enable it keep cloning exactly as b
 - **The host is not github.com.** The host is read from the configured `BaseURL`, never assumed,
   so GitHub Enterprise, GitLab, Bitbucket and `file://` URLs keep taking the clone path.
 - **The tree came back truncated.** GitHub caps a single tree response; `truncated: true` means
-  the listing is incomplete, so a clone reads the repository instead. The caller is not handed a
-  different kind of result: on the clone route an opted-in caller gets the same ranked,
-  size-bounded set the API route would have delivered, because the clone applies the same
-  classifier and skips an oversized file instead of failing the walk.
+  the listing is incomplete, so a clone reads the repository instead.
 - **A directory interceptor is registered.** Directory interception needs a directory that
-  exists, which the API route never produces, so the walk clones. Note that opting in still
-  changes what the interceptor is *handed* - see **Paths** below.
+  exists, which the API route never produces, so the walk clones.
+
+**All three of those clones are filtered.** Opting into `UseGithubAPI()` is what decides this, not
+the reason the clone happened, so a caller that enables the flag and then points a connection at
+GitHub Enterprise is filtered exactly as a truncated-tree fallback is: the clone route runs the
+same classifier, so `.md`, `.txt`, `.sh` and extensionless files never reach the interceptor, and
+it skips a file over `MaxFileSize` instead of failing the walk. Symlinks are dropped rather than
+followed, as they are on the API route. What the caller gets is the same filtered, size-bounded
+**set** - not the same order: the clone delivers in `filepath.WalkDir`/`os.ReadDir` lexical order,
+never in score order, so an interceptor must not assume `Chart.yaml` arrives before `values.yaml`.
+Opting in also changes the paths the interceptors are handed - see **Paths** below.
+
+A caller that never opted in is untouched by all of this: every file under `Root`, in the order it
+always arrived, with today's oversize error.
 
 Nothing else switches routes, and the size of the repository in particular does not: the
 auto-fetch path issues **one blob request per ranked candidate**, however many there are. It is
@@ -116,9 +125,10 @@ in hand.
 
 - **Branch vs reference.** `ReferenceName` wins when set. Otherwise an explicitly set `Branch`
   is expanded to `refs/heads/<branch>`. A caller that sets neither gets the remote's default
-  branch on both routes: the clone lets go-git pick it, and the API route reads `default_branch`
-  from the repository. The `NewGit()` default of `"master"` (and `NewGithub()`'s `"main"`) only
-  applies once `Branch` has been called, so it is never forced onto either route.
+  branch on both routes: the clone lets go-git pick it, and the API route resolves `HEAD`, which
+  the commits endpoint answers with that branch's head commit. The `NewGit()` default of
+  `"master"` (and `NewGithub()`'s `"main"`) only applies once `Branch` has been called, so it is
+  never forced onto either route.
 - **Context.** `WalkContext`, `ListInterestingFiles` and `FetchCandidates` all take a context;
   `Walk()` delegates with `context.Background()`. `Timeout(d)` bounds a whole traversal.
 - **Progress.** `RegisterProgressHook` receives `ProgressUpdate` values as the walk moves

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -150,7 +151,8 @@ func TestGithubWalkContextAuthenticatesEveryRequestAndReportsProgress(t *testing
 			t.Errorf("expected the walk to report %q, got %q", ProgressStageListTree, stage)
 		}
 	}
-	if want := []string{"configs", "configs/child.yaml"}; !reflect.DeepEqual(sorted(progressed), want) {
+	sort.Strings(progressed)
+	if want := []string{"configs", "configs/child.yaml"}; !reflect.DeepEqual(progressed, want) {
 		t.Errorf("expected progress for %v, got %v", want, progressed)
 	}
 }
@@ -198,14 +200,4 @@ func TestGithubWalkContextSurfacesForbiddenWithoutTheToken(t *testing.T) {
 	if strings.Contains(err.Error(), "s3cret") {
 		t.Fatal("the access token must never appear in an error message")
 	}
-}
-
-func sorted(values []string) []string {
-	out := append([]string(nil), values...)
-	for i := 1; i < len(out); i++ {
-		for j := i; j > 0 && out[j] < out[j-1]; j-- {
-			out[j], out[j-1] = out[j-1], out[j]
-		}
-	}
-	return out
 }

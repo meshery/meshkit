@@ -413,6 +413,37 @@ func createCommittedRepo(t *testing.T, repoPath string, files map[string]string)
 	}
 }
 
+// addCommittedSymlink commits link as a symlink to target inside repoPath.
+func addCommittedSymlink(t *testing.T, repoPath, link, target string) {
+	t.Helper()
+
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		t.Fatalf("failed to open repo: %v", err)
+	}
+
+	worktree, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("failed to get worktree: %v", err)
+	}
+
+	fullPath := filepath.Join(repoPath, filepath.FromSlash(link))
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		t.Fatalf("failed to create parent directory for %s: %v", link, err)
+	}
+	if err := os.Symlink(filepath.FromSlash(target), fullPath); err != nil {
+		t.Fatalf("failed to create symlink %s: %v", link, err)
+	}
+	if _, err := worktree.Add(link); err != nil {
+		t.Fatalf("failed to add %s to repo: %v", link, err)
+	}
+	if _, err := worktree.Commit("symlink", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatalf("failed to commit %s: %v", link, err)
+	}
+}
+
 func TestGitCloneReferenceName(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -683,6 +714,77 @@ func TestGitWalkCloneRouteFiltersOnlyForOptedInCallers(t *testing.T) {
 		}
 		if want := []string{"deployment.yaml"}; !reflect.DeepEqual(delivered, want) {
 			t.Errorf("expected the oversized file to be skipped, leaving %v, got %v", want, delivered)
+		}
+	})
+}
+
+func TestGitWalkCloneRouteSkipsSymlinksForOptedInCallers(t *testing.T) {
+	// The API route never offers a symlink, whose blob holds the link target
+	// rather than the target's contents, so neither does the clone an opted-in
+	// caller falls back to - it must not read through the link instead.
+	baseDir := t.TempDir()
+	repoPath := filepath.Join(baseDir, "owner", "linked")
+	createCommittedRepo(t, repoPath, map[string]string{
+		"configs/real.yaml":   "kind: ConfigMap",
+		"secrets/secret.yaml": "kind: Secret",
+	})
+	addCommittedSymlink(t, repoPath, "configs/link.yaml", "../secrets/secret.yaml")
+
+	walk := func(t *testing.T, useAPI bool) []string {
+		t.Helper()
+
+		delivered := []string{}
+		g := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo("linked").
+			Root("configs/**").
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, filepath.Base(file.Path))
+				return nil
+			})
+		if useAPI {
+			g = g.UseGithubAPI()
+		}
+
+		if err := g.Walk(); err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+		return delivered
+	}
+
+	t.Run("clone-only callers keep reading through the link", func(t *testing.T) {
+		want := []string{"link.yaml", "real.yaml"}
+		if got := walk(t, false); !reflect.DeepEqual(got, want) {
+			t.Errorf("expected the link to be followed as before, delivering %v, got %v", want, got)
+		}
+	})
+
+	t.Run("callers that opted into the api never read the link", func(t *testing.T) {
+		want := []string{"real.yaml"}
+		if got := walk(t, true); !reflect.DeepEqual(got, want) {
+			t.Errorf("expected the symlink to be skipped, leaving %v, got %v", want, got)
+		}
+	})
+
+	t.Run("a root naming the symlink itself is not read either", func(t *testing.T) {
+		delivered := []string{}
+		err := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo("linked").
+			Root("configs/link.yaml").
+			UseGithubAPI().
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, filepath.Base(file.Path))
+				return nil
+			}).
+			Walk()
+		if err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+		if len(delivered) != 0 {
+			t.Errorf("expected an explicitly named symlink to be skipped, got %v", delivered)
 		}
 	})
 }
