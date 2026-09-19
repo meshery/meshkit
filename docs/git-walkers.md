@@ -187,4 +187,7 @@ in hand.
 - **Auth.** `Token(t)` threads a GitHub App or OAuth token onto the API calls as a bearer token
   and onto the clone as `x-access-token` basic auth, for private repositories and the
   authenticated rate limit. The token is never logged, never placed in an error message and
-  never reported through a progress hook.
+  never reported through a progress hook. Because a token makes private repositories clonable,
+  the temporary clone directory is created `0700` before go-git checks anything out, so a private
+  repository's working copy is never readable by other local users; that holds for every clone,
+  token or not.

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -939,5 +940,59 @@ func commitOnBranch(t *testing.T, repoPath, branch, path, content string) {
 
 	if err := worktree.Checkout(&git.CheckoutOptions{Branch: head.Name()}); err != nil {
 		t.Fatalf("failed to check out %s: %v", head.Name(), err)
+	}
+}
+
+func TestGitCloneDirectoryIsNotReadableByOtherLocalUsers(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX directory permissions are not enforced on Windows")
+	}
+
+	// A token makes private repositories clonable, so the working copy the
+	// clone checks out has to stay readable to this process alone for as long
+	// as it exists. Every clone gets the same treatment: the directory is
+	// scratch space no caller reads directly.
+	baseDir := t.TempDir()
+	repoPath := filepath.Join(baseDir, "owner", "sample")
+	createCommittedRepo(t, repoPath, map[string]string{"configs/child.yml": "kind: ConfigMap"})
+
+	var clonePath string
+	var cloneMode os.FileMode
+	err := NewGit().
+		BaseURL("file://" + baseDir).
+		Owner("owner").
+		Repo("sample").
+		Root("configs/**").
+		RegisterFileInterceptor(func(File) error { return nil }).
+		RegisterDirInterceptor(func(dir Directory) error {
+			// The clone is removed once the walk returns, so it is read here,
+			// from the root the intercepted directory sits under.
+			if clonePath != "" {
+				return nil
+			}
+			clonePath = filepath.Dir(dir.Path)
+			info, err := os.Stat(clonePath)
+			if err != nil {
+				return err
+			}
+			cloneMode = info.Mode().Perm()
+			return nil
+		}).
+		Walk()
+	if err != nil {
+		t.Fatalf("Walk() returned error: %v", err)
+	}
+
+	if clonePath == "" {
+		t.Fatal("expected the walk to intercept a directory inside the clone")
+	}
+	if !strings.HasPrefix(clonePath, filepath.Join(os.TempDir(), "sample")+string(os.PathSeparator)) {
+		t.Fatalf("expected the clone to sit under the temporary directory, got %q", clonePath)
+	}
+	if cloneMode&0o077 != 0 {
+		t.Errorf("expected the clone directory to deny group and other access, got %#o", cloneMode)
+	}
+	if cloneMode&0o700 != 0o700 {
+		t.Errorf("expected the clone directory to stay fully accessible to its owner, got %#o", cloneMode)
 	}
 }

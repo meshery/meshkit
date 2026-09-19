@@ -338,6 +338,13 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 
 	g.reportProgress(ProgressUpdate{Stage: ProgressStageClone, Message: fmt.Sprintf("cloning %s/%s", g.owner, g.repo)})
 
+	// The working copy is scratch space no caller reads directly, and with a
+	// token it holds a private repository, so it is created owner-only before
+	// go-git can create it world-readable.
+	if err = os.MkdirAll(clonePath, 0o700); err != nil {
+		return ErrCloningRepo(err)
+	}
+
 	_, err = git.PlainCloneContext(ctx, clonePath, false, cloneOptions)
 	if err != nil {
 		return ErrCloningRepo(err)
