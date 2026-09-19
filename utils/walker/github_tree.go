@@ -328,9 +328,21 @@ func (g *Git) apiRef() string {
 	return "HEAD"
 }
 
+// escapeRefPath escapes a git reference for the path of a request. A name like
+// release/1.2 is several path segments, which is how the commits endpoint
+// spells a ref, so each segment is escaped on its own: the separators survive
+// while nothing inside a segment can introduce one.
+func escapeRefPath(ref string) string {
+	segments := strings.Split(ref, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return strings.Join(segments, "/")
+}
+
 // resolveRef turns a branch, tag or reference name into a commit SHA.
 func (g *Git) resolveRef(ctx context.Context, ref string) (string, error) {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/commits/%s", g.apiBaseURL, g.owner, g.repo, url.PathEscape(ref))
+	endpoint := fmt.Sprintf("%s/repos/%s/%s/commits/%s", g.apiBaseURL, g.owner, g.repo, escapeRefPath(ref))
 
 	body, err := g.get(ctx, endpoint)
 	if err != nil {

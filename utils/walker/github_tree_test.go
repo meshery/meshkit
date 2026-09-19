@@ -29,6 +29,7 @@ type githubAPIStub struct {
 	mu            sync.Mutex
 	authorization []string
 	requestedRefs []string
+	commitURIs    []string
 	fetchedBlobs  []string
 	repoLookups   int
 }
@@ -46,6 +47,7 @@ func (s *githubAPIStub) server(t *testing.T) *httptest.Server {
 		writeJSON(t, w, map[string]string{"message": "the walker must resolve HEAD rather than look the repository up"})
 	})
 	mux.HandleFunc("/repos/owner/repo/commits/", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r, &s.commitURIs, r.RequestURI)
 		s.record(r, &s.requestedRefs, strings.TrimPrefix(r.URL.Path, "/repos/owner/repo/commits/"))
 		writeJSON(t, w, githubCommitAPI{SHA: s.commitSHA})
 	})
@@ -97,6 +99,14 @@ func (s *githubAPIStub) snapshot() (auth, refs, blobs []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]string(nil), s.authorization...), append([]string(nil), s.requestedRefs...), append([]string(nil), s.fetchedBlobs...)
+}
+
+// requestedCommitURIs returns the request targets the commits endpoint saw, as
+// they arrived rather than as Go decodes them.
+func (s *githubAPIStub) requestedCommitURIs() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.commitURIs...)
 }
 
 func (s *githubAPIStub) repoLookupCount() int {
@@ -741,6 +751,33 @@ func TestListingAPIRefusesRepositoriesOnOtherHosts(t *testing.T) {
 	}
 	if len(blobs) != 0 {
 		t.Errorf("expected no blob to be downloaded from another host's repository, got %v", blobs)
+	}
+}
+
+func TestResolveRefSendsASlashedBranchAsSeveralPathSegments(t *testing.T) {
+	// A branch like release/1.2 is spelled as a path by the commits endpoint,
+	// so the separator has to survive onto the wire rather than travel as one
+	// escaped segment.
+	stub := &githubAPIStub{
+		commitSHA: "commit-sha",
+		tree:      githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Mode: "100644", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
+	}
+	server := stub.server(t)
+
+	listing, err := apiGit(server).Branch("release/1.2").ListInterestingFiles(context.Background())
+	if err != nil {
+		t.Fatalf("ListInterestingFiles() returned error: %v", err)
+	}
+	if len(listing.Candidates) != 1 {
+		t.Fatalf("expected the tree to be listed once the branch resolved, got %+v", listing.Candidates)
+	}
+
+	uris := stub.requestedCommitURIs()
+	if len(uris) != 1 {
+		t.Fatalf("expected the commits endpoint to be requested once, got %v", uris)
+	}
+	if want := "/repos/owner/repo/commits/release/1.2"; uris[0] != want {
+		t.Errorf("expected the branch to arrive as %q, got %q", want, uris[0])
 	}
 }
 
