@@ -864,6 +864,54 @@ func TestResolveRefRefusesReferencesGitWouldRefuse(t *testing.T) {
 	}
 }
 
+func TestFetchCandidatesRefusesAFetchWithNowhereToDeliverTo(t *testing.T) {
+	// Downloading files and dropping them would report an import of nothing as
+	// a success.
+	stub := &githubAPIStub{blobs: map[string]string{"chart-blob": "name: redis"}}
+	server := stub.server(t)
+
+	err := apiGit(server).
+		FetchCandidates(context.Background(), []CandidateFile{{Path: "charts/redis/Chart.yaml", SHA: "chart-blob"}})
+	if err == nil {
+		t.Fatal("expected a fetch with no file interceptor registered to be refused")
+	}
+	if code := meshkiterrors.GetCode(err); code != ErrNoFileInterceptorCode {
+		t.Fatalf("expected error code %q, got %q: %v", ErrNoFileInterceptorCode, code, err)
+	}
+
+	if received := stub.receivedRequests(); len(received) != 0 {
+		t.Errorf("expected nothing to be downloaded, got %v", received)
+	}
+}
+
+func TestFetchCandidatesNameFilesAfterTheirPath(t *testing.T) {
+	// A selection that travelled through a picker client may come back with
+	// only the path and the SHA, and identification downstream reads the name.
+	stub := &githubAPIStub{blobs: map[string]string{"chart-blob": "name: redis"}}
+	server := stub.server(t)
+
+	var intercepted File
+	err := apiGit(server).
+		RegisterFileInterceptor(func(file File) error {
+			intercepted = file
+			return nil
+		}).
+		FetchCandidates(context.Background(), []CandidateFile{{Path: "charts/redis/Chart.yaml", SHA: "chart-blob"}})
+	if err != nil {
+		t.Fatalf("FetchCandidates() returned error: %v", err)
+	}
+
+	if intercepted.Name != "Chart.yaml" {
+		t.Errorf("expected the file to be named for its path, got %q", intercepted.Name)
+	}
+	if intercepted.Path != "charts/redis/Chart.yaml" {
+		t.Errorf("expected the repository-relative path, got %q", intercepted.Path)
+	}
+	if intercepted.Content != "name: redis" {
+		t.Errorf("expected the decoded contents, got %q", intercepted.Content)
+	}
+}
+
 func TestFetchCandidatesRequiresTheContentsToBeInlined(t *testing.T) {
 	// An answer that is not base64 carries no contents, so delivering its
 	// content field would hand the interceptor an empty file and call the read

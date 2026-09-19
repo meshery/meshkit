@@ -13,6 +13,8 @@ var (
 	ErrFetchingGitTreeCode = "meshkit-11329"
 	ErrFetchingGitBlobCode = "meshkit-11330"
 	ErrInvalidBaseURLCode  = "meshkit-11331"
+
+	ErrNoFileInterceptorCode = "meshkit-11332"
 )
 
 func ErrCloningRepo(err error) error {
@@ -57,6 +59,19 @@ func ErrFetchingGitBlob(err error, path string) error {
 		[]string{fmt.Sprintf("%s: %s", path, err.Error())},
 		[]string{"The blob was removed after the tree was listed", "The repository is private and no access token was supplied", "The GitHub API rate limit has been exhausted"},
 		[]string{"Retry the import so a fresh tree is listed", "Supply a GitHub App or OAuth token with the Token option so private repositories and higher rate limits are available"},
+	)
+}
+
+// ErrNoFileInterceptor is returned when files are fetched with no interceptor
+// registered to receive them.
+func ErrNoFileInterceptor() error {
+	return errors.New(
+		ErrNoFileInterceptorCode,
+		errors.Alert,
+		[]string{"No file interceptor is registered to receive the fetched files"},
+		[]string{"Fetching hands every file it downloads to a registered file interceptor, and the walker has none"},
+		[]string{"RegisterFileInterceptor was not called on the walker before the files were fetched"},
+		[]string{"Call RegisterFileInterceptor with the function that should receive each fetched file"},
 	)
 }
 

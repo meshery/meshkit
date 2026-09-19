@@ -200,10 +200,14 @@ func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (Interes
 // local filesystem path: nothing is written to disk on this route.
 //
 // The repository must be on github.com, for the reason ListInterestingFiles
-// gives.
+// gives, and a file interceptor must be registered: a fetch with nowhere to
+// deliver to is refused rather than reported as an import of no files.
 func (g *Git) FetchCandidates(ctx context.Context, candidates []CandidateFile) error {
 	if err := g.requireGithubHost(); err != nil {
 		return err
+	}
+	if g.fileInterceptor == nil {
+		return ErrNoFileInterceptor()
 	}
 
 	ctx, cancel := g.withTimeout(ctx)
@@ -268,7 +272,7 @@ func (g *Git) fetchCandidates(ctx context.Context, candidates []CandidateFile) e
 		})
 
 		if err := g.fileInterceptor(File{
-			Name:    candidate.Name,
+			Name:    path.Base(candidate.Path),
 			Path:    candidate.Path,
 			Content: fetched.content,
 		}); err != nil {
@@ -418,8 +422,9 @@ func (g *Git) fetchBlob(ctx context.Context, candidate CandidateFile) (string, e
 		return "", ErrFetchingGitBlob(fmt.Errorf("the GitHub API answered with %q encoded content, which carries none of the file", blob.Encoding), candidate.Path)
 	}
 
-	// GitHub wraps base64 blob content at a fixed width.
-	decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(blob.Content, "\n", ""))
+	// GitHub wraps base64 blob content at a fixed width, which DecodeString
+	// already reads past.
+	decoded, err := base64.StdEncoding.DecodeString(blob.Content)
 	if err != nil {
 		return "", ErrFetchingGitBlob(err, candidate.Path)
 	}
