@@ -23,6 +23,9 @@ type githubAPIStub struct {
 	commitSHA string
 	tree      githubTreeAPI
 	blobs     map[string]string // blob SHA -> decoded content
+	// blobEncoding, when set, is the encoding every blob answer reports
+	// instead of base64, and no contents are inlined with it.
+	blobEncoding string
 	// onBlob, when set, runs before a blob response is written.
 	onBlob func(sha string)
 
@@ -83,6 +86,10 @@ func (s *githubAPIStub) server(t *testing.T) *httptest.Server {
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			writeJSON(t, w, map[string]string{"message": "Not Found"})
+			return
+		}
+		if s.blobEncoding != "" {
+			writeJSON(t, w, githubBlobAPI{SHA: sha, Size: int64(len(content)), Encoding: s.blobEncoding})
 			return
 		}
 		writeJSON(t, w, githubBlobAPI{
@@ -855,6 +862,50 @@ func TestResolveRefRefusesReferencesGitWouldRefuse(t *testing.T) {
 	if received := stub.receivedRequests(); len(received) != 0 {
 		t.Errorf("expected a refused reference to be requested from nowhere, got %v", received)
 	}
+}
+
+func TestFetchCandidatesRequiresTheContentsToBeInlined(t *testing.T) {
+	// An answer that is not base64 carries no contents, so delivering its
+	// content field would hand the interceptor an empty file and call the read
+	// a success.
+	candidate := CandidateFile{Path: "charts/redis/Chart.yaml", Name: "Chart.yaml", SHA: "chart-blob"}
+
+	fetch := func(t *testing.T, encoding string) ([]string, error) {
+		t.Helper()
+
+		stub := &githubAPIStub{blobs: map[string]string{"chart-blob": "name: redis"}, blobEncoding: encoding}
+		delivered := []string{}
+		err := apiGit(stub.server(t)).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, file.Content)
+				return nil
+			}).
+			FetchCandidates(context.Background(), []CandidateFile{candidate})
+		return delivered, err
+	}
+
+	t.Run("an inlined blob is delivered", func(t *testing.T) {
+		delivered, err := fetch(t, "")
+		if err != nil {
+			t.Fatalf("FetchCandidates() returned error: %v", err)
+		}
+		if want := []string{"name: redis"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the decoded contents %v, got %v", want, delivered)
+		}
+	})
+
+	t.Run("a blob that carries no contents is refused", func(t *testing.T) {
+		delivered, err := fetch(t, "none")
+		if err == nil {
+			t.Fatal("expected a blob answered without inlined contents to be refused")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrFetchingGitBlobCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrFetchingGitBlobCode, code, err)
+		}
+		if len(delivered) != 0 {
+			t.Errorf("expected the interceptor never to be called, got %v", delivered)
+		}
+	})
 }
 
 func TestFetchCandidatesHonoursTheFileSizeLimit(t *testing.T) {

@@ -415,7 +415,7 @@ func (g *Git) fetchBlob(ctx context.Context, candidate CandidateFile) (string, e
 	}
 
 	if blob.Encoding != "base64" {
-		return blob.Content, nil
+		return "", ErrFetchingGitBlob(fmt.Errorf("the GitHub API answered with %q encoded content, which carries none of the file", blob.Encoding), candidate.Path)
 	}
 
 	// GitHub wraps base64 blob content at a fixed width.
