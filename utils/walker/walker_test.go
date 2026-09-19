@@ -718,6 +718,70 @@ func TestGitWalkCloneRouteFiltersOnlyForOptedInCallers(t *testing.T) {
 	})
 }
 
+func TestGitSkipOnCloneFollowsLinksOnlyInsideTheRepositoryCopy(t *testing.T) {
+	// A link is read only while its target stays inside the repository copy.
+	// A caller that opted into the GitHub API skips every link instead, since
+	// the Trees route offers none.
+	clonePath := filepath.Join(t.TempDir(), "clone")
+	outsidePath := t.TempDir()
+
+	for _, dir := range []string{"configs", "data"} {
+		if err := os.MkdirAll(filepath.Join(clonePath, dir), 0o755); err != nil {
+			t.Fatalf("failed to create %s: %v", dir, err)
+		}
+	}
+	for path, content := range map[string]string{
+		filepath.Join(clonePath, "configs", "real.yaml"): "kind: ConfigMap",
+		filepath.Join(clonePath, "data", "shared.yaml"):  "kind: Secret",
+		filepath.Join(outsidePath, "shared.yaml"):        "kind: Secret",
+	} {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("failed to write %s: %v", path, err)
+		}
+	}
+	for link, target := range map[string]string{
+		"inside.yaml":   filepath.Join("..", "data", "shared.yaml"),
+		"chained.yaml":  "inside.yaml",
+		"outside.yaml":  filepath.Join(outsidePath, "shared.yaml"),
+		"dangling.yaml": "missing.yaml",
+	} {
+		if err := os.Symlink(target, filepath.Join(clonePath, "configs", link)); err != nil {
+			t.Fatalf("failed to create symlink %s: %v", link, err)
+		}
+	}
+
+	tests := []struct {
+		name         string
+		entry        string
+		wantSkipped  bool
+		wantSkippedO bool
+	}{
+		{name: "a regular file is read either way", entry: "real.yaml", wantSkipped: false, wantSkippedO: false},
+		{name: "a link inside the copy is read unless the caller opted in", entry: "inside.yaml", wantSkipped: false, wantSkippedO: true},
+		{name: "a chain of links inside the copy is read too", entry: "chained.yaml", wantSkipped: false, wantSkippedO: true},
+		{name: "a link resolving outside the copy is never read", entry: "outside.yaml", wantSkipped: true, wantSkippedO: true},
+		{name: "a link that cannot be resolved is never read", entry: "dangling.yaml", wantSkipped: true, wantSkippedO: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entryPath := filepath.Join(clonePath, "configs", tt.entry)
+			info, err := os.Lstat(entryPath)
+			if err != nil {
+				t.Fatalf("failed to stat %s: %v", tt.entry, err)
+			}
+
+			g := NewGit().MaxFileSize(1000).Root("configs/**")
+			if got := g.skipOnClone(clonePath, entryPath, info); got != tt.wantSkipped {
+				t.Errorf("expected skipOnClone to report %t for a clone-only caller, got %t", tt.wantSkipped, got)
+			}
+			if got := g.UseGithubAPI().skipOnClone(clonePath, entryPath, info); got != tt.wantSkippedO {
+				t.Errorf("expected skipOnClone to report %t for a caller that opted in, got %t", tt.wantSkippedO, got)
+			}
+		})
+	}
+}
+
 func TestGitWalkCloneRouteSkipsSymlinksForOptedInCallers(t *testing.T) {
 	// The API route never offers a symlink, whose blob holds the link target
 	// rather than the target's contents, so neither does the clone an opted-in
@@ -752,13 +816,6 @@ func TestGitWalkCloneRouteSkipsSymlinksForOptedInCallers(t *testing.T) {
 		}
 		return delivered
 	}
-
-	t.Run("clone-only callers keep reading through the link", func(t *testing.T) {
-		want := []string{"link.yaml", "real.yaml"}
-		if got := walk(t, false); !reflect.DeepEqual(got, want) {
-			t.Errorf("expected the link to be followed as before, delivering %v, got %v", want, got)
-		}
-	})
 
 	t.Run("callers that opted into the api never read the link", func(t *testing.T) {
 		want := []string{"real.yaml"}

@@ -50,14 +50,18 @@ The crawl is **opt-in**. Callers that do not enable it keep cloning exactly as b
 the reason the clone happened, so a caller that enables the flag and then points a connection at
 GitHub Enterprise is filtered exactly as a truncated-tree fallback is: the clone route runs the
 same classifier, so `.md`, `.txt`, `.sh` and extensionless files never reach the interceptor, and
-it skips a file over `MaxFileSize` instead of failing the walk. Symlinks are dropped rather than
-followed, as they are on the API route. What the caller gets is the same filtered, size-bounded
-**set** - not the same order: the clone delivers in `filepath.WalkDir`/`os.ReadDir` lexical order,
-never in score order, so an interceptor must not assume `Chart.yaml` arrives before `values.yaml`.
-Opting in also changes the paths the interceptors are handed - see **Paths** below.
+it skips a file over `MaxFileSize` instead of failing the walk. Symlinks are skipped outright, as
+they are on the API route, which never offers one. What the caller gets is the same filtered,
+size-bounded **set** - not the same order: the clone delivers in `filepath.WalkDir`/`os.ReadDir`
+lexical order, never in score order, so an interceptor must not assume `Chart.yaml` arrives before
+`values.yaml`. Opting in also changes the paths the interceptors are handed - see **Paths** below.
 
-A caller that never opted in is untouched by all of this: every file under `Root`, in the order it
-always arrived, with today's oversize error.
+A caller that never opted in keeps all of that behaviour: every file under `Root`, in the order it
+always arrived, with today's oversize error. Symlinks are followed for those callers too, with one
+limit - a link is read only while its target resolves inside the repository copy the walk made. A
+link whose target lands outside that copy, or that cannot be resolved at all, is passed over
+silently; the walk continues and nothing else changes. Targets are resolved with `lstat`/`readlink`
+alone, so a file that will not be read is never opened.
 
 Nothing else switches routes, and the size of the repository in particular does not: the
 auto-fetch path issues **one blob request per ranked candidate**, however many there are. It is
@@ -82,11 +86,16 @@ any other host is refused rather than answered from github.com, which is where t
 points regardless of `BaseURL`. Refusing it is what keeps the access token from travelling to a
 host the caller never configured.
 
-**An unscoped `Root` lists the whole repository**, because a picker is asking what the repository
-holds. Unscoped means all of: never calling `Root`, `Root("")` and `Root("/")` - a picker that
-sends no subdirectory reaches the walker as any of the three. A `Root` naming a real path narrows
-the listing exactly as it narrows a walk. This is deliberately *not* what an unscoped `Root` means
-to `Walk`/`WalkContext`, where it keeps its historical top-level-only scope for back-compatibility.
+**The listing is always recursive.** `Root` narrows *which* subtree is listed, never how deep, so
+`Root("charts")` returns `charts/redis/Chart.yaml` as well as `charts/values.yaml`. An unscoped
+`Root` therefore lists the whole repository, because a picker is asking what the repository holds;
+unscoped means all of: never calling `Root`, `Root("")` and `Root("/")` - a picker that sends no
+subdirectory reaches the walker as any of the three.
+
+This is deliberately *not* what `Root` means to `Walk`/`WalkContext`, which keep their historical
+scope for back-compatibility: there an unscoped `Root` is the top level only, a named `Root` is
+that directory's own files, and `"/**"` is what asks for the subtree below it. The listing API is
+new surface with no such obligation, and a picker that shows a folder means everything in it.
 
 `MaxFileSize(0)` is rejected here (`ErrInvalidSizeFile`) exactly as it is on a walk, rather than
 answered with an empty listing.

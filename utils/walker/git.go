@@ -50,7 +50,7 @@ func NewGit() *Git {
 		branch:             "master",
 		baseURL:            "https://github.com", //defaults to a github repo if the url is not set with URL method
 		maxFileSizeInBytes: 50000000,             // ~50MB file size limit
-		apiBaseURL:         DefaultGithubAPIBaseURL,
+		apiBaseURL:         defaultGithubAPIBaseURL,
 	}
 }
 
@@ -348,11 +348,11 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 	}
 
 	if !info.IsDir() {
-		linkInfo, lerr := os.Lstat(rootPath)
-		if lerr != nil {
-			return ErrCloningRepo(lerr)
+		entryInfo := info
+		if linkInfo, lerr := os.Lstat(rootPath); lerr == nil {
+			entryInfo = linkInfo
 		}
-		if g.skipOnClone(clonePath, rootPath, linkInfo) {
+		if g.skipOnClone(clonePath, rootPath, entryInfo) {
 			return nil
 		}
 		err = g.readFile(info, clonePath, rootPath)
@@ -434,21 +434,23 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 	return nil
 }
 
-// skipOnClone mirrors, for a file found in the clone, the filtering rankTree
-// applies to a tree entry: a caller that opted into the GitHub API is handed
-// the same filtered, size-bounded set whichever route ran, symlinks dropped
-// and an oversized file skipped rather than failing the walk. A caller that
-// never opted in keeps receiving every file under Root, oversize error and
-// followed symlinks included.
+// skipOnClone decides whether a file found in the clone is read at all.
+//
+// A symlink is followed only while it stays inside the repository copy: a link
+// whose target resolves outside the copy, or that cannot be resolved, is
+// passed over. A caller that opted into the GitHub API skips every symlink
+// instead, because the Trees route offers none, and otherwise gets what
+// rankTree would have given it - the same filtered, size-bounded set, an
+// oversized file skipped rather than failing the walk. Every other caller
+// keeps receiving each file under Root, oversize error included.
+//
+// info has to come from an lstat for the symlink bit to survive.
 func (g *Git) skipOnClone(clonePath, entryPath string, info fs.FileInfo) bool {
+	if info.Mode()&os.ModeSymlink != 0 {
+		return g.useAPI || !resolvesInsideClone(clonePath, entryPath)
+	}
 	if !g.useAPI {
 		return false
-	}
-	// A symlink's own bytes are its target path, and following it reads a file
-	// the Trees route never offers, so it is skipped rather than opened. info
-	// has to come from an lstat for this bit to survive.
-	if info.Mode()&os.ModeSymlink != 0 {
-		return true
 	}
 	if info.Size() > g.maxFileSizeInBytes {
 		return true
@@ -461,6 +463,28 @@ func (g *Git) skipOnClone(clonePath, entryPath string, info fs.FileInfo) bool {
 
 	_, _, interesting := classifyPath(relative)
 	return !interesting
+}
+
+// resolvesInsideClone reports whether entryPath, with every link along it
+// followed, names a path inside the repository copy at clonePath. Resolution
+// is by lstat and readlink alone, so nothing is opened to decide it, and a
+// path that cannot be resolved counts as outside: nothing is read that has not
+// been shown to stay inside the copy.
+func resolvesInsideClone(clonePath, entryPath string) bool {
+	root, err := filepath.EvalSymlinks(clonePath)
+	if err != nil {
+		return false
+	}
+	resolved, err := filepath.EvalSymlinks(entryPath)
+	if err != nil {
+		return false
+	}
+
+	relative, err := filepath.Rel(root, resolved)
+	if err != nil {
+		return false
+	}
+	return relative != ".." && !strings.HasPrefix(relative, ".."+string(os.PathSeparator))
 }
 
 // interceptedPath reports the path a file or directory read out of a clone is

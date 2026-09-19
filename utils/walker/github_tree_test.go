@@ -250,7 +250,7 @@ func TestRankTreeOrdersAndFilters(t *testing.T) {
 			wantPaths: []string{"scripts/install.sh"},
 		},
 		{
-			name:    "non-recursive root keeps only direct children",
+			name:    "a walk's non-recursive root keeps only direct children",
 			root:    "charts",
 			maxSize: 1000,
 			entries: []githubTreeEntry{
@@ -794,6 +794,37 @@ func TestListInterestingFilesScopesToRoot(t *testing.T) {
 		want := []string{"charts/redis/Chart.yaml"}
 		if got := listPaths(t, func(g *Git) *Git { return g.Root("charts/redis") }); !reflect.DeepEqual(got, want) {
 			t.Errorf("expected the listing to be scoped to the root, got %v", got)
+		}
+	})
+
+	t.Run("a root narrows which subtree is listed, not how deep", func(t *testing.T) {
+		// Every chart in the picked folder is nested one level down, which is
+		// the layout the ranking exists for.
+		want := []string{"charts/nginx/Chart.yaml", "charts/redis/Chart.yaml"}
+		if got := listPaths(t, func(g *Git) *Git { return g.Root("charts") }); !reflect.DeepEqual(got, want) {
+			t.Errorf("expected the whole subtree to be listed as %v, got %v", want, got)
+		}
+	})
+
+	t.Run("a walk keeps its own non-recursive root", func(t *testing.T) {
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: map[string]string{}}
+
+		delivered := []string{}
+		walked, err := apiGit(stub.server(t)).
+			Root("charts").
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, file.Path)
+				return nil
+			}).
+			treeWalk(context.Background())
+		if err != nil {
+			t.Fatalf("treeWalk() returned error: %v", err)
+		}
+		if !walked {
+			t.Fatal("expected the API route to carry out the walk")
+		}
+		if len(delivered) != 0 {
+			t.Errorf("expected a walk to stay in the named directory, got %v", delivered)
 		}
 	})
 

@@ -64,7 +64,7 @@ type Github struct {
 func NewGithub() *Github {
 	return &Github{
 		branch:     "main",
-		apiBaseURL: DefaultGithubAPIBaseURL,
+		apiBaseURL: defaultGithubAPIBaseURL,
 	}
 }
 

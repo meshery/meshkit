@@ -15,9 +15,9 @@ import (
 	"github.com/meshery/schemas/models/core"
 )
 
-// DefaultGithubAPIBaseURL is the GitHub REST API endpoint the hybrid crawl and
+// defaultGithubAPIBaseURL is the GitHub REST API endpoint the hybrid crawl and
 // the Contents walker talk to.
-const DefaultGithubAPIBaseURL = "https://api.github.com"
+const defaultGithubAPIBaseURL = "https://api.github.com"
 
 // symlinkFileMode is the git file mode the Trees API reports for a symlink.
 const symlinkFileMode = "120000"
@@ -135,10 +135,11 @@ type githubBlobAPI struct {
 // candidate files. No blob is downloaded, so the result is cheap enough to
 // render an import picker from.
 //
-// With no Root configured the whole repository is listed, because a picker is
-// asking what the repository holds. Root narrows the listing exactly as it
-// narrows a walk. Walk keeps its own historical meaning for an unset Root -
-// the top level only - and is unaffected by this.
+// The listing is always recursive, because a picker is asking what the
+// repository holds: with no Root configured that is the whole repository, and
+// a Root narrows which subtree is listed, never how deep. Walk keeps its own
+// historical meaning for Root - the named directory only, unless the caller
+// asked for "/**" - and is unaffected by this.
 //
 // A truncated listing is reported through InterestingFiles.Truncated rather
 // than as an error: the candidates returned are still usable, they are just
@@ -158,7 +159,7 @@ func (g *Git) ListInterestingFiles(ctx context.Context) (InterestingFiles, error
 	ctx, cancel := g.withTimeout(ctx)
 	defer cancel()
 
-	return g.listInterestingFiles(ctx, g.recurse || g.root == "")
+	return g.listInterestingFiles(ctx, true)
 }
 
 func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (InterestingFiles, error) {
