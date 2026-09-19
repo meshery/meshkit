@@ -27,6 +27,7 @@ type githubAPIStub struct {
 	onBlob func(sha string)
 
 	mu            sync.Mutex
+	received      []string
 	authorization []string
 	requestedRefs []string
 	commitURIs    []string
@@ -81,9 +82,24 @@ func (s *githubAPIStub) server(t *testing.T) *httptest.Server {
 		})
 	})
 
-	server := httptest.NewServer(mux)
+	// Recorded ahead of the mux, which cleans a path before a handler sees it,
+	// so a request the walker should never have issued is still counted.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		s.received = append(s.received, r.RequestURI)
+		s.mu.Unlock()
+		mux.ServeHTTP(w, r)
+	}))
 	t.Cleanup(server.Close)
 	return server
+}
+
+// receivedRequests returns every request target the server was sent, including
+// ones the mux answers with a redirect before any handler runs.
+func (s *githubAPIStub) receivedRequests() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.received...)
 }
 
 func (s *githubAPIStub) record(r *http.Request, sink *[]string, value string) {
@@ -779,6 +795,112 @@ func TestResolveRefSendsASlashedBranchAsSeveralPathSegments(t *testing.T) {
 	if want := "/repos/owner/repo/commits/release/1.2"; uris[0] != want {
 		t.Errorf("expected the branch to arrive as %q, got %q", want, uris[0])
 	}
+}
+
+func TestResolveRefRefusesReferencesGitWouldRefuse(t *testing.T) {
+	// A segment git will not accept is not a name the commits endpoint can be
+	// asked for, and "." or ".." would travel as a path element rather than as
+	// part of the reference, so the request is never made.
+	stub := &githubAPIStub{
+		commitSHA: "commit-sha",
+		tree:      githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Mode: "100644", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
+	}
+	server := stub.server(t)
+
+	refs := []string{
+		"../other/commits/main",
+		"release/../../other/commits/main",
+		"release/.",
+		"feature/.hidden",
+		"release/1.2.lock",
+		"release//1.2",
+	}
+
+	for _, ref := range refs {
+		t.Run(ref, func(t *testing.T) {
+			_, err := apiGit(server).Branch(ref).ListInterestingFiles(context.Background())
+			if err == nil {
+				t.Fatalf("expected %q to be refused", ref)
+			}
+			if code := meshkiterrors.GetCode(err); code != ErrResolvingGitRefCode {
+				t.Fatalf("expected error code %q, got %q: %v", ErrResolvingGitRefCode, code, err)
+			}
+		})
+	}
+
+	if received := stub.receivedRequests(); len(received) != 0 {
+		t.Errorf("expected a refused reference to be requested from nowhere, got %v", received)
+	}
+}
+
+func TestFetchCandidatesHonoursTheFileSizeLimit(t *testing.T) {
+	// The limit has to hold whatever the candidate claims, because a picker's
+	// selection travels through a client before it comes back as candidates.
+	const limit = 3000
+
+	stub := &githubAPIStub{blobs: map[string]string{
+		"at-limit":  strings.Repeat("y", limit),
+		"oversized": strings.Repeat("y", limit*4),
+	}}
+	server := stub.server(t)
+
+	fetch := func(t *testing.T, candidate CandidateFile) (string, error) {
+		t.Helper()
+
+		delivered := ""
+		err := apiGit(server).
+			MaxFileSize(limit).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = file.Content
+				return nil
+			}).
+			FetchCandidates(context.Background(), []CandidateFile{candidate})
+		return delivered, err
+	}
+
+	t.Run("a blob at the limit is delivered", func(t *testing.T) {
+		delivered, err := fetch(t, CandidateFile{Path: "at-limit.yaml", Name: "at-limit.yaml", SHA: "at-limit", Size: limit})
+		if err != nil {
+			t.Fatalf("FetchCandidates() returned error: %v", err)
+		}
+		if len(delivered) != limit {
+			t.Errorf("expected the whole %d byte blob to be delivered, got %d bytes", limit, len(delivered))
+		}
+	})
+
+	t.Run("a blob past the limit is refused even when the candidate understates it", func(t *testing.T) {
+		delivered, err := fetch(t, CandidateFile{Path: "oversized.yaml", Name: "oversized.yaml", SHA: "oversized"})
+		if err == nil {
+			t.Fatal("expected a blob past the limit to be refused")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrInvalidSizeFileCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrInvalidSizeFileCode, code, err)
+		}
+		if delivered != "" {
+			t.Errorf("expected nothing to be delivered, got %d bytes", len(delivered))
+		}
+	})
+
+	t.Run("a candidate reporting an oversize is refused without a request", func(t *testing.T) {
+		stub := &githubAPIStub{blobs: map[string]string{"oversized": strings.Repeat("y", limit*4)}}
+		server := stub.server(t)
+
+		err := apiGit(server).
+			MaxFileSize(limit).
+			RegisterFileInterceptor(func(File) error { return nil }).
+			FetchCandidates(context.Background(), []CandidateFile{{Path: "oversized.yaml", Name: "oversized.yaml", SHA: "oversized", Size: limit + 1}})
+		if err == nil {
+			t.Fatal("expected a candidate reporting an oversize to be refused")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrInvalidSizeFileCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrInvalidSizeFileCode, code, err)
+		}
+
+		_, _, blobs := stub.snapshot()
+		if len(blobs) != 0 {
+			t.Errorf("expected no blob to be requested, got %v", blobs)
+		}
+	})
 }
 
 func TestListInterestingFilesScopesToRoot(t *testing.T) {

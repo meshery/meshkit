@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -332,19 +333,32 @@ func (g *Git) apiRef() string {
 // release/1.2 is several path segments, which is how the commits endpoint
 // spells a ref, so each segment is escaped on its own: the separators survive
 // while nothing inside a segment can introduce one.
-func escapeRefPath(ref string) string {
+//
+// A ref git itself would refuse is refused here rather than escaped. An empty
+// segment, or one that opens with a dot or ends in .lock, is not a name git
+// would accept (see git-check-ref-format), and a segment such as "." or ".."
+// would travel as a path element rather than as part of the reference.
+func escapeRefPath(ref string) (string, error) {
 	segments := strings.Split(ref, "/")
 	for i, segment := range segments {
+		if segment == "" || strings.HasPrefix(segment, ".") || strings.HasSuffix(segment, ".lock") {
+			return "", fmt.Errorf("%q is not a git reference git would accept", ref)
+		}
 		segments[i] = url.PathEscape(segment)
 	}
-	return strings.Join(segments, "/")
+	return strings.Join(segments, "/"), nil
 }
 
 // resolveRef turns a branch, tag or reference name into a commit SHA.
 func (g *Git) resolveRef(ctx context.Context, ref string) (string, error) {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/commits/%s", g.apiBaseURL, g.owner, g.repo, escapeRefPath(ref))
+	escaped, err := escapeRefPath(ref)
+	if err != nil {
+		return "", ErrResolvingGitRef(err, ref)
+	}
 
-	body, err := g.get(ctx, endpoint)
+	endpoint := fmt.Sprintf("%s/repos/%s/%s/commits/%s", g.apiBaseURL, g.owner, g.repo, escaped)
+
+	body, err := g.get(ctx, endpoint, 0)
 	if err != nil {
 		return "", ErrResolvingGitRef(err, ref)
 	}
@@ -364,7 +378,7 @@ func (g *Git) resolveRef(ctx context.Context, ref string) (string, error) {
 func (g *Git) fetchTree(ctx context.Context, commitSHA string) (githubTreeAPI, error) {
 	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/trees/%s?recursive=1", g.apiBaseURL, g.owner, g.repo, url.PathEscape(commitSHA))
 
-	body, err := g.get(ctx, endpoint)
+	body, err := g.get(ctx, endpoint, 0)
 	if err != nil {
 		return githubTreeAPI{}, ErrFetchingGitTree(err, commitSHA)
 	}
@@ -377,12 +391,23 @@ func (g *Git) fetchTree(ctx context.Context, commitSHA string) (githubTreeAPI, e
 	return tree, nil
 }
 
-// fetchBlob downloads a single blob and returns its decoded contents.
+// fetchBlob downloads a single blob and returns its decoded contents. Nothing
+// larger than MaxFileSize is read: a candidate that reports an oversize is
+// refused before the request, and the response itself is read only as far as
+// the limit allows, so a candidate that understates its size cannot buffer
+// more than one blob's worth of it either.
 func (g *Git) fetchBlob(ctx context.Context, candidate CandidateFile) (string, error) {
+	if candidate.Size > g.maxFileSizeInBytes {
+		return "", errOversizedBlob(candidate.Path, g.maxFileSizeInBytes)
+	}
+
 	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/blobs/%s", g.apiBaseURL, g.owner, g.repo, url.PathEscape(candidate.SHA))
 
-	body, err := g.get(ctx, endpoint)
+	body, err := g.get(ctx, endpoint, blobResponseLimit(g.maxFileSizeInBytes))
 	if err != nil {
+		if errors.Is(err, errResponseTooLarge) {
+			return "", errOversizedBlob(candidate.Path, g.maxFileSizeInBytes)
+		}
 		return "", ErrFetchingGitBlob(err, candidate.Path)
 	}
 
@@ -404,9 +429,29 @@ func (g *Git) fetchBlob(ctx context.Context, candidate CandidateFile) (string, e
 	return string(decoded), nil
 }
 
+// errResponseTooLarge reports a response body that ran past the ceiling the
+// caller's MaxFileSize allows, so it was never buffered whole.
+var errResponseTooLarge = errors.New("the response ran past the configured file size limit")
+
+// blobResponseLimit is how many bytes of a blob response are worth reading for
+// a file of at most maxFileSizeInBytes: GitHub hands the contents over as
+// base64, which inflates them by four thirds, wrapped in lines and in a JSON
+// envelope of a few fields.
+func blobResponseLimit(maxFileSizeInBytes int64) int64 {
+	return (maxFileSizeInBytes+2)/3*4 + maxFileSizeInBytes/50 + 8192
+}
+
+func errOversizedBlob(path string, maxFileSizeInBytes int64) error {
+	return ErrInvalidSizeFile(fmt.Errorf("%s exceeds the %d byte file size limit", path, maxFileSizeInBytes))
+}
+
 // get issues an authenticated GET against the GitHub API. The token travels in
 // the Authorization header and is never placed in a URL or an error message.
-func (g *Git) get(ctx context.Context, endpoint string) ([]byte, error) {
+//
+// A limit above zero bounds how much of the body is read: a response that runs
+// past it fails with errResponseTooLarge rather than being buffered whole or
+// silently truncated.
+func (g *Git) get(ctx context.Context, endpoint string, limit int64) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -424,9 +469,17 @@ func (g *Git) get(ctx context.Context, endpoint string) ([]byte, error) {
 		_ = response.Body.Close()
 	}()
 
-	body, err := io.ReadAll(response.Body)
+	var reader io.Reader = response.Body
+	if limit > 0 {
+		reader = io.LimitReader(response.Body, limit+1)
+	}
+
+	body, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
+	}
+	if limit > 0 && int64(len(body)) > limit {
+		return nil, errResponseTooLarge
 	}
 
 	if response.StatusCode != http.StatusOK {
