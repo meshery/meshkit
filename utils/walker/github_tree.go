@@ -174,6 +174,15 @@ func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (Interes
 		return InterestingFiles{}, err
 	}
 
+	// A root naming nothing in the tree is the misconfiguration the clone
+	// route already fails on when it stats the path, so both routes report it
+	// rather than one of them importing no files and calling that a success.
+	// A truncated tree cannot show that the root is absent, so it is left to
+	// the clone the caller falls back to.
+	if root := strings.Trim(g.root, "/"); root != "" && !tree.Truncated && !treeHasRoot(tree.Tree, root) {
+		return InterestingFiles{}, ErrRootNotFound(root, ref)
+	}
+
 	listing := InterestingFiles{
 		CommitSHA:  commitSHA,
 		Truncated:  tree.Truncated,
@@ -578,6 +587,18 @@ func (g *Git) rankTree(entries []githubTreeEntry, recursive bool) []CandidateFil
 	})
 
 	return candidates
+}
+
+// treeHasRoot reports whether the configured root names anything in the tree:
+// an entry at the root itself, whether file or directory, or any entry below
+// it.
+func treeHasRoot(entries []githubTreeEntry, root string) bool {
+	for _, entry := range entries {
+		if entry.Path == root || strings.HasPrefix(entry.Path, root+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // underRoot scopes an entry to the configured root: recursively everything

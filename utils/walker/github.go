@@ -247,8 +247,6 @@ func (g *Github) walker(ctx context.Context, path string, isFile bool) error {
 	}
 
 	var wg sync.WaitGroup
-	var once sync.Once
-	var walkErr error
 	for _, r := range respBody {
 		nextPath := r.Path
 		typ := r.Type
@@ -259,7 +257,6 @@ func (g *Github) walker(ctx context.Context, path string, isFile bool) error {
 			if g.recurse || isFile {
 				if err := g.walker(ctx, nextPath, isFile); err != nil {
 					logrus.Error("[GithubWalker]: error occurred while processing github node ", err)
-					once.Do(func() { walkErr = err })
 				}
 			}
 
@@ -269,8 +266,11 @@ func (g *Github) walker(ctx context.Context, path string, isFile bool) error {
 
 	wg.Wait()
 
-	if walkErr != nil {
-		return walkErr
+	// A node that could not be walked is logged and passed over, but a walk
+	// the context ended is incomplete whatever it managed to deliver, so it
+	// fails rather than reporting a partial import as a success.
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	if g.dirInterceptor != nil {

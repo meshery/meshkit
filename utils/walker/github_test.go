@@ -291,3 +291,53 @@ func TestGithubWalkContextFailsWhenCancellationTruncatesTheWalk(t *testing.T) {
 		}
 	})
 }
+
+func TestGithubWalkContextKeepsWalkingPastANodeItCannotDecode(t *testing.T) {
+	// GitHub answers a submodule or a symlink path with a single JSON object
+	// rather than a listing, so the walker cannot decode it. Every other file
+	// under the root still has to arrive.
+	stub := &githubContentsStub{
+		dirs: map[string]GithubDirectoryContentAPI{
+			"configs": {
+				{Name: "child.yaml", Path: "configs/child.yaml", Type: "file"},
+				{Name: "vendor", Path: "configs/vendor", Type: "submodule"},
+			},
+		},
+		files: map[string]GithubContentAPI{
+			"configs/child.yaml": {Name: "child.yaml", Path: "configs/child.yaml", Type: "file", Encoding: "base64", Content: "a2luZDogQ29uZmlnTWFw"},
+			"configs/vendor":     {Name: "vendor", Path: "configs/vendor", Type: "submodule"},
+		},
+	}
+	server := stub.server(t)
+
+	var mu sync.Mutex
+	intercepted := []string{}
+	listings := 0
+	err := contentsGithub(server).
+		Root("configs/**").
+		RegisterFileInterceptor(func(file GithubContentAPI) error {
+			mu.Lock()
+			defer mu.Unlock()
+			intercepted = append(intercepted, file.Path)
+			return nil
+		}).
+		RegisterDirInterceptor(func(GithubDirectoryContentAPI) error {
+			mu.Lock()
+			defer mu.Unlock()
+			listings++
+			return nil
+		}).
+		WalkContext(context.Background())
+	if err != nil {
+		t.Fatalf("expected a node that cannot be decoded to be passed over, got error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if !reflect.DeepEqual(intercepted, []string{"configs/child.yaml"}) {
+		t.Errorf("expected the readable file to be delivered, got %v", intercepted)
+	}
+	if listings != 1 {
+		t.Errorf("expected the directory listing to still be handed over, got %d", listings)
+	}
+}

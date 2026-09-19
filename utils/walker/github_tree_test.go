@@ -1264,3 +1264,88 @@ func containsStage(stages []ProgressStage, want ProgressStage) bool {
 	}
 	return false
 }
+
+func TestWalkFailsForARootThatNamesNothing(t *testing.T) {
+	// Both routes answer a stale root the same way, so an import of a path
+	// that no longer exists is an error rather than a successful import of no
+	// files.
+	tree := githubTreeAPI{Tree: []githubTreeEntry{
+		{Type: "tree", Path: "manifests", SHA: "manifests-tree"},
+		{Type: "blob", Path: "manifests/app.yaml", SHA: "app-blob", Size: 15},
+		{Type: "blob", Path: "top.yaml", SHA: "top-blob", Size: 15},
+	}}
+	blobs := map[string]string{"app-blob": "kind: ConfigMap", "top-blob": "kind: ConfigMap"}
+
+	t.Run("the api route fails", func(t *testing.T) {
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: blobs}
+
+		err := apiGit(stub.server(t)).
+			UseGithubAPI().
+			Root("configs").
+			RegisterFileInterceptor(func(File) error { return nil }).
+			WalkContext(context.Background())
+		if err == nil {
+			t.Fatal("expected a walk of a root that names nothing to fail")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrRootNotFoundCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrRootNotFoundCode, code, err)
+		}
+
+		_, _, fetched := stub.snapshot()
+		if len(fetched) != 0 {
+			t.Errorf("expected no blob to be downloaded for a missing root, got %v", fetched)
+		}
+	})
+
+	t.Run("the listing API fails", func(t *testing.T) {
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: blobs}
+
+		_, err := apiGit(stub.server(t)).Root("configs").ListInterestingFiles(context.Background())
+		if err == nil {
+			t.Fatal("expected a listing of a root that names nothing to fail")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrRootNotFoundCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrRootNotFoundCode, code, err)
+		}
+	})
+
+	t.Run("the clone route fails", func(t *testing.T) {
+		baseDir := t.TempDir()
+		createCommittedRepo(t, filepath.Join(baseDir, "owner", "repo"), map[string]string{
+			"manifests/app.yaml": "kind: ConfigMap",
+		})
+
+		err := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo("repo").
+			Root("configs").
+			RegisterFileInterceptor(func(File) error { return nil }).
+			WalkContext(context.Background())
+		if err == nil {
+			t.Fatal("expected a clone walk of a root that names nothing to fail")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrCloningRepoCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrCloningRepoCode, code, err)
+		}
+	})
+
+	t.Run("an unset root still walks the whole repository", func(t *testing.T) {
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: blobs}
+
+		delivered := []string{}
+		err := apiGit(stub.server(t)).
+			UseGithubAPI().
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, file.Path)
+				return nil
+			}).
+			WalkContext(context.Background())
+		if err != nil {
+			t.Fatalf("WalkContext() returned error: %v", err)
+		}
+		if want := []string{"top.yaml"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the unscoped walk to deliver %v, got %v", want, delivered)
+		}
+	})
+}

@@ -82,6 +82,13 @@ link whose target lands outside that copy, or that cannot be resolved at all, is
 silently; the walk continues and nothing else changes. Targets are resolved with `lstat`/`readlink`
 alone, so a file that will not be read is never opened.
 
+**A `Root` that names nothing fails on either route.** The clone route stats the path and fails
+with `ErrCloningRepo`; the API route proves the root against the tree - an entry at `Root` itself
+or anything below it - and fails with `ErrRootNotFound`, rather than importing no files and
+calling that a success. A truncated tree cannot show that a root is absent, so that case is left
+to the clone it falls back to. An unset `Root`, `Root("")` and `Root("/")` all mean the whole
+repository and are never checked.
+
 Nothing else switches routes, and the size of the repository in particular does not: the
 auto-fetch path issues **one blob request per ranked candidate**, however many there are. It is
 also all-or-nothing only in name: candidates are delivered to the interceptor as they arrive, so

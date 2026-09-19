@@ -15,6 +15,7 @@ var (
 	ErrInvalidBaseURLCode  = "meshkit-11331"
 
 	ErrNoFileInterceptorCode = "meshkit-11332"
+	ErrRootNotFoundCode      = "meshkit-11333"
 )
 
 func ErrCloningRepo(err error) error {
@@ -72,6 +73,19 @@ func ErrNoFileInterceptor() error {
 		[]string{"Fetching hands every file it downloads to a registered file interceptor, and the walker has none"},
 		[]string{"RegisterFileInterceptor was not called on the walker before the files were fetched"},
 		[]string{"Call RegisterFileInterceptor with the function that should receive each fetched file"},
+	)
+}
+
+// ErrRootNotFound is returned when the configured root names no file or
+// directory in the repository at the reference being walked.
+func ErrRootNotFound(root, ref string) error {
+	return errors.New(
+		ErrRootNotFoundCode,
+		errors.Alert,
+		[]string{"Could not find the configured root path in the repository"},
+		[]string{fmt.Sprintf("%s does not exist at %s", root, ref)},
+		[]string{"The directory or file was renamed or removed on the reference being walked", "The root belongs to a different branch, tag or reference than the one configured"},
+		[]string{"Verify the root path exists on the reference being walked", "Walk the repository with no root configured to read every file it holds"},
 	)
 }
 
