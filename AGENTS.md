@@ -115,5 +115,13 @@ next use.
 - [testing](docs/agent-instructions/testing.md) - make targets, flags, single-test forms, lint and tidy discipline.
 - [naming-conventions](docs/agent-instructions/naming-conventions.md) - full identifier-naming contract and authority links.
 - [event-streaming](docs/event-streaming.md) - read when working on events, broadcasters, or the `Event`/`EventBuilder` types shared with Meshery Server.
+- [git-walkers](docs/git-walkers.md) - read before touching `utils/walker/`: the hybrid GitHub Trees crawl, its go-git fallbacks, and the ranked interesting-file API.
 
 CLAUDE.md is a symlink to this file.
+
+## Maintaining this file
+
+Keep this file for knowledge useful to almost every future agent session in this project.
+Do not repeat what the codebase already shows; point to the authoritative file or command instead.
+Prefer rewriting or pruning existing entries over appending new ones.
+When updating this file, preserve this bar for all agents and keep entries concise.

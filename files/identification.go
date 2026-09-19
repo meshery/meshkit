@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/meshery/meshkit/encoding"
+	"github.com/meshery/meshkit/files/iacext"
 	"github.com/meshery/meshkit/models/oci"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/kubernetes/kompose"
@@ -285,23 +286,13 @@ func FindChartDir(root string) (string, error) {
 	return filepath.Dir(matches[0]), nil
 }
 
-var ValidHelmChartFileExtensions = map[string]bool{
-	".tar":    true,
-	".tgz":    true,
-	".gz":     true,
-	".tar.gz": true,
-	".zip":    true,
-}
-
-var ValidKustomizeFileExtensions = map[string]bool{
-	".yml":    true, // single kustomization.yml file
-	".yaml":   true,
-	".tar":    true,
-	".tgz":    true,
-	".gz":     true,
-	".tar.gz": true,
-	".zip":    true,
-}
+// ValidHelmChartFileExtensions and ValidKustomizeFileExtensions are owned by
+// files/iacext so that utils/walker can rank candidate files by extension
+// without importing this package, which would close an import cycle.
+var (
+	ValidHelmChartFileExtensions = iacext.ValidHelmChartFileExtensions
+	ValidKustomizeFileExtensions = iacext.ValidKustomizeFileExtensions
+)
 
 // ParseFileAsHelmChart loads a Helm chart from the extracted directory.
 func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {
@@ -408,8 +399,6 @@ func ParseFileAsDockerComposeStrict(file SanitizedFile) (*dockerTypes.Config, er
 type ParsedCompose struct {
 	manifest string
 }
-
-
 
 // ParseFileAsDockerCompose parses a Docker Compose file into a types.Config struct.
 func ParseFileAsDockerCompose(file SanitizedFile) (ParsedCompose, error) {

@@ -1,6 +1,7 @@
 package walker
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sync"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 
 	meshkiterrors "github.com/meshery/meshkit/errors"
@@ -406,5 +408,189 @@ func createCommittedRepo(t *testing.T, repoPath string, files map[string]string)
 		},
 	}); err != nil {
 		t.Fatalf("failed to commit test repo: %v", err)
+	}
+}
+
+func TestGitCloneReferenceName(t *testing.T) {
+	tests := []struct {
+		name          string
+		branch        string
+		referenceName string
+		want          string
+	}{
+		{
+			name: "neither set clones the remote default branch",
+			want: "",
+		},
+		{
+			name:   "an explicit branch becomes a branch reference",
+			branch: "feature",
+			want:   "refs/heads/feature",
+		},
+		{
+			name:          "an explicit reference name is used as is",
+			referenceName: "refs/tags/v1.2.3",
+			want:          "refs/tags/v1.2.3",
+		},
+		{
+			name:          "an explicit reference name wins over a branch",
+			branch:        "feature",
+			referenceName: "refs/tags/v1.2.3",
+			want:          "refs/tags/v1.2.3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGit()
+			if tt.branch != "" {
+				g = g.Branch(tt.branch)
+			}
+			if tt.referenceName != "" {
+				g = g.ReferenceName(tt.referenceName)
+			}
+
+			if got := string(g.cloneReferenceName()); got != tt.want {
+				t.Errorf("expected clone reference name %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestGitRef(t *testing.T) {
+	tests := []struct {
+		name          string
+		branch        string
+		referenceName string
+		want          string
+	}{
+		{name: "defaults to the default branch", want: "master"},
+		{name: "uses the configured branch", branch: "release", want: "release"},
+		{name: "uses the short name of a reference", referenceName: "refs/tags/v1.2.3", want: "v1.2.3"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGit()
+			if tt.branch != "" {
+				g = g.Branch(tt.branch)
+			}
+			if tt.referenceName != "" {
+				g = g.ReferenceName(tt.referenceName)
+			}
+
+			if got := g.ref(); got != tt.want {
+				t.Errorf("expected ref %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestGitWalkHonoursConfiguredBranch(t *testing.T) {
+	baseDir := t.TempDir()
+	repoPath := filepath.Join(baseDir, "owner", "sample")
+	createCommittedRepo(t, repoPath, map[string]string{"configs/root.txt": "default branch"})
+	commitOnBranch(t, repoPath, "feature", "configs/root.txt", "feature branch")
+
+	tests := []struct {
+		name   string
+		branch string
+		want   string
+	}{
+		{name: "unset branch keeps the remote default", want: "default branch"},
+		{name: "explicit branch is cloned", branch: "feature", want: "feature branch"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var intercepted File
+			g := NewGit().
+				BaseURL("file://" + baseDir).
+				Owner("owner").
+				Repo("sample").
+				Root("configs/root.txt").
+				RegisterFileInterceptor(func(file File) error {
+					intercepted = file
+					return nil
+				})
+			if tt.branch != "" {
+				g = g.Branch(tt.branch)
+			}
+
+			if err := g.Walk(); err != nil {
+				t.Fatalf("Walk() returned error: %v", err)
+			}
+			if intercepted.Content != tt.want {
+				t.Errorf("expected content %q, got %q", tt.want, intercepted.Content)
+			}
+		})
+	}
+}
+
+func TestGitWalkContextRespectsCancellation(t *testing.T) {
+	baseDir := t.TempDir()
+	repoPath := filepath.Join(baseDir, "owner", "sample")
+	createCommittedRepo(t, repoPath, map[string]string{"configs/root.txt": "root file"})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := NewGit().
+		BaseURL("file://" + baseDir).
+		Owner("owner").
+		Repo("sample").
+		Root("configs").
+		RegisterFileInterceptor(func(File) error { return nil }).
+		WalkContext(ctx)
+	if err == nil {
+		t.Fatal("expected WalkContext to fail once the context is cancelled")
+	}
+	if got := meshkiterrors.GetCode(err); got != ErrCloningRepoCode {
+		t.Fatalf("expected error code %q, got %q", ErrCloningRepoCode, got)
+	}
+}
+
+// commitOnBranch creates branch and commits path with content on it, leaving
+// the repository checked out on its original branch.
+func commitOnBranch(t *testing.T, repoPath, branch, path, content string) {
+	t.Helper()
+
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		t.Fatalf("failed to open repo: %v", err)
+	}
+
+	head, err := repo.Head()
+	if err != nil {
+		t.Fatalf("failed to read HEAD: %v", err)
+	}
+
+	worktree, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("failed to get worktree: %v", err)
+	}
+
+	if err := worktree.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branch),
+		Create: true,
+	}); err != nil {
+		t.Fatalf("failed to create branch %s: %v", branch, err)
+	}
+
+	fullPath := filepath.Join(repoPath, filepath.FromSlash(path))
+	if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write %s: %v", path, err)
+	}
+	if _, err := worktree.Add(path); err != nil {
+		t.Fatalf("failed to add %s: %v", path, err)
+	}
+	if _, err := worktree.Commit("branch commit", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatalf("failed to commit on %s: %v", branch, err)
+	}
+
+	if err := worktree.Checkout(&git.CheckoutOptions{Branch: head.Name()}); err != nil {
+		t.Fatalf("failed to check out %s: %v", head.Name(), err)
 	}
 }

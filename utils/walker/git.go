@@ -1,10 +1,12 @@
 package walker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
 // Git represents the Git Walker
@@ -29,6 +32,16 @@ type Git struct {
 	fileInterceptor    FileInterceptor
 	dirInterceptor     DirInterceptor
 	referenceName      plumbing.ReferenceName
+	// branchSet records whether Branch was called explicitly. Only an
+	// explicitly set branch is turned into a ReferenceName, so callers that
+	// set neither Branch nor ReferenceName keep cloning the remote's default
+	// branch exactly as before.
+	branchSet    bool
+	token        string
+	apiBaseURL   string
+	useAPI       bool
+	timeout      time.Duration
+	progressHook ProgressHook
 }
 
 // NewGit returns a pointer to an instance of Git
@@ -37,6 +50,7 @@ func NewGit() *Git {
 		branch:             "master",
 		baseURL:            "https://github.com", //defaults to a github repo if the url is not set with URL method
 		maxFileSizeInBytes: 50000000,             // ~50MB file size limit
+		apiBaseURL:         DefaultGithubAPIBaseURL,
 	}
 }
 
@@ -92,6 +106,7 @@ func (g *Git) Repo(repo string) *Git {
 // to the same Git instance
 func (g *Git) Branch(branch string) *Git {
 	g.branch = branch
+	g.branchSet = true
 	return g
 }
 
@@ -122,9 +137,137 @@ func (g *Git) ReferenceName(refName string) *Git {
 	return g
 }
 
-// Walk will initiate traversal process
+// Walk will initiate traversal process.
+//
+// It is equivalent to WalkContext with a background context and is retained
+// for callers that predate context support.
 func (g *Git) Walk() error {
-	return clonewalk(g)
+	return g.WalkContext(context.Background())
+}
+
+// WalkContext initiates the traversal process under ctx.
+//
+// When UseGithubAPI has been enabled and the configured base URL points at
+// github.com, the traversal runs over the Git Trees API: the reference is
+// resolved to a commit, the tree is listed once recursively, the entries are
+// filtered and ranked, and only the surviving blobs are downloaded. Every
+// other case - a non-github.com host, a truncated tree, or the API path not
+// being enabled - walks a go-git clone exactly as Walk always has.
+func (g *Git) WalkContext(ctx context.Context) error {
+	ctx, cancel := g.withTimeout(ctx)
+	defer cancel()
+
+	if g.useAPI {
+		isGithub, err := g.isGithubHost()
+		if err != nil {
+			return err
+		}
+		if isGithub {
+			walked, err := g.treeWalk(ctx)
+			if err != nil {
+				return err
+			}
+			if walked {
+				return nil
+			}
+			// treeWalk declined - a truncated tree, or a registered directory
+			// interceptor - so the clone below is the only complete answer.
+			g.reportProgress(ProgressUpdate{Stage: ProgressStageClone, Message: "the Trees API could not answer completely, falling back to a clone"})
+		}
+	}
+
+	return clonewalkContext(ctx, g)
+}
+
+// Token sets the GitHub App or OAuth access token used to authenticate against
+// the GitHub API and against the go-git clone, so private repositories are
+// reachable and the authenticated rate limit applies.
+//
+// The token is never logged, never placed in an error message and never
+// reported through the progress hook.
+func (g *Git) Token(token string) *Git {
+	g.token = token
+	return g
+}
+
+// APIBaseURL overrides the GitHub API endpoint used by the Trees-based walk.
+// It defaults to DefaultGithubAPIBaseURL and mainly exists for GitHub
+// Enterprise endpoints and for tests.
+func (g *Git) APIBaseURL(baseURL string) *Git {
+	g.apiBaseURL = strings.TrimSuffix(baseURL, "/")
+	return g
+}
+
+// UseGithubAPI opts the walker into the hybrid GitHub crawl: Trees API plus
+// selective blob downloads, with a go-git clone as the fallback. It is off by
+// default so existing callers keep the clone-and-filter behaviour.
+func (g *Git) UseGithubAPI() *Git {
+	g.useAPI = true
+	return g
+}
+
+// Timeout bounds the whole traversal. A zero duration, the default, leaves the
+// traversal bounded only by the context passed to WalkContext.
+func (g *Git) Timeout(d time.Duration) *Git {
+	g.timeout = d
+	return g
+}
+
+// RegisterProgressHook registers a callback invoked as the walk advances
+// through its stages. The hook is called synchronously, so it should return
+// promptly.
+func (g *Git) RegisterProgressHook(h ProgressHook) *Git {
+	g.progressHook = h
+	return g
+}
+
+func (g *Git) withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if g.timeout <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, g.timeout)
+}
+
+func (g *Git) reportProgress(update ProgressUpdate) {
+	if g.progressHook == nil {
+		return
+	}
+	g.progressHook(update)
+}
+
+// isGithubHost reports whether the configured base URL points at github.com.
+// The host is read from the base URL rather than assumed so that GitHub
+// Enterprise and other forges keep taking the go-git path.
+func (g *Git) isGithubHost() (bool, error) {
+	parsed, err := url.Parse(g.baseURL)
+	if err != nil {
+		return false, ErrInvalidBaseURL(err, g.baseURL)
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return host == "github.com" || host == "www.github.com", nil
+}
+
+// cloneReferenceName resolves the reference the clone should check out. An
+// explicitly set ReferenceName always wins; otherwise an explicitly set branch
+// is expanded to its refs/heads form. When neither was set the zero value is
+// returned and go-git clones the remote's default branch.
+func (g *Git) cloneReferenceName() plumbing.ReferenceName {
+	if g.referenceName != "" {
+		return g.referenceName
+	}
+	if g.branchSet && g.branch != "" {
+		return plumbing.NewBranchReferenceName(g.branch)
+	}
+	return ""
+}
+
+// ref returns the git reference the GitHub API should resolve: the short name
+// of an explicitly set ReferenceName, else the configured branch.
+func (g *Git) ref() string {
+	if g.referenceName != "" {
+		return g.referenceName.Short()
+	}
+	return g.branch
 }
 func (g *Git) RegisterFileInterceptor(i FileInterceptor) *Git {
 	g.fileInterceptor = i
@@ -135,7 +278,7 @@ func (g *Git) RegisterDirInterceptor(i DirInterceptor) *Git {
 	g.dirInterceptor = i
 	return g
 }
-func clonewalk(g *Git) error {
+func clonewalkContext(ctx context.Context, g *Git) error {
 	if g.maxFileSizeInBytes == 0 {
 		return ErrInvalidSizeFile(errors.New("max file size passed as 0. Will not read any file"))
 	}
@@ -153,20 +296,26 @@ func clonewalk(g *Git) error {
 		Depth:        1,
 	}
 
-	if g.referenceName != "" {
-		cloneOptions.ReferenceName = g.referenceName
+	if refName := g.cloneReferenceName(); refName != "" {
+		cloneOptions.ReferenceName = refName
+	}
+
+	if g.token != "" {
+		cloneOptions.Auth = &githttp.BasicAuth{Username: "x-access-token", Password: g.token}
 	}
 
 	if g.showLogs {
 		cloneOptions.Progress = os.Stdout
-		_, err = git.PlainClone(path, false, cloneOptions)
-	} else {
-		_, err = git.PlainClone(path, false, cloneOptions)
 	}
 
+	g.reportProgress(ProgressUpdate{Stage: ProgressStageClone, Message: fmt.Sprintf("cloning %s/%s", g.owner, g.repo)})
+
+	_, err = git.PlainCloneContext(ctx, path, false, cloneOptions)
 	if err != nil {
 		return ErrCloningRepo(err)
 	}
+
+	g.reportProgress(ProgressUpdate{Stage: ProgressStageClone, Message: "clone complete"})
 
 	rootPath := filepath.Join(path, g.root)
 	info, err := os.Stat(rootPath)
