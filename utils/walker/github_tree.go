@@ -209,6 +209,9 @@ func (g *Git) FetchCandidates(ctx context.Context, candidates []CandidateFile) e
 	if g.fileInterceptor == nil {
 		return ErrNoFileInterceptor()
 	}
+	if g.maxFileSizeInBytes == 0 {
+		return errZeroMaxFileSize()
+	}
 
 	ctx, cancel := g.withTimeout(ctx)
 	defer cancel()
@@ -271,8 +274,13 @@ func (g *Git) fetchCandidates(ctx context.Context, candidates []CandidateFile) e
 			Total:   len(candidates),
 		})
 
+		name := candidate.Name
+		if name == "" {
+			name = path.Base(candidate.Path)
+		}
+
 		if err := g.fileInterceptor(File{
-			Name:    path.Base(candidate.Path),
+			Name:    name,
 			Path:    candidate.Path,
 			Content: fetched.content,
 		}); err != nil {

@@ -884,31 +884,79 @@ func TestFetchCandidatesRefusesAFetchWithNowhereToDeliverTo(t *testing.T) {
 	}
 }
 
-func TestFetchCandidatesNameFilesAfterTheirPath(t *testing.T) {
+func TestFetchCandidatesNameTheFilesItDelivers(t *testing.T) {
 	// A selection that travelled through a picker client may come back with
-	// only the path and the SHA, and identification downstream reads the name.
+	// either spelling of the name missing, and identification downstream reads
+	// the name it is handed.
+	tests := []struct {
+		name      string
+		candidate CandidateFile
+		wantName  string
+	}{
+		{
+			name:      "a candidate carrying both keeps its name",
+			candidate: CandidateFile{Path: "charts/redis/Chart.yaml", Name: "Chart.yaml", SHA: "chart-blob"},
+			wantName:  "Chart.yaml",
+		},
+		{
+			name:      "a candidate carrying only a path is named after it",
+			candidate: CandidateFile{Path: "charts/redis/Chart.yaml", SHA: "chart-blob"},
+			wantName:  "Chart.yaml",
+		},
+		{
+			name:      "a candidate carrying only a name keeps it",
+			candidate: CandidateFile{Name: "Chart.yaml", SHA: "chart-blob"},
+			wantName:  "Chart.yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stub := &githubAPIStub{blobs: map[string]string{"chart-blob": "name: redis"}}
+
+			var intercepted File
+			err := apiGit(stub.server(t)).
+				RegisterFileInterceptor(func(file File) error {
+					intercepted = file
+					return nil
+				}).
+				FetchCandidates(context.Background(), []CandidateFile{tt.candidate})
+			if err != nil {
+				t.Fatalf("FetchCandidates() returned error: %v", err)
+			}
+
+			if intercepted.Name != tt.wantName {
+				t.Errorf("expected the file to be named %q, got %q", tt.wantName, intercepted.Name)
+			}
+			if intercepted.Path != tt.candidate.Path {
+				t.Errorf("expected the path %q, got %q", tt.candidate.Path, intercepted.Path)
+			}
+			if intercepted.Content != "name: redis" {
+				t.Errorf("expected the decoded contents, got %q", intercepted.Content)
+			}
+		})
+	}
+}
+
+func TestFetchCandidatesRejectsAZeroMaxFileSize(t *testing.T) {
+	// A limit of zero reads no file, which every other entry point refuses
+	// rather than answering with whatever happens to fit under it.
 	stub := &githubAPIStub{blobs: map[string]string{"chart-blob": "name: redis"}}
 	server := stub.server(t)
 
-	var intercepted File
 	err := apiGit(server).
-		RegisterFileInterceptor(func(file File) error {
-			intercepted = file
-			return nil
-		}).
+		MaxFileSize(0).
+		RegisterFileInterceptor(func(File) error { return nil }).
 		FetchCandidates(context.Background(), []CandidateFile{{Path: "charts/redis/Chart.yaml", SHA: "chart-blob"}})
-	if err != nil {
-		t.Fatalf("FetchCandidates() returned error: %v", err)
+	if err == nil {
+		t.Fatal("expected a fetch under a zero max file size to be refused")
+	}
+	if code := meshkiterrors.GetCode(err); code != ErrInvalidSizeFileCode {
+		t.Fatalf("expected error code %q, got %q: %v", ErrInvalidSizeFileCode, code, err)
 	}
 
-	if intercepted.Name != "Chart.yaml" {
-		t.Errorf("expected the file to be named for its path, got %q", intercepted.Name)
-	}
-	if intercepted.Path != "charts/redis/Chart.yaml" {
-		t.Errorf("expected the repository-relative path, got %q", intercepted.Path)
-	}
-	if intercepted.Content != "name: redis" {
-		t.Errorf("expected the decoded contents, got %q", intercepted.Content)
+	if received := stub.receivedRequests(); len(received) != 0 {
+		t.Errorf("expected nothing to be downloaded, got %v", received)
 	}
 }
 

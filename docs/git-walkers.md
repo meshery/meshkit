@@ -116,8 +116,14 @@ scope for back-compatibility: there an unscoped `Root` is the top level only, a 
 that directory's own files, and `"/**"` is what asks for the subtree below it. The listing API is
 new surface with no such obligation, and a picker that shows a folder means everything in it.
 
-`MaxFileSize(0)` is rejected here (`ErrInvalidSizeFile`) exactly as it is on a walk, rather than
-answered with an empty listing.
+`MaxFileSize(0)` is rejected by both (`ErrInvalidSizeFile`) exactly as it is on a walk, rather
+than answered with an empty listing or an import of whatever happens to fit.
+
+`FetchCandidates` also refuses a walker with no file interceptor registered
+(`ErrNoFileInterceptor`): it downloads one file per candidate and would have nowhere to hand them,
+so an import of nothing is reported as the mistake it is rather than as success. `WalkContext`'s
+own API route is deliberately quieter about this - with no interceptor it has nothing worth
+downloading, so it fetches nothing and moves on.
 
 Ranking is **path based**, because it runs before any content exists. The classifier assigns:
 
