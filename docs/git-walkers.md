@@ -64,12 +64,16 @@ any other host is refused rather than answered from github.com, which is where t
 points regardless of `BaseURL`. Refusing it is what keeps the access token from travelling to a
 host the caller never configured.
 
-**An unset `Root` lists the whole repository**, because a picker is asking what the repository
-holds; `Root` narrows the listing exactly as it narrows a walk. This is deliberately *not* what
-an unset `Root` means to `Walk`/`WalkContext`, where it keeps its historical top-level-only
-scope for back-compatibility.
+**An unscoped `Root` lists the whole repository**, because a picker is asking what the repository
+holds. Unscoped means all of: never calling `Root`, `Root("")` and `Root("/")` - a picker that
+sends no subdirectory reaches the walker as any of the three. A `Root` naming a real path narrows
+the listing exactly as it narrows a walk. This is deliberately *not* what an unscoped `Root` means
+to `Walk`/`WalkContext`, where it keeps its historical top-level-only scope for back-compatibility.
 
-Ranking is **path based**, because it runs before any content exists. `ClassifyPath` assigns:
+`MaxFileSize(0)` is rejected here (`ErrInvalidSizeFile`) exactly as it is on a walk, rather than
+answered with an empty listing.
+
+Ranking is **path based**, because it runs before any content exists. The classifier assigns:
 
 | Score | Constant | Matches | Inferred kind |
 |------:|----------|---------|---------------|
@@ -90,13 +94,17 @@ as. The wider `files.ValidHelmChartFileExtensions` table describes what an *uplo
 arrive as; applying it here would label every `.zip`, `.gz` and `.tar` in a repository a Helm
 chart.
 
+The classifier itself is not exported - `CandidateFile.Kind` and `CandidateFile.Score` carry its
+output for every candidate, and the `Score*` constants above are what a picker needs to group or
+threshold by.
+
 An empty `Kind` means the path is worth fetching but is not distinctive enough to name a type.
 Identification proper remains the caller's job: run `files.IdentifyFile` once the contents are
 in hand.
 
 ### Where the kustomize extension table lives
 
-`ClassifyPath` reuses the same kustomization extensions `files` parses with, rather than
+The classifier reuses the same kustomization extensions `files` parses with, rather than
 restating the literals. That one table lives in the leaf package **`files/iacext`**: `files`
 imports `utils/walker`, so a table owned by `files` and read by the walker would close an import
 cycle. `files.ValidKustomizeFileExtensions` still names it, so existing callers are unaffected.

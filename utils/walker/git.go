@@ -118,6 +118,9 @@ func (g *Git) Branch(branch string) *Git {
 // will run in "traversal" mode, ie. it will look into each sub
 // directory of the root node
 // If path will be prefixed with "/" if not already.
+//
+// A root of "" or "/" scopes nothing: a walk reads the repository root exactly
+// as it always has, and ListInterestingFiles reads it as the whole repository.
 func (g *Git) Root(root string) *Git {
 	if !strings.HasPrefix(root, "/") {
 		root = "/" + root
@@ -127,6 +130,9 @@ func (g *Git) Root(root string) *Git {
 	if strings.HasSuffix(root, "/**") {
 		g.recurse = true
 		g.root = strings.TrimSuffix(root, "/**")
+	}
+	if strings.Trim(g.root, "/") == "" {
+		g.root = ""
 	}
 
 	return g
@@ -289,9 +295,16 @@ func (g *Git) RegisterDirInterceptor(i DirInterceptor) *Git {
 	g.dirInterceptor = i
 	return g
 }
+
+// errZeroMaxFileSize reports a MaxFileSize of zero, which would silently drop
+// every file instead of reading any of them.
+func errZeroMaxFileSize() error {
+	return ErrInvalidSizeFile(errors.New("max file size passed as 0. Will not read any file"))
+}
+
 func clonewalkContext(ctx context.Context, g *Git) error {
 	if g.maxFileSizeInBytes == 0 {
-		return ErrInvalidSizeFile(errors.New("max file size passed as 0. Will not read any file"))
+		return errZeroMaxFileSize()
 	}
 
 	clonePath := filepath.Join(os.TempDir(), g.repo, strconv.FormatInt(time.Now().UTC().UnixNano(), 10))

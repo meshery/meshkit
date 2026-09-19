@@ -149,7 +149,7 @@ func TestClassifyPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			kind, score, interesting := ClassifyPath(tt.path)
+			kind, score, interesting := classifyPath(tt.path)
 			if kind != tt.wantKind {
 				t.Errorf("expected kind %q, got %q", tt.wantKind, kind)
 			}
@@ -766,16 +766,11 @@ func TestListInterestingFilesScopesToRoot(t *testing.T) {
 		{Type: "blob", Path: "charts/redis/Chart.yaml", SHA: "redis-blob", Size: 10},
 	}}
 
-	listPaths := func(t *testing.T, root string) []string {
+	listPaths := func(t *testing.T, scope func(*Git) *Git) []string {
 		t.Helper()
 
 		stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", tree: tree}
-		g := apiGit(stub.server(t))
-		if root != "" {
-			g = g.Root(root)
-		}
-
-		listing, err := g.ListInterestingFiles(context.Background())
+		listing, err := scope(apiGit(stub.server(t))).ListInterestingFiles(context.Background())
 		if err != nil {
 			t.Fatalf("ListInterestingFiles() returned error: %v", err)
 		}
@@ -787,42 +782,92 @@ func TestListInterestingFilesScopesToRoot(t *testing.T) {
 		return paths
 	}
 
-	t.Run("an unset root lists the whole repository", func(t *testing.T) {
-		want := []string{"charts/nginx/Chart.yaml", "charts/redis/Chart.yaml", "top.yaml"}
-		if got := listPaths(t, ""); !reflect.DeepEqual(got, want) {
-			t.Errorf("expected the nested layout to be listed as %v, got %v", want, got)
-		}
-	})
+	wholeRepository := []string{"charts/nginx/Chart.yaml", "charts/redis/Chart.yaml", "top.yaml"}
+
+	// A picker that sends no subdirectory reaches the walker either as a Root
+	// that was never called or as Root("")/Root("/"), and all three mean the
+	// same thing to the listing.
+	unscoped := []struct {
+		name  string
+		scope func(*Git) *Git
+	}{
+		{name: "an unset root lists the whole repository", scope: func(g *Git) *Git { return g }},
+		{name: "an empty root lists the whole repository", scope: func(g *Git) *Git { return g.Root("") }},
+		{name: "a slash root lists the whole repository", scope: func(g *Git) *Git { return g.Root("/") }},
+	}
+
+	for _, tt := range unscoped {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := listPaths(t, tt.scope); !reflect.DeepEqual(got, wholeRepository) {
+				t.Errorf("expected the nested layout to be listed as %v, got %v", wholeRepository, got)
+			}
+		})
+	}
 
 	t.Run("a root still narrows the listing", func(t *testing.T) {
 		want := []string{"charts/redis/Chart.yaml"}
-		if got := listPaths(t, "charts/redis"); !reflect.DeepEqual(got, want) {
+		if got := listPaths(t, func(g *Git) *Git { return g.Root("charts/redis") }); !reflect.DeepEqual(got, want) {
 			t.Errorf("expected the listing to be scoped to the root, got %v", got)
 		}
 	})
 
-	t.Run("an unset root leaves a walk on its top level", func(t *testing.T) {
-		// Walk's historical Root semantics are back-compat and unaffected by
-		// what an unset Root means to the listing API.
-		stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", tree: tree, blobs: map[string]string{"top-blob": "kind: ConfigMap"}}
+	// Walk's historical Root semantics are back-compat and unaffected by what
+	// an unscoped Root means to the listing API.
+	walkScopes := []struct {
+		name  string
+		scope func(*Git) *Git
+	}{
+		{name: "an unset root leaves a walk on its top level", scope: func(g *Git) *Git { return g }},
+		{name: "an empty root leaves a walk on its top level", scope: func(g *Git) *Git { return g.Root("") }},
+	}
 
-		delivered := []string{}
-		walked, err := apiGit(stub.server(t)).
-			RegisterFileInterceptor(func(file File) error {
-				delivered = append(delivered, file.Path)
-				return nil
-			}).
-			treeWalk(context.Background())
-		if err != nil {
-			t.Fatalf("treeWalk() returned error: %v", err)
-		}
-		if !walked {
-			t.Fatal("expected the API route to carry out the walk")
-		}
-		if want := []string{"top.yaml"}; !reflect.DeepEqual(delivered, want) {
-			t.Errorf("expected the walk to stay on the top level as %v, got %v", want, delivered)
-		}
-	})
+	for _, tt := range walkScopes {
+		t.Run(tt.name, func(t *testing.T) {
+			stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", tree: tree, blobs: map[string]string{"top-blob": "kind: ConfigMap"}}
+
+			delivered := []string{}
+			walked, err := tt.scope(apiGit(stub.server(t))).
+				RegisterFileInterceptor(func(file File) error {
+					delivered = append(delivered, file.Path)
+					return nil
+				}).
+				treeWalk(context.Background())
+			if err != nil {
+				t.Fatalf("treeWalk() returned error: %v", err)
+			}
+			if !walked {
+				t.Fatal("expected the API route to carry out the walk")
+			}
+			if want := []string{"top.yaml"}; !reflect.DeepEqual(delivered, want) {
+				t.Errorf("expected the walk to stay on the top level as %v, got %v", want, delivered)
+			}
+		})
+	}
+}
+
+func TestListInterestingFilesRejectsAZeroMaxFileSize(t *testing.T) {
+	// A zero limit drops every file, so the listing has to report the
+	// misconfiguration the way a walk does rather than look like an empty
+	// repository.
+	stub := &githubAPIStub{
+		commitSHA:     "commit-sha",
+		defaultBranch: "main",
+		tree:          githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
+	}
+	server := stub.server(t)
+
+	_, err := apiGit(server).MaxFileSize(0).ListInterestingFiles(context.Background())
+	if err == nil {
+		t.Fatal("expected ListInterestingFiles to reject a zero max file size")
+	}
+	if code := meshkiterrors.GetCode(err); code != ErrInvalidSizeFileCode {
+		t.Fatalf("expected error code %q, got %q: %v", ErrInvalidSizeFileCode, code, err)
+	}
+
+	auth, _, _ := stub.snapshot()
+	if len(auth) != 0 {
+		t.Errorf("expected no request to be made for an unusable size limit, got %d", len(auth))
+	}
 }
 
 func containsStage(stages []ProgressStage, want ProgressStage) bool {

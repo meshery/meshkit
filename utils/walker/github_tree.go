@@ -49,8 +49,11 @@ type ProgressUpdate struct {
 	Total   int           `json:"total,omitempty"`
 }
 
-// ProgressHook receives ProgressUpdate values as a walk advances. It is
-// invoked synchronously on the walking goroutine.
+// ProgressHook receives ProgressUpdate values as a walk advances. How it is
+// delivered differs per walker and is documented on each RegisterProgressHook:
+// Git calls it one update at a time, while Github calls it from every goroutine
+// its fan-out walks a node with. An implementation that touches shared state
+// must therefore be safe for concurrent use.
 type ProgressHook func(ProgressUpdate)
 
 // Relevance scores assigned to a candidate from its path alone. A larger score
@@ -149,6 +152,9 @@ type githubBlobAPI struct {
 func (g *Git) ListInterestingFiles(ctx context.Context) (InterestingFiles, error) {
 	if err := g.requireGithubHost(); err != nil {
 		return InterestingFiles{}, err
+	}
+	if g.maxFileSizeInBytes == 0 {
+		return InterestingFiles{}, errZeroMaxFileSize()
 	}
 
 	ctx, cancel := g.withTimeout(ctx)
@@ -294,7 +300,7 @@ func (g *Git) treeWalk(ctx context.Context) (bool, error) {
 	}
 
 	if g.maxFileSizeInBytes == 0 {
-		return false, ErrInvalidSizeFile(fmt.Errorf("max file size passed as 0. Will not read any file"))
+		return false, errZeroMaxFileSize()
 	}
 
 	listing, err := g.listInterestingFiles(ctx, g.recurse)
@@ -332,7 +338,7 @@ func (g *Git) apiRef(ctx context.Context) (string, error) {
 // the branch a clone with no reference configured checks out.
 func (g *Git) defaultBranch(ctx context.Context) (string, error) {
 	const ref = "HEAD"
-	endpoint := fmt.Sprintf("%s/repos/%s/%s", g.apiEndpoint(), g.owner, g.repo)
+	endpoint := fmt.Sprintf("%s/repos/%s/%s", g.apiBaseURL, g.owner, g.repo)
 
 	body, err := g.get(ctx, endpoint)
 	if err != nil {
@@ -352,7 +358,7 @@ func (g *Git) defaultBranch(ctx context.Context) (string, error) {
 
 // resolveRef turns a branch, tag or reference name into a commit SHA.
 func (g *Git) resolveRef(ctx context.Context, ref string) (string, error) {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/commits/%s", g.apiEndpoint(), g.owner, g.repo, url.PathEscape(ref))
+	endpoint := fmt.Sprintf("%s/repos/%s/%s/commits/%s", g.apiBaseURL, g.owner, g.repo, url.PathEscape(ref))
 
 	body, err := g.get(ctx, endpoint)
 	if err != nil {
@@ -372,7 +378,7 @@ func (g *Git) resolveRef(ctx context.Context, ref string) (string, error) {
 
 // fetchTree lists the whole tree of a commit in a single recursive request.
 func (g *Git) fetchTree(ctx context.Context, commitSHA string) (githubTreeAPI, error) {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/trees/%s?recursive=1", g.apiEndpoint(), g.owner, g.repo, url.PathEscape(commitSHA))
+	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/trees/%s?recursive=1", g.apiBaseURL, g.owner, g.repo, url.PathEscape(commitSHA))
 
 	body, err := g.get(ctx, endpoint)
 	if err != nil {
@@ -389,7 +395,7 @@ func (g *Git) fetchTree(ctx context.Context, commitSHA string) (githubTreeAPI, e
 
 // fetchBlob downloads a single blob and returns its decoded contents.
 func (g *Git) fetchBlob(ctx context.Context, candidate CandidateFile) (string, error) {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/blobs/%s", g.apiEndpoint(), g.owner, g.repo, url.PathEscape(candidate.SHA))
+	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/blobs/%s", g.apiBaseURL, g.owner, g.repo, url.PathEscape(candidate.SHA))
 
 	body, err := g.get(ctx, endpoint)
 	if err != nil {
@@ -412,13 +418,6 @@ func (g *Git) fetchBlob(ctx context.Context, candidate CandidateFile) (string, e
 	}
 
 	return string(decoded), nil
-}
-
-func (g *Git) apiEndpoint() string {
-	if g.apiBaseURL == "" {
-		return DefaultGithubAPIBaseURL
-	}
-	return g.apiBaseURL
 }
 
 // get issues an authenticated GET against the GitHub API. The token travels in
@@ -484,7 +483,7 @@ func (g *Git) rankTree(entries []githubTreeEntry, recursive bool) []CandidateFil
 			continue
 		}
 
-		kind, score, interesting := ClassifyPath(entry.Path)
+		kind, score, interesting := classifyPath(entry.Path)
 		// A root naming one exact file is an explicit request for it, which
 		// the clone route honours whatever the file is called.
 		if !interesting && entry.Path != root {
@@ -537,7 +536,7 @@ func underRoot(root, entryPath string, recursive bool) bool {
 	return path.Dir(entryPath) == root
 }
 
-// ClassifyPath infers the IaC file type of a path and scores how interesting
+// classifyPath infers the IaC file type of a path and scores how interesting
 // it is for a design import, from the path alone. The third return value
 // reports whether the path is worth importing at all.
 //
@@ -545,7 +544,7 @@ func underRoot(root, entryPath string, recursive bool) bool {
 // has been downloaded. An empty kind means the path is worth fetching but not
 // distinctive enough to name a type; files.IdentifyFile makes that call once
 // the contents are available.
-func ClassifyPath(filePath string) (core.IaCFileTypes, int, bool) {
+func classifyPath(filePath string) (core.IaCFileTypes, int, bool) {
 	name := strings.ToLower(path.Base(filePath))
 	ext := strings.ToLower(path.Ext(name))
 	if strings.HasSuffix(name, ".tar.gz") {
