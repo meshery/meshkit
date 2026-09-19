@@ -177,9 +177,14 @@ in hand.
 - **Context.** `WalkContext`, `ListInterestingFiles` and `FetchCandidates` all take a context;
   `Walk()` delegates with `context.Background()`. `Timeout(d)` bounds a whole traversal. A
   traversal cut short by a deadline or a cancellation fails: `Github.WalkContext` fans out one
-  request per entry and still logs each failure, but the first error any of them produced is
-  returned once the fan-out has drained, so a partial import is never reported as a success. The
-  directory interceptor is not called for a listing whose subtree failed.
+  request per entry, and once the fan-out has drained an ended context is returned as an error
+  rather than a partial import reported as a success - that is the one case where the directory
+  interceptor is skipped. Any **individual** node that cannot be listed or decoded is logged and
+  passed over instead, and the rest of the walk still delivers: GitHub answers a submodule or a
+  symlink path with a single JSON object rather than an array, so those nodes fail to decode and
+  are skipped, and a 404 or a rate limit on one subtree does not abort the import. A caller that
+  needs to know a node was missed reads it off the interceptors it was handed, not off the
+  returned error.
 - **Progress.** `RegisterProgressHook` receives `ProgressUpdate` values as the walk moves
   through `resolve-ref`, `list-tree`, `rank`, `fetch-blob` and `clone`.
 - **Paths.** Under `UseGithubAPI()` every **file** path handed to an interceptor is

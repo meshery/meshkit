@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -174,9 +176,16 @@ func wrapBase64(encoded string) string {
 func writeJSON(t *testing.T, w http.ResponseWriter, payload interface{}) {
 	t.Helper()
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
+	// A walker that stops reading at its response ceiling leaves the rest of
+	// the body unread, so the client hanging up mid-write is an expected
+	// outcome of the stub rather than a failure of it.
+	if err := json.NewEncoder(w).Encode(payload); err != nil && !clientHungUp(err) {
 		t.Errorf("failed to write stub response: %v", err)
 	}
+}
+
+func clientHungUp(err error) bool {
+	return errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET)
 }
 
 func TestClassifyPath(t *testing.T) {
