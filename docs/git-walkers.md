@@ -168,7 +168,11 @@ in hand.
   something else answers 404. Call `Branch` explicitly when driving `Github` from a connection
   that does not carry one.
 - **Context.** `WalkContext`, `ListInterestingFiles` and `FetchCandidates` all take a context;
-  `Walk()` delegates with `context.Background()`. `Timeout(d)` bounds a whole traversal.
+  `Walk()` delegates with `context.Background()`. `Timeout(d)` bounds a whole traversal. A
+  traversal cut short by a deadline or a cancellation fails: `Github.WalkContext` fans out one
+  request per entry and still logs each failure, but the first error any of them produced is
+  returned once the fan-out has drained, so a partial import is never reported as a success. The
+  directory interceptor is not called for a listing whose subtree failed.
 - **Progress.** `RegisterProgressHook` receives `ProgressUpdate` values as the walk moves
   through `resolve-ref`, `list-tree`, `rank`, `fetch-blob` and `clone`.
 - **Paths.** Under `UseGithubAPI()` every **file** path handed to an interceptor is

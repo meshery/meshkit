@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -523,21 +524,31 @@ func TestIsGithubHost(t *testing.T) {
 
 func TestWalkContextKeepsGoGitForNonGithubHosts(t *testing.T) {
 	// A non-github.com host must never reach the GitHub API, even with the
-	// hybrid crawl enabled; the walk is expected to fail at the clone instead.
+	// hybrid crawl enabled; the walk goes through go-git instead.
 	stub := &githubAPIStub{commitSHA: "commit-sha"}
 	server := stub.server(t)
 
+	baseDir := t.TempDir()
+	createCommittedRepo(t, filepath.Join(baseDir, "owner", "repo"), map[string]string{
+		"configs/app.yaml": "kind: ConfigMap",
+	})
+
+	delivered := []string{}
 	err := apiGit(server).
-		BaseURL("https://git.example.com").
+		BaseURL("file://" + baseDir).
+		Root("configs/**").
 		UseGithubAPI().
 		Timeout(5 * time.Second).
-		RegisterFileInterceptor(func(File) error { return nil }).
+		RegisterFileInterceptor(func(file File) error {
+			delivered = append(delivered, file.Path)
+			return nil
+		}).
 		WalkContext(context.Background())
-	if err == nil {
-		t.Fatal("expected the clone against a non-existent host to fail")
+	if err != nil {
+		t.Fatalf("WalkContext() returned error: %v", err)
 	}
-	if code := meshkiterrors.GetCode(err); code != ErrCloningRepoCode {
-		t.Fatalf("expected the walk to fail while cloning, got error code %q: %v", code, err)
+	if !reflect.DeepEqual(delivered, []string{"configs/app.yaml"}) {
+		t.Errorf("expected the clone to deliver the repository's file, got %v", delivered)
 	}
 
 	auth, _, _ := stub.snapshot()

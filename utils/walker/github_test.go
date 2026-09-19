@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // githubContentsStub serves the Contents API endpoints the Github walker uses,
@@ -18,6 +19,8 @@ type githubContentsStub struct {
 	files map[string]GithubContentAPI
 	// forbidden, when set, is the message every request is refused with.
 	forbidden string
+	// onRequest, when set, runs before a request is answered.
+	onRequest func(requested string, r *http.Request)
 
 	mu            sync.Mutex
 	paths         []string
@@ -36,6 +39,10 @@ func (s *githubContentsStub) server(t *testing.T) *httptest.Server {
 		s.refs = append(s.refs, r.URL.Query().Get("ref"))
 		s.authorization = append(s.authorization, r.Header.Get("Authorization"))
 		s.mu.Unlock()
+
+		if s.onRequest != nil {
+			s.onRequest(requested, r)
+		}
 
 		if s.forbidden != "" {
 			w.WriteHeader(http.StatusForbidden)
@@ -200,4 +207,87 @@ func TestGithubWalkContextSurfacesForbiddenWithoutTheToken(t *testing.T) {
 	if strings.Contains(err.Error(), "s3cret") {
 		t.Fatal("the access token must never appear in an error message")
 	}
+}
+
+func TestGithubWalkContextFailsWhenCancellationTruncatesTheWalk(t *testing.T) {
+	// The top-level listing is served in full, so the walk only breaks down in
+	// the fan-out below it - the point at which a truncated import used to be
+	// reported as a success.
+	newStub := func() *githubContentsStub {
+		return &githubContentsStub{
+			dirs: map[string]GithubDirectoryContentAPI{
+				"configs": {{Name: "child.yaml", Path: "configs/child.yaml", Type: "file"}},
+			},
+			files: map[string]GithubContentAPI{
+				"configs/child.yaml": {Name: "child.yaml", Path: "configs/child.yaml", Type: "file", Encoding: "base64", Content: "a2luZDogQ29uZmlnTWFw"},
+			},
+		}
+	}
+
+	t.Run("a walk cancelled after the listing fails", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+
+		stub := newStub()
+		stub.onRequest = func(requested string, r *http.Request) {
+			if requested != "configs/child.yaml" {
+				return
+			}
+			// Cancelled while this child request is in flight, and held until
+			// the client has given up on it, so the walk is always truncated.
+			cancel()
+			select {
+			case <-r.Context().Done():
+			case <-time.After(5 * time.Second):
+			}
+		}
+		server := stub.server(t)
+
+		var mu sync.Mutex
+		listings := 0
+		err := contentsGithub(server).
+			Root("configs").
+			RegisterFileInterceptor(func(GithubContentAPI) error { return nil }).
+			RegisterDirInterceptor(func(GithubDirectoryContentAPI) error {
+				mu.Lock()
+				defer mu.Unlock()
+				listings++
+				return nil
+			}).
+			WalkContext(ctx)
+		if err == nil {
+			t.Fatal("expected a walk truncated by cancellation to fail rather than report success")
+		}
+
+		mu.Lock()
+		defer mu.Unlock()
+		if listings != 0 {
+			t.Errorf("expected no directory listing to be handed over by a truncated walk, got %d", listings)
+		}
+	})
+
+	t.Run("an uncancelled walk still succeeds", func(t *testing.T) {
+		server := newStub().server(t)
+
+		var mu sync.Mutex
+		intercepted := []string{}
+		err := contentsGithub(server).
+			Root("configs").
+			RegisterFileInterceptor(func(file GithubContentAPI) error {
+				mu.Lock()
+				defer mu.Unlock()
+				intercepted = append(intercepted, file.Path)
+				return nil
+			}).
+			WalkContext(context.Background())
+		if err != nil {
+			t.Fatalf("WalkContext() returned error: %v", err)
+		}
+
+		mu.Lock()
+		defer mu.Unlock()
+		if !reflect.DeepEqual(intercepted, []string{"configs/child.yaml"}) {
+			t.Errorf("expected the file to be delivered, got %v", intercepted)
+		}
+	})
 }
