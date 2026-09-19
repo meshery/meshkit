@@ -118,10 +118,3 @@ next use.
 - [git-walkers](docs/git-walkers.md) - read before touching `utils/walker/`: the hybrid GitHub Trees crawl, its go-git fallbacks, and the ranked interesting-file API.
 
 CLAUDE.md is a symlink to this file.
-
-## Maintaining this file
-
-Keep this file for knowledge useful to almost every future agent session in this project.
-Do not repeat what the codebase already shows; point to the authoritative file or command instead.
-Prefer rewriting or pruning existing entries over appending new ones.
-When updating this file, preserve this bar for all agents and keep entries concise.

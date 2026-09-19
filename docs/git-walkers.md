@@ -19,10 +19,14 @@ The package offers three walkers:
 expensive on large repositories. `Git.UseGithubAPI()` opts into a hybrid crawl instead:
 
 1. **Resolve** the configured reference to a commit SHA (`GET /repos/{owner}/{repo}/commits/{ref}`).
+   When neither `Branch` nor `ReferenceName` was set, the repository's default branch is read
+   first (`GET /repos/{owner}/{repo}`), so the API route walks the branch the clone route would
+   have checked out.
 2. **List** that commit's tree once, recursively (`GET /repos/{owner}/{repo}/git/trees/{sha}?recursive=1`).
 3. **Filter and rank** the returned entries from their metadata alone - path, type and size.
 4. **Fetch** blobs (`GET /repos/{owner}/{repo}/git/blobs/{sha}`) only for entries that survived,
-   and hand each to the registered file interceptor.
+   and hand each to the registered file interceptor. Up to 8 blobs download at a time, while the
+   interceptor is still called once at a time and in ranked order.
 
 The size limit set by `MaxFileSize` is applied against the size the tree already reports, so
 an oversized blob is never downloaded at all.
@@ -39,6 +43,11 @@ The crawl is **opt-in**. Callers that do not enable it keep cloning exactly as b
   the listing is incomplete, and only a clone sees every file.
 - **A directory interceptor is registered.** Directory interception hands the interceptor a
   working-tree path (`helm.ConvertToK8sManifest` needs one), which the API route never produces.
+- **The ranked listing is longer than 500 candidates.** One request per blob only beats a clone
+  while the selection stays small, so past that threshold `WalkContext` clones instead of issuing
+  hundreds of round-trips against the rate limit. Nothing is truncated: the clone delivers at
+  least every file the API route would have. The threshold applies to the automatic fetch only -
+  `FetchCandidates` downloads whatever selection it is handed.
 
 Sparse and partial clone for large non-GitHub repositories, and GitLab/Bitbucket adapters, are
 deliberately out of scope - see [ux/canvas-first-github-onboarding.md](ux/canvas-first-github-onboarding.md).
@@ -57,12 +66,17 @@ Ranking is **path based**, because it runs before any content exists. `ClassifyP
 | 90 | `ScoreKustomization` | `kustomization.*` | `core.K8sKustomize` |
 | 80 | `ScoreDockerCompose` | `docker-compose.*`, `compose.*` | `core.DockerCompose` |
 | 70 | `ScoreMesheryDesign` | `design.yml`/`.yaml`/`.json`, `*.design.*` | `core.MesheryDesign` |
-| 60 | `ScoreChartArchive` | chart and OCI archives (`.tgz`, `.tar.gz`, `.tar`, `.zip`, `.gz`) | `core.HelmChart` |
+| 60 | `ScoreChartArchive` | chart and OCI archives (`.tgz`, `.tar.gz`) | `core.HelmChart` |
 | 20 | `ScoreGenericYAML` | any other `.yaml`/`.yml` | *(empty)* |
 | 10 | `ScoreGenericJSON` | any other `.json` | *(empty)* |
 
 Ties break on path depth, then alphabetically, so a chart at the repository root outranks one
-buried in a test fixture.
+buried in a test fixture. A `Root` naming one exact file always yields that file, whatever it is
+called, matching what the clone route does with an explicitly named file.
+
+Only `.tgz` and `.tar.gz` are ranked as chart archives, because that is all Helm packages a chart
+as. The wider table in `files/iacext` describes what an *uploaded* chart may arrive as; applying
+it here would label every `.zip`, `.gz` and `.tar` in a repository a Helm chart.
 
 An empty `Kind` means the path is worth fetching but is not distinctive enough to name a type.
 Identification proper remains the caller's job: run `files.IdentifyFile` once the contents are
@@ -79,13 +93,18 @@ aliases of the `iacext` tables, so existing callers are unaffected.
 ## Branch, reference, context, progress and auth
 
 - **Branch vs reference.** `ReferenceName` wins when set. Otherwise an explicitly set `Branch`
-  is expanded to `refs/heads/<branch>`. A caller that sets neither still clones the remote's
-  default branch - the `NewGit()` default of `"master"` (and `NewGithub()`'s `"main"`) is only
-  a fallback for the API ref, never something forced onto a clone.
+  is expanded to `refs/heads/<branch>`. A caller that sets neither gets the remote's default
+  branch on both routes: the clone lets go-git pick it, and the API route reads `default_branch`
+  from the repository. The `NewGit()` default of `"master"` (and `NewGithub()`'s `"main"`) only
+  applies once `Branch` has been called, so it is never forced onto either route.
 - **Context.** `WalkContext`, `ListInterestingFiles` and `FetchCandidates` all take a context;
   `Walk()` delegates with `context.Background()`. `Timeout(d)` bounds a whole traversal.
 - **Progress.** `RegisterProgressHook` receives `ProgressUpdate` values as the walk moves
   through `resolve-ref`, `list-tree`, `rank`, `fetch-blob` and `clone`.
+- **Paths.** `File.Path` is the repository-relative path on the API route. Callers that enabled
+  `UseGithubAPI()` see the same repository-relative path when a walk falls back to the clone, so
+  one import handles one kind of path. Callers that never opted in keep the absolute path into
+  the (temporary) clone they have always received.
 - **Auth.** `Token(t)` threads a GitHub App or OAuth token onto the API calls as a bearer token
   and onto the clone as `x-access-token` basic auth, for private repositories and the
   authenticated rate limit. The token is never logged, never placed in an error message and

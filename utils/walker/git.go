@@ -190,9 +190,11 @@ func (g *Git) Token(token string) *Git {
 	return g
 }
 
-// APIBaseURL overrides the GitHub API endpoint used by the Trees-based walk.
-// It defaults to DefaultGithubAPIBaseURL and mainly exists for GitHub
-// Enterprise endpoints and for tests.
+// APIBaseURL overrides the GitHub API endpoint used by ListInterestingFiles
+// and FetchCandidates. It defaults to DefaultGithubAPIBaseURL and mainly exists
+// for tests. It does not make Walk or WalkContext take the API route against a
+// GitHub Enterprise repository: that decision is made from the repository
+// BaseURL, and every host other than github.com keeps the clone.
 func (g *Git) APIBaseURL(baseURL string) *Git {
 	g.apiBaseURL = strings.TrimSuffix(baseURL, "/")
 	return g
@@ -243,8 +245,7 @@ func (g *Git) isGithubHost() (bool, error) {
 	if err != nil {
 		return false, ErrInvalidBaseURL(err, g.baseURL)
 	}
-	host := strings.ToLower(parsed.Hostname())
-	return host == "github.com" || host == "www.github.com", nil
+	return strings.ToLower(parsed.Hostname()) == "github.com", nil
 }
 
 // cloneReferenceName resolves the reference the clone should check out. An
@@ -262,12 +263,17 @@ func (g *Git) cloneReferenceName() plumbing.ReferenceName {
 }
 
 // ref returns the git reference the GitHub API should resolve: the short name
-// of an explicitly set ReferenceName, else the configured branch.
+// of an explicitly set ReferenceName, else an explicitly set branch. It is
+// empty when the caller set neither, which means the repository's default
+// branch on the API route exactly as it already does on the clone route.
 func (g *Git) ref() string {
 	if g.referenceName != "" {
 		return g.referenceName.Short()
 	}
-	return g.branch
+	if g.branchSet && g.branch != "" {
+		return g.branch
+	}
+	return ""
 }
 func (g *Git) RegisterFileInterceptor(i FileInterceptor) *Git {
 	g.fileInterceptor = i
@@ -283,11 +289,11 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 		return ErrInvalidSizeFile(errors.New("max file size passed as 0. Will not read any file"))
 	}
 
-	path := filepath.Join(os.TempDir(), g.repo, strconv.FormatInt(time.Now().UTC().UnixNano(), 10))
+	clonePath := filepath.Join(os.TempDir(), g.repo, strconv.FormatInt(time.Now().UTC().UnixNano(), 10))
 	var wg sync.WaitGroup
 	defer func() {
 		wg.Wait()
-		_ = os.RemoveAll(path)
+		_ = os.RemoveAll(clonePath)
 	}()
 	var err error
 	cloneOptions := &git.CloneOptions{
@@ -310,21 +316,21 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 
 	g.reportProgress(ProgressUpdate{Stage: ProgressStageClone, Message: fmt.Sprintf("cloning %s/%s", g.owner, g.repo)})
 
-	_, err = git.PlainCloneContext(ctx, path, false, cloneOptions)
+	_, err = git.PlainCloneContext(ctx, clonePath, false, cloneOptions)
 	if err != nil {
 		return ErrCloningRepo(err)
 	}
 
 	g.reportProgress(ProgressUpdate{Stage: ProgressStageClone, Message: "clone complete"})
 
-	rootPath := filepath.Join(path, g.root)
+	rootPath := filepath.Join(clonePath, g.root)
 	info, err := os.Stat(rootPath)
 	if err != nil {
 		return ErrCloningRepo(err)
 	}
 
 	if !info.IsDir() {
-		err = g.readFile(info, rootPath)
+		err = g.readFile(info, clonePath, rootPath)
 		if err != nil {
 			return ErrCloningRepo(err)
 		}
@@ -346,7 +352,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 			if err != nil {
 				return errInfo
 			}
-			return g.readFile(f, path)
+			return g.readFile(f, clonePath, path)
 		})
 		if err != nil {
 			return ErrCloningRepo(err)
@@ -355,7 +361,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 	}
 
 	// If recurse mode is off, we only walk the root directory passed with g.root
-	entries, err := os.ReadDir(filepath.Join(path, g.root))
+	entries, err := os.ReadDir(filepath.Join(clonePath, g.root))
 	if err != nil {
 		return err
 	}
@@ -369,7 +375,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 	}
 
 	for _, f := range files {
-		fPath := filepath.Join(path, g.root, f.Name())
+		fPath := filepath.Join(clonePath, g.root, f.Name())
 		if f.IsDir() && g.dirInterceptor != nil {
 			name := f.Name()
 			wg.Add(1)
@@ -388,7 +394,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 		if f.IsDir() {
 			continue
 		}
-		err := g.readFile(f, fPath)
+		err := g.readFile(f, clonePath, fPath)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -397,11 +403,27 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 	return nil
 }
 
-func (g *Git) readFile(f fs.FileInfo, path string) error {
+// interceptedPath reports the File.Path a file read out of a clone is handed to
+// the interceptor with. A caller that opted into the GitHub API sees the
+// repository-relative path the Trees route would have given it, so the two
+// routes stay interchangeable when the walk falls back. Every other caller
+// keeps the absolute path into the clone.
+func (g *Git) interceptedPath(clonePath, filePath string) string {
+	if !g.useAPI {
+		return filePath
+	}
+	relative, err := filepath.Rel(clonePath, filePath)
+	if err != nil {
+		return filePath
+	}
+	return filepath.ToSlash(relative)
+}
+
+func (g *Git) readFile(f fs.FileInfo, clonePath, filePath string) error {
 	if f.Size() > g.maxFileSizeInBytes {
 		return ErrInvalidSizeFile(errors.New("File exceeding size limit"))
 	}
-	filename, err := os.Open(path)
+	filename, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
@@ -411,7 +433,7 @@ func (g *Git) readFile(f fs.FileInfo, path string) error {
 	}
 	err = g.fileInterceptor(File{
 		Name:    f.Name(),
-		Path:    path,
+		Path:    g.interceptedPath(clonePath, filePath),
 		Content: string(content),
 	})
 	if err != nil {

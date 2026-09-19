@@ -20,6 +20,19 @@ import (
 // talks to unless APIBaseURL overrides it.
 const DefaultGithubAPIBaseURL = "https://api.github.com"
 
+// blobFetchConcurrency bounds how many blobs are downloaded at once. It also
+// bounds how many downloaded blobs are held in memory at once, because a slot
+// is only released once its blob has been handed to the interceptor.
+const blobFetchConcurrency = 8
+
+// maxAutoFetchCandidates is the largest listing WalkContext downloads blob by
+// blob. A bigger selection is read in one request by the depth-1 clone the
+// hybrid crawl replaces, so past this threshold the walk falls back to go-git
+// rather than issuing thousands of round-trips against the rate limit. It does
+// not apply to FetchCandidates, where the caller has already chosen what to
+// download.
+const maxAutoFetchCandidates = 500
+
 // Progress stages reported through a ProgressHook.
 const (
 	ProgressStageResolveRef ProgressStage = "resolve-ref"
@@ -113,6 +126,10 @@ type githubCommitAPI struct {
 	SHA string `json:"sha,omitempty"`
 }
 
+type githubRepoAPI struct {
+	DefaultBranch string `json:"default_branch,omitempty"`
+}
+
 type githubBlobAPI struct {
 	SHA      string `json:"sha,omitempty"`
 	Size     int64  `json:"size,omitempty"`
@@ -136,7 +153,10 @@ func (g *Git) ListInterestingFiles(ctx context.Context) (InterestingFiles, error
 }
 
 func (g *Git) listInterestingFiles(ctx context.Context) (InterestingFiles, error) {
-	ref := g.ref()
+	ref, err := g.apiRef(ctx)
+	if err != nil {
+		return InterestingFiles{}, err
+	}
 
 	g.reportProgress(ProgressUpdate{Stage: ProgressStageResolveRef, Message: fmt.Sprintf("resolving %s", ref)})
 	commitSHA, err := g.resolveRef(ctx, ref)
@@ -168,6 +188,10 @@ func (g *Git) listInterestingFiles(ctx context.Context) (InterestingFiles, error
 // registered file interceptor, in the order given. Candidates usually come
 // from ListInterestingFiles, filtered down to whatever the user selected.
 //
+// Downloads overlap, up to blobFetchConcurrency at a time, but the interceptor
+// is still called once at a time and in order, so it does not have to be safe
+// for concurrent use.
+//
 // File.Path on the intercepted file is the repository-relative path, not a
 // local filesystem path: nothing is written to disk on this route.
 func (g *Git) FetchCandidates(ctx context.Context, candidates []CandidateFile) error {
@@ -182,9 +206,47 @@ func (g *Git) fetchCandidates(ctx context.Context, candidates []CandidateFile) e
 		return nil
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type blob struct {
+		content string
+		err     error
+	}
+
+	results := make([]chan blob, len(candidates))
+	for i := range results {
+		results[i] = make(chan blob, 1)
+	}
+	// A slot is taken before a download starts and only given back once that
+	// blob has been delivered, so neither the requests in flight nor the
+	// contents held in memory outrun the interceptor.
+	slots := make(chan struct{}, blobFetchConcurrency)
+
+	go func() {
+		for i := range candidates {
+			select {
+			case slots <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+
+			go func(i int) {
+				content, err := g.fetchBlob(ctx, candidates[i])
+				results[i] <- blob{content: content, err: err}
+			}(i)
+		}
+	}()
+
 	for i, candidate := range candidates {
-		if err := ctx.Err(); err != nil {
-			return ErrFetchingGitBlob(err, candidate.Path)
+		var fetched blob
+		select {
+		case fetched = <-results[i]:
+		case <-ctx.Done():
+			return ErrFetchingGitBlob(ctx.Err(), candidate.Path)
+		}
+		if fetched.err != nil {
+			return fetched.err
 		}
 
 		g.reportProgress(ProgressUpdate{
@@ -194,18 +256,15 @@ func (g *Git) fetchCandidates(ctx context.Context, candidates []CandidateFile) e
 			Total:   len(candidates),
 		})
 
-		content, err := g.fetchBlob(ctx, candidate)
-		if err != nil {
-			return err
-		}
-
 		if err := g.fileInterceptor(File{
 			Name:    candidate.Name,
 			Path:    candidate.Path,
-			Content: content,
+			Content: fetched.content,
 		}); err != nil {
 			return err
 		}
+
+		<-slots
 	}
 
 	return nil
@@ -237,11 +296,52 @@ func (g *Git) treeWalk(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
+	// Selective blob fetching only beats the clone while the selection stays
+	// small; beyond the threshold the clone reads the same files in one go.
+	if len(listing.Candidates) > maxAutoFetchCandidates {
+		return false, nil
+	}
+
 	if err := g.fetchCandidates(ctx, listing.Candidates); err != nil {
 		return false, err
 	}
 
 	return true, nil
+}
+
+// apiRef reports which reference the API route should resolve. An explicitly
+// set ReferenceName wins, then an explicitly set Branch; when the caller set
+// neither, the repository's default branch is read from the API so that both
+// routes agree on what "no reference configured" means.
+func (g *Git) apiRef(ctx context.Context) (string, error) {
+	if ref := g.ref(); ref != "" {
+		return ref, nil
+	}
+
+	g.reportProgress(ProgressUpdate{Stage: ProgressStageResolveRef, Message: "resolving the default branch"})
+	return g.defaultBranch(ctx)
+}
+
+// defaultBranch asks the API which branch the repository defaults to, which is
+// the branch a clone with no reference configured checks out.
+func (g *Git) defaultBranch(ctx context.Context) (string, error) {
+	const ref = "HEAD"
+	endpoint := fmt.Sprintf("%s/repos/%s/%s", g.apiEndpoint(), g.owner, g.repo)
+
+	body, err := g.get(ctx, endpoint)
+	if err != nil {
+		return "", ErrResolvingGitRef(err, ref)
+	}
+
+	repository := githubRepoAPI{}
+	if err := json.Unmarshal(body, &repository); err != nil {
+		return "", ErrResolvingGitRef(err, ref)
+	}
+	if repository.DefaultBranch == "" {
+		return "", ErrResolvingGitRef(fmt.Errorf("the GitHub API returned no default branch"), ref)
+	}
+
+	return repository.DefaultBranch, nil
 }
 
 // resolveRef turns a branch, tag or reference name into a commit SHA.
@@ -379,7 +479,9 @@ func (g *Git) rankTree(entries []githubTreeEntry) []CandidateFile {
 		}
 
 		kind, score, interesting := ClassifyPath(entry.Path)
-		if !interesting {
+		// A root naming one exact file is an explicit request for it, which
+		// the clone route honours whatever the file is called.
+		if !interesting && entry.Path != root {
 			continue
 		}
 
@@ -461,8 +563,11 @@ func ClassifyPath(filePath string) (core.IaCFileTypes, int, bool) {
 		}
 	}
 
-	// Chart and design archives, including OCI artifacts packaged as tarballs.
-	if iacext.ValidHelmChartFileExtensions[ext] {
+	// Chart and OCI artifacts, which Helm only ever packages as a gzipped
+	// tarball. The wider archive table files/iacext carries describes what an
+	// uploaded chart may arrive as; applying it here would label every .zip,
+	// .gz and .tar in a repository a Helm chart.
+	if ext == ".tgz" || ext == ".tar.gz" {
 		return core.HelmChart, ScoreChartArchive, true
 	}
 

@@ -20,20 +20,31 @@ import (
 // githubAPIStub serves the three GitHub endpoints the hybrid crawl uses, so
 // that no test reaches the real network.
 type githubAPIStub struct {
-	commitSHA string
-	tree      githubTreeAPI
-	blobs     map[string]string // blob SHA -> decoded content
+	commitSHA     string
+	defaultBranch string
+	tree          githubTreeAPI
+	blobs         map[string]string // blob SHA -> decoded content
+	// onBlob, when set, runs before a blob response is written.
+	onBlob func(sha string)
 
 	mu            sync.Mutex
 	authorization []string
 	requestedRefs []string
 	fetchedBlobs  []string
+	repoLookups   int
 }
 
 func (s *githubAPIStub) server(t *testing.T) *httptest.Server {
 	t.Helper()
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo", func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		s.repoLookups++
+		s.mu.Unlock()
+		s.record(r, nil, "")
+		writeJSON(t, w, githubRepoAPI{DefaultBranch: s.defaultBranch})
+	})
 	mux.HandleFunc("/repos/owner/repo/commits/", func(w http.ResponseWriter, r *http.Request) {
 		s.record(r, &s.requestedRefs, strings.TrimPrefix(r.URL.Path, "/repos/owner/repo/commits/"))
 		writeJSON(t, w, githubCommitAPI{SHA: s.commitSHA})
@@ -48,6 +59,10 @@ func (s *githubAPIStub) server(t *testing.T) *httptest.Server {
 	mux.HandleFunc("/repos/owner/repo/git/blobs/", func(w http.ResponseWriter, r *http.Request) {
 		sha := strings.TrimPrefix(r.URL.Path, "/repos/owner/repo/git/blobs/")
 		s.record(r, &s.fetchedBlobs, sha)
+
+		if s.onBlob != nil {
+			s.onBlob(sha)
+		}
 
 		content, ok := s.blobs[sha]
 		if !ok {
@@ -84,6 +99,12 @@ func (s *githubAPIStub) snapshot() (auth, refs, blobs []string) {
 	return append([]string(nil), s.authorization...), append([]string(nil), s.requestedRefs...), append([]string(nil), s.fetchedBlobs...)
 }
 
+func (s *githubAPIStub) repoLookupCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.repoLookups
+}
+
 func writeJSON(t *testing.T, w http.ResponseWriter, payload interface{}) {
 	t.Helper()
 	w.Header().Set("Content-Type", "application/json")
@@ -111,6 +132,9 @@ func TestClassifyPath(t *testing.T) {
 		{name: "chart archive tar.gz", path: "dist/redis-1.0.0.tar.gz", wantKind: core.HelmChart, wantScore: ScoreChartArchive, wantInteresting: true},
 		{name: "generic yaml", path: "manifests/deployment.yaml", wantKind: "", wantScore: ScoreGenericYAML, wantInteresting: true},
 		{name: "generic json", path: "manifests/service.json", wantKind: "", wantScore: ScoreGenericJSON, wantInteresting: true},
+		{name: "zip archive is not a chart", path: "frontend/assets.zip", wantKind: "", wantScore: 0, wantInteresting: false},
+		{name: "gz dump is not a chart", path: "logs/dump.gz", wantKind: "", wantScore: 0, wantInteresting: false},
+		{name: "tar archive is not a chart", path: "vendor/deps.tar", wantKind: "", wantScore: 0, wantInteresting: false},
 		{name: "uninteresting", path: "README.md", wantKind: "", wantScore: 0, wantInteresting: false},
 		{name: "source file", path: "main.go", wantKind: "", wantScore: 0, wantInteresting: false},
 	}
@@ -194,6 +218,16 @@ func TestRankTreeOrdersAndFilters(t *testing.T) {
 				{Type: "blob", Path: "designs/design.yml", SHA: "c", Size: 10},
 			},
 			wantPaths: []string{"charts/redis/Chart.yaml", "charts/values.yaml"},
+		},
+		{
+			name:    "a root naming one exact file delivers it whatever it is called",
+			root:    "scripts/install.sh",
+			maxSize: 1000,
+			entries: []githubTreeEntry{
+				{Type: "blob", Path: "scripts/install.sh", SHA: "a", Size: 10},
+				{Type: "blob", Path: "scripts/values.yaml", SHA: "b", Size: 10},
+			},
+			wantPaths: []string{"scripts/install.sh"},
 		},
 		{
 			name:    "non-recursive root keeps only direct children",
@@ -283,7 +317,8 @@ func TestListInterestingFilesFetchesNoBlobs(t *testing.T) {
 
 func TestWalkContextUsesTreesPathAndFetchesSelectedBlobs(t *testing.T) {
 	stub := &githubAPIStub{
-		commitSHA: "commit-sha",
+		commitSHA:     "commit-sha",
+		defaultBranch: "main",
 		tree: githubTreeAPI{
 			Tree: []githubTreeEntry{
 				{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11},
@@ -348,7 +383,8 @@ func TestTreeWalkFallsBackToClone(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stub := &githubAPIStub{
-				commitSHA: "commit-sha",
+				commitSHA:     "commit-sha",
+				defaultBranch: "main",
 				tree: githubTreeAPI{
 					Truncated: tt.truncated,
 					Tree:      []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}},
@@ -390,7 +426,6 @@ func TestIsGithubHost(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "default base url", baseURL: "https://github.com", want: true},
-		{name: "www host", baseURL: "https://www.github.com", want: true},
 		{name: "uppercase host", baseURL: "https://GitHub.com", want: true},
 		{name: "github enterprise", baseURL: "https://github.example.com", want: false},
 		{name: "gitlab", baseURL: "https://gitlab.com", want: false},
@@ -460,6 +495,7 @@ func TestResolveRefSurfacesAPIErrorsWithoutTheToken(t *testing.T) {
 	_, err := NewGit().
 		Owner("owner").
 		Repo("repo").
+		Branch("main").
 		APIBaseURL(server.URL).
 		Token("s3cret").
 		ListInterestingFiles(context.Background())
@@ -489,6 +525,214 @@ func TestFetchCandidatesReportsBlobFailures(t *testing.T) {
 	}
 	if code := meshkiterrors.GetCode(err); code != ErrFetchingGitBlobCode {
 		t.Fatalf("expected error code %q, got %q", ErrFetchingGitBlobCode, code)
+	}
+}
+
+func TestListInterestingFilesResolvesTheConfiguredReference(t *testing.T) {
+	tests := []struct {
+		name            string
+		branch          string
+		referenceName   string
+		wantRef         string
+		wantRepoLookups int
+	}{
+		{
+			name:            "neither set resolves the repository default branch",
+			wantRef:         "trunk",
+			wantRepoLookups: 1,
+		},
+		{
+			name:    "an explicit branch is used as is",
+			branch:  "release",
+			wantRef: "release",
+		},
+		{
+			name:          "an explicit reference name wins over a branch",
+			branch:        "release",
+			referenceName: "refs/tags/v1.2.3",
+			wantRef:       "v1.2.3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stub := &githubAPIStub{
+				commitSHA:     "commit-sha",
+				defaultBranch: "trunk",
+				tree:          githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
+			}
+			server := stub.server(t)
+
+			g := NewGit().Owner("owner").Repo("repo").APIBaseURL(server.URL)
+			if tt.branch != "" {
+				g = g.Branch(tt.branch)
+			}
+			if tt.referenceName != "" {
+				g = g.ReferenceName(tt.referenceName)
+			}
+
+			if _, err := g.ListInterestingFiles(context.Background()); err != nil {
+				t.Fatalf("ListInterestingFiles() returned error: %v", err)
+			}
+
+			_, refs, _ := stub.snapshot()
+			if !reflect.DeepEqual(refs, []string{tt.wantRef}) {
+				t.Errorf("expected the tree to be listed from %q, got %v", tt.wantRef, refs)
+			}
+			if got := stub.repoLookupCount(); got != tt.wantRepoLookups {
+				t.Errorf("expected %d default-branch lookups, got %d", tt.wantRepoLookups, got)
+			}
+		})
+	}
+}
+
+func TestListInterestingFilesReportsAnUnresolvableDefaultBranch(t *testing.T) {
+	// The repository endpoint answers without a default_branch, so there is no
+	// reference to list a tree from.
+	stub := &githubAPIStub{commitSHA: "commit-sha"}
+	server := stub.server(t)
+
+	_, err := NewGit().
+		Owner("owner").
+		Repo("repo").
+		APIBaseURL(server.URL).
+		ListInterestingFiles(context.Background())
+	if err == nil {
+		t.Fatal("expected ListInterestingFiles to fail when the default branch is unknown")
+	}
+	if code := meshkiterrors.GetCode(err); code != ErrResolvingGitRefCode {
+		t.Fatalf("expected error code %q, got %q", ErrResolvingGitRefCode, code)
+	}
+
+	_, refs, _ := stub.snapshot()
+	if len(refs) != 0 {
+		t.Errorf("expected no commit to be resolved without a reference, got %v", refs)
+	}
+}
+
+func TestFetchCandidatesDownloadsConcurrentlyAndDeliversInOrder(t *testing.T) {
+	const candidateCount = blobFetchConcurrency * 3
+
+	inFlight := make(chan string, candidateCount)
+	release := make(chan struct{})
+	releaseAll := sync.OnceFunc(func() { close(release) })
+	stub := &githubAPIStub{
+		blobs: map[string]string{},
+		onBlob: func(sha string) {
+			inFlight <- sha
+			<-release
+		},
+	}
+	candidates := make([]CandidateFile, 0, candidateCount)
+	for i := 0; i < candidateCount; i++ {
+		sha := fmt.Sprintf("blob-%02d", i)
+		stub.blobs[sha] = fmt.Sprintf("content-%02d", i)
+		candidates = append(candidates, CandidateFile{Path: fmt.Sprintf("%02d.yaml", i), Name: fmt.Sprintf("%02d.yaml", i), SHA: sha})
+	}
+	server := stub.server(t)
+	// Registered after the server's own cleanup, which runs first and would
+	// otherwise wait forever on a handler a failed assertion left parked.
+	t.Cleanup(releaseAll)
+
+	delivered := []string{}
+	done := make(chan error, 1)
+	go func() {
+		done <- NewGit().
+			Owner("owner").
+			Repo("repo").
+			APIBaseURL(server.URL).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, file.Path)
+				return nil
+			}).
+			FetchCandidates(context.Background(), candidates)
+	}()
+
+	// Every handler stays parked until release is closed, so a serial fetcher
+	// can never put a second request in flight: waiting for two is what rules
+	// it out, whatever blobFetchConcurrency is set to.
+	const minimumOverlap = 2
+	for i := 0; i < blobFetchConcurrency; i++ {
+		select {
+		case <-inFlight:
+		case <-time.After(10 * time.Second):
+			if i < minimumOverlap {
+				t.Fatalf("expected blob downloads to overlap, only %d reached the server", i)
+			}
+			t.Fatalf("expected %d blob downloads to overlap, only %d reached the server", blobFetchConcurrency, i)
+		}
+	}
+
+	// ... and no more than that, so a large selection cannot open an unbounded
+	// number of connections.
+	select {
+	case sha := <-inFlight:
+		t.Fatalf("expected at most %d downloads in flight, %q made it %d", blobFetchConcurrency, sha, blobFetchConcurrency+1)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	releaseAll()
+	if err := <-done; err != nil {
+		t.Fatalf("FetchCandidates() returned error: %v", err)
+	}
+
+	wantOrder := make([]string, 0, candidateCount)
+	for _, candidate := range candidates {
+		wantOrder = append(wantOrder, candidate.Path)
+	}
+	if !reflect.DeepEqual(delivered, wantOrder) {
+		t.Errorf("expected every candidate to be delivered in order, got %v", delivered)
+	}
+
+	_, _, blobs := stub.snapshot()
+	if len(blobs) != candidateCount {
+		t.Errorf("expected all %d blobs to be downloaded, got %d", candidateCount, len(blobs))
+	}
+}
+
+func TestTreeWalkFallsBackWhenTheListingIsTooLargeToFetch(t *testing.T) {
+	tests := []struct {
+		name       string
+		candidates int
+		wantWalked bool
+	}{
+		{name: "at the threshold the api route fetches", candidates: maxAutoFetchCandidates, wantWalked: true},
+		{name: "past the threshold the clone is cheaper", candidates: maxAutoFetchCandidates + 1, wantWalked: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", blobs: map[string]string{}}
+			for i := 0; i < tt.candidates; i++ {
+				sha := fmt.Sprintf("blob-%04d", i)
+				stub.blobs[sha] = "kind: ConfigMap"
+				stub.tree.Tree = append(stub.tree.Tree, githubTreeEntry{Type: "blob", Path: fmt.Sprintf("manifests/%04d.yaml", i), SHA: sha, Size: 14})
+			}
+			server := stub.server(t)
+
+			walked, err := NewGit().
+				Owner("owner").
+				Repo("repo").
+				Root("manifests/**").
+				APIBaseURL(server.URL).
+				RegisterFileInterceptor(func(File) error { return nil }).
+				treeWalk(context.Background())
+			if err != nil {
+				t.Fatalf("treeWalk() returned error: %v", err)
+			}
+			if walked != tt.wantWalked {
+				t.Fatalf("expected treeWalk to report walked=%t, got %t", tt.wantWalked, walked)
+			}
+
+			_, _, blobs := stub.snapshot()
+			wantBlobs := 0
+			if tt.wantWalked {
+				wantBlobs = tt.candidates
+			}
+			if len(blobs) != wantBlobs {
+				t.Errorf("expected %d blobs to be downloaded, got %d", wantBlobs, len(blobs))
+			}
+		})
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -215,7 +216,7 @@ func TestGitReadFile(t *testing.T) {
 			return nil
 		})
 
-	if err := g.readFile(info, path); err != nil {
+	if err := g.readFile(info, dir, path); err != nil {
 		t.Fatalf("readFile() returned error: %v", err)
 	}
 
@@ -242,7 +243,7 @@ func TestGitReadFileRejectsOversizedFiles(t *testing.T) {
 		t.Fatalf("failed to stat test file: %v", err)
 	}
 
-	err = NewGit().MaxFileSize(2).readFile(info, path)
+	err = NewGit().MaxFileSize(2).readFile(info, dir, path)
 	if err == nil {
 		t.Fatal("expected readFile to reject oversized files")
 	}
@@ -464,7 +465,7 @@ func TestGitRef(t *testing.T) {
 		referenceName string
 		want          string
 	}{
-		{name: "defaults to the default branch", want: "master"},
+		{name: "empty when neither is set, so the default branch is resolved", want: ""},
 		{name: "uses the configured branch", branch: "release", want: "release"},
 		{name: "uses the short name of a reference", referenceName: "refs/tags/v1.2.3", want: "v1.2.3"},
 	}
@@ -525,6 +526,61 @@ func TestGitWalkHonoursConfiguredBranch(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitWalkFilePathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
+	// A caller that enabled the hybrid crawl handles repository-relative paths,
+	// so the clone it falls back to must hand it the same kind of path. A
+	// caller that never opted in keeps the absolute path into the clone.
+	baseDir := t.TempDir()
+	repoPath := filepath.Join(baseDir, "owner", "sample")
+	createCommittedRepo(t, repoPath, map[string]string{"configs/nested/child.yml": "nested file"})
+
+	walk := func(t *testing.T, useAPI bool) File {
+		t.Helper()
+
+		var intercepted File
+		g := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo("sample").
+			Root("configs/**").
+			RegisterFileInterceptor(func(file File) error {
+				intercepted = file
+				return nil
+			})
+		if useAPI {
+			g = g.UseGithubAPI()
+		}
+
+		if err := g.Walk(); err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+		return intercepted
+	}
+
+	t.Run("clone-only callers keep the absolute clone path", func(t *testing.T) {
+		intercepted := walk(t, false)
+		if !filepath.IsAbs(intercepted.Path) {
+			t.Fatalf("expected an absolute path into the clone, got %q", intercepted.Path)
+		}
+		if !strings.HasPrefix(intercepted.Path, filepath.Join(os.TempDir(), "sample")+string(os.PathSeparator)) {
+			t.Errorf("expected the path to sit under the temporary clone, got %q", intercepted.Path)
+		}
+		if !strings.HasSuffix(intercepted.Path, filepath.Join("configs", "nested", "child.yml")) {
+			t.Errorf("expected the path to end at the walked file, got %q", intercepted.Path)
+		}
+	})
+
+	t.Run("callers that opted into the api get repository-relative paths", func(t *testing.T) {
+		intercepted := walk(t, true)
+		if intercepted.Path != "configs/nested/child.yml" {
+			t.Errorf("expected the repository-relative path, got %q", intercepted.Path)
+		}
+		if intercepted.Content != "nested file" {
+			t.Errorf("expected the file contents to be unchanged, got %q", intercepted.Content)
+		}
+	})
 }
 
 func TestGitWalkContextRespectsCancellation(t *testing.T) {
