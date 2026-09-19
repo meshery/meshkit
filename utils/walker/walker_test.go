@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -528,18 +529,20 @@ func TestGitWalkHonoursConfiguredBranch(t *testing.T) {
 	}
 }
 
-func TestGitWalkFilePathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
+func TestGitWalkPathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
 	// A caller that enabled the hybrid crawl handles repository-relative paths,
-	// so the clone it falls back to must hand it the same kind of path. A
-	// caller that never opted in keeps the absolute path into the clone.
+	// so the clone it falls back to must hand it the same kind of path, for
+	// directories as much as for files. A caller that never opted in keeps the
+	// absolute path into the clone, which is the only openable form.
 	baseDir := t.TempDir()
 	repoPath := filepath.Join(baseDir, "owner", "sample")
 	createCommittedRepo(t, repoPath, map[string]string{"configs/nested/child.yml": "nested file"})
 
-	walk := func(t *testing.T, useAPI bool) File {
+	walk := func(t *testing.T, useAPI bool) (File, []string) {
 		t.Helper()
 
 		var intercepted File
+		directories := []string{}
 		g := NewGit().
 			BaseURL("file://" + baseDir).
 			Owner("owner").
@@ -547,6 +550,10 @@ func TestGitWalkFilePathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
 			Root("configs/**").
 			RegisterFileInterceptor(func(file File) error {
 				intercepted = file
+				return nil
+			}).
+			RegisterDirInterceptor(func(dir Directory) error {
+				directories = append(directories, dir.Path)
 				return nil
 			})
 		if useAPI {
@@ -556,29 +563,47 @@ func TestGitWalkFilePathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
 		if err := g.Walk(); err != nil {
 			t.Fatalf("Walk() returned error: %v", err)
 		}
-		return intercepted
+		return intercepted, directories
 	}
 
 	t.Run("clone-only callers keep the absolute clone path", func(t *testing.T) {
-		intercepted := walk(t, false)
+		intercepted, directories := walk(t, false)
+
+		underClone := filepath.Join(os.TempDir(), "sample") + string(os.PathSeparator)
 		if !filepath.IsAbs(intercepted.Path) {
 			t.Fatalf("expected an absolute path into the clone, got %q", intercepted.Path)
 		}
-		if !strings.HasPrefix(intercepted.Path, filepath.Join(os.TempDir(), "sample")+string(os.PathSeparator)) {
+		if !strings.HasPrefix(intercepted.Path, underClone) {
 			t.Errorf("expected the path to sit under the temporary clone, got %q", intercepted.Path)
 		}
 		if !strings.HasSuffix(intercepted.Path, filepath.Join("configs", "nested", "child.yml")) {
 			t.Errorf("expected the path to end at the walked file, got %q", intercepted.Path)
 		}
+
+		if len(directories) != 2 {
+			t.Fatalf("expected the root and the nested directory to be intercepted, got %v", directories)
+		}
+		for _, directory := range directories {
+			if !filepath.IsAbs(directory) || !strings.HasPrefix(directory, underClone) {
+				t.Errorf("expected an absolute directory path into the clone, got %q", directory)
+			}
+		}
+		if !strings.HasSuffix(directories[1], filepath.Join("configs", "nested")) {
+			t.Errorf("expected the nested directory to end at its path, got %q", directories[1])
+		}
 	})
 
 	t.Run("callers that opted into the api get repository-relative paths", func(t *testing.T) {
-		intercepted := walk(t, true)
+		intercepted, directories := walk(t, true)
+
 		if intercepted.Path != "configs/nested/child.yml" {
-			t.Errorf("expected the repository-relative path, got %q", intercepted.Path)
+			t.Errorf("expected the repository-relative file path, got %q", intercepted.Path)
 		}
 		if intercepted.Content != "nested file" {
 			t.Errorf("expected the file contents to be unchanged, got %q", intercepted.Content)
+		}
+		if want := []string{"configs", "configs/nested"}; !reflect.DeepEqual(directories, want) {
+			t.Errorf("expected the repository-relative directory paths %v, got %v", want, directories)
 		}
 	})
 }

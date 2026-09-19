@@ -132,6 +132,8 @@ func TestClassifyPath(t *testing.T) {
 		{name: "helm chart definition", path: "charts/redis/Chart.yaml", wantKind: core.HelmChart, wantScore: ScoreHelmChartDefinition, wantInteresting: true},
 		{name: "helm chart definition yml", path: "Chart.yml", wantKind: core.HelmChart, wantScore: ScoreHelmChartDefinition, wantInteresting: true},
 		{name: "kustomization", path: "overlays/prod/kustomization.yaml", wantKind: core.K8sKustomize, wantScore: ScoreKustomization, wantInteresting: true},
+		{name: "kustomization yml", path: "overlays/prod/kustomization.yml", wantKind: core.K8sKustomize, wantScore: ScoreKustomization, wantInteresting: true},
+		{name: "kustomization archive is not a kustomization", path: "overlays/kustomization.zip", wantKind: "", wantScore: 0, wantInteresting: false},
 		{name: "docker compose", path: "docker-compose.yml", wantKind: core.DockerCompose, wantScore: ScoreDockerCompose, wantInteresting: true},
 		{name: "compose", path: "deploy/compose.yaml", wantKind: core.DockerCompose, wantScore: ScoreDockerCompose, wantInteresting: true},
 		{name: "meshery design", path: "designs/design.yml", wantKind: core.MesheryDesign, wantScore: ScoreMesheryDesign, wantInteresting: true},

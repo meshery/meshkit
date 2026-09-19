@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/meshery/meshkit/encoding"
-	"github.com/meshery/meshkit/files/iacext"
 	"github.com/meshery/meshkit/models/oci"
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/meshkit/utils/kubernetes/kompose"
@@ -294,10 +293,15 @@ var ValidHelmChartFileExtensions = map[string]bool{
 	".zip":    true,
 }
 
-// ValidKustomizeFileExtensions is owned by files/iacext so that utils/walker
-// can scope kustomization candidates by extension without importing this
-// package, which would close an import cycle.
-var ValidKustomizeFileExtensions = iacext.ValidKustomizeFileExtensions
+var ValidKustomizeFileExtensions = map[string]bool{
+	".yml":    true, // single kustomization.yml file
+	".yaml":   true,
+	".tar":    true,
+	".tgz":    true,
+	".gz":     true,
+	".tar.gz": true,
+	".zip":    true,
+}
 
 // ParseFileAsHelmChart loads a Helm chart from the extracted directory.
 func ParseFileAsHelmChart(file SanitizedFile) (*chart.Chart, error) {

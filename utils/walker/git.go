@@ -360,7 +360,7 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 			if d.IsDir() && g.dirInterceptor != nil {
 				return g.dirInterceptor(Directory{
 					Name: d.Name(),
-					Path: path,
+					Path: g.interceptedPath(clonePath, path),
 				})
 			}
 			if d.IsDir() {
@@ -401,12 +401,12 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 				defer wg.Done()
 				err := g.dirInterceptor(Directory{
 					Name: filename,
-					Path: fPath,
+					Path: path,
 				})
 				if err != nil {
 					fmt.Println(err.Error())
 				}
-			}(name, fPath, f.Name())
+			}(name, g.interceptedPath(clonePath, fPath), f.Name())
 			continue
 		}
 		if f.IsDir() {
@@ -421,18 +421,20 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 	return nil
 }
 
-// interceptedPath reports the File.Path a file read out of a clone is handed to
-// the interceptor with. A caller that opted into the GitHub API sees the
-// repository-relative path the Trees route would have given it, so the two
-// routes stay interchangeable when the walk falls back. Every other caller
-// keeps the absolute path into the clone.
-func (g *Git) interceptedPath(clonePath, filePath string) string {
+// interceptedPath reports the path a file or directory read out of a clone is
+// handed to its interceptor with. A caller that opted into the GitHub API sees
+// the repository-relative path the Trees route would have given it, so the two
+// routes stay interchangeable when the walk falls back, and File.Path and
+// Directory.Path never disagree about what a path means. Every other caller
+// keeps the absolute path into the clone, which is the only form that can be
+// opened from the filesystem.
+func (g *Git) interceptedPath(clonePath, entryPath string) string {
 	if !g.useAPI {
-		return filePath
+		return entryPath
 	}
-	relative, err := filepath.Rel(clonePath, filePath)
+	relative, err := filepath.Rel(clonePath, entryPath)
 	if err != nil {
-		return filePath
+		return entryPath
 	}
 	return filepath.ToSlash(relative)
 }

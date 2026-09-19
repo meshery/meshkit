@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/meshery/meshkit/files/iacext"
 	"github.com/meshery/schemas/models/core"
 )
 
@@ -559,7 +558,7 @@ func classifyPath(filePath string) (core.IaCFileTypes, int, bool) {
 		return core.DockerCompose, ScoreDockerCompose, true
 	}
 
-	if stem == "kustomization" && iacext.ValidKustomizeFileExtensions[ext] {
+	if stem == "kustomization" && (ext == ".yaml" || ext == ".yml") {
 		return core.K8sKustomize, ScoreKustomization, true
 	}
 
@@ -570,8 +569,8 @@ func classifyPath(filePath string) (core.IaCFileTypes, int, bool) {
 	}
 
 	// Chart and OCI artifacts, which Helm only ever packages as a gzipped
-	// tarball. The wider archive table files/iacext carries describes what an
-	// uploaded chart may arrive as; applying it here would label every .zip,
+	// tarball. The wider files.ValidHelmChartFileExtensions table describes what
+	// an uploaded chart may arrive as; applying it here would label every .zip,
 	// .gz and .tar in a repository a Helm chart.
 	if ext == ".tgz" || ext == ".tar.gz" {
 		return core.HelmChart, ScoreChartArchive, true

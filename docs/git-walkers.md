@@ -41,14 +41,18 @@ The crawl is **opt-in**. Callers that do not enable it keep cloning exactly as b
   so GitHub Enterprise, GitLab, Bitbucket and `file://` URLs keep taking the clone path.
 - **The tree came back truncated.** GitHub caps a single tree response; `truncated: true` means
   the listing is incomplete, and only a clone sees every file.
-- **A directory interceptor is registered.** Directory interception hands the interceptor a
-  working-tree path (`helm.ConvertToK8sManifest` needs one), which the API route never produces.
+- **A directory interceptor is registered.** Directory interception needs a directory that
+  exists, which the API route never produces, so the walk clones. Note that opting in still
+  changes what the interceptor is *handed* - see **Paths** below.
 
 Nothing else switches routes, and the size of the repository in particular does not: the
-auto-fetch path issues **one blob request per ranked candidate**, however many there are. A
-caller that wants to spend fewer requests picks the files itself - `ListInterestingFiles` costs
-two requests and downloads nothing, and `FetchCandidates` then fetches only the selection it is
-handed.
+auto-fetch path issues **one blob request per ranked candidate**, however many there are. It is
+also all-or-nothing only in name: candidates are delivered to the interceptor as they arrive, so
+a failure partway through (a 404 on a blob, a rate limit) returns an error *after* the earlier
+candidates have already been handed over, and nothing in the error says how far it got. A caller
+that wants to spend fewer requests, or to restart where it stopped, picks the files itself -
+`ListInterestingFiles` costs two requests and downloads nothing, and `FetchCandidates` then
+fetches only the selection it is handed.
 
 Sparse and partial clone for large non-GitHub repositories, and GitLab/Bitbucket adapters, are
 deliberately out of scope - see [ux/canvas-first-github-onboarding.md](ux/canvas-first-github-onboarding.md).
@@ -89,10 +93,11 @@ Ties break on path depth, then alphabetically, so a chart at the repository root
 buried in a test fixture. A `Root` naming one exact file always yields that file, whatever it is
 called, matching what the clone route does with an explicitly named file.
 
-Only `.tgz` and `.tar.gz` are ranked as chart archives, because that is all Helm packages a chart
-as. The wider `files.ValidHelmChartFileExtensions` table describes what an *uploaded* chart may
-arrive as; applying it here would label every `.zip`, `.gz` and `.tar` in a repository a Helm
-chart.
+Extensions are matched exactly: only `.tgz` and `.tar.gz` rank as chart archives, and only
+`.yaml`/`.yml` as kustomizations, because that is what those files are in a repository tree. The
+wider `files.ValidHelmChartFileExtensions` and `files.ValidKustomizeFileExtensions` tables
+describe what an *uploaded* file may arrive as; applying them here would label every `.zip`,
+`.gz` and `.tar` in a repository a Helm chart or a kustomization.
 
 The classifier itself is not exported - `CandidateFile.Kind` and `CandidateFile.Score` carry its
 output for every candidate, and the `Score*` constants above are what a picker needs to group or
@@ -101,14 +106,6 @@ threshold by.
 An empty `Kind` means the path is worth fetching but is not distinctive enough to name a type.
 Identification proper remains the caller's job: run `files.IdentifyFile` once the contents are
 in hand.
-
-### Where the kustomize extension table lives
-
-The classifier reuses the same kustomization extensions `files` parses with, rather than
-restating the literals. That one table lives in the leaf package **`files/iacext`**: `files`
-imports `utils/walker`, so a table owned by `files` and read by the walker would close an import
-cycle. `files.ValidKustomizeFileExtensions` still names it, so existing callers are unaffected.
-Every other extension table stays in `files`, which is the only package that reads it.
 
 ## Branch, reference, context, progress and auth
 
@@ -121,10 +118,14 @@ Every other extension table stays in `files`, which is the only package that rea
   `Walk()` delegates with `context.Background()`. `Timeout(d)` bounds a whole traversal.
 - **Progress.** `RegisterProgressHook` receives `ProgressUpdate` values as the walk moves
   through `resolve-ref`, `list-tree`, `rank`, `fetch-blob` and `clone`.
-- **Paths.** `File.Path` is the repository-relative path on the API route. Callers that enabled
-  `UseGithubAPI()` see the same repository-relative path when a walk falls back to the clone, so
-  one import handles one kind of path. Callers that never opted in keep the absolute path into
-  the (temporary) clone they have always received.
+- **Paths.** Under `UseGithubAPI()` **every** path handed to an interceptor is
+  repository-relative - `File.Path` and `Directory.Path` alike, on the API route and on the clone
+  it falls back to - so one import handles one kind of path. Those paths **must not be opened
+  from the filesystem**: on the API route nothing is written to disk at all, and on the clone
+  route the temporary clone is deleted when the walk returns. A caller that needs real on-disk
+  files - passing a directory to `helm.ConvertToK8sManifest`, or reading `File.Path` back off
+  disk, as `generators/github` does - should **not** opt in. Callers that never opted in keep the
+  absolute path into the (temporary) clone they have always received, byte for byte.
 - **Auth.** `Token(t)` threads a GitHub App or OAuth token onto the API calls as a bearer token
   and onto the clone as `x-access-token` basic auth, for private repositories and the
   authenticated rate limit. The token is never logged, never placed in an error message and
