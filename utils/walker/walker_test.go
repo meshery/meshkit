@@ -608,6 +608,85 @@ func TestGitWalkPathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
 	})
 }
 
+func TestGitWalkCloneRouteFiltersOnlyForOptedInCallers(t *testing.T) {
+	// The truncated-tree fallback runs the clone route for a caller that opted
+	// into the hybrid crawl, so that route owes it the same ranked,
+	// size-bounded set the API route would have delivered. A caller that never
+	// opted in keeps receiving every file, oversize error included.
+	baseDir := t.TempDir()
+	createCommittedRepo(t, filepath.Join(baseDir, "owner", "plain"), map[string]string{
+		"configs/deployment.yaml": "kind: ConfigMap",
+		"configs/README.md":       "docs",
+		"configs/notes.txt":       "notes",
+	})
+	createCommittedRepo(t, filepath.Join(baseDir, "owner", "oversized"), map[string]string{
+		"configs/deployment.yaml": "kind: ConfigMap",
+		"configs/huge.yaml":       strings.Repeat("x", 2000),
+	})
+
+	walk := func(t *testing.T, repo string, useAPI bool) ([]string, error) {
+		t.Helper()
+
+		delivered := []string{}
+		g := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo(repo).
+			Root("configs/**").
+			MaxFileSize(1000).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, filepath.Base(file.Path))
+				return nil
+			})
+		if useAPI {
+			g = g.UseGithubAPI()
+		}
+
+		err := g.Walk()
+		return delivered, err
+	}
+
+	t.Run("clone-only callers receive every file", func(t *testing.T) {
+		delivered, err := walk(t, "plain", false)
+		if err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+		if want := []string{"README.md", "deployment.yaml", "notes.txt"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected every file to be delivered as %v, got %v", want, delivered)
+		}
+	})
+
+	t.Run("callers that opted into the api receive only ranked candidates", func(t *testing.T) {
+		delivered, err := walk(t, "plain", true)
+		if err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+		if want := []string{"deployment.yaml"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected only the interesting file to be delivered as %v, got %v", want, delivered)
+		}
+	})
+
+	t.Run("clone-only callers still fail on an oversized file", func(t *testing.T) {
+		_, err := walk(t, "oversized", false)
+		if err == nil {
+			t.Fatal("expected the walk to fail on a file over the size limit")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrCloningRepoCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrCloningRepoCode, code, err)
+		}
+	})
+
+	t.Run("callers that opted into the api skip an oversized file", func(t *testing.T) {
+		delivered, err := walk(t, "oversized", true)
+		if err != nil {
+			t.Fatalf("expected an oversized file to be skipped, got error: %v", err)
+		}
+		if want := []string{"deployment.yaml"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the oversized file to be skipped, leaving %v, got %v", want, delivered)
+		}
+	})
+}
+
 func TestGitWalkContextRespectsCancellation(t *testing.T) {
 	baseDir := t.TempDir()
 	repoPath := filepath.Join(baseDir, "owner", "sample")

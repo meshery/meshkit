@@ -348,6 +348,9 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 	}
 
 	if !info.IsDir() {
+		if g.skipOnClone(clonePath, rootPath, info.Size()) {
+			return nil
+		}
 		err = g.readFile(info, clonePath, rootPath)
 		if err != nil {
 			return ErrCloningRepo(err)
@@ -369,6 +372,9 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 			f, errInfo := d.Info()
 			if err != nil {
 				return errInfo
+			}
+			if g.skipOnClone(clonePath, path, f.Size()) {
+				return nil
 			}
 			return g.readFile(f, clonePath, path)
 		})
@@ -412,6 +418,9 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 		if f.IsDir() {
 			continue
 		}
+		if g.skipOnClone(clonePath, fPath, f.Size()) {
+			continue
+		}
 		err := g.readFile(f, clonePath, fPath)
 		if err != nil {
 			fmt.Println(err.Error())
@@ -419,6 +428,28 @@ func clonewalkContext(ctx context.Context, g *Git) error {
 	}
 
 	return nil
+}
+
+// skipOnClone mirrors, for a file found in the clone, the filtering rankTree
+// applies to a tree entry: a caller that opted into the GitHub API is handed
+// the same ranked, size-bounded set whichever route ran, and an oversized file
+// is skipped rather than failing the walk. A caller that never opted in keeps
+// receiving every file under Root, oversize error included.
+func (g *Git) skipOnClone(clonePath, entryPath string, size int64) bool {
+	if !g.useAPI {
+		return false
+	}
+	if size > g.maxFileSizeInBytes {
+		return true
+	}
+
+	relative := g.interceptedPath(clonePath, entryPath)
+	if relative == strings.Trim(g.root, "/") {
+		return false
+	}
+
+	_, _, interesting := classifyPath(relative)
+	return !interesting
 }
 
 // interceptedPath reports the path a file or directory read out of a clone is

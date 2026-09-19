@@ -19,6 +19,9 @@ import (
 // the Contents walker talk to.
 const DefaultGithubAPIBaseURL = "https://api.github.com"
 
+// symlinkFileMode is the git file mode the Trees API reports for a symlink.
+const symlinkFileMode = "120000"
+
 // blobFetchConcurrency bounds how many blobs are downloaded at once. It also
 // bounds how many downloaded blobs are held in memory at once, because a slot
 // is only released once its blob has been handed to the interceptor.
@@ -120,10 +123,6 @@ type githubCommitAPI struct {
 	SHA string `json:"sha,omitempty"`
 }
 
-type githubRepoAPI struct {
-	DefaultBranch string `json:"default_branch,omitempty"`
-}
-
 type githubBlobAPI struct {
 	SHA      string `json:"sha,omitempty"`
 	Size     int64  `json:"size,omitempty"`
@@ -163,10 +162,7 @@ func (g *Git) ListInterestingFiles(ctx context.Context) (InterestingFiles, error
 }
 
 func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (InterestingFiles, error) {
-	ref, err := g.apiRef(ctx)
-	if err != nil {
-		return InterestingFiles{}, err
-	}
+	ref := g.apiRef()
 
 	g.reportProgress(ProgressUpdate{Stage: ProgressStageResolveRef, Message: fmt.Sprintf("resolving %s", ref)})
 	commitSHA, err := g.resolveRef(ctx, ref)
@@ -322,37 +318,13 @@ func (g *Git) treeWalk(ctx context.Context) (bool, error) {
 
 // apiRef reports which reference the API route should resolve. An explicitly
 // set ReferenceName wins, then an explicitly set Branch; when the caller set
-// neither, the repository's default branch is read from the API so that both
-// routes agree on what "no reference configured" means.
-func (g *Git) apiRef(ctx context.Context) (string, error) {
+// neither, HEAD stands for the repository's default branch, which is what a
+// clone with no reference configured checks out.
+func (g *Git) apiRef() string {
 	if ref := g.ref(); ref != "" {
-		return ref, nil
+		return ref
 	}
-
-	g.reportProgress(ProgressUpdate{Stage: ProgressStageResolveRef, Message: "resolving the default branch"})
-	return g.defaultBranch(ctx)
-}
-
-// defaultBranch asks the API which branch the repository defaults to, which is
-// the branch a clone with no reference configured checks out.
-func (g *Git) defaultBranch(ctx context.Context) (string, error) {
-	const ref = "HEAD"
-	endpoint := fmt.Sprintf("%s/repos/%s/%s", g.apiBaseURL, g.owner, g.repo)
-
-	body, err := g.get(ctx, endpoint)
-	if err != nil {
-		return "", ErrResolvingGitRef(err, ref)
-	}
-
-	repository := githubRepoAPI{}
-	if err := json.Unmarshal(body, &repository); err != nil {
-		return "", ErrResolvingGitRef(err, ref)
-	}
-	if repository.DefaultBranch == "" {
-		return "", ErrResolvingGitRef(fmt.Errorf("the GitHub API returned no default branch"), ref)
-	}
-
-	return repository.DefaultBranch, nil
+	return "HEAD"
 }
 
 // resolveRef turns a branch, tag or reference name into a commit SHA.
@@ -470,7 +442,10 @@ func (g *Git) rankTree(entries []githubTreeEntry, recursive bool) []CandidateFil
 	root := strings.Trim(g.root, "/")
 
 	for _, entry := range entries {
-		if entry.Type != "blob" {
+		// The Trees API reports a symlink as a blob whose content is the link
+		// target path rather than the target's contents, so it is neither
+		// worth ranking nor safe to hand to an interceptor as a file.
+		if entry.Type != "blob" || entry.Mode == symlinkFileMode {
 			continue
 		}
 		if !underRoot(root, entry.Path, recursive) {

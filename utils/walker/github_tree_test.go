@@ -20,10 +20,9 @@ import (
 // githubAPIStub serves the three GitHub endpoints the hybrid crawl uses, so
 // that no test reaches the real network.
 type githubAPIStub struct {
-	commitSHA     string
-	defaultBranch string
-	tree          githubTreeAPI
-	blobs         map[string]string // blob SHA -> decoded content
+	commitSHA string
+	tree      githubTreeAPI
+	blobs     map[string]string // blob SHA -> decoded content
 	// onBlob, when set, runs before a blob response is written.
 	onBlob func(sha string)
 
@@ -43,7 +42,8 @@ func (s *githubAPIStub) server(t *testing.T) *httptest.Server {
 		s.repoLookups++
 		s.mu.Unlock()
 		s.record(r, nil, "")
-		writeJSON(t, w, githubRepoAPI{DefaultBranch: s.defaultBranch})
+		w.WriteHeader(http.StatusNotFound)
+		writeJSON(t, w, map[string]string{"message": "the walker must resolve HEAD rather than look the repository up"})
 	})
 	mux.HandleFunc("/repos/owner/repo/commits/", func(w http.ResponseWriter, r *http.Request) {
 		s.record(r, &s.requestedRefs, strings.TrimPrefix(r.URL.Path, "/repos/owner/repo/commits/"))
@@ -230,6 +230,16 @@ func TestRankTreeOrdersAndFilters(t *testing.T) {
 			wantPaths: []string{"charts/redis/Chart.yaml", "charts/values.yaml"},
 		},
 		{
+			name:    "symlinks are never ranked",
+			root:    "/**",
+			maxSize: 1000,
+			entries: []githubTreeEntry{
+				{Type: "blob", Mode: "120000", Path: "docker-compose.yml", SHA: "a", Size: 25},
+				{Type: "blob", Mode: "100644", Path: "deploy/docker-compose.yml", SHA: "b", Size: 40},
+			},
+			wantPaths: []string{"deploy/docker-compose.yml"},
+		},
+		{
 			name:    "a root naming one exact file delivers it whatever it is called",
 			root:    "scripts/install.sh",
 			maxSize: 1000,
@@ -324,8 +334,7 @@ func TestListInterestingFilesFetchesNoBlobs(t *testing.T) {
 
 func TestWalkContextUsesTreesPathAndFetchesSelectedBlobs(t *testing.T) {
 	stub := &githubAPIStub{
-		commitSHA:     "commit-sha",
-		defaultBranch: "main",
+		commitSHA: "commit-sha",
 		tree: githubTreeAPI{
 			Tree: []githubTreeEntry{
 				{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11},
@@ -387,8 +396,7 @@ func TestTreeWalkFallsBackToClone(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stub := &githubAPIStub{
-				commitSHA:     "commit-sha",
-				defaultBranch: "main",
+				commitSHA: "commit-sha",
 				tree: githubTreeAPI{
 					Truncated: tt.truncated,
 					Tree:      []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}},
@@ -529,9 +537,8 @@ func TestListInterestingFilesResolvesTheConfiguredReference(t *testing.T) {
 		wantRepoLookups int
 	}{
 		{
-			name:            "neither set resolves the repository default branch",
-			wantRef:         "trunk",
-			wantRepoLookups: 1,
+			name:    "neither set resolves the default branch through HEAD",
+			wantRef: "HEAD",
 		},
 		{
 			name:    "an explicit branch is used as is",
@@ -549,9 +556,8 @@ func TestListInterestingFilesResolvesTheConfiguredReference(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stub := &githubAPIStub{
-				commitSHA:     "commit-sha",
-				defaultBranch: "trunk",
-				tree:          githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
+				commitSHA: "commit-sha",
+				tree:      githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
 			}
 			server := stub.server(t)
 
@@ -572,30 +578,9 @@ func TestListInterestingFilesResolvesTheConfiguredReference(t *testing.T) {
 				t.Errorf("expected the tree to be listed from %q, got %v", tt.wantRef, refs)
 			}
 			if got := stub.repoLookupCount(); got != tt.wantRepoLookups {
-				t.Errorf("expected %d default-branch lookups, got %d", tt.wantRepoLookups, got)
+				t.Errorf("expected %d repository lookups, got %d", tt.wantRepoLookups, got)
 			}
 		})
-	}
-}
-
-func TestListInterestingFilesReportsAnUnresolvableDefaultBranch(t *testing.T) {
-	// The repository endpoint answers without a default_branch, so there is no
-	// reference to list a tree from.
-	stub := &githubAPIStub{commitSHA: "commit-sha"}
-	server := stub.server(t)
-
-	_, err := apiGit(server).
-		ListInterestingFiles(context.Background())
-	if err == nil {
-		t.Fatal("expected ListInterestingFiles to fail when the default branch is unknown")
-	}
-	if code := meshkiterrors.GetCode(err); code != ErrResolvingGitRefCode {
-		t.Fatalf("expected error code %q, got %q", ErrResolvingGitRefCode, code)
-	}
-
-	_, refs, _ := stub.snapshot()
-	if len(refs) != 0 {
-		t.Errorf("expected no commit to be resolved without a reference, got %v", refs)
 	}
 }
 
@@ -681,7 +666,7 @@ func TestTreeWalkFetchesEveryRankedCandidateHoweverLargeTheListing(t *testing.T)
 	// than swapped for a clone that would deliver a different set of files.
 	const candidateCount = 600
 
-	stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", blobs: map[string]string{}}
+	stub := &githubAPIStub{commitSHA: "commit-sha", blobs: map[string]string{}}
 	wantPaths := make([]string, 0, candidateCount)
 	for i := 0; i < candidateCount; i++ {
 		sha := fmt.Sprintf("blob-%04d", i)
@@ -721,10 +706,9 @@ func TestListingAPIRefusesRepositoriesOnOtherHosts(t *testing.T) {
 	// The API endpoint is github.com's whatever BaseURL says, so a walker
 	// configured for another forge must be refused before its token travels.
 	stub := &githubAPIStub{
-		commitSHA:     "commit-sha",
-		defaultBranch: "main",
-		tree:          githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
-		blobs:         map[string]string{"chart-blob": "name: redis"},
+		commitSHA: "commit-sha",
+		tree:      githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
+		blobs:     map[string]string{"chart-blob": "name: redis"},
 	}
 	server := stub.server(t)
 
@@ -771,7 +755,7 @@ func TestListInterestingFilesScopesToRoot(t *testing.T) {
 	listPaths := func(t *testing.T, scope func(*Git) *Git) []string {
 		t.Helper()
 
-		stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", tree: tree}
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree}
 		listing, err := scope(apiGit(stub.server(t))).ListInterestingFiles(context.Background())
 		if err != nil {
 			t.Fatalf("ListInterestingFiles() returned error: %v", err)
@@ -825,7 +809,7 @@ func TestListInterestingFilesScopesToRoot(t *testing.T) {
 
 	for _, tt := range walkScopes {
 		t.Run(tt.name, func(t *testing.T) {
-			stub := &githubAPIStub{commitSHA: "commit-sha", defaultBranch: "main", tree: tree, blobs: map[string]string{"top-blob": "kind: ConfigMap"}}
+			stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: map[string]string{"top-blob": "kind: ConfigMap"}}
 
 			delivered := []string{}
 			walked, err := tt.scope(apiGit(stub.server(t))).
@@ -852,9 +836,8 @@ func TestListInterestingFilesRejectsAZeroMaxFileSize(t *testing.T) {
 	// misconfiguration the way a walk does rather than look like an empty
 	// repository.
 	stub := &githubAPIStub{
-		commitSHA:     "commit-sha",
-		defaultBranch: "main",
-		tree:          githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
+		commitSHA: "commit-sha",
+		tree:      githubTreeAPI{Tree: []githubTreeEntry{{Type: "blob", Path: "Chart.yaml", SHA: "chart-blob", Size: 11}}},
 	}
 	server := stub.server(t)
 

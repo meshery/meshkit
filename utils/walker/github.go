@@ -57,12 +57,14 @@ type Github struct {
 	dirInterceptor  GithubDirInterceptor
 	token           string
 	progressHook    ProgressHook
+	apiBaseURL      string
 }
 
 // NewGithub returns a pointer to an instance of Github
 func NewGithub() *Github {
 	return &Github{
-		branch: "main",
+		branch:     "main",
+		apiBaseURL: DefaultGithubAPIBaseURL,
 	}
 }
 
@@ -177,7 +179,7 @@ func (g *Github) reportProgress(update ProgressUpdate) {
 func (g *Github) walker(ctx context.Context, path string, isFile bool) error {
 	githubAPIURL := fmt.Sprintf(
 		"%s/repos/%s/%s/contents/%s?ref=%s",
-		DefaultGithubAPIBaseURL,
+		g.apiBaseURL,
 		g.owner,
 		g.repo,
 		path,

@@ -19,11 +19,13 @@ The package offers three walkers:
 expensive on large repositories. `Git.UseGithubAPI()` opts into a hybrid crawl instead:
 
 1. **Resolve** the configured reference to a commit SHA (`GET /repos/{owner}/{repo}/commits/{ref}`).
-   When neither `Branch` nor `ReferenceName` was set, the repository's default branch is read
-   first (`GET /repos/{owner}/{repo}`), so the API route walks the branch the clone route would
-   have checked out.
+   When neither `Branch` nor `ReferenceName` was set the reference is `HEAD`, which that same
+   endpoint resolves to the head commit of the repository's default branch - the branch the clone
+   route would have checked out - so no extra request is needed to name it.
 2. **List** that commit's tree once, recursively (`GET /repos/{owner}/{repo}/git/trees/{sha}?recursive=1`).
-3. **Filter and rank** the returned entries from their metadata alone - path, type and size.
+3. **Filter and rank** the returned entries from their metadata alone - path, type, mode and
+   size. Symlinks are dropped here: the Trees API reports one as a blob whose content is the
+   link target path, not the target's contents.
 4. **Fetch** blobs (`GET /repos/{owner}/{repo}/git/blobs/{sha}`) only for entries that survived,
    and hand each to the registered file interceptor. Up to 8 blobs download at a time, while the
    interceptor is still called once at a time and in ranked order.
@@ -40,7 +42,10 @@ The crawl is **opt-in**. Callers that do not enable it keep cloning exactly as b
 - **The host is not github.com.** The host is read from the configured `BaseURL`, never assumed,
   so GitHub Enterprise, GitLab, Bitbucket and `file://` URLs keep taking the clone path.
 - **The tree came back truncated.** GitHub caps a single tree response; `truncated: true` means
-  the listing is incomplete, and only a clone sees every file.
+  the listing is incomplete, so a clone reads the repository instead. The caller is not handed a
+  different kind of result: on the clone route an opted-in caller gets the same ranked,
+  size-bounded set the API route would have delivered, because the clone applies the same
+  classifier and skips an oversized file instead of failing the walk.
 - **A directory interceptor is registered.** Directory interception needs a directory that
   exists, which the API route never produces, so the walk clones. Note that opting in still
   changes what the interceptor is *handed* - see **Paths** below.
@@ -82,10 +87,10 @@ Ranking is **path based**, because it runs before any content exists. The classi
 | Score | Constant | Matches | Inferred kind |
 |------:|----------|---------|---------------|
 | 100 | `ScoreHelmChartDefinition` | `Chart.yaml`, `Chart.yml` | `core.HelmChart` |
-| 90 | `ScoreKustomization` | `kustomization.*` | `core.K8sKustomize` |
-| 80 | `ScoreDockerCompose` | `docker-compose.*`, `compose.*` | `core.DockerCompose` |
-| 70 | `ScoreMesheryDesign` | `design.yml`/`.yaml`/`.json`, `*.design.*` | `core.MesheryDesign` |
-| 60 | `ScoreChartArchive` | chart and OCI archives (`.tgz`, `.tar.gz`) | `core.HelmChart` |
+| 90 | `ScoreKustomization` | `kustomization.yaml`, `kustomization.yml` | `core.K8sKustomize` |
+| 80 | `ScoreDockerCompose` | `docker-compose.yaml`/`.yml`, `compose.yaml`/`.yml` | `core.DockerCompose` |
+| 70 | `ScoreMesheryDesign` | `design` or `*.design` with `.yaml`/`.yml`/`.json` | `core.MesheryDesign` |
+| 60 | `ScoreChartArchive` | chart and OCI archives: `.tgz`, `.tar.gz` | `core.HelmChart` |
 | 20 | `ScoreGenericYAML` | any other `.yaml`/`.yml` | *(empty)* |
 | 10 | `ScoreGenericJSON` | any other `.json` | *(empty)* |
 
