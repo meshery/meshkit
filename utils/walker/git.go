@@ -405,6 +405,16 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
+		// filepath.WalkDir does not descend a symlink, so a root that is one
+		// reaches the callback alone and a clone standing in for a Trees walk
+		// skips it with everything else it filters - delivering nothing at
+		// all. That is the shape the Trees route names rather than answers.
+		if standingInForTrees {
+			if linkInfo, lerr := os.Lstat(rootPath); lerr == nil && linkInfo.Mode()&os.ModeSymlink != 0 {
+				return ErrSymlinkedRoot(strings.Trim(g.root, "/"), g.apiRef())
+			}
+		}
+
 		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
 			if d.IsDir() && g.dirInterceptor != nil {
 				return g.dirInterceptor(Directory{

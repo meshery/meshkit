@@ -243,39 +243,7 @@ func (g *Git) FetchCandidates(ctx context.Context, candidates []CandidateFile) e
 	ctx, cancel := g.withTimeout(ctx)
 	defer cancel()
 
-	if err := g.requireServableRoot(ctx); err != nil {
-		return err
-	}
-
 	return g.fetchCandidates(ctx, candidates)
-}
-
-// requireServableRoot refuses a configured root the listing route cannot
-// serve, so that both of its entry points answer the same configuration the
-// same way. Proving it costs a tree listing, so it is only asked for when a
-// root was configured at all; a fetch with no root has nothing to prove.
-func (g *Git) requireServableRoot(ctx context.Context) error {
-	root := strings.Trim(g.root, "/")
-	if root == "" {
-		return nil
-	}
-
-	ref := g.apiRef()
-	commitSHA, err := g.resolveRef(ctx, ref)
-	if err != nil {
-		return err
-	}
-	tree, err := g.fetchTree(ctx, commitSHA)
-	if err != nil {
-		return err
-	}
-	if tree.Truncated {
-		return nil
-	}
-	if rootIsSymlink(tree.Tree, root) {
-		return ErrSymlinkedRoot(root, ref)
-	}
-	return nil
 }
 
 func (g *Git) fetchCandidates(ctx context.Context, candidates []CandidateFile) error {

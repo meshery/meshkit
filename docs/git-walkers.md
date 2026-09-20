@@ -91,8 +91,8 @@ Two changes do reach callers that never opt in, and both are deliberate:
 walk of the same repository. There the clone route runs the same classifier the ranking uses, so
 `.md`, `.txt`, `.sh` and extensionless files never reach the interceptor, it skips a file over
 `MaxFileSize` instead of failing the walk, and it skips symlinks outright as the API route does,
-which never offers one - every symlink, that is, except one the caller named as `Root`, which is
-read or refused as on any other clone. What the caller gets is the same filtered, size-bounded **set** - not the
+which never offers one - every symlink except one the caller named as `Root`, which is answered
+rather than skipped away, under **`Root`** below. What the caller gets is the same filtered, size-bounded **set** - not the
 same order: the clone delivers in `filepath.WalkDir`/`os.ReadDir` lexical order, never in score
 order, so an interceptor must not assume `Chart.yaml` arrives before `values.yaml`.
 
@@ -131,19 +131,26 @@ files and calling that a success:
   underneath it, so an oversized file there is still skipped silently and the walk still succeeds
   with the rest - the rule described under the truncated-tree clone above.
 
-**A `Root` that is itself a committed symlink** has one contract across the whole package, with no
-silent case:
+**A `Root` that is itself a committed symlink** behaves as follows. A root escaping the copy or
+resolving to nothing fails with `ErrRootNotFound` everywhere, as any other escaping root does; the
+rest depends on what the link points at:
 
-- `Walk` and `WalkContext` read it through the clone, by the clone's own rules - delivered when the
-  link resolves inside the repository copy, `ErrRootNotFound` when it escapes or resolves to
-  nothing. That holds whether the caller opted into the crawl or not, and whether the clone is an
-  ordinary one or standing in for a truncated Trees walk: the root is the one file the caller
-  named, so the stand-in filtering that skips links everywhere else does not skip it.
-- `ListInterestingFiles` and `FetchCandidates` fail with `ErrSymlinkedRoot`. They have no clone to
-  read the link through, and the Trees blob behind it holds the link target rather than the
-  contents it points at, so an empty listing would misreport a root that does exist. Proving this
-  costs `FetchCandidates` one ref resolution and one tree listing, which it only spends when a
-  root is configured.
+- **The link points at a file.** `Walk` and `WalkContext` read it through the clone, whether the
+  caller opted into the crawl or not and whether the clone is an ordinary one or standing in for a
+  truncated Trees walk: the root is the one file the caller named, so the stand-in filtering that
+  skips links everywhere else does not skip it.
+- **The link points at a directory.** This is where the routes part, and the clone route behaves
+  exactly as it always has - none of it is changed here. A non-recursive `Root` lists through the
+  link and delivers what is inside it. A recursive `Root("…/**")` does not: `filepath.WalkDir`
+  does not descend a symlink, so it hands the walk the link alone. On an ordinary clone that ends
+  in `ErrCloningRepo`, because reading a directory as a file fails; on a clone standing in for a
+  Trees walk it would deliver nothing at all, so that case is refused with `ErrSymlinkedRoot`
+  rather than reported as an empty success.
+- **Either way, the listing route refuses it.** `ListInterestingFiles` fails with
+  `ErrSymlinkedRoot`: it has no clone to read the link through, and the Trees blob behind it holds
+  the link target rather than the contents it points at, so an empty listing would misreport a
+  root that does exist. `FetchCandidates` is unaffected - it fetches the candidates it is handed
+  by SHA and never consults `Root`, so it spends no request proving one.
 - A root that genuinely does not exist keeps failing with `ErrRootNotFound` on every route.
 
 This is the one place the containment rule fails rather than skips: an individual link met

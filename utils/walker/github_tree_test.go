@@ -1569,21 +1569,30 @@ func TestListingRoutesRefuseASymlinkedRoot(t *testing.T) {
 		}
 	})
 
-	t.Run("FetchCandidates refuses it", func(t *testing.T) {
+	t.Run("FetchCandidates spends nothing proving the root", func(t *testing.T) {
+		// A fetch addresses each candidate by SHA and never consults Root, so
+		// it asks for the blobs it was handed and nothing else: no ref
+		// resolution, no second copy of the tree the listing already paid for.
 		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: blobs}
 
+		delivered := []string{}
 		err := apiGit(stub.server(t)).
 			Root("charts").
-			RegisterFileInterceptor(func(File) error { return nil }).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, file.Path)
+				return nil
+			}).
 			FetchCandidates(context.Background(), []CandidateFile{{Path: "deploy/charts/Chart.yaml", SHA: "chart-blob", Size: 11}})
-		if err == nil {
-			t.Fatal("expected a fetch under a symlinked root to fail")
+		if err != nil {
+			t.Fatalf("FetchCandidates() returned error: %v", err)
 		}
-		if code := meshkiterrors.GetCode(err); code != ErrSymlinkedRootCode {
-			t.Fatalf("expected error code %q, got %q: %v", ErrSymlinkedRootCode, code, err)
+		if want := []string{"deploy/charts/Chart.yaml"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the candidate to be delivered as %v, got %v", want, delivered)
 		}
-		if _, _, fetched := stub.snapshot(); len(fetched) != 0 {
-			t.Errorf("expected no blob to be downloaded, got %v", fetched)
+
+		want := []string{"/repos/owner/repo/git/blobs/chart-blob"}
+		if got := stub.receivedRequests(); !reflect.DeepEqual(got, want) {
+			t.Errorf("expected the fetch to request %v and nothing else, got %v", want, got)
 		}
 	})
 

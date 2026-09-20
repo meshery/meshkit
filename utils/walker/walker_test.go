@@ -1338,3 +1338,64 @@ func TestStandInCloneRefusesASymlinkedRootItCannotContain(t *testing.T) {
 		})
 	}
 }
+
+func TestStandInCloneRefusesARecursiveSymlinkedRoot(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("committed symlinks are not checked out as links on Windows")
+	}
+
+	// filepath.WalkDir hands a recursive walk the link itself and never
+	// descends it, so a clone standing in for a Trees walk would filter that
+	// one entry away and deliver nothing. It says so instead.
+	baseDir := t.TempDir()
+	createCommittedRepoWithLinks(t,
+		filepath.Join(baseDir, "owner", "sample"),
+		map[string]string{"deploy/charts/Chart.yaml": "name: redis"},
+		map[string]string{"charts": filepath.Join("deploy", "charts")},
+	)
+
+	walk := func(t *testing.T, standingInForTrees bool) ([]string, error) {
+		t.Helper()
+
+		delivered := []string{}
+		g := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo("sample").
+			Root("charts/**").
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, filepath.Base(file.Path))
+				return nil
+			})
+		return delivered, clonewalkContext(context.Background(), g, standingInForTrees)
+	}
+
+	t.Run("the stand-in clone refuses it", func(t *testing.T) {
+		delivered, err := walk(t, true)
+		if err == nil {
+			t.Fatal("expected a recursive symlinked root to fail rather than deliver nothing")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrSymlinkedRootCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrSymlinkedRootCode, code, err)
+		}
+		if len(delivered) != 0 {
+			t.Errorf("expected nothing to be delivered, got %v", delivered)
+		}
+	})
+
+	t.Run("an ordinary clone is left as it has always behaved", func(t *testing.T) {
+		// Pre-existing: WalkDir hands it the link, readFile opens what
+		// resolves to a directory, and the read failure surfaces as a clone
+		// error. This change does not touch that.
+		delivered, err := walk(t, false)
+		if err == nil {
+			t.Fatal("expected the ordinary clone to keep failing on a directory read")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrCloningRepoCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrCloningRepoCode, code, err)
+		}
+		if len(delivered) != 0 {
+			t.Errorf("expected nothing to be delivered, got %v", delivered)
+		}
+	})
+}
