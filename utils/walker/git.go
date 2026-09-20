@@ -364,6 +364,10 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 		return ErrCloningRepo(err)
 	}
 
+	if !resolvesInsideClone(clonePath, rootPath) {
+		return nil
+	}
+
 	if !info.IsDir() {
 		entryInfo := info
 		if linkInfo, lerr := os.Lstat(rootPath); lerr == nil {
@@ -376,9 +380,6 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 		if err != nil {
 			return ErrCloningRepo(err)
 		}
-		return nil
-	}
-	if !resolvesInsideClone(clonePath, rootPath) {
 		return nil
 	}
 

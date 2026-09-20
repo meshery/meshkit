@@ -1118,3 +1118,61 @@ func TestGitCloneWalkReadsALinkedRootOnlyWhenItStaysInsideTheRepository(t *testi
 		}
 	})
 }
+
+func TestGitCloneWalkReadsAFileRootOnlyWhenItStaysInsideTheRepository(t *testing.T) {
+	// Root is caller supplied - in the import flow it is a user-selected path -
+	// and filepath.Join cleans its "../" segments away before the walk stats
+	// it, so containment has to hold for a file root as it does for a
+	// directory one, with no symlink involved.
+	baseDir := t.TempDir()
+
+	// The clone lands at <tmp>/<repo>/<nanos>, so this file sits two levels
+	// above it - outside the copy, while still inside the temporary directory.
+	escapeName := fmt.Sprintf("meshkit-walker-file-escape-%d", time.Now().UnixNano())
+	escapePath := filepath.Join(os.TempDir(), escapeName)
+	if err := os.MkdirAll(escapePath, 0o700); err != nil {
+		t.Fatalf("failed to create the directory outside the repository: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(escapePath) })
+	if err := os.WriteFile(filepath.Join(escapePath, "secret.yaml"), []byte("kind: Secret"), 0o600); err != nil {
+		t.Fatalf("failed to write the file outside the repository: %v", err)
+	}
+
+	createCommittedRepo(t, filepath.Join(baseDir, "owner", "sample"), map[string]string{
+		"inside/app.yaml": "kind: ConfigMap",
+	})
+
+	walk := func(t *testing.T, root string) []string {
+		t.Helper()
+
+		delivered := []string{}
+		err := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo("sample").
+			Root(root).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, filepath.Base(file.Path)+"="+file.Content)
+				return nil
+			}).
+			Walk()
+		if err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+		return delivered
+	}
+
+	t.Run("a file root traversing outside the copy delivers nothing", func(t *testing.T) {
+		escaping := filepath.Join("..", "..", escapeName, "secret.yaml")
+		if delivered := walk(t, escaping); len(delivered) != 0 {
+			t.Errorf("expected nothing from outside the repository copy, got %v", delivered)
+		}
+	})
+
+	t.Run("a file root inside the copy is read as usual", func(t *testing.T) {
+		want := []string{"app.yaml=kind: ConfigMap"}
+		if delivered := walk(t, filepath.Join("inside", "app.yaml")); !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the file to be delivered as %v, got %v", want, delivered)
+		}
+	})
+}
