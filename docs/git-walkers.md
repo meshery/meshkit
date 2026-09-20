@@ -32,8 +32,24 @@ expensive on large repositories. `Git.UseGithubAPI()` opts into a hybrid crawl i
    and hand each to the registered file interceptor. Up to 8 blobs download at a time, while the
    interceptor is still called once at a time and in ranked order.
 
-The size limit set by `MaxFileSize` is applied against the size the tree already reports, so
-an oversized blob is never downloaded at all.
+`MaxFileSize` is enforced at three points on the way to the interceptor, in this order:
+
+1. **Before the request**, against `CandidateFile.Size`. On a walk that size comes straight from
+   the tree, so an oversized blob is never downloaded at all; the entry is dropped during ranking
+   and no request is made for it.
+2. **While reading the response**, which stops at a ceiling derived from `MaxFileSize` (the
+   base64 inflation, its line breaks and a small envelope allowance). A blob that runs past it is
+   abandoned mid-read rather than buffered whole, and refused with `ErrInvalidSizeFile`.
+3. **After decoding**, against the decoded byte length, refused with `ErrInvalidSizeFile` before
+   anything reaches the interceptor.
+
+A caller driving `ListInterestingFiles` and then `FetchCandidates` will usually hit the third one
+rather than the first. `CandidateFile.Size` is `json:"size,omitempty"`, so a selection that
+round-trips through a picker client that drops the field arrives as `0`, the pre-request check
+passes, and a modestly oversized blob still fits inside the read ceiling - whose envelope
+allowance is a fixed number of bytes, so it is generous at small limits. The decoded check is
+what holds the limit there. A candidate that keeps its `Size` is refused before any request, as
+on a walk.
 
 The crawl is **opt-in**: without `UseGithubAPI()` no request is made to the GitHub API, the walk
 clones as it always has, and the ranking, the selective fetch and the repository-relative
@@ -124,7 +140,10 @@ that directory's own files, and `"/**"` is what asks for the subtree below it. T
 new surface with no such obligation, and a picker that shows a folder means everything in it.
 
 `MaxFileSize(0)` is rejected by both (`ErrInvalidSizeFile`) exactly as it is on a walk, rather
-than answered with an empty listing or an import of whatever happens to fit.
+than answered with an empty listing or an import of whatever happens to fit. `FetchCandidates`
+also refuses an individual candidate that turns out to exceed `MaxFileSize` (`ErrInvalidSizeFile`
+again), at whichever of the three points above catches it - which for a selection that lost its
+`Size` in transit is after the download, not before it.
 
 `FetchCandidates` also refuses a walker with no file interceptor registered
 (`ErrNoFileInterceptor`): it downloads one file per candidate and would have nowhere to hand them,
