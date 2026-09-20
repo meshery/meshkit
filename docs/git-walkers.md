@@ -82,6 +82,10 @@ Two changes do reach callers that never opt in, and both are deliberate:
   the listing is incomplete, so a clone reads the repository instead.
 - **A directory interceptor is registered.** Directory interception needs a directory that
   exists, which the API route never produces, so the walk clones.
+- **The configured `Root` is itself a committed symlink.** The Trees API answers a symlink with a
+  blob holding the link target rather than the target's contents, so the crawl cannot serve that
+  root and the clone answers it instead - following the link while it stays inside the copy,
+  exactly as for a caller that never opted in.
 
 **Only the truncated-tree clone is filtered**, because it is the only one standing in for a Trees
 walk of the same repository. There the clone route runs the same classifier the ranking uses, so
@@ -91,10 +95,11 @@ which never offers one. What the caller gets is the same filtered, size-bounded 
 same order: the clone delivers in `filepath.WalkDir`/`os.ReadDir` lexical order, never in score
 order, so an interceptor must not assume `Chart.yaml` arrives before `values.yaml`.
 
-**The other two clones are not filtered.** A non-github.com host and a registered directory
-interceptor take the clone route on their own terms, not as a substitute for a Trees walk, so they
-behave exactly as they always have even when the caller enabled `UseGithubAPI()`: every file under
-`Root`, in the order it always arrived, with the usual oversize error rather than a silent skip.
+**The other three clones are not filtered.** A non-github.com host, a registered directory
+interceptor and a symlinked `Root` take the clone route on their own terms, not as a substitute
+for a Trees walk, so they behave exactly as they always have even when the caller enabled
+`UseGithubAPI()`: every file under `Root`, in the order it always arrived, with the usual oversize
+error rather than a silent skip.
 Opting in does change the file paths the interceptor is handed on any clone - see **Paths** below.
 
 Symlinks are followed on an unfiltered clone, with one
@@ -116,14 +121,16 @@ files and calling that a success:
   `ErrRootNotFound`. This covers a file root and a directory root alike, and it is decided by
   `lstat`/`readlink` without opening anything. The API route has no filesystem to escape: a root
   of `../` segments matches no tree entry and fails with the same error.
-- **The root names one file the crawl cannot deliver.** A `Root` naming a single tree entry is an
-  explicit request for *that* file, so the API route refuses it rather than importing nothing when
-  the ranking would drop it: `ErrInvalidSizeFile` when the entry exceeds `MaxFileSize`, and
-  `ErrRootNotFound` when it is a committed symlink, whose blob holds the link target rather than
-  any contents. Both mirror what the clone route already does with the same root. **A directory
-  root is unaffected**: it asks for whatever is interesting underneath it, so an oversized file
-  there is still skipped silently and the walk still succeeds with the rest - the rule described
-  under the truncated-tree clone above.
+- **The root names one file that is too big.** A `Root` naming a single tree entry is an explicit
+  request for *that* file, so a walk refuses it with `ErrInvalidSizeFile` rather than importing
+  nothing when it exceeds `MaxFileSize` - on the API route, on the ordinary clone, and on the
+  truncated-tree clone standing in for a Trees walk alike. **A directory root is unaffected**: it
+  asks for whatever is interesting underneath it, so an oversized file there is still skipped
+  silently and the walk still succeeds with the rest - the rule described under the truncated-tree
+  clone above. A root naming a *symlink* is not refused at all: the API route declines to the
+  clone, which reads it whenever it resolves inside the copy. The one corner where the two routes
+  still part is a symlinked root under a **truncated** tree, where the stand-in clone skips it as
+  the Trees walk it replaces would have.
 
 This is the one place the containment rule fails rather than skips: an individual link met
 *under* the root is still passed over silently while the walk carries on. An unset `Root`,

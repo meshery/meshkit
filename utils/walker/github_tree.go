@@ -156,22 +156,27 @@ func (g *Git) ListInterestingFiles(ctx context.Context) (InterestingFiles, error
 	ctx, cancel := g.withTimeout(ctx)
 	defer cancel()
 
-	return g.listInterestingFiles(ctx, true)
+	listing, _, err := g.listInterestingFiles(ctx, true)
+	return listing, err
 }
 
-func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (InterestingFiles, error) {
+// listInterestingFiles lists and ranks a commit's tree. It also reports
+// whether the configured root is itself a symlink, which the Trees API cannot
+// serve: it answers one with a blob holding the link target rather than the
+// target's contents, so a walk declines the route and clones instead.
+func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (InterestingFiles, bool, error) {
 	ref := g.apiRef()
 
 	g.reportProgress(ProgressUpdate{Stage: ProgressStageResolveRef, Message: fmt.Sprintf("resolving %s", ref)})
 	commitSHA, err := g.resolveRef(ctx, ref)
 	if err != nil {
-		return InterestingFiles{}, err
+		return InterestingFiles{}, false, err
 	}
 
 	g.reportProgress(ProgressUpdate{Stage: ProgressStageListTree, Message: fmt.Sprintf("listing tree for %s", commitSHA)})
 	tree, err := g.fetchTree(ctx, commitSHA)
 	if err != nil {
-		return InterestingFiles{}, err
+		return InterestingFiles{}, false, err
 	}
 
 	// A root naming nothing in the tree is the misconfiguration the clone
@@ -179,12 +184,14 @@ func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (Interes
 	// rather than one of them importing no files and calling that a success.
 	// A truncated tree cannot show that the root is absent, so it is left to
 	// the clone the caller falls back to.
+	rootLinked := false
 	if root := strings.Trim(g.root, "/"); root != "" && !tree.Truncated {
 		if !treeHasRoot(tree.Tree, root) {
-			return InterestingFiles{}, ErrRootNotFound(root, ref)
+			return InterestingFiles{}, false, ErrRootNotFound(root, ref)
 		}
-		if err := g.requireDeliverableExactRoot(tree.Tree, root, ref); err != nil {
-			return InterestingFiles{}, err
+		rootLinked = rootIsSymlink(tree.Tree, root)
+		if err := g.requireDeliverableExactRoot(tree.Tree, root); err != nil {
+			return InterestingFiles{}, false, err
 		}
 	}
 
@@ -199,7 +206,7 @@ func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (Interes
 		Total:   len(listing.Candidates),
 	})
 
-	return listing, nil
+	return listing, rootLinked, nil
 }
 
 // FetchCandidates downloads the blob behind each candidate and hands it to the
@@ -310,34 +317,42 @@ func (g *Git) fetchCandidates(ctx context.Context, candidates []CandidateFile) e
 // treeWalk runs the hybrid GitHub crawl. It reports whether the walk was
 // actually carried out over the API; false means the caller should fall back
 // to a go-git clone.
-func (g *Git) treeWalk(ctx context.Context) (bool, error) {
+func (g *Git) treeWalk(ctx context.Context) (walked bool, standingInForTrees bool, err error) {
 	// Directory interception needs a working tree on disk to hand to the
 	// interceptor, which the API route never produces, so those callers keep
-	// the clone.
+	// the clone - on its own terms, not as a stand-in for a Trees walk.
 	if g.dirInterceptor != nil {
-		return false, nil
+		return false, false, nil
 	}
 
 	if g.maxFileSizeInBytes == 0 {
-		return false, errZeroMaxFileSize()
+		return false, false, errZeroMaxFileSize()
 	}
 
-	listing, err := g.listInterestingFiles(ctx, g.recurse)
+	listing, rootLinked, err := g.listInterestingFiles(ctx, g.recurse)
 	if err != nil {
-		return false, err
+		return false, false, err
+	}
+
+	// A root that is itself a symlink is a shape the Trees API cannot serve,
+	// so the clone answers it exactly as it does for a caller that never
+	// opted in - following the link while it stays inside the copy - rather
+	// than the opt-in turning a working import into a failure.
+	if rootLinked {
+		return false, false, nil
 	}
 
 	// A truncated tree is an incomplete listing, so the clone is the only way
-	// to see every file.
+	// to see every file, standing in for the Trees walk that could not finish.
 	if listing.Truncated {
-		return false, nil
+		return false, true, nil
 	}
 
 	if err := g.fetchCandidates(ctx, listing.Candidates); err != nil {
-		return false, err
+		return false, false, err
 	}
 
-	return true, nil
+	return true, false, nil
 }
 
 // apiRef reports which reference the API route should resolve. An explicitly
@@ -595,20 +610,14 @@ func (g *Git) rankTree(entries []githubTreeEntry, recursive bool) []CandidateFil
 }
 
 // requireDeliverableExactRoot refuses a root that names one file the ranking
-// then drops. A root naming a directory asks for whatever is interesting
-// underneath it, so a file skipped there was nobody's request; a root naming
-// the file itself is a request for that file, which the clone route answers
-// with an error rather than with nothing. The two reasons the ranking drops a
-// blob are answered the way the clone route answers them: an oversize file
-// with the size error, and a symlink - whose blob holds the link target rather
-// than any contents - with the root-not-found error.
-func (g *Git) requireDeliverableExactRoot(entries []githubTreeEntry, root, ref string) error {
+// then drops for its size. A root naming a directory asks for whatever is
+// interesting underneath it, so a file skipped there was nobody's request; a
+// root naming the file itself is a request for that file, which the clone
+// route answers with an error rather than with nothing.
+func (g *Git) requireDeliverableExactRoot(entries []githubTreeEntry, root string) error {
 	for _, entry := range entries {
-		if entry.Path != root || entry.Type != "blob" {
+		if entry.Path != root || entry.Type != "blob" || entry.Mode == symlinkFileMode {
 			continue
-		}
-		if entry.Mode == symlinkFileMode {
-			return ErrRootNotFound(root, ref)
 		}
 		if entry.Size > g.maxFileSizeInBytes {
 			return errOversizedBlob(root, g.maxFileSizeInBytes)
@@ -616,6 +625,16 @@ func (g *Git) requireDeliverableExactRoot(entries []githubTreeEntry, root, ref s
 		return nil
 	}
 	return nil
+}
+
+// rootIsSymlink reports whether the configured root is itself a symlink entry.
+func rootIsSymlink(entries []githubTreeEntry, root string) bool {
+	for _, entry := range entries {
+		if entry.Path == root {
+			return entry.Type == "blob" && entry.Mode == symlinkFileMode
+		}
+	}
+	return false
 }
 
 // treeHasRoot reports whether the configured root names anything in the tree:

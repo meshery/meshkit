@@ -169,20 +169,22 @@ func (g *Git) WalkContext(ctx context.Context) error {
 			return err
 		}
 		if isGithub {
-			walked, err := g.treeWalk(ctx)
+			walked, standingInForTrees, err := g.treeWalk(ctx)
 			if err != nil {
 				return err
 			}
 			if walked {
 				return nil
 			}
-			// treeWalk declined - a truncated tree, or a registered directory
-			// interceptor - so the clone below is the only complete answer.
-			// Only the truncated tree leaves the clone standing in for a Trees
-			// walk of the same repository; a directory interceptor declines the
-			// API route to get a working tree, not a different result set.
+			// treeWalk declined - a truncated tree, a registered directory
+			// interceptor, or a root that is itself a symlink - so the clone
+			// below is the only complete answer. treeWalk reports whether that
+			// clone stands in for a Trees walk of the same repository, which
+			// only the truncated tree does; the other two decline the API
+			// route to get what the clone already answers, not a different
+			// result set.
 			g.reportProgress(ProgressUpdate{Stage: ProgressStageClone, Message: "the Trees API could not answer completely, falling back to a clone"})
-			return clonewalkContext(ctx, g, g.dirInterceptor == nil)
+			return clonewalkContext(ctx, g, standingInForTrees)
 		}
 	}
 
@@ -381,6 +383,12 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 		entryInfo := info
 		if linkInfo, lerr := os.Lstat(rootPath); lerr == nil {
 			entryInfo = linkInfo
+		}
+		// The root is the one file the caller named, so a clone standing in
+		// for a Trees walk refuses it for its size the way that walk would
+		// have, rather than skipping it and reporting an import of nothing.
+		if standingInForTrees && entryInfo.Mode()&os.ModeSymlink == 0 && entryInfo.Size() > g.maxFileSizeInBytes {
+			return errOversizedBlob(strings.Trim(g.root, "/"), g.maxFileSizeInBytes)
 		}
 		if g.skipOnClone(clonePath, rootPath, entryInfo, standingInForTrees) {
 			return nil

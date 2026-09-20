@@ -25,6 +25,7 @@ type githubContentsStub struct {
 	mu            sync.Mutex
 	paths         []string
 	refs          []string
+	targets       []string
 	authorization []string
 }
 
@@ -37,6 +38,7 @@ func (s *githubContentsStub) server(t *testing.T) *httptest.Server {
 		s.mu.Lock()
 		s.paths = append(s.paths, requested)
 		s.refs = append(s.refs, r.URL.Query().Get("ref"))
+		s.targets = append(s.targets, r.URL.RequestURI())
 		s.authorization = append(s.authorization, r.Header.Get("Authorization"))
 		s.mu.Unlock()
 
@@ -63,6 +65,15 @@ func (s *githubContentsStub) server(t *testing.T) *httptest.Server {
 	}))
 	t.Cleanup(server.Close)
 	return server
+}
+
+// requestTargets returns the request targets the stub was sent, as they
+// arrived. The handler runs on the server's goroutine, so they are recorded
+// and read under the same lock as everything else the stub collects.
+func (s *githubContentsStub) requestTargets() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.targets...)
 }
 
 func (s *githubContentsStub) snapshot() (paths, refs, auth []string) {
@@ -351,12 +362,6 @@ func TestGithubWalkSendsTheBranchAndPathIntact(t *testing.T) {
 			"configs#1/child.yaml": {Name: "child.yaml", Path: "configs#1/child.yaml", Type: "file"},
 		},
 	}
-	var target string
-	stub.onRequest = func(_ string, r *http.Request) {
-		if target == "" {
-			target = r.URL.RequestURI()
-		}
-	}
 	server := stub.server(t)
 
 	_ = contentsGithub(server).
@@ -365,8 +370,12 @@ func TestGithubWalkSendsTheBranchAndPathIntact(t *testing.T) {
 		RegisterFileInterceptor(func(GithubContentAPI) error { return nil }).
 		WalkContext(context.Background())
 
+	targets := stub.requestTargets()
+	if len(targets) != 1 {
+		t.Fatalf("expected exactly one request, got %v", targets)
+	}
 	want := "/repos/owner/repo/contents/configs%231/child.yaml?ref=feat%231"
-	if target != want {
-		t.Errorf("expected the request target %q, got %q", want, target)
+	if targets[0] != want {
+		t.Errorf("expected the request target %q, got %q", want, targets[0])
 	}
 }

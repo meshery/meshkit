@@ -865,13 +865,26 @@ func TestGitCloneRouteSkipsSymlinksWhenStandingInForTheTreesWalk(t *testing.T) {
 		}
 	})
 
-	t.Run("a root naming the symlink itself is not read either", func(t *testing.T) {
+	t.Run("a root naming the symlink itself is not read by a stand-in clone", func(t *testing.T) {
 		delivered := []string{}
 		if err := clonewalkContext(context.Background(), walker("configs/link.yaml", &delivered), true); err != nil {
 			t.Fatalf("the clone walk returned error: %v", err)
 		}
 		if len(delivered) != 0 {
 			t.Errorf("expected an explicitly named symlink to be skipped, got %v", delivered)
+		}
+	})
+
+	t.Run("an ordinary clone reads a root naming the symlink itself", func(t *testing.T) {
+		// This is the clone a walk that opted into the API route falls back to
+		// when the root is a symlink, so an opted-in caller sees what a caller
+		// that never opted in sees.
+		delivered := []string{}
+		if err := clonewalkContext(context.Background(), walker("configs/link.yaml", &delivered), false); err != nil {
+			t.Fatalf("the clone walk returned error: %v", err)
+		}
+		if want := []string{"link.yaml"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the named link to be read, delivering %v, got %v", want, delivered)
 		}
 	})
 }
@@ -1228,6 +1241,60 @@ func TestGitCloneWalkReadsAFileRootOnlyWhenItStaysInsideTheRepository(t *testing
 		}
 		if !reflect.DeepEqual(delivered, want) {
 			t.Errorf("expected the file to be delivered as %v, got %v", want, delivered)
+		}
+	})
+}
+
+func TestStandInCloneRefusesAnOversizeExactFileRoot(t *testing.T) {
+	// A truncated tree sends the walk to a clone standing in for the Trees
+	// walk. That clone filters the way the ranking would, but the root is the
+	// one file the caller named, so it fails for its size the way the Trees
+	// route does rather than reporting an import of nothing.
+	const limit = 1000
+
+	baseDir := t.TempDir()
+	createCommittedRepo(t, filepath.Join(baseDir, "owner", "sample"), map[string]string{
+		"charts/values.yaml": strings.Repeat("y", limit*5),
+		"charts/small.yaml":  "kind: ConfigMap",
+	})
+
+	walk := func(t *testing.T, root string, standingInForTrees bool) ([]string, error) {
+		t.Helper()
+
+		delivered := []string{}
+		g := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo("sample").
+			MaxFileSize(limit).
+			Root(root).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, filepath.Base(file.Path))
+				return nil
+			})
+		return delivered, clonewalkContext(context.Background(), g, standingInForTrees)
+	}
+
+	t.Run("the exact file root fails", func(t *testing.T) {
+		delivered, err := walk(t, "charts/values.yaml", true)
+		if err == nil {
+			t.Fatal("expected the oversize root to fail rather than deliver nothing")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrInvalidSizeFileCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrInvalidSizeFileCode, code, err)
+		}
+		if len(delivered) != 0 {
+			t.Errorf("expected nothing to be delivered, got %v", delivered)
+		}
+	})
+
+	t.Run("a directory root still skips it", func(t *testing.T) {
+		delivered, err := walk(t, "charts/**", true)
+		if err != nil {
+			t.Fatalf("the clone walk returned error: %v", err)
+		}
+		if want := []string{"small.yaml"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the oversized file to be skipped, leaving %v, got %v", want, delivered)
 		}
 	})
 }

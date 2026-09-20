@@ -451,12 +451,13 @@ func TestWalkContextUsesTreesPathAndFetchesSelectedBlobs(t *testing.T) {
 
 func TestTreeWalkFallsBackToClone(t *testing.T) {
 	tests := []struct {
-		name        string
-		truncated   bool
-		dirIntercep bool
-		wantWalked  bool
+		name         string
+		truncated    bool
+		dirIntercep  bool
+		wantWalked   bool
+		wantStandsIn bool
 	}{
-		{name: "truncated tree falls back", truncated: true, wantWalked: false},
+		{name: "truncated tree falls back", truncated: true, wantWalked: false, wantStandsIn: true},
 		{name: "complete tree is walked over the api", truncated: false, wantWalked: true},
 		{name: "directory interception falls back", dirIntercep: true, wantWalked: false},
 	}
@@ -479,12 +480,15 @@ func TestTreeWalkFallsBackToClone(t *testing.T) {
 				g = g.RegisterDirInterceptor(func(Directory) error { return nil })
 			}
 
-			walked, err := g.treeWalk(context.Background())
+			walked, standsIn, err := g.treeWalk(context.Background())
 			if err != nil {
 				t.Fatalf("treeWalk() returned error: %v", err)
 			}
 			if walked != tt.wantWalked {
 				t.Errorf("expected treeWalk to report walked=%t, got %t", tt.wantWalked, walked)
+			}
+			if standsIn != tt.wantStandsIn {
+				t.Errorf("expected treeWalk to report standingInForTrees=%t, got %t", tt.wantStandsIn, standsIn)
 			}
 
 			_, _, blobs := stub.snapshot()
@@ -757,7 +761,7 @@ func TestTreeWalkFetchesEveryRankedCandidateHoweverLargeTheListing(t *testing.T)
 	server := stub.server(t)
 
 	delivered := []string{}
-	walked, err := apiGit(server).
+	walked, _, err := apiGit(server).
 		Root("manifests/**").
 		RegisterFileInterceptor(func(file File) error {
 			delivered = append(delivered, file.Path)
@@ -1190,7 +1194,7 @@ func TestListInterestingFilesScopesToRoot(t *testing.T) {
 		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: map[string]string{}}
 
 		delivered := []string{}
-		walked, err := apiGit(stub.server(t)).
+		walked, _, err := apiGit(stub.server(t)).
 			Root("charts").
 			RegisterFileInterceptor(func(file File) error {
 				delivered = append(delivered, file.Path)
@@ -1223,7 +1227,7 @@ func TestListInterestingFilesScopesToRoot(t *testing.T) {
 			stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: map[string]string{"top-blob": "kind: ConfigMap"}}
 
 			delivered := []string{}
-			walked, err := tt.scope(apiGit(stub.server(t))).
+			walked, _, err := tt.scope(apiGit(stub.server(t))).
 				RegisterFileInterceptor(func(file File) error {
 					delivered = append(delivered, file.Path)
 					return nil
@@ -1472,7 +1476,6 @@ func TestWalkRefusesAnExactFileRootTheCrawlCannotDeliver(t *testing.T) {
 		wantClone string
 	}{
 		{name: "an oversize file root", root: "charts/values.yaml", wantAPI: ErrInvalidSizeFileCode, wantClone: ErrCloningRepoCode},
-		{name: "a symlink file root", root: "charts/link.yaml", wantAPI: ErrRootNotFoundCode, wantClone: ErrRootNotFoundCode},
 	}
 
 	for _, tt := range refusals {
@@ -1506,6 +1509,33 @@ func TestWalkRefusesAnExactFileRootTheCrawlCannotDeliver(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("a symlink root declines the api route to the clone", func(t *testing.T) {
+		// The Trees API answers a symlink with a blob holding the link target,
+		// so the crawl cannot serve this root and hands it to the clone rather
+		// than failing a walk the clone would have completed. The clone it
+		// declines to is an ordinary one, not a stand-in for a Trees walk that
+		// would skip the very link it was handed.
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: blobs}
+		walked, standsIn, err := apiGit(stub.server(t)).
+			MaxFileSize(limit).
+			Root("charts/link.yaml").
+			RegisterFileInterceptor(func(File) error { return nil }).
+			treeWalk(context.Background())
+		if err != nil {
+			t.Fatalf("treeWalk() returned error: %v", err)
+		}
+		if walked {
+			t.Error("expected the api route to decline a symlinked root")
+		}
+		if standsIn {
+			t.Error("expected the clone to run on its own terms rather than standing in for a Trees walk")
+		}
+
+		if _, _, fetched := stub.snapshot(); len(fetched) != 0 {
+			t.Errorf("expected no blob to be downloaded before declining, got %v", fetched)
+		}
+	})
 
 	t.Run("a directory root still skips an oversized file", func(t *testing.T) {
 		delivered, err := apiWalk(t, "charts")
