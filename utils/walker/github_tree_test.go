@@ -1547,3 +1547,62 @@ func TestWalkRefusesAnExactFileRootTheCrawlCannotDeliver(t *testing.T) {
 		}
 	})
 }
+
+func TestListingRoutesRefuseASymlinkedRoot(t *testing.T) {
+	// The listing route has no clone to read a link through, so it says so
+	// rather than answering a root that does exist with an empty repository.
+	tree := githubTreeAPI{Tree: []githubTreeEntry{
+		{Type: "blob", Mode: symlinkFileMode, Path: "charts", SHA: "link-blob", Size: 13},
+		{Type: "blob", Mode: "100644", Path: "deploy/charts/Chart.yaml", SHA: "chart-blob", Size: 11},
+	}}
+	blobs := map[string]string{"link-blob": "deploy/charts", "chart-blob": "name: redis"}
+
+	t.Run("ListInterestingFiles refuses it", func(t *testing.T) {
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: blobs}
+
+		_, err := apiGit(stub.server(t)).Root("charts").ListInterestingFiles(context.Background())
+		if err == nil {
+			t.Fatal("expected the listing of a symlinked root to fail rather than come back empty")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrSymlinkedRootCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrSymlinkedRootCode, code, err)
+		}
+	})
+
+	t.Run("FetchCandidates refuses it", func(t *testing.T) {
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: blobs}
+
+		err := apiGit(stub.server(t)).
+			Root("charts").
+			RegisterFileInterceptor(func(File) error { return nil }).
+			FetchCandidates(context.Background(), []CandidateFile{{Path: "deploy/charts/Chart.yaml", SHA: "chart-blob", Size: 11}})
+		if err == nil {
+			t.Fatal("expected a fetch under a symlinked root to fail")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrSymlinkedRootCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrSymlinkedRootCode, code, err)
+		}
+		if _, _, fetched := stub.snapshot(); len(fetched) != 0 {
+			t.Errorf("expected no blob to be downloaded, got %v", fetched)
+		}
+	})
+
+	t.Run("an ordinary root is unaffected", func(t *testing.T) {
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: blobs}
+
+		delivered := []string{}
+		err := apiGit(stub.server(t)).
+			Root("deploy/charts").
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, file.Path)
+				return nil
+			}).
+			FetchCandidates(context.Background(), []CandidateFile{{Path: "deploy/charts/Chart.yaml", SHA: "chart-blob", Size: 11}})
+		if err != nil {
+			t.Fatalf("FetchCandidates() returned error: %v", err)
+		}
+		if want := []string{"deploy/charts/Chart.yaml"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the candidate to be delivered as %v, got %v", want, delivered)
+		}
+	})
+}

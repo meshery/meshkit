@@ -384,13 +384,16 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 		if linkInfo, lerr := os.Lstat(rootPath); lerr == nil {
 			entryInfo = linkInfo
 		}
-		// The root is the one file the caller named, so a clone standing in
-		// for a Trees walk refuses it for its size the way that walk would
-		// have, rather than skipping it and reporting an import of nothing.
+		// The root is the one file the caller named, so the filtering a clone
+		// standing in for a Trees walk applies to everything else must not
+		// drop it silently: it is refused for its size the way that walk
+		// refuses it, and otherwise read on the ordinary clone's terms - a
+		// link included, having already been proven to resolve inside the
+		// copy above.
 		if standingInForTrees && entryInfo.Mode()&os.ModeSymlink == 0 && entryInfo.Size() > g.maxFileSizeInBytes {
 			return errOversizedBlob(strings.Trim(g.root, "/"), g.maxFileSizeInBytes)
 		}
-		if g.skipOnClone(clonePath, rootPath, entryInfo, standingInForTrees) {
+		if g.skipOnClone(clonePath, rootPath, entryInfo, false) {
 			return nil
 		}
 		err = g.readFile(info, clonePath, rootPath)

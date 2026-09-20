@@ -16,6 +16,7 @@ var (
 
 	ErrNoFileInterceptorCode = "meshkit-11332"
 	ErrRootNotFoundCode      = "meshkit-11333"
+	ErrSymlinkedRootCode     = "meshkit-11334"
 )
 
 func ErrCloningRepo(err error) error {
@@ -86,6 +87,19 @@ func ErrRootNotFound(root, ref string) error {
 		[]string{fmt.Sprintf("%s does not exist at %s", root, ref)},
 		[]string{"The directory or file was renamed or removed on the reference being walked", "The root belongs to a different branch, tag or reference than the one configured"},
 		[]string{"Verify the root path exists on the reference being walked", "Walk the repository with no root configured to read every file it holds"},
+	)
+}
+
+// ErrSymlinkedRoot is returned when the configured root is a symbolic link and
+// the listing route, which has no clone to read it through, cannot serve it.
+func ErrSymlinkedRoot(root, ref string) error {
+	return errors.New(
+		ErrSymlinkedRootCode,
+		errors.Alert,
+		[]string{"Could not list a root that is a symbolic link"},
+		[]string{fmt.Sprintf("%s is a symbolic link at %s, and the Git Trees API answers a link with a blob holding the link target rather than the contents it points at", root, ref)},
+		[]string{"The configured root names a committed symbolic link rather than a directory or a file"},
+		[]string{"Walk or WalkContext the same configuration instead, which clones the repository and reads through the link", "Configure the root the link points at rather than the link itself"},
 	)
 }
 

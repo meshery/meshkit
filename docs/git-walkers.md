@@ -91,7 +91,8 @@ Two changes do reach callers that never opt in, and both are deliberate:
 walk of the same repository. There the clone route runs the same classifier the ranking uses, so
 `.md`, `.txt`, `.sh` and extensionless files never reach the interceptor, it skips a file over
 `MaxFileSize` instead of failing the walk, and it skips symlinks outright as the API route does,
-which never offers one. What the caller gets is the same filtered, size-bounded **set** - not the
+which never offers one - every symlink, that is, except one the caller named as `Root`, which is
+read or refused as on any other clone. What the caller gets is the same filtered, size-bounded **set** - not the
 same order: the clone delivers in `filepath.WalkDir`/`os.ReadDir` lexical order, never in score
 order, so an interceptor must not assume `Chart.yaml` arrives before `values.yaml`.
 
@@ -122,15 +123,28 @@ files and calling that a success:
   `lstat`/`readlink` without opening anything. The API route has no filesystem to escape: a root
   of `../` segments matches no tree entry and fails with the same error.
 - **The root names one file that is too big.** A `Root` naming a single tree entry is an explicit
-  request for *that* file, so a walk refuses it with `ErrInvalidSizeFile` rather than importing
-  nothing when it exceeds `MaxFileSize` - on the API route, on the ordinary clone, and on the
-  truncated-tree clone standing in for a Trees walk alike. **A directory root is unaffected**: it
-  asks for whatever is interesting underneath it, so an oversized file there is still skipped
-  silently and the walk still succeeds with the rest - the rule described under the truncated-tree
-  clone above. A root naming a *symlink* is not refused at all: the API route declines to the
-  clone, which reads it whenever it resolves inside the copy. The one corner where the two routes
-  still part is a symlinked root under a **truncated** tree, where the stand-in clone skips it as
-  the Trees walk it replaces would have.
+  request for *that* file, so every route refuses it rather than importing nothing when it exceeds
+  `MaxFileSize`. The code differs by route, because the ordinary clone re-wraps what `readFile`
+  returns: the API route and the truncated-tree clone standing in for it both fail with
+  `ErrInvalidSizeFile`, while the ordinary clone fails with `ErrCloningRepo` carrying the size
+  message as its cause. **A directory root is unaffected**: it asks for whatever is interesting
+  underneath it, so an oversized file there is still skipped silently and the walk still succeeds
+  with the rest - the rule described under the truncated-tree clone above.
+
+**A `Root` that is itself a committed symlink** has one contract across the whole package, with no
+silent case:
+
+- `Walk` and `WalkContext` read it through the clone, by the clone's own rules - delivered when the
+  link resolves inside the repository copy, `ErrRootNotFound` when it escapes or resolves to
+  nothing. That holds whether the caller opted into the crawl or not, and whether the clone is an
+  ordinary one or standing in for a truncated Trees walk: the root is the one file the caller
+  named, so the stand-in filtering that skips links everywhere else does not skip it.
+- `ListInterestingFiles` and `FetchCandidates` fail with `ErrSymlinkedRoot`. They have no clone to
+  read the link through, and the Trees blob behind it holds the link target rather than the
+  contents it points at, so an empty listing would misreport a root that does exist. Proving this
+  costs `FetchCandidates` one ref resolution and one tree listing, which it only spends when a
+  root is configured.
+- A root that genuinely does not exist keeps failing with `ErrRootNotFound` on every route.
 
 This is the one place the containment rule fails rather than skips: an individual link met
 *under* the root is still passed over silently while the walk carries on. An unset `Root`,

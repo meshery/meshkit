@@ -865,26 +865,20 @@ func TestGitCloneRouteSkipsSymlinksWhenStandingInForTheTreesWalk(t *testing.T) {
 		}
 	})
 
-	t.Run("a root naming the symlink itself is not read by a stand-in clone", func(t *testing.T) {
-		delivered := []string{}
-		if err := clonewalkContext(context.Background(), walker("configs/link.yaml", &delivered), true); err != nil {
-			t.Fatalf("the clone walk returned error: %v", err)
-		}
-		if len(delivered) != 0 {
-			t.Errorf("expected an explicitly named symlink to be skipped, got %v", delivered)
-		}
-	})
-
-	t.Run("an ordinary clone reads a root naming the symlink itself", func(t *testing.T) {
-		// This is the clone a walk that opted into the API route falls back to
-		// when the root is a symlink, so an opted-in caller sees what a caller
-		// that never opted in sees.
-		delivered := []string{}
-		if err := clonewalkContext(context.Background(), walker("configs/link.yaml", &delivered), false); err != nil {
-			t.Fatalf("the clone walk returned error: %v", err)
-		}
-		if want := []string{"link.yaml"}; !reflect.DeepEqual(delivered, want) {
-			t.Errorf("expected the named link to be read, delivering %v, got %v", want, delivered)
+	t.Run("a root naming the symlink itself is read by either clone", func(t *testing.T) {
+		// The root is the one file the caller named. An ordinary clone reads
+		// it - that is the clone a walk declining the API route falls back to
+		// - and so does a clone standing in for a Trees walk, which reaches
+		// this root only under a truncated tree and must not turn a working
+		// single-file import into an empty successful one.
+		for _, standingInForTrees := range []bool{false, true} {
+			delivered := []string{}
+			if err := clonewalkContext(context.Background(), walker("configs/link.yaml", &delivered), standingInForTrees); err != nil {
+				t.Fatalf("the clone walk returned error with standingInForTrees=%t: %v", standingInForTrees, err)
+			}
+			if want := []string{"link.yaml"}; !reflect.DeepEqual(delivered, want) {
+				t.Errorf("expected the named link to be read with standingInForTrees=%t, delivering %v, got %v", standingInForTrees, want, delivered)
+			}
 		}
 	})
 }
@@ -1297,4 +1291,50 @@ func TestStandInCloneRefusesAnOversizeExactFileRoot(t *testing.T) {
 			t.Errorf("expected the oversized file to be skipped, leaving %v, got %v", want, delivered)
 		}
 	})
+}
+
+func TestStandInCloneRefusesASymlinkedRootItCannotContain(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("committed symlinks are not checked out as links on Windows")
+	}
+
+	// A truncated tree sends the walk to a clone standing in for the Trees
+	// walk, and a root naming one symlink has to end the same way there as on
+	// an ordinary clone: refused when it leaves the copy or resolves to
+	// nothing, never silently skipped.
+	baseDir := t.TempDir()
+	createCommittedRepoWithLinks(t,
+		filepath.Join(baseDir, "owner", "sample"),
+		map[string]string{"inside/app.yaml": "kind: ConfigMap"},
+		map[string]string{
+			"escaping":     filepath.Join("..", "..", "meshkit-walker-nothing-here"),
+			"unresolvable": filepath.Join("missing", "target"),
+		},
+	)
+
+	for _, root := range []string{"escaping", "unresolvable"} {
+		t.Run(root+" is refused", func(t *testing.T) {
+			delivered := []string{}
+			g := NewGit().
+				BaseURL("file://" + baseDir).
+				Owner("owner").
+				Repo("sample").
+				Root(root).
+				RegisterFileInterceptor(func(file File) error {
+					delivered = append(delivered, filepath.Base(file.Path))
+					return nil
+				})
+
+			err := clonewalkContext(context.Background(), g, true)
+			if err == nil {
+				t.Fatal("expected a root that leaves the repository copy to fail")
+			}
+			if code := meshkiterrors.GetCode(err); code != ErrRootNotFoundCode {
+				t.Fatalf("expected error code %q, got %q: %v", ErrRootNotFoundCode, code, err)
+			}
+			if len(delivered) != 0 {
+				t.Errorf("expected nothing to be delivered, got %v", delivered)
+			}
+		})
+	}
 }
