@@ -246,7 +246,8 @@ in hand.
   something else answers 404. Call `Branch` explicitly when driving `Github` from a connection
   that does not carry one.
 - **Context.** `WalkContext`, `ListInterestingFiles` and `FetchCandidates` all take a context;
-  `Walk()` delegates with `context.Background()`. `Timeout(d)` bounds a whole traversal. A
+  `Walk()` delegates with `context.Background()`. `Git.Timeout(d)` bounds a whole traversal, and is
+  the only deadline the package sets itself - `Github` takes one from the context it is given. A
   traversal cut short by a deadline or a cancellation fails: `Github.WalkContext` fans out one
   request per entry, and once the fan-out has drained an ended context is returned as an error
   rather than a partial import reported as a success - that is the one case where the directory
@@ -256,8 +257,10 @@ in hand.
   are skipped, and a 404 or a rate limit on one subtree does not abort the import. A caller that
   needs to know a node was missed reads it off the interceptors it was handed, not off the
   returned error.
-- **Progress.** `RegisterProgressHook` receives `ProgressUpdate` values as the walk moves
-  through `resolve-ref`, `list-tree`, `rank`, `fetch-blob` and `clone`.
+- **Progress.** `Git.RegisterProgressHook` receives `ProgressUpdate` values as the walk moves
+  through `resolve-ref`, `list-tree`, `rank`, `fetch-blob` and `clone`, one update at a time.
+  `Github.RegisterProgressHook` reports `list-tree` alone, once per node it lists and from the
+  goroutine walking that node, so a hook given to `Github` must be safe for concurrent use.
 - **Paths.** Under `UseGithubAPI()` every **file** path handed to an interceptor is
   repository-relative - on the API route and on the clone it falls back to - so one import handles
   one kind of path. A `File.Path` **must not be opened from the filesystem**: on the API route
@@ -271,9 +274,10 @@ in hand.
   it is the only thing an interceptor can do with it. It is valid for as long as the walk runs and
   is removed with the clone once `Walk` returns, so anything a directory interceptor needs from it
   (`helm.ConvertToK8sManifest`, say) has to happen inside the interceptor.
-- **Auth.** `Token(t)` threads a GitHub App or OAuth token onto the API calls as a bearer token
+- **Auth.** `Git.Token(t)` threads a GitHub App or OAuth token onto the API calls as a bearer token
   and onto the clone as `x-access-token` basic auth, for private repositories and the
-  authenticated rate limit. The token is never logged, never placed in an error message and
+  authenticated rate limit; `Github.Token(t)` does the same for the Contents requests, which have
+  no clone to authenticate. The token is never logged, never placed in an error message and
   never reported through a progress hook. Because a token makes private repositories clonable,
   the temporary clone directory is created `0700` before go-git checks anything out, so a private
   repository's working copy is never readable by other local users; that holds for every clone,

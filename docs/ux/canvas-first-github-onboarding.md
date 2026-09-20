@@ -12,13 +12,17 @@ Import performance and file selection quality depend on meshkit’s Git walkers 
 
 ## meshkit-owned remediation
 
-| Priority | Item |
-|----------|------|
-| P0 | Fix branch/ref wiring on clone options; timeouts; progress hooks |
-| P2 | Route GitHub design import through Trees → filter → selective fetch |
-| P2 | Wire connection OAuth/App token into walkers (private repos + rate limits) |
-| P2 | Ranked interesting-file list API (Helm / K8s / Compose / designs) before blob download |
-| Later | Sparse/partial clone for non-GitHub large repos; optional GitLab/Bitbucket adapters |
+| Priority | Item | Status |
+|----------|------|--------|
+| P0 | Fix branch/ref wiring on clone options; timeouts; progress hooks | Landed in `utils/walker` |
+| P2 | Route GitHub design import through Trees → filter → selective fetch | Landed in `utils/walker` |
+| P2 | Wire connection OAuth/App token into walkers (private repos + rate limits) | Landed in `utils/walker` |
+| P2 | Ranked interesting-file list API (Helm / K8s / Compose / designs) before blob download | Landed in `utils/walker` |
+| Later | Sparse/partial clone for non-GitHub large repos; optional GitLab/Bitbucket adapters | Not started |
+
+What landed, and the contracts it commits meshkit to, is documented in
+[../git-walkers.md](../git-walkers.md) - the owner of the walker behaviour. This page stays a
+pointer to the research, not a second description of it.
 
 ## Non-goals
 
