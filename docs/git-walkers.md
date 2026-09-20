@@ -43,13 +43,15 @@ expensive on large repositories. `Git.UseGithubAPI()` opts into a hybrid crawl i
 3. **After decoding**, against the decoded byte length, refused with `ErrInvalidSizeFile` before
    anything reaches the interceptor.
 
-A caller driving `ListInterestingFiles` and then `FetchCandidates` will usually hit the third one
-rather than the first. `CandidateFile.Size` is `json:"size,omitempty"`, so a selection that
-round-trips through a picker client that drops the field arrives as `0`, the pre-request check
+Which gate a caller driving `ListInterestingFiles` and then `FetchCandidates` hits depends on one
+thing: whether the candidate still carries its `Size`. `ListInterestingFiles` fills it in from the
+tree entry, so a caller that hands the listing straight back - or round-trips it as JSON, where a
+non-zero size survives - is refused by the first gate before any request, exactly as on a walk.
+`CandidateFile.Size` is `json:"size,omitempty"`, so only a client that rebuilds candidates from a
+subset of the fields, path and SHA say, loses it: then it arrives as `0`, the pre-request check
 passes, and a modestly oversized blob still fits inside the read ceiling - whose envelope
 allowance is a fixed number of bytes, so it is generous at small limits. The decoded check is
-what holds the limit there. A candidate that keeps its `Size` is refused before any request, as
-on a walk.
+what holds the limit for that caller.
 
 The crawl is **opt-in**: without `UseGithubAPI()` no request is made to the GitHub API, the walk
 clones as it always has, and the ranking, the selective fetch and the repository-relative

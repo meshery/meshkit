@@ -2,6 +2,7 @@ package walker
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -995,4 +996,125 @@ func TestGitCloneDirectoryIsNotReadableByOtherLocalUsers(t *testing.T) {
 	if cloneMode&0o700 != 0o700 {
 		t.Errorf("expected the clone directory to stay fully accessible to its owner, got %#o", cloneMode)
 	}
+}
+
+// createCommittedRepoWithLinks commits files and then symlinks. Git stores a
+// link's target verbatim, an absolute one included, and go-git checks it back
+// out as a real link.
+func createCommittedRepoWithLinks(t *testing.T, repoPath string, files map[string]string, links map[string]string) {
+	t.Helper()
+
+	createCommittedRepo(t, repoPath, files)
+
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		t.Fatalf("failed to open repo: %v", err)
+	}
+	worktree, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("failed to get worktree: %v", err)
+	}
+
+	for name, target := range links {
+		fullPath := filepath.Join(repoPath, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+			t.Fatalf("failed to create parent directory for %s: %v", name, err)
+		}
+		if err := os.Symlink(target, fullPath); err != nil {
+			t.Fatalf("failed to create symlink %s: %v", name, err)
+		}
+		if _, err := worktree.Add(name); err != nil {
+			t.Fatalf("failed to add %s to repo: %v", name, err)
+		}
+	}
+
+	if _, err := worktree.Commit("links", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Test",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+	}); err != nil {
+		t.Fatalf("failed to commit links: %v", err)
+	}
+}
+
+func TestGitCloneWalkReadsALinkedRootOnlyWhenItStaysInsideTheRepository(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("committed symlinks are not checked out as links on Windows")
+	}
+
+	// The configured root can itself be a committed symlink, and the
+	// containment rule holds there too: a root whose target lands outside the
+	// repository copy, or that cannot be resolved at all, is passed over
+	// rather than read through, and the walk still returns.
+	baseDir := t.TempDir()
+
+	// The clone lands at <tmp>/<repo>/<nanos>, so this target sits two levels
+	// above it - outside the copy, while still inside the temporary directory.
+	escapeName := fmt.Sprintf("meshkit-walker-escape-%d", time.Now().UnixNano())
+	escapePath := filepath.Join(os.TempDir(), escapeName)
+	if err := os.MkdirAll(escapePath, 0o700); err != nil {
+		t.Fatalf("failed to create the directory outside the repository: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(escapePath) })
+	if err := os.WriteFile(filepath.Join(escapePath, "secret.yaml"), []byte("kind: Secret"), 0o600); err != nil {
+		t.Fatalf("failed to write the file outside the repository: %v", err)
+	}
+
+	createCommittedRepoWithLinks(t,
+		filepath.Join(baseDir, "owner", "sample"),
+		map[string]string{"inside/app.yaml": "kind: ConfigMap"},
+		map[string]string{
+			"escaping":     filepath.Join("..", "..", escapeName),
+			"unresolvable": filepath.Join("missing", "target"),
+			"contained":    "inside",
+		},
+	)
+
+	walk := func(t *testing.T, root string) []string {
+		t.Helper()
+
+		delivered := []string{}
+		err := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo("sample").
+			Root(root).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, filepath.Base(file.Path)+"="+file.Content)
+				return nil
+			}).
+			Walk()
+		if err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+		return delivered
+	}
+
+	t.Run("a root linking outside the copy delivers nothing", func(t *testing.T) {
+		if delivered := walk(t, "escaping"); len(delivered) != 0 {
+			t.Errorf("expected nothing from outside the repository copy, got %v", delivered)
+		}
+	})
+
+	t.Run("a root that cannot be resolved delivers nothing", func(t *testing.T) {
+		if delivered := walk(t, "unresolvable"); len(delivered) != 0 {
+			t.Errorf("expected an unresolvable root to deliver nothing, got %v", delivered)
+		}
+	})
+
+	t.Run("a root linking inside the copy is walked as usual", func(t *testing.T) {
+		want := []string{"app.yaml=kind: ConfigMap"}
+		if delivered := walk(t, "contained"); !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the linked directory to be walked as %v, got %v", want, delivered)
+		}
+	})
+
+	t.Run("an ordinary root is unaffected", func(t *testing.T) {
+		want := []string{"app.yaml=kind: ConfigMap"}
+		if delivered := walk(t, "inside"); !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the real directory to be walked as %v, got %v", want, delivered)
+		}
+	})
 }

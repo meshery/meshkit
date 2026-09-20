@@ -355,6 +355,12 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 	rootPath := filepath.Join(clonePath, g.root)
 	info, err := os.Stat(rootPath)
 	if err != nil {
+		// A root that is a link the walk cannot resolve is passed over, as an
+		// unresolvable link below the root is. A root that names nothing at
+		// all stays the caller's mistake.
+		if linkInfo, lerr := os.Lstat(rootPath); lerr == nil && linkInfo.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
 		return ErrCloningRepo(err)
 	}
 
@@ -372,6 +378,10 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 		}
 		return nil
 	}
+	if !resolvesInsideClone(clonePath, rootPath) {
+		return nil
+	}
+
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
 		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
