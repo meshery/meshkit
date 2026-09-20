@@ -68,6 +68,9 @@ Two changes do reach callers that never opt in, and both are deliberate:
 - **A symlink is read only while its target resolves inside the repository copy.** On every clone,
   a link whose target lands outside the copy the walk made, or that cannot be resolved, is passed
   over silently rather than read through. Links that stay inside the copy are followed as before.
+  The same containment holds for the configured `Root` itself - by symlink or by `../` traversal,
+  which needs no symlink at all - except that a root reaching outside fails the walk rather than
+  being skipped, since nothing would be delivered. See **`Root`** below.
 
 ### When the crawl falls back to go-git
 
@@ -100,12 +103,24 @@ link whose target lands outside that copy, or that cannot be resolved at all, is
 silently; the walk continues and nothing else changes. Targets are resolved with `lstat`/`readlink`
 alone, so a file that will not be read is never opened.
 
-**A `Root` that names nothing fails on either route.** The clone route stats the path and fails
-with `ErrCloningRepo`; the API route proves the root against the tree - an entry at `Root` itself
-or anything below it - and fails with `ErrRootNotFound`, rather than importing no files and
-calling that a success. A truncated tree cannot show that a root is absent, so that case is left
-to the clone it falls back to. An unset `Root`, `Root("")` and `Root("/")` all mean the whole
-repository and are never checked.
+**A `Root` that names nothing of the repository fails on either route**, rather than importing no
+files and calling that a success:
+
+- **The root is absent.** The clone route stats the path and fails with `ErrCloningRepo`; the API
+  route proves the root against the tree - an entry at `Root` itself or anything below it - and
+  fails with `ErrRootNotFound`. A truncated tree cannot show that a root is absent, so that case
+  is left to the clone it falls back to.
+- **The root reaches outside the repository copy, or cannot be resolved.** On the clone route a
+  root that is a symlink pointing outside the copy, a root whose `../` segments `filepath.Join`
+  cleans into a path outside it, and a root that is a link resolving to nothing all fail with
+  `ErrRootNotFound`. This covers a file root and a directory root alike, and it is decided by
+  `lstat`/`readlink` without opening anything. The API route has no filesystem to escape: a root
+  of `../` segments matches no tree entry and fails with the same error, while a root naming a
+  committed symlink is an entry the ranking drops, so that walk succeeds having delivered nothing.
+
+This is the one place the containment rule fails rather than skips: an individual link met
+*under* the root is still passed over silently while the walk carries on. An unset `Root`,
+`Root("")` and `Root("/")` all mean the whole repository and are never checked.
 
 Nothing else switches routes, and the size of the repository in particular does not: the
 auto-fetch path issues **one blob request per ranked candidate**, however many there are. It is

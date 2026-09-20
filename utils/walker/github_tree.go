@@ -378,7 +378,7 @@ func (g *Git) resolveRef(ctx context.Context, ref string) (string, error) {
 		return "", ErrResolvingGitRef(err, ref)
 	}
 
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/commits/%s", g.apiBaseURL, g.owner, g.repo, escaped)
+	endpoint := fmt.Sprintf("%s/repos/%s/%s/commits/%s", g.apiBaseURL, url.PathEscape(g.owner), url.PathEscape(g.repo), escaped)
 
 	body, err := g.get(ctx, endpoint, acceptCommitSHA, commitSHAResponseLimit)
 	if err != nil {
@@ -395,7 +395,7 @@ func (g *Git) resolveRef(ctx context.Context, ref string) (string, error) {
 
 // fetchTree lists the whole tree of a commit in a single recursive request.
 func (g *Git) fetchTree(ctx context.Context, commitSHA string) (githubTreeAPI, error) {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/trees/%s?recursive=1", g.apiBaseURL, g.owner, g.repo, url.PathEscape(commitSHA))
+	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/trees/%s?recursive=1", g.apiBaseURL, url.PathEscape(g.owner), url.PathEscape(g.repo), url.PathEscape(commitSHA))
 
 	body, err := g.get(ctx, endpoint, acceptJSON, 0)
 	if err != nil {
@@ -420,7 +420,7 @@ func (g *Git) fetchBlob(ctx context.Context, candidate CandidateFile) (string, e
 		return "", errOversizedBlob(candidate.Path, g.maxFileSizeInBytes)
 	}
 
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/blobs/%s", g.apiBaseURL, g.owner, g.repo, url.PathEscape(candidate.SHA))
+	endpoint := fmt.Sprintf("%s/repos/%s/%s/git/blobs/%s", g.apiBaseURL, url.PathEscape(g.owner), url.PathEscape(g.repo), url.PathEscape(candidate.SHA))
 
 	body, err := g.get(ctx, endpoint, acceptJSON, blobResponseLimit(g.maxFileSizeInBytes))
 	if err != nil {

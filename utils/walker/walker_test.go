@@ -952,17 +952,23 @@ func TestGitCloneDirectoryIsNotReadableByOtherLocalUsers(t *testing.T) {
 	// A token makes private repositories clonable, so the working copy the
 	// clone checks out has to stay readable to this process alone for as long
 	// as it exists. Every clone gets the same treatment: the directory is
-	// scratch space no caller reads directly.
+	// scratch space no caller reads directly. Its parent, <tmp>/<repo>, is
+	// shared with every other user cloning a repository of that name, so it
+	// has to stay traversable - and the repository is named uniquely here so
+	// that this walk is the one creating it.
 	baseDir := t.TempDir()
-	repoPath := filepath.Join(baseDir, "owner", "sample")
+	repoName := fmt.Sprintf("meshkit-walker-perms-%d", time.Now().UnixNano())
+	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(os.TempDir(), repoName)) })
+	repoPath := filepath.Join(baseDir, "owner", repoName)
 	createCommittedRepo(t, repoPath, map[string]string{"configs/child.yml": "kind: ConfigMap"})
 
 	var clonePath string
 	var cloneMode os.FileMode
+	var parentMode os.FileMode
 	err := NewGit().
 		BaseURL("file://" + baseDir).
 		Owner("owner").
-		Repo("sample").
+		Repo(repoName).
 		Root("configs/**").
 		RegisterFileInterceptor(func(File) error { return nil }).
 		RegisterDirInterceptor(func(dir Directory) error {
@@ -977,6 +983,14 @@ func TestGitCloneDirectoryIsNotReadableByOtherLocalUsers(t *testing.T) {
 				return err
 			}
 			cloneMode = info.Mode().Perm()
+
+			// The parent is shared with every other user's clones of a
+			// repository of the same name, so it has to stay traversable.
+			parentInfo, err := os.Stat(filepath.Dir(clonePath))
+			if err != nil {
+				return err
+			}
+			parentMode = parentInfo.Mode().Perm()
 			return nil
 		}).
 		Walk()
@@ -987,7 +1001,7 @@ func TestGitCloneDirectoryIsNotReadableByOtherLocalUsers(t *testing.T) {
 	if clonePath == "" {
 		t.Fatal("expected the walk to intercept a directory inside the clone")
 	}
-	if !strings.HasPrefix(clonePath, filepath.Join(os.TempDir(), "sample")+string(os.PathSeparator)) {
+	if !strings.HasPrefix(clonePath, filepath.Join(os.TempDir(), repoName)+string(os.PathSeparator)) {
 		t.Fatalf("expected the clone to sit under the temporary directory, got %q", clonePath)
 	}
 	if cloneMode&0o077 != 0 {
@@ -995,6 +1009,9 @@ func TestGitCloneDirectoryIsNotReadableByOtherLocalUsers(t *testing.T) {
 	}
 	if cloneMode&0o700 != 0o700 {
 		t.Errorf("expected the clone directory to stay fully accessible to its owner, got %#o", cloneMode)
+	}
+	if parentMode&0o055 != 0o055 {
+		t.Errorf("expected the shared parent directory to stay readable and traversable, got %#o", parentMode)
 	}
 }
 
@@ -1072,7 +1089,7 @@ func TestGitCloneWalkReadsALinkedRootOnlyWhenItStaysInsideTheRepository(t *testi
 		},
 	)
 
-	walk := func(t *testing.T, root string) []string {
+	walk := func(t *testing.T, root string) ([]string, error) {
 		t.Helper()
 
 		delivered := []string{}
@@ -1086,34 +1103,52 @@ func TestGitCloneWalkReadsALinkedRootOnlyWhenItStaysInsideTheRepository(t *testi
 				return nil
 			}).
 			Walk()
+		return delivered, err
+	}
+
+	walked := func(t *testing.T, root string) []string {
+		t.Helper()
+
+		delivered, err := walk(t, root)
 		if err != nil {
 			t.Fatalf("Walk() returned error: %v", err)
 		}
 		return delivered
 	}
 
-	t.Run("a root linking outside the copy delivers nothing", func(t *testing.T) {
-		if delivered := walk(t, "escaping"); len(delivered) != 0 {
+	refused := func(t *testing.T, root string) {
+		t.Helper()
+
+		delivered, err := walk(t, root)
+		if err == nil {
+			t.Fatal("expected a root reaching outside the repository copy to fail")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrRootNotFoundCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrRootNotFoundCode, code, err)
+		}
+		if len(delivered) != 0 {
 			t.Errorf("expected nothing from outside the repository copy, got %v", delivered)
 		}
+	}
+
+	t.Run("a root linking outside the copy is refused", func(t *testing.T) {
+		refused(t, "escaping")
 	})
 
-	t.Run("a root that cannot be resolved delivers nothing", func(t *testing.T) {
-		if delivered := walk(t, "unresolvable"); len(delivered) != 0 {
-			t.Errorf("expected an unresolvable root to deliver nothing, got %v", delivered)
-		}
+	t.Run("a root that cannot be resolved is refused", func(t *testing.T) {
+		refused(t, "unresolvable")
 	})
 
 	t.Run("a root linking inside the copy is walked as usual", func(t *testing.T) {
 		want := []string{"app.yaml=kind: ConfigMap"}
-		if delivered := walk(t, "contained"); !reflect.DeepEqual(delivered, want) {
+		if delivered := walked(t, "contained"); !reflect.DeepEqual(delivered, want) {
 			t.Errorf("expected the linked directory to be walked as %v, got %v", want, delivered)
 		}
 	})
 
 	t.Run("an ordinary root is unaffected", func(t *testing.T) {
 		want := []string{"app.yaml=kind: ConfigMap"}
-		if delivered := walk(t, "inside"); !reflect.DeepEqual(delivered, want) {
+		if delivered := walked(t, "inside"); !reflect.DeepEqual(delivered, want) {
 			t.Errorf("expected the real directory to be walked as %v, got %v", want, delivered)
 		}
 	})
@@ -1142,7 +1177,7 @@ func TestGitCloneWalkReadsAFileRootOnlyWhenItStaysInsideTheRepository(t *testing
 		"inside/app.yaml": "kind: ConfigMap",
 	})
 
-	walk := func(t *testing.T, root string) []string {
+	walk := func(t *testing.T, root string) ([]string, error) {
 		t.Helper()
 
 		delivered := []string{}
@@ -1156,22 +1191,29 @@ func TestGitCloneWalkReadsAFileRootOnlyWhenItStaysInsideTheRepository(t *testing
 				return nil
 			}).
 			Walk()
-		if err != nil {
-			t.Fatalf("Walk() returned error: %v", err)
-		}
-		return delivered
+		return delivered, err
 	}
 
-	t.Run("a file root traversing outside the copy delivers nothing", func(t *testing.T) {
-		escaping := filepath.Join("..", "..", escapeName, "secret.yaml")
-		if delivered := walk(t, escaping); len(delivered) != 0 {
+	t.Run("a file root traversing outside the copy is refused", func(t *testing.T) {
+		delivered, err := walk(t, filepath.Join("..", "..", escapeName, "secret.yaml"))
+		if err == nil {
+			t.Fatal("expected a file root reaching outside the repository copy to fail")
+		}
+		if code := meshkiterrors.GetCode(err); code != ErrRootNotFoundCode {
+			t.Fatalf("expected error code %q, got %q: %v", ErrRootNotFoundCode, code, err)
+		}
+		if len(delivered) != 0 {
 			t.Errorf("expected nothing from outside the repository copy, got %v", delivered)
 		}
 	})
 
 	t.Run("a file root inside the copy is read as usual", func(t *testing.T) {
 		want := []string{"app.yaml=kind: ConfigMap"}
-		if delivered := walk(t, filepath.Join("inside", "app.yaml")); !reflect.DeepEqual(delivered, want) {
+		delivered, err := walk(t, filepath.Join("inside", "app.yaml"))
+		if err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+		if !reflect.DeepEqual(delivered, want) {
 			t.Errorf("expected the file to be delivered as %v, got %v", want, delivered)
 		}
 	})

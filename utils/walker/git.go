@@ -340,8 +340,13 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 
 	// The working copy is scratch space no caller reads directly, and with a
 	// token it holds a private repository, so it is created owner-only before
-	// go-git can create it world-readable.
-	if err = os.MkdirAll(clonePath, 0o700); err != nil {
+	// go-git can create it world-readable. Only this clone's own directory is:
+	// the parent is shared with every other user's clones of the same
+	// repository name, so it keeps the mode it has always had.
+	if err = os.MkdirAll(filepath.Dir(clonePath), 0o755); err != nil {
+		return ErrCloningRepo(err)
+	}
+	if err = os.Mkdir(clonePath, 0o700); err != nil {
 		return ErrCloningRepo(err)
 	}
 
@@ -355,17 +360,21 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 	rootPath := filepath.Join(clonePath, g.root)
 	info, err := os.Stat(rootPath)
 	if err != nil {
-		// A root that is a link the walk cannot resolve is passed over, as an
-		// unresolvable link below the root is. A root that names nothing at
-		// all stays the caller's mistake.
+		// A root that is a link the walk cannot resolve names nothing it can
+		// read, which is what the API route reports for a root its tree does
+		// not hold. A root that is missing outright stays a clone failure.
 		if linkInfo, lerr := os.Lstat(rootPath); lerr == nil && linkInfo.Mode()&os.ModeSymlink != 0 {
-			return nil
+			return ErrRootNotFound(strings.Trim(g.root, "/"), g.apiRef())
 		}
 		return ErrCloningRepo(err)
 	}
 
+	// A root reaching outside the repository copy, by link or by "../"
+	// traversal, names nothing of the repository either. Only the configured
+	// root fails this way: a link encountered under it is still passed over
+	// silently while the walk carries on.
 	if !resolvesInsideClone(clonePath, rootPath) {
-		return nil
+		return ErrRootNotFound(strings.Trim(g.root, "/"), g.apiRef())
 	}
 
 	if !info.IsDir() {

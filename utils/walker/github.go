@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -180,8 +181,8 @@ func (g *Github) walker(ctx context.Context, path string, isFile bool) error {
 	githubAPIURL := fmt.Sprintf(
 		"%s/repos/%s/%s/contents/%s?ref=%s",
 		g.apiBaseURL,
-		g.owner,
-		g.repo,
+		url.PathEscape(g.owner),
+		url.PathEscape(g.repo),
 		path,
 		g.branch,
 	)

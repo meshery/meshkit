@@ -1358,3 +1358,43 @@ func TestWalkFailsForARootThatNamesNothing(t *testing.T) {
 		}
 	})
 }
+
+func TestCrawlEndpointsSendOwnerAndRepoAsOneSegment(t *testing.T) {
+	// Owner and repo are caller supplied - in the import UX they come from a
+	// typed repository reference - so a separator in either has to travel as
+	// part of one path segment rather than reshaping the request target, the
+	// way the reference and the SHAs already do.
+	tests := []struct {
+		name  string
+		owner string
+		repo  string
+		want  string
+	}{
+		{name: "a separator in the owner", owner: "ow/ner", repo: "repo", want: "/repos/ow%2Fner/repo/commits/HEAD"},
+		{name: "a separator in the repo", owner: "owner", repo: "re/po", want: "/repos/owner/re%2Fpo/commits/HEAD"},
+		{name: "a query marker in the repo", owner: "owner", repo: "re?po", want: "/repos/owner/re%3Fpo/commits/HEAD"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stub := &githubAPIStub{commitSHA: "commit-sha"}
+			server := stub.server(t)
+
+			g := NewGit().Owner(tt.owner).Repo(tt.repo)
+			g.apiBaseURL = server.URL
+			// The stub only answers for owner/repo, so the walk fails; what it
+			// was asked for is the point.
+			if _, err := g.ListInterestingFiles(context.Background()); err == nil {
+				t.Fatal("expected the stub to refuse a repository it does not serve")
+			}
+
+			received := stub.receivedRequests()
+			if len(received) != 1 {
+				t.Fatalf("expected exactly one request, got %v", received)
+			}
+			if received[0] != tt.want {
+				t.Errorf("expected the request target %q, got %q", tt.want, received[0])
+			}
+		})
+	}
+}
