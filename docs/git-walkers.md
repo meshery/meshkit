@@ -115,8 +115,15 @@ files and calling that a success:
   cleans into a path outside it, and a root that is a link resolving to nothing all fail with
   `ErrRootNotFound`. This covers a file root and a directory root alike, and it is decided by
   `lstat`/`readlink` without opening anything. The API route has no filesystem to escape: a root
-  of `../` segments matches no tree entry and fails with the same error, while a root naming a
-  committed symlink is an entry the ranking drops, so that walk succeeds having delivered nothing.
+  of `../` segments matches no tree entry and fails with the same error.
+- **The root names one file the crawl cannot deliver.** A `Root` naming a single tree entry is an
+  explicit request for *that* file, so the API route refuses it rather than importing nothing when
+  the ranking would drop it: `ErrInvalidSizeFile` when the entry exceeds `MaxFileSize`, and
+  `ErrRootNotFound` when it is a committed symlink, whose blob holds the link target rather than
+  any contents. Both mirror what the clone route already does with the same root. **A directory
+  root is unaffected**: it asks for whatever is interesting underneath it, so an oversized file
+  there is still skipped silently and the walk still succeeds with the rest - the rule described
+  under the truncated-tree clone above.
 
 This is the one place the containment rule fails rather than skips: an individual link met
 *under* the root is still passed over silently while the walk carries on. An unset `Root`,

@@ -176,6 +176,17 @@ func (g *Github) reportProgress(update ProgressUpdate) {
 	g.progressHook(update)
 }
 
+// escapePathSegments escapes a repository path for the path of a request. The
+// separators are what make it a path, so each segment is escaped on its own
+// and they are left in place.
+func escapePathSegments(repoPath string) string {
+	segments := strings.Split(repoPath, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return strings.Join(segments, "/")
+}
+
 // walker is a recursive function which actually walks the Github tree
 func (g *Github) walker(ctx context.Context, path string, isFile bool) error {
 	githubAPIURL := fmt.Sprintf(
@@ -183,8 +194,8 @@ func (g *Github) walker(ctx context.Context, path string, isFile bool) error {
 		g.apiBaseURL,
 		url.PathEscape(g.owner),
 		url.PathEscape(g.repo),
-		path,
-		g.branch,
+		escapePathSegments(path),
+		url.QueryEscape(g.branch),
 	)
 
 	g.reportProgress(ProgressUpdate{Stage: ProgressStageListTree, Message: path})

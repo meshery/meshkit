@@ -1010,8 +1010,19 @@ func TestGitCloneDirectoryIsNotReadableByOtherLocalUsers(t *testing.T) {
 	if cloneMode&0o700 != 0o700 {
 		t.Errorf("expected the clone directory to stay fully accessible to its owner, got %#o", cloneMode)
 	}
-	if parentMode&0o055 != 0o055 {
-		t.Errorf("expected the shared parent directory to stay readable and traversable, got %#o", parentMode)
+	// mkdir masks the requested mode with the process umask, so the parent is
+	// held against a directory created here the same ordinary way rather than
+	// against fixed bits: what matters is that it was not tightened.
+	control := filepath.Join(t.TempDir(), "control")
+	if err := os.MkdirAll(control, 0o755); err != nil {
+		t.Fatalf("failed to create the control directory: %v", err)
+	}
+	controlInfo, err := os.Stat(control)
+	if err != nil {
+		t.Fatalf("failed to read the control directory: %v", err)
+	}
+	if want := controlInfo.Mode().Perm(); parentMode != want {
+		t.Errorf("expected the shared parent directory to keep the ordinary directory mode %#o, got %#o", want, parentMode)
 	}
 }
 
@@ -1062,9 +1073,11 @@ func TestGitCloneWalkReadsALinkedRootOnlyWhenItStaysInsideTheRepository(t *testi
 	}
 
 	// The configured root can itself be a committed symlink, and the
-	// containment rule holds there too: a root whose target lands outside the
-	// repository copy, or that cannot be resolved at all, is passed over
-	// rather than read through, and the walk still returns.
+	// containment rule holds there too - but for the root it fails the walk
+	// rather than skipping, since nothing would be delivered: a root whose
+	// target lands outside the repository copy, or that cannot be resolved at
+	// all, is refused with the root-not-found error. A root resolving inside
+	// the copy is walked as usual.
 	baseDir := t.TempDir()
 
 	// The clone lands at <tmp>/<repo>/<nanos>, so this target sits two levels

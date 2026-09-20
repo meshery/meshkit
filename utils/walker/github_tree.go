@@ -179,8 +179,13 @@ func (g *Git) listInterestingFiles(ctx context.Context, recursive bool) (Interes
 	// rather than one of them importing no files and calling that a success.
 	// A truncated tree cannot show that the root is absent, so it is left to
 	// the clone the caller falls back to.
-	if root := strings.Trim(g.root, "/"); root != "" && !tree.Truncated && !treeHasRoot(tree.Tree, root) {
-		return InterestingFiles{}, ErrRootNotFound(root, ref)
+	if root := strings.Trim(g.root, "/"); root != "" && !tree.Truncated {
+		if !treeHasRoot(tree.Tree, root) {
+			return InterestingFiles{}, ErrRootNotFound(root, ref)
+		}
+		if err := g.requireDeliverableExactRoot(tree.Tree, root, ref); err != nil {
+			return InterestingFiles{}, err
+		}
 	}
 
 	listing := InterestingFiles{
@@ -587,6 +592,30 @@ func (g *Git) rankTree(entries []githubTreeEntry, recursive bool) []CandidateFil
 	})
 
 	return candidates
+}
+
+// requireDeliverableExactRoot refuses a root that names one file the ranking
+// then drops. A root naming a directory asks for whatever is interesting
+// underneath it, so a file skipped there was nobody's request; a root naming
+// the file itself is a request for that file, which the clone route answers
+// with an error rather than with nothing. The two reasons the ranking drops a
+// blob are answered the way the clone route answers them: an oversize file
+// with the size error, and a symlink - whose blob holds the link target rather
+// than any contents - with the root-not-found error.
+func (g *Git) requireDeliverableExactRoot(entries []githubTreeEntry, root, ref string) error {
+	for _, entry := range entries {
+		if entry.Path != root || entry.Type != "blob" {
+			continue
+		}
+		if entry.Mode == symlinkFileMode {
+			return ErrRootNotFound(root, ref)
+		}
+		if entry.Size > g.maxFileSizeInBytes {
+			return errOversizedBlob(root, g.maxFileSizeInBytes)
+		}
+		return nil
+	}
+	return nil
 }
 
 // treeHasRoot reports whether the configured root names anything in the tree:

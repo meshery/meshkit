@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -1397,4 +1398,122 @@ func TestCrawlEndpointsSendOwnerAndRepoAsOneSegment(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWalkRefusesAnExactFileRootTheCrawlCannotDeliver(t *testing.T) {
+	// A Root naming one file is a request for that file, so returning nothing
+	// without an error would hide the reason it never arrived. A Root naming a
+	// directory keeps asking for whatever is interesting underneath it.
+	const limit = 1000
+
+	tree := githubTreeAPI{Tree: []githubTreeEntry{
+		{Type: "blob", Mode: "100644", Path: "charts/values.yaml", SHA: "big-blob", Size: limit * 5},
+		{Type: "blob", Mode: symlinkFileMode, Path: "charts/link.yaml", SHA: "link-blob", Size: 20},
+		{Type: "blob", Mode: "100644", Path: "charts/small.yaml", SHA: "small-blob", Size: 15},
+	}}
+	blobs := map[string]string{
+		"big-blob":   strings.Repeat("y", limit*5),
+		"link-blob":  "../secret.yaml",
+		"small-blob": "kind: ConfigMap",
+	}
+
+	apiWalk := func(t *testing.T, root string) ([]string, error) {
+		t.Helper()
+
+		stub := &githubAPIStub{commitSHA: "commit-sha", tree: tree, blobs: blobs}
+		delivered := []string{}
+		err := apiGit(stub.server(t)).
+			UseGithubAPI().
+			MaxFileSize(limit).
+			Root(root).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, file.Path)
+				return nil
+			}).
+			WalkContext(context.Background())
+		return delivered, err
+	}
+
+	cloneWalk := func(t *testing.T, root string) ([]string, error) {
+		t.Helper()
+
+		baseDir := t.TempDir()
+		createCommittedRepoWithLinks(t,
+			filepath.Join(baseDir, "owner", "repo"),
+			map[string]string{
+				"charts/values.yaml": strings.Repeat("y", limit*5),
+				"charts/small.yaml":  "kind: ConfigMap",
+			},
+			map[string]string{"charts/link.yaml": filepath.Join("..", "..", "outside.yaml")},
+		)
+
+		delivered := []string{}
+		err := NewGit().
+			BaseURL("file://" + baseDir).
+			Owner("owner").
+			Repo("repo").
+			MaxFileSize(limit).
+			Root(root).
+			RegisterFileInterceptor(func(file File) error {
+				delivered = append(delivered, file.Path)
+				return nil
+			}).
+			Walk()
+		return delivered, err
+	}
+
+	// Both routes refuse the same roots. The codes differ only because the
+	// clone route reports a file it could not read through ErrCloningRepo, as
+	// it always has, with the size error nested inside it.
+	refusals := []struct {
+		name      string
+		root      string
+		wantAPI   string
+		wantClone string
+	}{
+		{name: "an oversize file root", root: "charts/values.yaml", wantAPI: ErrInvalidSizeFileCode, wantClone: ErrCloningRepoCode},
+		{name: "a symlink file root", root: "charts/link.yaml", wantAPI: ErrRootNotFoundCode, wantClone: ErrRootNotFoundCode},
+	}
+
+	for _, tt := range refusals {
+		t.Run(tt.name+" is refused on the api route", func(t *testing.T) {
+			delivered, err := apiWalk(t, tt.root)
+			if err == nil {
+				t.Fatal("expected a root the crawl cannot deliver to fail")
+			}
+			if code := meshkiterrors.GetCode(err); code != tt.wantAPI {
+				t.Fatalf("expected error code %q, got %q: %v", tt.wantAPI, code, err)
+			}
+			if len(delivered) != 0 {
+				t.Errorf("expected nothing to be delivered, got %v", delivered)
+			}
+		})
+
+		t.Run(tt.name+" is refused on the clone route", func(t *testing.T) {
+			if runtime.GOOS == "windows" {
+				t.Skip("committed symlinks are not checked out as links on Windows")
+			}
+
+			delivered, err := cloneWalk(t, tt.root)
+			if err == nil {
+				t.Fatal("expected a root the clone cannot deliver to fail")
+			}
+			if code := meshkiterrors.GetCode(err); code != tt.wantClone {
+				t.Fatalf("expected error code %q, got %q: %v", tt.wantClone, code, err)
+			}
+			if len(delivered) != 0 {
+				t.Errorf("expected nothing to be delivered, got %v", delivered)
+			}
+		})
+	}
+
+	t.Run("a directory root still skips an oversized file", func(t *testing.T) {
+		delivered, err := apiWalk(t, "charts")
+		if err != nil {
+			t.Fatalf("WalkContext() returned error: %v", err)
+		}
+		if want := []string{"charts/small.yaml"}; !reflect.DeepEqual(delivered, want) {
+			t.Errorf("expected the walk to deliver %v and skip the rest, got %v", want, delivered)
+		}
+	})
 }

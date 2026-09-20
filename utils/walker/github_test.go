@@ -341,3 +341,32 @@ func TestGithubWalkContextKeepsWalkingPastANodeItCannotDecode(t *testing.T) {
 		t.Errorf("expected the directory listing to still be handed over, got %d", listings)
 	}
 }
+
+func TestGithubWalkSendsTheBranchAndPathIntact(t *testing.T) {
+	// "#" is a character git accepts in a reference name, and it ends the URL
+	// at the fragment when it travels raw, so the request would ask for a
+	// different branch than the caller configured.
+	stub := &githubContentsStub{
+		files: map[string]GithubContentAPI{
+			"configs#1/child.yaml": {Name: "child.yaml", Path: "configs#1/child.yaml", Type: "file"},
+		},
+	}
+	var target string
+	stub.onRequest = func(_ string, r *http.Request) {
+		if target == "" {
+			target = r.URL.RequestURI()
+		}
+	}
+	server := stub.server(t)
+
+	_ = contentsGithub(server).
+		Branch("feat#1").
+		Root("configs#1/child.yaml").
+		RegisterFileInterceptor(func(GithubContentAPI) error { return nil }).
+		WalkContext(context.Background())
+
+	want := "/repos/owner/repo/contents/configs%231/child.yaml?ref=feat%231"
+	if target != want {
+		t.Errorf("expected the request target %q, got %q", want, target)
+	}
+}
