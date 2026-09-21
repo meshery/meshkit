@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/meshery/meshkit/utils"
 	"gopkg.in/yaml.v3"
@@ -52,6 +53,8 @@ const (
 
 	// Latest is the default version for helm charts
 	Latest = ">0.0.0-0"
+
+	helmDriverSQLConnectionStringEnv = "HELM_DRIVER_SQL_CONNECTION_STRING"
 )
 
 var (
@@ -59,6 +62,10 @@ var (
 	// will be stored. os.TempDir will ensure that the path is cross
 	// platform
 	downloadLocation = os.TempDir()
+	// Helm's SQL driver accepts its connection string only through the process
+	// environment. Serialize the set/init/restore sequence to prevent concurrent
+	// Helm initializations from reading one another's connection strings.
+	helmDriverEnvMu sync.Mutex
 )
 
 // HelmIndex holds the index.yaml data in the struct format
@@ -241,7 +248,7 @@ type ApplyHelmChartConfig struct {
 //		},
 //		OverrideValues: vals,
 //	})
-func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
+func (c *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	setupDefaults(&cfg)
 
 	if err := setupChartVersion(&cfg); err != nil {
@@ -264,11 +271,10 @@ func (client *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	actionConfig, cleanup, err := createHelmActionConfig(client, cfg)
+	actionConfig, err := c.createHelmActionConfig(cfg, c.getRESTClientGetter())
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
-	defer cleanup()
 
 	// Before installing a helm chart, check if it already exists in the cluster
 	// this is a workaround make the helm chart installation idempotent
@@ -408,96 +414,49 @@ func checkIfInstallable(ch *chart.Chart) error {
 }
 
 // createHelmActionConfig generates the actionConfig with the appropriate defaults
-func createHelmActionConfig(c *Client, cfg ApplyHelmChartConfig) (*action.Configuration, func(), error) {
-	// Set the environment variable needed by the Init methods
-	_ = os.Setenv("HELM_DRIVER_SQL_CONNECTION_STRING", cfg.SQLConnectionString)
-
-	var tempFiles []string
-	cleanup := func() {
-		for _, f := range tempFiles {
-			_ = os.Remove(f)
-		}
-	}
-
-	// KubeConfig setup
-	kubeConfig := genericclioptions.NewConfigFlags(false)
-	// Set KubeConfig to DevNull to prevent read from local kubeconfig
-	// to prevent conflicts between "data" and "files" properties (CAFile, CAData and KeyFile, KeyData)
-	// ConfigFlags only allows setting CAFile, KeyFile but not CAData, KeyData.
-	// When the library reads the original kubeconfig containing cert data / key data AND we specify cert file / key file, these configurations conflict
-	devNull := os.DevNull
-	kubeConfig.KubeConfig = &devNull
-	kubeConfig.APIServer = &c.RestConfig.Host
-	kubeConfig.BearerToken = &c.RestConfig.BearerToken
-	kubeConfig.Insecure = &c.RestConfig.Insecure
-
-	// Set username and password for basic auth if available
-	if c.RestConfig.Username != "" {
-		kubeConfig.Username = &c.RestConfig.Username
-	}
-	if c.RestConfig.Password != "" {
-		kubeConfig.Password = &c.RestConfig.Password
-	}
-
-	// Only set CA file if not running in insecure mode
-	if !c.RestConfig.Insecure {
-		if len(c.RestConfig.CAData) > 0 {
-			caFileName, err := setDataAndReturnFilename(c.RestConfig.CAData)
-			if err != nil {
-				cleanup() // Clean up any files created so far
-				return nil, nil, err
-			}
-			tempFiles = append(tempFiles, caFileName)
-			kubeConfig.CAFile = &caFileName
-		}
-	}
-
-	// Set client certificate data if available
-	if len(c.RestConfig.CertData) > 0 {
-		certFileName, err := setDataAndReturnFilename(c.RestConfig.CertData)
-		if err != nil {
-			cleanup()
-			return nil, nil, err
-		}
-		tempFiles = append(tempFiles, certFileName)
-		kubeConfig.CertFile = &certFileName
-	}
-
-	// Set client key data if available
-	if len(c.RestConfig.KeyData) > 0 {
-		keyFileName, err := setDataAndReturnFilename(c.RestConfig.KeyData)
-		if err != nil {
-			cleanup() // Clean up any files created so far
-			return nil, nil, err
-		}
-		tempFiles = append(tempFiles, keyFileName)
-		kubeConfig.KeyFile = &keyFileName
-	}
-
+func (c *Client) createHelmActionConfig(cfg ApplyHelmChartConfig, restClientGetter genericclioptions.RESTClientGetter) (*action.Configuration, error) {
 	actionConfig := new(action.Configuration)
-	if err := actionConfig.Init(kubeConfig, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger); err != nil {
-		cleanup() // Clean up any files created so far
-		return nil, nil, ErrApplyHelmChart(err)
+	initialize := func() error {
+		return actionConfig.Init(restClientGetter, cfg.Namespace, string(cfg.HelmDriver), cfg.Logger)
 	}
 
-	return actionConfig, cleanup, nil
+	var err error
+	if cfg.HelmDriver == SQL && cfg.SQLConnectionString != "" {
+		err = withHelmSQLConnectionString(cfg.SQLConnectionString, initialize)
+	} else {
+		err = initialize()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return actionConfig, nil
 }
 
-// Populates a file in temp directory with the passed data and returns the filename
-func setDataAndReturnFilename(data []byte) (string, error) {
-	f, err := os.CreateTemp("", "")
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = f.Close() }() // Close file immediately after writing
+// withHelmSQLConnectionString exposes the SQL connection string only while
+// Helm initializes its SQL storage driver, then restores the previous process
+// environment. Helm does not provide a direct configuration parameter for it.
+func withHelmSQLConnectionString(connectionString string, initialize func() error) (err error) {
+	helmDriverEnvMu.Lock()
+	defer helmDriverEnvMu.Unlock()
 
-	_, err = f.Write(data)
-	if err != nil {
-		_ = os.Remove(f.Name()) // Clean up on write error
-		return "", err
+	previousValue, wasSet := os.LookupEnv(helmDriverSQLConnectionStringEnv)
+	if err = os.Setenv(helmDriverSQLConnectionStringEnv, connectionString); err != nil {
+		return err
 	}
+	defer func() {
+		var restoreErr error
+		if wasSet {
+			restoreErr = os.Setenv(helmDriverSQLConnectionStringEnv, previousValue)
+		} else {
+			restoreErr = os.Unsetenv(helmDriverSQLConnectionStringEnv)
+		}
+		if err == nil {
+			err = restoreErr
+		}
+	}()
 
-	return f.Name(), nil
+	return initialize()
 }
 
 // generateAction generates an action function using action.Configuration
@@ -554,7 +513,8 @@ func createHelmPathFromHelmChartLocation(loc HelmChartLocation) (string, error) 
 		getter.Provider{
 			Schemes: []string{"http", "https"},
 			New:     getter.NewHTTPGetter,
-		}},
+		},
+	},
 	)
 	if err != nil {
 		return "", ErrApplyHelmChart(err)
@@ -643,7 +603,7 @@ func (helmEntries HelmEntries) GetEntryWithAppVersion(entry, appVersion string) 
 	return HelmEntryMetadata{}, false
 }
 
-// GetEntryWithAppVersion takes in the entry name and the appversion and returns the corresponding
+// GetEntryWithChartVersion takes in the entry name and the chart version and returns the corresponding
 // metadata for the parameters if it exists
 func (helmEntries HelmEntries) GetEntryWithChartVersion(entry, chartVersion string) (HelmEntryMetadata, bool) {
 	hem, ok := helmEntries[entry]
