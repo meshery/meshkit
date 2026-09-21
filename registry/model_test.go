@@ -120,6 +120,21 @@ func TestCreateMarkDownForMDStyleSanitizesDocsURL(t *testing.T) {
 	}
 }
 
+func TestCreateMarkDownForMDXStyleSanitizesDocsURL(t *testing.T) {
+	model := ModelCSV{
+		Model:            "open cluster management",
+		ModelDisplayName: "Open Cluster Management",
+		DocsURL:          "https://docs.meshery.io/extensibility/integrations/open cluster management",
+	}
+
+	mdx := model.CreateMarkDownForMDXStyle("")
+	want := "docURL: https://docs.meshery.io/extensibility/integrations/open-cluster-management\n"
+
+	if !strings.Contains(mdx, want) {
+		t.Errorf("generated MDX page does not carry %q:\n%s", want, mdx)
+	}
+}
+
 func TestCreateJSONItemSanitizesPermalink(t *testing.T) {
 	model := ModelCSV{
 		Model:   "piraeus datastore",
