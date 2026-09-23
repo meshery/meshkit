@@ -1,13 +1,16 @@
 package walker
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
-	"errors"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -53,12 +56,16 @@ type Github struct {
 	recurse         bool
 	fileInterceptor GithubFileInterceptor
 	dirInterceptor  GithubDirInterceptor
+	token           string
+	progressHook    ProgressHook
+	apiBaseURL      string
 }
 
 // NewGithub returns a pointer to an instance of Github
 func NewGithub() *Github {
 	return &Github{
-		branch: "main",
+		branch:     "main",
+		apiBaseURL: defaultGithubAPIBaseURL,
 	}
 }
 
@@ -127,28 +134,91 @@ func (g *Github) RegisterDirInterceptor(i GithubDirInterceptor) *Github {
 	return g
 }
 
-// Walk will initiate traversal process
+// Token sets the GitHub App or OAuth access token used to authenticate the
+// Contents API calls, so private repositories are reachable and the
+// authenticated rate limit applies.
+//
+// The token is never logged and never placed in an error message.
+func (g *Github) Token(token string) *Github {
+	g.token = token
+	return g
+}
+
+// RegisterProgressHook registers a callback invoked as the walk advances. The
+// hook is called from the goroutine walking the node, so an implementation
+// that touches shared state must do so in a thread safe manner.
+func (g *Github) RegisterProgressHook(h ProgressHook) *Github {
+	g.progressHook = h
+	return g
+}
+
+// Walk will initiate traversal process.
+//
+// It is equivalent to WalkContext with a background context and is retained
+// for callers that predate context support.
 func (g *Github) Walk() error {
+	return g.WalkContext(context.Background())
+}
+
+// WalkContext initiates the traversal process under ctx. Cancelling ctx
+// aborts the in-flight and subsequent Contents API requests.
+func (g *Github) WalkContext(ctx context.Context) error {
 	// Check if a file is requested
 	isFile := g.root != "" && filepath.Ext(g.root) != ""
 
-	return g.walker(g.root, isFile)
+	return g.walker(ctx, g.root, isFile)
+}
+
+func (g *Github) reportProgress(update ProgressUpdate) {
+	if g.progressHook == nil {
+		return
+	}
+	g.progressHook(update)
+}
+
+// escapePathSegments escapes a repository path for the path of a request. The
+// separators are what make it a path, so each segment is escaped on its own
+// and they are left in place.
+func escapePathSegments(repoPath string) string {
+	segments := strings.Split(repoPath, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return strings.Join(segments, "/")
 }
 
 // walker is a recursive function which actually walks the Github tree
-func (g *Github) walker(path string, isFile bool) error {
+func (g *Github) walker(ctx context.Context, path string, isFile bool) error {
 	githubAPIURL := fmt.Sprintf(
-		"https://api.github.com/repos/%s/%s/contents/%s?ref=%s",
-		g.owner,
-		g.repo,
-		path,
-		g.branch,
+		"%s/repos/%s/%s/contents/%s?ref=%s",
+		g.apiBaseURL,
+		url.PathEscape(g.owner),
+		url.PathEscape(g.repo),
+		escapePathSegments(path),
+		url.QueryEscape(g.branch),
 	)
 
-	resp, err := http.Get(githubAPIURL)
+	g.reportProgress(ProgressUpdate{Stage: ProgressStageListTree, Message: path})
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, githubAPIURL, nil)
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	if g.token != "" {
+		req.Header.Set("Authorization", "Bearer "+g.token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logrus.Error("failed to close response body", err)
+		}
+	}()
+
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusForbidden {
 			respJSON := map[string]interface{}{}
@@ -165,12 +235,6 @@ func (g *Github) walker(path string, isFile bool) error {
 		}
 		return fmt.Errorf("file not found")
 	}
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			logrus.Error("failed to close response body", err)
-		}
-	}()
 
 	if isFile {
 		respBody := GithubContentAPI{}
@@ -203,7 +267,7 @@ func (g *Github) walker(path string, isFile bool) error {
 		wg.Add(1)
 		go func(r GithubContentAPI) {
 			if g.recurse || isFile {
-				if err := g.walker(nextPath, isFile); err != nil {
+				if err := g.walker(ctx, nextPath, isFile); err != nil {
 					logrus.Error("[GithubWalker]: error occurred while processing github node ", err)
 				}
 			}
@@ -213,6 +277,13 @@ func (g *Github) walker(path string, isFile bool) error {
 	}
 
 	wg.Wait()
+
+	// A node that could not be walked is logged and passed over, but a walk
+	// the context ended is incomplete whatever it managed to deliver, so it
+	// fails rather than reporting a partial import as a success.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	if g.dirInterceptor != nil {
 		if err := g.dirInterceptor(respBody); err != nil {

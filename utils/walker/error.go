@@ -1,10 +1,22 @@
 package walker
 
-import "github.com/meshery/meshkit/errors"
+import (
+	"fmt"
+
+	"github.com/meshery/meshkit/errors"
+)
 
 var (
 	ErrInvalidSizeFileCode = "meshkit-11241"
 	ErrCloningRepoCode     = "meshkit-11242"
+	ErrResolvingGitRefCode = "meshkit-11328"
+	ErrFetchingGitTreeCode = "meshkit-11329"
+	ErrFetchingGitBlobCode = "meshkit-11330"
+	ErrInvalidBaseURLCode  = "meshkit-11331"
+
+	ErrNoFileInterceptorCode = "meshkit-11332"
+	ErrRootNotFoundCode      = "meshkit-11333"
+	ErrSymlinkedRootCode     = "meshkit-11334"
 )
 
 func ErrCloningRepo(err error) error {
@@ -13,4 +25,94 @@ func ErrCloningRepo(err error) error {
 
 func ErrInvalidSizeFile(err error) error {
 	return errors.New(ErrInvalidSizeFileCode, errors.Alert, []string{err.Error()}, []string{"Could not read the file while walking the repo"}, []string{"Given file size is either 0 or exceeds the limit of 50 MB"}, []string{""})
+}
+
+// ErrResolvingGitRef is returned when a branch, tag or reference name could not
+// be resolved to a commit SHA through the GitHub API.
+func ErrResolvingGitRef(err error, ref string) error {
+	return errors.New(
+		ErrResolvingGitRefCode,
+		errors.Alert,
+		[]string{"Could not resolve the git reference to a commit"},
+		[]string{fmt.Sprintf("%s: %s", ref, err.Error())},
+		[]string{"The reference does not exist on the remote repository", "The repository is private and no access token was supplied", "The GitHub API rate limit has been exhausted"},
+		[]string{"Verify the branch, tag or reference name exists on the remote", "Supply a GitHub App or OAuth token with the Token option so private repositories and higher rate limits are available"},
+	)
+}
+
+// ErrFetchingGitTree is returned when the recursive Git Trees API call fails.
+func ErrFetchingGitTree(err error, ref string) error {
+	return errors.New(
+		ErrFetchingGitTreeCode,
+		errors.Alert,
+		[]string{"Could not fetch the git tree of the repository"},
+		[]string{fmt.Sprintf("%s: %s", ref, err.Error())},
+		[]string{"The commit does not exist on the remote repository", "The repository is private and no access token was supplied", "The GitHub API rate limit has been exhausted"},
+		[]string{"Verify the reference exists on the remote", "Supply a GitHub App or OAuth token with the Token option so private repositories and higher rate limits are available"},
+	)
+}
+
+// ErrFetchingGitBlob is returned when a selected blob could not be downloaded.
+func ErrFetchingGitBlob(err error, path string) error {
+	return errors.New(
+		ErrFetchingGitBlobCode,
+		errors.Alert,
+		[]string{"Could not fetch the contents of a file in the repository"},
+		[]string{fmt.Sprintf("%s: %s", path, err.Error())},
+		[]string{"The blob was removed after the tree was listed", "The repository is private and no access token was supplied", "The GitHub API rate limit has been exhausted"},
+		[]string{"Retry the import so a fresh tree is listed", "Supply a GitHub App or OAuth token with the Token option so private repositories and higher rate limits are available"},
+	)
+}
+
+// ErrNoFileInterceptor is returned when files are fetched with no interceptor
+// registered to receive them.
+func ErrNoFileInterceptor() error {
+	return errors.New(
+		ErrNoFileInterceptorCode,
+		errors.Alert,
+		[]string{"No file interceptor is registered to receive the fetched files"},
+		[]string{"Fetching hands every file it downloads to a registered file interceptor, and the walker has none"},
+		[]string{"RegisterFileInterceptor was not called on the walker before the files were fetched"},
+		[]string{"Call RegisterFileInterceptor with the function that should receive each fetched file"},
+	)
+}
+
+// ErrRootNotFound is returned when the configured root names no file or
+// directory in the repository at the reference being walked.
+func ErrRootNotFound(root, ref string) error {
+	return errors.New(
+		ErrRootNotFoundCode,
+		errors.Alert,
+		[]string{"Could not find the configured root path in the repository"},
+		[]string{fmt.Sprintf("%s does not exist at %s", root, ref)},
+		[]string{"The directory or file was renamed or removed on the reference being walked", "The root belongs to a different branch, tag or reference than the one configured"},
+		[]string{"Verify the root path exists on the reference being walked", "Walk the repository with no root configured to read every file it holds"},
+	)
+}
+
+// ErrSymlinkedRoot is returned when the configured root is a symbolic link and
+// the listing route, which has no clone to read it through, cannot serve it.
+func ErrSymlinkedRoot(root, ref string) error {
+	return errors.New(
+		ErrSymlinkedRootCode,
+		errors.Alert,
+		[]string{"Could not list a root that is a symbolic link"},
+		[]string{fmt.Sprintf("%s is a symbolic link at %s, and the Git Trees API answers a link with a blob holding the link target rather than the contents it points at", root, ref)},
+		[]string{"The configured root names a committed symbolic link rather than a directory or a file"},
+		[]string{"Walk or WalkContext the same configuration instead, which clones the repository and reads through the link", "Configure the root the link points at rather than the link itself"},
+	)
+}
+
+// ErrInvalidBaseURL is returned when the configured base URL cannot be used for
+// the GitHub API, either because it does not parse or because it names a host
+// other than github.com.
+func ErrInvalidBaseURL(err error, baseURL string) error {
+	return errors.New(
+		ErrInvalidBaseURLCode,
+		errors.Alert,
+		[]string{"Could not use the repository base URL for the GitHub API"},
+		[]string{fmt.Sprintf("%s: %s", baseURL, err.Error())},
+		[]string{"The base URL passed to the walker is not a valid URL", "The base URL names a host other than github.com, which the Git Trees API cannot answer for"},
+		[]string{"Pass a valid base URL such as https://github.com to the BaseURL option", "Walk a repository hosted elsewhere with Walk or WalkContext, which clone it with go-git"},
+	)
 }
