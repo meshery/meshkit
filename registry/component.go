@@ -59,26 +59,34 @@ type ComponentCSV struct {
 // The Component Definition generated assumes or is only for components which have registrant as "meshery"
 func (c *ComponentCSV) CreateComponentDefinition(isModelPublished bool, defVersion string) (component.ComponentDefinition, error) {
 	status := entity.Enabled
-	if c.Status != "" {
-		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "ignored" {
-			status = entity.Ignored
-		}
+
+if c.Status != "" {
+	switch utils.ReplaceSpacesAndConvertToLowercase(c.Status) {
+	case "ignored", "disabled":
+		status = entity.Ignored
+	case "enabled":
+		status = entity.Enabled
 	}
-	componentDefinition := &component.ComponentDefinition{
-		SchemaVersion: schmeaVersion.ComponentSchemaVersion,
-		DisplayName:   c.Component,
-		Format:        "JSON",
-		Version:       defVersion,
-		Metadata: component.ComponentDefinition_Metadata{
-			Published: isModelPublished,
-		},
-		Status: (*component.ComponentDefinitionStatus)(&status),
-		Component: component.Component{
-			Kind:    c.Component,
-			Schema:  c.Schema,
-			Version: c.Version,
-		},
-	}
+}
+
+componentDefinition := &component.ComponentDefinition{
+	SchemaVersion: schmeaVersion.ComponentSchemaVersion,
+	DisplayName:   c.Component,
+	Format:        "JSON",
+	Version:       defVersion,
+	Metadata: component.ComponentDefinition_Metadata{
+		Published: isModelPublished,
+	},
+	Component: component.Component{
+		Kind:    c.Component,
+		Schema:  c.Schema,
+		Version: c.Version,
+	},
+}
+
+if status != entity.Enabled {
+	componentDefinition.Status = (*component.ComponentDefinitionStatus)(&status)
+}
 	if c.Description != "" {
 		componentDefinition.Description = c.Description
 	}
@@ -94,13 +102,6 @@ var compStyleValues = []string{
 }
 
 func (c *ComponentCSV) UpdateCompDefinition(compDef *component.ComponentDefinition) error {
-	status := entity.Enabled
-	if c.Status != "" {
-		if utils.ReplaceSpacesAndConvertToLowercase(c.Status) == "ignored" {
-			status = entity.Ignored
-		}
-	}
-	compDef.Status = (*component.ComponentDefinitionStatus)(&status)
 	var existingAddditionalProperties map[string]interface{}
 	if c.Description != "" {
 		compDef.Description = c.Description
