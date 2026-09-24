@@ -16,6 +16,6 @@ func main() {
 	err := rootCmd.Execute()
 	if err != nil {
 		log.Errorf("Unable to execute root command (%v)", err)
-		return
+		os.Exit(1)
 	}
 }
