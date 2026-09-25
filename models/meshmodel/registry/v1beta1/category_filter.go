@@ -76,7 +76,7 @@ func (cf *CategoryFilter) Get(db *database.Handler) ([]entity.Entity, int64, int
 
 	err := finder.Find(&catdb).Error
 	if err != nil {
-		return cat, count, int(count), nil
+		return nil, 0, 0, err
 	}
 
 	for _, c := range catdb {
