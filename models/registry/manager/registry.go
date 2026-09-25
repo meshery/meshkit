@@ -8,8 +8,8 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
-	models "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
-	"github.com/meshery/meshkit/models/meshmodel/entity"
+	models "github.com/meshery/meshkit/models/registry/core/v1beta1"
+	"github.com/meshery/meshkit/models/registry/entity"
 	core "github.com/meshery/schemas/models/core"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta1/category"
@@ -22,18 +22,20 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// MeshModelRegistrantData struct defines the body of the POST request that is sent to the capability
-// registry (Meshery)
-//
-// The body contains the
+// RegistryRegistrantData defines the body of the POST request sent to the capability
+// registry (Meshery). It contains:
 // 1. Host information
 // 2. Entity type
 // 3. Entity
-type MeshModelRegistrantData struct {
+type RegistryRegistrantData struct {
 	Connection connectionv1beta3.Connection `json:"connection"`
 	EntityType entity.EntityType            `json:"entityType"`
 	Entity     []byte                       `json:"entity"` //This will be type converted to appropriate entity on server based on passed entity type
 }
+
+// MeshModelRegistrantData is a deprecated alias for RegistryRegistrantData.
+// Deprecated: use RegistryRegistrantData instead.
+type MeshModelRegistrantData = RegistryRegistrantData
 
 type EntityCacheValue struct {
 	Entities []entity.Entity
@@ -229,7 +231,7 @@ func RegistrantHostToV1beta1(h connectionv1beta3.Connection) connectionv1beta1.C
 }
 
 // to be removed
-func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshModelHostsWithEntitySummary, int64, error) {
+func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.RegistryHostsWithEntitySummary, int64, error) {
 	var result []models.MesheryHostSummaryDB
 	var totalConnectionsCount int64
 	db := rm.db
@@ -269,7 +271,7 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 		return nil, 0, err
 	}
 
-	var response []models.MeshModelHostsWithEntitySummary
+	var response []models.RegistryHostsWithEntitySummary
 	nonRegistantCount := int64(0)
 	for _, r := range result {
 
@@ -278,7 +280,7 @@ func (rm *RegistryManager) GetRegistrants(f *models.HostFilter) ([]models.MeshMo
 			continue
 		}
 
-		res := models.MeshModelHostsWithEntitySummary{
+		res := models.RegistryHostsWithEntitySummary{
 			Connection: r.Connection,
 			Summary: models.EntitySummary{
 				Models:        r.Models,
