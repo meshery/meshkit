@@ -196,7 +196,7 @@ Meshery components and this tool:
 - The tool updates next_error_code.
 
 Both "replace_me" and locally-running 'errorutil update' are valid ways to arrive at an integer code.
-Note a precondition for the check command: baseline must be the analysis of current's merge-base (the commit this branch forked from), NOT the current tip of the base branch. This tool does not resolve two independent branches allocating the same code from the same baseline — that is handled by the post-merge allocation process re-encountering the collision, not by this check.
+Note a precondition for the check command: baseline must be the analysis of current's merge-base (the commit this branch forked from), NOT the current tip of the base branch. This tool does not resolve two independent branches allocating the same code from the same baseline.
 `)
 		},
 	}

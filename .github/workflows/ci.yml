@@ -50,3 +50,16 @@ jobs:
           cache-dependency-path: go.sum
       - name: Run tests
         run: make test
+  hooks:
+    name: pre-commit hook
+    needs: [tidy]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+          cache-dependency-path: go.sum
+      - name: Run pre-commit hook regression suite
+        run: make test-hooks
