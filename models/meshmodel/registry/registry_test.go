@@ -124,4 +124,20 @@ func TestRegisterEntityDeduplicatesModelsAcrossRegistrants(t *testing.T) {
 	err = db.Table("registries").Where("entity = ?", m1.ID).Count(&registryCount).Error
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), registryCount, "Expected 2 entries in registries table pointing to the same canonical model")
+
+	// Test repeated registration by the same registrant (idempotency check)
+	m1Repeat := createModel()
+	isRegErr, isEntityErr, err = rm.RegisterEntity(registrantA, &m1Repeat)
+	require.NoError(t, err)
+	assert.False(t, isRegErr)
+	assert.True(t, isEntityErr)
+
+	// Counts must stay identical: 1 model row, 2 registries entries
+	err = db.Model(&model.ModelDefinition{}).Where("name = ?", "kubernetes").Count(&modelCount).Error
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), modelCount, "Expected exactly 1 canonical model row in model_dbs")
+
+	err = db.Table("registries").Where("entity = ?", m1.ID).Count(&registryCount).Error
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), registryCount, "Expected 2 entries in registries table (no duplicate links)")
 }

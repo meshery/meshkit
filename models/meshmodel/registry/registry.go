@@ -142,8 +142,8 @@ func (rm *RegistryManager) RegisterEntity(h connectionv1beta3.Connection, en ent
 	if modelDef, ok := en.(*model.ModelDefinition); ok {
 		var existingModel model.ModelDefinition
 		// In SQLite/Postgres JSON fields or matching name + version
-		err := rm.db.Where("name = ? AND model->>'version' = ?",
-			modelDef.Name, modelDef.Model.Version).
+		err := rm.db.Where("name = ? AND version = ?",
+			modelDef.Name, string(modelDef.Version)).
 			First(&existingModel).Error
 
 		if err == nil && existingModel.ID != uuid.Nil {
