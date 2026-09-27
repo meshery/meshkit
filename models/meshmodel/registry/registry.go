@@ -19,6 +19,7 @@ import (
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -134,27 +135,63 @@ func (rm *RegistryManager) RegisterEntity(h connectionv1beta3.Connection, en ent
 		return true, false, err
 	}
 
-	entityID, err := en.Create(rm.db, registrantID)
-	if err != nil {
-		return false, true, err
+	var entityID uuid.UUID
+	var isModelDuplicate bool
+
+	// Check if this is a ModelDefinition and if a canonical entry already exists
+	if modelDef, ok := en.(*model.ModelDefinition); ok {
+		var existingModel model.ModelDefinition
+		// In SQLite/Postgres JSON fields or matching name + version
+		err := rm.db.Where("name = ? AND model->>'version' = ?",
+			modelDef.Name, modelDef.Model.Version).
+			First(&existingModel).Error
+
+		if err == nil && existingModel.ID != uuid.Nil {
+			// Found existing canonical model; reuse its ID
+			entityID = existingModel.ID
+			modelDef.ID = existingModel.ID
+			isModelDuplicate = true
+		} else if err != nil && err != gorm.ErrRecordNotFound {
+			return false, true, err
+		}
 	}
-	id, err := uuid.NewV4()
+
+	// Persist the entity if it doesn't already exist
+	if entityID == uuid.Nil {
+		entityID, err = en.Create(rm.db, registrantID)
+		if err != nil {
+			return false, true, err
+		}
+	}
+
+	// Idempotently link registrant to entity in registries table
+	var count int64
+	err = rm.db.Table("registries").
+		Where("registrant_id = ? AND entity = ? AND type = ?", registrantID, entityID, en.Type()).
+		Count(&count).Error
 	if err != nil {
 		return false, false, err
 	}
-	entry := Registry{
-		ID:           id,
-		RegistrantID: registrantID,
-		Entity:       entityID,
-		Type:         en.Type(),
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+
+	if count == 0 {
+		id, err := uuid.NewV4()
+		if err != nil {
+			return false, false, err
+		}
+		entry := Registry{
+			ID:           id,
+			RegistrantID: registrantID,
+			Entity:       entityID,
+			Type:         en.Type(),
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+		if err := rm.db.Create(&entry).Error; err != nil {
+			return false, false, err
+		}
 	}
-	err = rm.db.Create(&entry).Error
-	if err != nil {
-		return false, false, err
-	}
-	return false, false, nil
+
+	return false, isModelDuplicate, nil
 }
 
 // UpdateEntityStatus updates the ignore status of an entity based on the provided parameters.
