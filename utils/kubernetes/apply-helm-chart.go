@@ -413,7 +413,14 @@ func checkIfInstallable(ch *chart.Chart) error {
 	return ErrApplyHelmChart(fmt.Errorf("%s charts are not installable", ch.Metadata.Type))
 }
 
-// createHelmActionConfig generates the actionConfig with the appropriate defaults
+// createHelmActionConfig initializes and returns a Helm action.Configuration
+// using restClientGetter to resolve Kubernetes credentials - this is what
+// allows exec-based credential plugins (e.g. `aws eks get-token`) to keep
+// working with Helm, since restClientGetter is queried afresh rather than
+// baking a single, static rest.Config into the configuration. When
+// cfg.HelmDriver is SQL and a connection string is supplied, the connection
+// string is exposed via the process environment only for the duration of
+// initialization, through withHelmSQLConnectionString.
 func (c *Client) createHelmActionConfig(cfg ApplyHelmChartConfig, restClientGetter genericclioptions.RESTClientGetter) (*action.Configuration, error) {
 	actionConfig := new(action.Configuration)
 	initialize := func() error {

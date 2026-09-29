@@ -10,12 +10,22 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it
+// DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it.
+// It delegates to detectKubeConfig, discarding the clientcmd.ClientConfig loader;
+// use detectKubeConfig directly when the loader must be retained (e.g. to keep
+// exec-based credential plugins working across requests).
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	config, _, err = detectKubeConfig(configfile)
 	return config, err
 }
 
+// detectKubeConfig is the implementation behind DetectKubeConfig. In addition
+// to the resolved *rest.Config, it also returns the clientcmd.ClientConfig
+// loader that produced it, when one was used (i.e. for every source except
+// an in-cluster config). Callers that only need the rest.Config should use
+// DetectKubeConfig; callers that need to preserve authentication mechanisms
+// which must be re-resolved per request - such as exec-based credential
+// plugins - should retain the loader as well.
 func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.ClientConfig, err error) {
 	if len(configfile) > 0 {
 		var cfgFile []byte
@@ -68,6 +78,12 @@ func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.
 	return nil, nil, ErrRestConfigFromKubeConfig(err)
 }
 
+// loadClientConfigFromKubeconfig parses the given kubeconfig bytes into a
+// clientcmd.ClientConfig loader and resolves it into a *rest.Config. Both
+// the resolved config and the loader are returned so that callers can retain
+// the loader for authentication mechanisms - e.g. exec-based credential
+// plugins - that require re-resolution on every request rather than a single
+// static rest.Config.
 func loadClientConfigFromKubeconfig(kubeconfig []byte) (*rest.Config, clientcmd.ClientConfig, error) {
 	loader, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
 	if err != nil {
