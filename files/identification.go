@@ -409,8 +409,6 @@ type ParsedCompose struct {
 	manifest string
 }
 
-
-
 // ParseFileAsDockerCompose parses a Docker Compose file into a types.Config struct.
 func ParseFileAsDockerCompose(file SanitizedFile) (ParsedCompose, error) {
 	manifest, err := kompose.Convert(file.RawData)
