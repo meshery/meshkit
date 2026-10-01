@@ -51,7 +51,8 @@ Intentionally reusable across Meshery services and tools:
   [../event-streaming.md](../event-streaming.md).
 - `generators/` builds MeshModel models/components from upstream sources (Artifact Hub,
   GitHub); `registry/` holds spreadsheet-driven registry tooling; `files/` handles file
-  identification, sanitization, and conversion; `config/`, `schema/`, `schemas/`,
+  identification, sanitization, and conversion; `utils/walker/` crawls remote repositories
+  for import and is documented in [../git-walkers.md](../git-walkers.md); `config/`, `schema/`, `schemas/`,
   `validator/`, `orchestration/`, and `encoding/` round out the shared surface.
 
 ## Executable entrypoints (`cmd/`)
