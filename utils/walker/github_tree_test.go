@@ -549,7 +549,7 @@ func TestWalkContextKeepsGoGitForNonGithubHosts(t *testing.T) {
 
 	delivered := []string{}
 	err := apiGit(server).
-		BaseURL("file://" + baseDir).
+		BaseURL(fileBaseURL(baseDir)).
 		Root("configs/**").
 		UseGithubAPI().
 		Timeout(5 * time.Second).
@@ -1330,7 +1330,7 @@ func TestWalkFailsForARootThatNamesNothing(t *testing.T) {
 		})
 
 		err := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("repo").
 			Root("configs").
@@ -1453,7 +1453,7 @@ func TestWalkRefusesAnExactFileRootTheCrawlCannotDeliver(t *testing.T) {
 
 		delivered := []string{}
 		err := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("repo").
 			MaxFileSize(limit).
