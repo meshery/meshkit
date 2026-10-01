@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/url"
 	"os"
@@ -31,18 +32,18 @@ type Git struct {
 	fileInterceptor    FileInterceptor
 	dirInterceptor     DirInterceptor
 	referenceName      plumbing.ReferenceName
+	maxDepth           int
+	allowedExtensions  []string
 	// branchSet records whether Branch was called explicitly. Only an
 	// explicitly set branch is turned into a ReferenceName, so callers that
 	// set neither Branch nor ReferenceName keep cloning the remote's default
 	// branch exactly as before.
-	branchSet          bool
-	token              string
-	apiBaseURL         string
-	useAPI             bool
-	timeout            time.Duration
-	progressHook       ProgressHook
-	maxDepth           int
-	allowedExtensions  []string
+	branchSet    bool
+	token        string
+	apiBaseURL   string
+	useAPI       bool
+	timeout      time.Duration
+	progressHook ProgressHook
 }
 
 // NewGit returns a pointer to an instance of Git
@@ -625,6 +626,7 @@ func (g *Git) readFile(f fs.FileInfo, clonePath, filePath string) error {
 	if err != nil {
 		return err
 	}
+	defer filename.Close()
 	content, err := io.ReadAll(filename)
 	if err != nil {
 		return err
