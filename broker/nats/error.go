@@ -10,7 +10,7 @@ const (
 	ErrPublishCode        = "meshkit-11120"
 	ErrPublishRequestCode = "meshkit-11121"
 	ErrQueueSubscribeCode = "meshkit-11122"
-	ErrUnsubscribeCode    = "meshkit-11327"
+	ErrUnsubscribeCode    = "meshkit-11328"
 )
 
 func ErrConnect(err error) error {
