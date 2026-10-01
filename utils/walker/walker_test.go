@@ -3,6 +3,7 @@ package walker
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -372,6 +373,35 @@ func TestGitWalkTraversesLocalRepository(t *testing.T) {
 			t.Errorf("expected file root content to be %q, got %q", "root file", intercepted.Content)
 		}
 	})
+
+	t.Run("path with hash", func(t *testing.T) {
+		hashDir := filepath.Join(t.TempDir(), "dir#with#hash")
+		repo := filepath.Join(hashDir, "owner", "hash-sample")
+		createCommittedRepo(t, repo, map[string]string{
+			"test.txt": "content with hash path",
+		})
+
+		var intercepted File
+		g := NewGit().
+			BaseURL(fileBaseURL(hashDir)).
+			Owner("owner").
+			Repo("hash-sample").
+			RegisterFileInterceptor(func(file File) error {
+				intercepted = file
+				return nil
+			})
+
+		if err := g.Walk(); err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+
+		if intercepted.Name != "test.txt" {
+			t.Errorf("expected test.txt, got %q", intercepted.Name)
+		}
+		if intercepted.Content != "content with hash path" {
+			t.Errorf("expected %q, got %q", "content with hash path", intercepted.Content)
+		}
+	})
 }
 
 func TestGitWalkFilteredNonRecursive(t *testing.T) {
@@ -414,12 +444,47 @@ func TestGitWalkFilteredNonRecursive(t *testing.T) {
 	}
 }
 
+func TestFileBaseURL(t *testing.T) {
+	// check that reserved characters like #, ?, and % are escaped properly
+	dirWithSpecialChars := filepath.Join(string(filepath.Separator)+"test", "dir#name", "sub?dir", "100%valid")
+	rawURL := fileBaseURL(dirWithSpecialChars)
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("failed to parse generated file base url: %v", err)
+	}
+
+	if parsed.Scheme != "file" {
+		t.Errorf("expected scheme to be 'file', got %q", parsed.Scheme)
+	}
+
+	// # should be escaped as %23 and not treated as a fragment
+	if parsed.Fragment != "" {
+		t.Errorf("expected empty fragment, got %q", parsed.Fragment)
+	}
+	if !strings.Contains(rawURL, "%23") {
+		t.Errorf("expected url to contain escaped hash %%23, got %q", rawURL)
+	}
+
+	// ? should be escaped as %3F and not treated as query params
+	if parsed.RawQuery != "" {
+		t.Errorf("expected empty query, got %q", parsed.RawQuery)
+	}
+	if !strings.Contains(rawURL, "%3F") {
+		t.Errorf("expected url to contain escaped question mark %%3F, got %q", rawURL)
+	}
+}
+
 func fileBaseURL(dir string) string {
 	slashDir := filepath.ToSlash(dir)
 	if !strings.HasPrefix(slashDir, "/") {
 		slashDir = "/" + slashDir
 	}
-	return "file://" + slashDir
+	u := url.URL{
+		Scheme: "file",
+		Path:   slashDir,
+	}
+	return u.String()
 }
 
 func createCommittedRepo(t *testing.T, repoPath string, files map[string]string) {
