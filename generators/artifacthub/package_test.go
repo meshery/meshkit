@@ -3,7 +3,10 @@ package artifacthub
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -67,6 +70,73 @@ func TestGetChartUrl(t *testing.T) {
 					continue
 				}
 				_, _ = f.Write(byt)
+			}
+		})
+	}
+}
+
+// TestUpdatePackageDataMalformedIndex verifies that UpdatePackageData returns an
+// error (and does not panic) when the remote helm repository index.yaml has an
+// unexpected shape. The chartUrl extraction previously asserted and indexed the
+// parsed index without guards, so a malformed index crashed the generator.
+func TestUpdatePackageDataMalformedIndex(t *testing.T) {
+	serve := func(index string) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = io.WriteString(w, index)
+		}))
+	}
+
+	tests := []struct {
+		name      string
+		index     string
+		expectErr bool
+	}{
+		{
+			name:      "empty version list for the chart",
+			index:     "entries:\n  mychart: []\n",
+			expectErr: true,
+		},
+		{
+			name:      "chart entry is not a list",
+			index:     "entries:\n  mychart:\n    foo: bar\n",
+			expectErr: true,
+		},
+		{
+			name:      "version entry has an empty urls list",
+			index:     "entries:\n  mychart:\n    - urls: []\n",
+			expectErr: true,
+		},
+		{
+			name:      "first url is not a string",
+			index:     "entries:\n  mychart:\n    - urls:\n        - 123\n",
+			expectErr: true,
+		},
+		{
+			name:      "well-formed index",
+			index:     "entries:\n  mychart:\n    - urls:\n        - https://example.com/mychart-1.0.0.tgz\n",
+			expectErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := serve(tt.index)
+			defer srv.Close()
+
+			pkg := AhPackage{Name: "mychart", RepoUrl: srv.URL}
+			// Must return an error instead of panicking on malformed index data.
+			err := pkg.UpdatePackageData()
+			if tt.expectErr {
+				if err == nil {
+					t.Fatalf("expected an error for a malformed helm index, got nil (ChartUrl=%q)", pkg.ChartUrl)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error for a well-formed index: %v", err)
+			}
+			if pkg.ChartUrl == "" {
+				t.Fatal("expected ChartUrl to be populated for a well-formed index")
 			}
 		})
 	}
