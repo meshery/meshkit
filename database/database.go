@@ -20,6 +20,7 @@ type Options struct {
 	Host     string `json:"host,omitempty"`
 	Port     string `json:"port,omitempty"`
 	Password string `json:"password,omitempty"`
+	Database string `json:"database,omitempty"`
 	Filename string `json:"filename,omitempty"`
 	Engine   string `json:"engine,omitempty"`
 	Logger   logger.Handler
@@ -53,7 +54,14 @@ func New(opts Options) (Handler, error) {
 	switch opts.Engine {
 	case POSTGRES:
 		dsn := fmt.Sprintf("host=%s user=%s password=%s port=%s", opts.Host, opts.Username, opts.Password, opts.Port)
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if opts.Database != "" {
+			dsn = fmt.Sprintf("%s dbname=%s", dsn, opts.Database)
+		}
+		config := &gorm.Config{}
+		if opts.Logger != nil {
+			config.Logger = opts.Logger.DatabaseLogger()
+		}
+		db, err := gorm.Open(postgres.Open(dsn), config)
 		if err != nil {
 			return Handler{}, ErrDatabaseOpen(err)
 		}
