@@ -10,49 +10,92 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it
+// DetectKubeConfig detects the kubeconfig for the kubernetes cluster and returns it.
+// It delegates to detectKubeConfig, discarding the clientcmd.ClientConfig loader;
+// use detectKubeConfig directly when the loader must be retained (e.g. to keep
+// exec-based credential plugins working across requests).
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
+	config, _, err = detectKubeConfig(configfile)
+	return config, err
+}
+
+// detectKubeConfig is the implementation behind DetectKubeConfig. In addition
+// to the resolved *rest.Config, it also returns the clientcmd.ClientConfig
+// loader that produced it, when one was used (i.e. for every source except
+// an in-cluster config). Callers that only need the rest.Config should use
+// DetectKubeConfig; callers that need to preserve authentication mechanisms
+// which must be re-resolved per request - such as exec-based credential
+// plugins - should retain the loader as well.
+func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.ClientConfig, err error) {
 	if len(configfile) > 0 {
 		var cfgFile []byte
 
 		_, cfgFile, err = ProcessConfig(configfile, "")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-			return config, nil
+		config, loader, err = loadClientConfigFromKubeconfig(cfgFile)
+		if err != nil {
+			return nil, nil, ErrRestConfigFromKubeConfig(err)
 		}
+		return config, loader, nil
 	}
 
 	// If deployed within the cluster
 	if config, err = rest.InClusterConfig(); err == nil {
-		return config, nil
+		return config, nil, nil
 	}
 
 	// Look for kubeconfig from the path mentioned in $KUBECONFIG
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig != "" {
-		_, cfgFile, err := ProcessConfig(kubeconfig, "")
+		// KUBECONFIG expresses an explicit target. Fail closed instead of falling
+		// back to the default file, which could target another cluster.
+		var cfgFile []byte
+		_, cfgFile, err = ProcessConfig(kubeconfig, "")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-			return config, nil
+		config, loader, err = loadClientConfigFromKubeconfig(cfgFile)
+		if err != nil {
+			return nil, nil, ErrRestConfigFromKubeConfig(err)
 		}
+		return config, loader, nil
 	}
 
 	// Look for kubeconfig at the default path
 	path := filepath.Join(utils.GetHome(), ".kube", "config")
-	_, cfgFile, err := ProcessConfig(path, "")
+	var cfgFile []byte
+	_, cfgFile, err = ProcessConfig(path, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if config, err = clientcmd.RESTConfigFromKubeConfig(cfgFile); err == nil {
-		return config, nil
+	if config, loader, err = loadClientConfigFromKubeconfig(cfgFile); err == nil {
+		return config, loader, nil
 	}
 
-	return nil, ErrRestConfigFromKubeConfig(err)
+	return nil, nil, ErrRestConfigFromKubeConfig(err)
+}
+
+// loadClientConfigFromKubeconfig parses the given kubeconfig bytes into a
+// clientcmd.ClientConfig loader and resolves it into a *rest.Config. Both
+// the resolved config and the loader are returned so that callers can retain
+// the loader for authentication mechanisms - e.g. exec-based credential
+// plugins - that require re-resolution on every request rather than a single
+// static rest.Config.
+func loadClientConfigFromKubeconfig(kubeconfig []byte) (*rest.Config, clientcmd.ClientConfig, error) {
+	loader, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	config, err := loader.ClientConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return config, loader, nil
 }
 
 // ProcessConfig handles loading, validating, and optionally saving or returning a kubeconfig
