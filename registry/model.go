@@ -318,6 +318,54 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool, modelName string)
 //	<Standard Blurb>
 //
 // </p>`
+// docsSiteHost is the documentation site that a model's "Docs URL" column is
+// expected to address.
+const docsSiteHost = "docs.meshery.io"
+
+// sanitizeDocsURL normalizes a documentation URL read from the registry
+// spreadsheet so that the page generated from it links to an address that
+// resolves.
+//
+// The column is hand-maintained and three defects recur in it: surrounding
+// whitespace, a repeated path separator, and a path segment copied from the
+// model's display name ("…/integrations/Azure Kubernetes Service") where the
+// published page sits at the model's slug. Every docs.meshery.io path is a
+// lowercase, hyphen-separated slug and the site serves them case-sensitively,
+// so the display-name form is folded onto the slug form with the same
+// utils.FormatName call that derives a model's directory name — the docs path
+// and the directory it documents then come from one rule.
+//
+// Only docs.meshery.io paths are rewritten. Any other value keeps the form it
+// was authored in, minus surrounding whitespace, since no slug convention is
+// known to hold for it.
+func sanitizeDocsURL(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+
+	scheme, rest, ok := strings.Cut(trimmed, "://")
+	if !ok {
+		return trimmed
+	}
+
+	host, path, ok := strings.Cut(rest, "/")
+	if !ok || !strings.EqualFold(host, docsSiteHost) {
+		return trimmed
+	}
+
+	// A query string or fragment is left as authored; only the page path is
+	// subject to the slug convention.
+	suffix := ""
+	if i := strings.IndexAny(path, "?#"); i != -1 {
+		path, suffix = path[:i], path[i:]
+	}
+
+	path = utils.FormatName(path)
+	for strings.Contains(path, "//") {
+		path = strings.ReplaceAll(path, "//", "/")
+	}
+
+	return scheme + "://" + host + "/" + path + suffix
+}
+
 func (m ModelCSV) CreateMarkDownForMDXStyle(componentsMetadata string) string {
 	formattedName := utils.FormatName(m.Model)
 	template := `---
@@ -354,7 +402,7 @@ published: %s
 		m.PageSubtTitle,
 		formattedName,
 		formattedName,
-		m.DocsURL,
+		sanitizeDocsURL(m.DocsURL),
 		m.Description,
 		m.Category,
 		m.SubCategory,
@@ -409,7 +457,7 @@ func (m ModelCSV) CreateJSONItem(iconDir string) string {
 		json += fmt.Sprintf(",\"white\":\"%s/icons/white/%s-white.svg\"", iconDir, formattedModelName)
 	}
 
-	json += fmt.Sprintf(",\"permalink\":\"%s\"", m.DocsURL)
+	json += fmt.Sprintf(",\"permalink\":\"%s\"", sanitizeDocsURL(m.DocsURL))
 
 	json += "}"
 	return json
@@ -451,7 +499,7 @@ categories: [integrations]
 			formattedName,
 			formattedName,
 			formattedName,
-			m.DocsURL,
+			sanitizeDocsURL(m.DocsURL),
 			m.Description,
 			m.Category,
 			m.SubCategory,
@@ -499,7 +547,7 @@ howItWorksDetails: "%s"
 			formattedName,
 			formattedName,
 			formattedName,
-			m.DocsURL,
+			sanitizeDocsURL(m.DocsURL),
 			m.Description,
 			m.Category,
 			m.SubCategory,
