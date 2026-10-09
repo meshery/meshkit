@@ -1,11 +1,19 @@
 package kubernetes
 
 import (
+	"os"
+
 	"helm.sh/helm/v3/pkg/chart/loader"
 )
 
 func GetManifestsFromHelm(url string) (string, error) {
-	chartLocation, err := fetchHelmChart(url, "")
+	downloadDir, err := os.MkdirTemp("", "meshkit-helm-manifest-")
+	if err != nil {
+		return "", ErrApplyHelmChart(err)
+	}
+	defer os.RemoveAll(downloadDir)
+
+	chartLocation, err := fetchHelmChart(url, downloadDir)
 	if err != nil {
 		return "", ErrApplyHelmChart(err)
 	}
