@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -235,11 +236,13 @@ func TestClassifyPath(t *testing.T) {
 
 func TestRankTreeOrdersAndFilters(t *testing.T) {
 	tests := []struct {
-		name      string
-		root      string
-		maxSize   int64
-		entries   []githubTreeEntry
-		wantPaths []string
+		name              string
+		root              string
+		maxSize           int64
+		maxDepth          int
+		allowedExtensions []string
+		entries           []githubTreeEntry
+		wantPaths         []string
 	}{
 		{
 			name:    "ranks interesting files and drops the rest",
@@ -327,6 +330,45 @@ func TestRankTreeOrdersAndFilters(t *testing.T) {
 			},
 			wantPaths: []string{"charts/values.yaml"},
 		},
+		{
+			name:     "max depth drops entries past the depth ceiling",
+			root:     "/**",
+			maxSize:  1000,
+			maxDepth: 1,
+			entries: []githubTreeEntry{
+				{Type: "blob", Path: "root.yaml", SHA: "a", Size: 10},
+				{Type: "blob", Path: "dir1/file1.yaml", SHA: "b", Size: 10},
+				{Type: "blob", Path: "dir1/sub1/file2.yaml", SHA: "c", Size: 10},
+			},
+			wantPaths: []string{"root.yaml", "dir1/file1.yaml"},
+		},
+		{
+			name:              "allowed extensions filter candidate file extensions",
+			root:              "/**",
+			maxSize:           1000,
+			allowedExtensions: []string{".yaml"},
+			entries: []githubTreeEntry{
+				{Type: "blob", Path: "configs/app.yaml", SHA: "a", Size: 10},
+				{Type: "blob", Path: "configs/data.json", SHA: "b", Size: 10},
+				{Type: "blob", Path: "configs/notes.txt", SHA: "c", Size: 10},
+			},
+			wantPaths: []string{"configs/app.yaml"},
+		},
+		{
+			name:              "combination of max depth and allowed extensions",
+			root:              "/**",
+			maxSize:           1000,
+			maxDepth:          1,
+			allowedExtensions: []string{".yaml"},
+			entries: []githubTreeEntry{
+				{Type: "blob", Path: "root.yaml", SHA: "a", Size: 10},
+				{Type: "blob", Path: "root.json", SHA: "b", Size: 10},
+				{Type: "blob", Path: "dir1/file1.yaml", SHA: "c", Size: 10},
+				{Type: "blob", Path: "dir1/file1.json", SHA: "d", Size: 10},
+				{Type: "blob", Path: "dir1/sub1/file2.yaml", SHA: "e", Size: 10},
+			},
+			wantPaths: []string{"root.yaml", "dir1/file1.yaml"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -334,6 +376,12 @@ func TestRankTreeOrdersAndFilters(t *testing.T) {
 			g := NewGit().MaxFileSize(tt.maxSize)
 			if tt.root != "" {
 				g = g.Root(tt.root)
+			}
+			if tt.maxDepth > 0 {
+				g = g.MaxDepth(tt.maxDepth)
+			}
+			if len(tt.allowedExtensions) > 0 {
+				g = g.AllowedExtensions(tt.allowedExtensions)
 			}
 
 			got := []string{}
@@ -446,6 +494,91 @@ func TestWalkContextUsesTreesPathAndFetchesSelectedBlobs(t *testing.T) {
 	}
 	if containsStage(stages, ProgressStageClone) {
 		t.Error("did not expect the walk to fall back to a clone")
+	}
+}
+
+func TestWalkContextAppliesMaxDepthAndAllowedExtensionsCombined(t *testing.T) {
+	stub := &githubAPIStub{
+		commitSHA: "commit-sha",
+		tree: githubTreeAPI{
+			Tree: []githubTreeEntry{
+				{Type: "blob", Path: "root.yaml", SHA: "root-yaml-blob", Size: 11},
+				{Type: "blob", Path: "root.json", SHA: "root-json-blob", Size: 11},
+				{Type: "blob", Path: "configs/app.yaml", SHA: "app-yaml-blob", Size: 11},
+				{Type: "blob", Path: "configs/app.json", SHA: "app-json-blob", Size: 11},
+				{Type: "blob", Path: "configs/nested/deep.yaml", SHA: "deep-yaml-blob", Size: 11},
+				{Type: "blob", Path: "README.md", SHA: "readme-blob", Size: 11},
+			},
+		},
+		blobs: map[string]string{
+			"root-yaml-blob": "key: root",
+			"app-yaml-blob":  "key: app",
+		},
+	}
+	server := stub.server(t)
+
+	intercepted := map[string]string{}
+	err := apiGit(server).
+		UseGithubAPI().
+		Root("/**").
+		MaxDepth(1).
+		AllowedExtensions([]string{".yaml"}).
+		Timeout(30 * time.Second).
+		RegisterFileInterceptor(func(file File) error {
+			intercepted[file.Path] = file.Content
+			return nil
+		}).
+		WalkContext(context.Background())
+	if err != nil {
+		t.Fatalf("WalkContext() returned error: %v", err)
+	}
+
+	wantIntercepted := map[string]string{
+		"root.yaml":        "key: root",
+		"configs/app.yaml": "key: app",
+	}
+	if !reflect.DeepEqual(intercepted, wantIntercepted) {
+		t.Fatalf("expected intercepted files %v, got %v", wantIntercepted, intercepted)
+	}
+
+	_, _, fetchedBlobs := stub.snapshot()
+	sort.Strings(fetchedBlobs)
+	wantBlobs := []string{"app-yaml-blob", "root-yaml-blob"}
+	if !reflect.DeepEqual(fetchedBlobs, wantBlobs) {
+		t.Errorf("expected only surviving blobs %v to be fetched, got %v", wantBlobs, fetchedBlobs)
+	}
+}
+
+func TestListInterestingFilesAppliesMaxDepthAndAllowedExtensionsCombined(t *testing.T) {
+	stub := &githubAPIStub{
+		commitSHA: "commit-sha",
+		tree: githubTreeAPI{
+			Tree: []githubTreeEntry{
+				{Type: "blob", Path: "root.yaml", SHA: "root-yaml-blob", Size: 11},
+				{Type: "blob", Path: "root.json", SHA: "root-json-blob", Size: 11},
+				{Type: "blob", Path: "configs/app.yaml", SHA: "app-yaml-blob", Size: 11},
+				{Type: "blob", Path: "configs/app.json", SHA: "app-json-blob", Size: 11},
+				{Type: "blob", Path: "configs/nested/deep.yaml", SHA: "deep-yaml-blob", Size: 11},
+			},
+		},
+	}
+	server := stub.server(t)
+
+	listing, err := apiGit(server).
+		MaxDepth(1).
+		AllowedExtensions([]string{".yaml"}).
+		ListInterestingFiles(context.Background())
+	if err != nil {
+		t.Fatalf("ListInterestingFiles() returned error: %v", err)
+	}
+
+	wantPaths := []string{"root.yaml", "configs/app.yaml"}
+	gotPaths := []string{}
+	for _, c := range listing.Candidates {
+		gotPaths = append(gotPaths, c.Path)
+	}
+	if !reflect.DeepEqual(gotPaths, wantPaths) {
+		t.Fatalf("expected candidate paths %v, got %v", wantPaths, gotPaths)
 	}
 }
 
