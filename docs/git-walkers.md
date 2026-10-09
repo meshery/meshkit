@@ -27,7 +27,9 @@ expensive on large repositories. `Git.UseGithubAPI()` opts into a hybrid crawl i
 2. **List** that commit's tree once, recursively (`GET /repos/{owner}/{repo}/git/trees/{sha}?recursive=1`).
 3. **Filter and rank** the returned entries from their metadata alone - path, type, mode and
    size. Symlinks are dropped here: the Trees API reports one as a blob whose content is the
-   link target path, not the target's contents.
+   link target path, not the target's contents. Entries exceeding `MaxDepth` or not matching
+   `AllowedExtensions` are dropped here as well, keeping the candidate set identical to the
+   clone route.
 4. **Fetch** blobs (`GET /repos/{owner}/{repo}/git/blobs/{sha}`) only for entries that survived,
    and hand each to the registered file interceptor. Up to 8 blobs download at a time, while the
    interceptor is still called once at a time and in ranked order.

@@ -3,6 +3,7 @@ package walker
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -270,7 +271,7 @@ func TestGitWalkTraversesLocalRepository(t *testing.T) {
 		dirs := map[string]struct{}{}
 
 		g := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root("configs/**").
@@ -314,7 +315,7 @@ func TestGitWalkTraversesLocalRepository(t *testing.T) {
 		dirs := map[string]struct{}{}
 
 		g := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root("configs").
@@ -352,7 +353,7 @@ func TestGitWalkTraversesLocalRepository(t *testing.T) {
 	t.Run("file root", func(t *testing.T) {
 		var intercepted File
 		g := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root("configs/root.txt").
@@ -372,6 +373,118 @@ func TestGitWalkTraversesLocalRepository(t *testing.T) {
 			t.Errorf("expected file root content to be %q, got %q", "root file", intercepted.Content)
 		}
 	})
+
+	t.Run("path with hash", func(t *testing.T) {
+		hashDir := filepath.Join(t.TempDir(), "dir#with#hash")
+		repo := filepath.Join(hashDir, "owner", "hash-sample")
+		createCommittedRepo(t, repo, map[string]string{
+			"test.txt": "content with hash path",
+		})
+
+		var intercepted File
+		g := NewGit().
+			BaseURL(fileBaseURL(hashDir)).
+			Owner("owner").
+			Repo("hash-sample").
+			RegisterFileInterceptor(func(file File) error {
+				intercepted = file
+				return nil
+			})
+
+		if err := g.Walk(); err != nil {
+			t.Fatalf("Walk() returned error: %v", err)
+		}
+
+		if intercepted.Name != "test.txt" {
+			t.Errorf("expected test.txt, got %q", intercepted.Name)
+		}
+		if intercepted.Content != "content with hash path" {
+			t.Errorf("expected %q, got %q", "content with hash path", intercepted.Content)
+		}
+	})
+}
+
+func TestGitWalkFilteredNonRecursive(t *testing.T) {
+	baseDir := t.TempDir()
+	repoPath := filepath.Join(baseDir, "owner", "filtered")
+	createCommittedRepo(t, repoPath, map[string]string{
+		"configs/app.yaml":  "yaml content",
+		"configs/data.json": "json content",
+		"configs/notes.txt": "txt content",
+	})
+
+	var mu sync.Mutex
+	files := map[string]string{}
+
+	g := NewGit().
+		BaseURL(fileBaseURL(baseDir)).
+		Owner("owner").
+		Repo("filtered").
+		Root("configs").
+		AllowedExtensions([]string{".yaml"}).
+		RegisterFileInterceptor(func(file File) error {
+			mu.Lock()
+			defer mu.Unlock()
+			files[file.Name] = file.Content
+			return nil
+		})
+
+	if err := g.Walk(); err != nil {
+		t.Fatalf("Walk() returned error: %v", err)
+	}
+
+	if len(files) != 1 {
+		t.Fatalf("expected 1 intercepted file with .yaml extension, got %d", len(files))
+	}
+	if files["app.yaml"] != "yaml content" {
+		t.Errorf("expected app.yaml content to be %q, got %q", "yaml content", files["app.yaml"])
+	}
+	if _, ok := files["data.json"]; ok {
+		t.Error("did not expect data.json to be intercepted")
+	}
+}
+
+func TestFileBaseURL(t *testing.T) {
+	// check that reserved characters like #, ?, and % are escaped properly
+	dirWithSpecialChars := filepath.Join(string(filepath.Separator)+"test", "dir#name", "sub?dir", "100%valid")
+	rawURL := fileBaseURL(dirWithSpecialChars)
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("failed to parse generated file base url: %v", err)
+	}
+
+	if parsed.Scheme != "file" {
+		t.Errorf("expected scheme to be 'file', got %q", parsed.Scheme)
+	}
+
+	// # should be escaped as %23 and not treated as a fragment
+	if parsed.Fragment != "" {
+		t.Errorf("expected empty fragment, got %q", parsed.Fragment)
+	}
+	if !strings.Contains(rawURL, "%23") {
+		t.Errorf("expected url to contain escaped hash %%23, got %q", rawURL)
+	}
+
+	// ? should be escaped as %3F and not treated as query params
+	if parsed.RawQuery != "" {
+		t.Errorf("expected empty query, got %q", parsed.RawQuery)
+	}
+	if !strings.Contains(rawURL, "%3F") {
+		t.Errorf("expected url to contain escaped question mark %%3F, got %q", rawURL)
+	}
+}
+
+func fileBaseURL(dir string) string {
+	slashDir := filepath.ToSlash(dir)
+	if !strings.HasPrefix(slashDir, "/") {
+		slashDir = "/" + slashDir
+	}
+	u := url.URL{
+		Scheme: "file",
+		Path:   slashDir,
+	}
+	return u.String()
 }
 
 func createCommittedRepo(t *testing.T, repoPath string, files map[string]string) {
@@ -434,7 +547,7 @@ func addCommittedSymlink(t *testing.T, repoPath, link, target string) {
 		t.Fatalf("failed to create parent directory for %s: %v", link, err)
 	}
 	if err := os.Symlink(filepath.FromSlash(target), fullPath); err != nil {
-		t.Fatalf("failed to create symlink %s: %v", link, err)
+		requireSymlinkPrivilege(t, err, link)
 	}
 	if _, err := worktree.Add(link); err != nil {
 		t.Fatalf("failed to add %s to repo: %v", link, err)
@@ -444,6 +557,21 @@ func addCommittedSymlink(t *testing.T, repoPath, link, target string) {
 	}); err != nil {
 		t.Fatalf("failed to commit %s: %v", link, err)
 	}
+}
+
+// requireSymlinkPrivilege skips a test when the OS refuses to create a
+// symlink. Windows reserves that ability for processes running elevated or
+// holding the SeCreateSymbolicLinkPrivilege, so symlink-driven tests cannot
+// run there unprivileged.
+func requireSymlinkPrivilege(t *testing.T, err error, name string) {
+	t.Helper()
+	if err == nil {
+		return
+	}
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping: creating symlink %s requires privileges this process lacks: %v", name, err)
+	}
+	t.Fatalf("failed to create symlink %s: %v", name, err)
 }
 
 func TestGitCloneReferenceName(t *testing.T) {
@@ -540,7 +668,7 @@ func TestGitWalkHonoursConfiguredBranch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var intercepted File
 			g := NewGit().
-				BaseURL("file://" + baseDir).
+				BaseURL(fileBaseURL(baseDir)).
 				Owner("owner").
 				Repo("sample").
 				Root("configs/root.txt").
@@ -581,7 +709,7 @@ func TestGitWalkPathsMatchTheRouteTheCallerOptedInTo(t *testing.T) {
 		directories := []string{}
 		unreadable := []string{}
 		g := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root("configs/**").
@@ -678,7 +806,7 @@ func TestGitCloneRouteFiltersOnlyWhenStandingInForTheTreesWalk(t *testing.T) {
 
 	walker := func(repo string, delivered *[]string) *Git {
 		return NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo(repo).
 			Root("configs/**").
@@ -779,8 +907,9 @@ func TestGitSkipOnCloneFollowsLinksOnlyInsideTheRepositoryCopy(t *testing.T) {
 		"outside.yaml":  filepath.Join(outsidePath, "shared.yaml"),
 		"dangling.yaml": "missing.yaml",
 	} {
-		if err := os.Symlink(target, filepath.Join(clonePath, "configs", link)); err != nil {
-			t.Fatalf("failed to create symlink %s: %v", link, err)
+		fullLink := filepath.Join(clonePath, "configs", link)
+		if err := os.Symlink(target, fullLink); err != nil {
+			requireSymlinkPrivilege(t, err, link)
 		}
 	}
 
@@ -830,7 +959,7 @@ func TestGitCloneRouteSkipsSymlinksWhenStandingInForTheTreesWalk(t *testing.T) {
 
 	walker := func(root string, delivered *[]string) *Git {
 		return NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("linked").
 			Root(root).
@@ -892,7 +1021,7 @@ func TestGitWalkContextRespectsCancellation(t *testing.T) {
 	cancel()
 
 	err := NewGit().
-		BaseURL("file://" + baseDir).
+		BaseURL(fileBaseURL(baseDir)).
 		Owner("owner").
 		Repo("sample").
 		Root("configs").
@@ -973,7 +1102,7 @@ func TestGitCloneDirectoryIsNotReadableByOtherLocalUsers(t *testing.T) {
 	var cloneMode os.FileMode
 	var parentMode os.FileMode
 	err := NewGit().
-		BaseURL("file://" + baseDir).
+		BaseURL(fileBaseURL(baseDir)).
 		Owner("owner").
 		Repo(repoName).
 		Root("configs/**").
@@ -1056,7 +1185,7 @@ func createCommittedRepoWithLinks(t *testing.T, repoPath string, files map[strin
 			t.Fatalf("failed to create parent directory for %s: %v", name, err)
 		}
 		if err := os.Symlink(target, fullPath); err != nil {
-			t.Fatalf("failed to create symlink %s: %v", name, err)
+			requireSymlinkPrivilege(t, err, name)
 		}
 		if _, err := worktree.Add(name); err != nil {
 			t.Fatalf("failed to add %s to repo: %v", name, err)
@@ -1114,7 +1243,7 @@ func TestGitCloneWalkReadsALinkedRootOnlyWhenItStaysInsideTheRepository(t *testi
 
 		delivered := []string{}
 		err := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root(root).
@@ -1202,7 +1331,7 @@ func TestGitCloneWalkReadsAFileRootOnlyWhenItStaysInsideTheRepository(t *testing
 
 		delivered := []string{}
 		err := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root(root).
@@ -1257,7 +1386,7 @@ func TestStandInCloneRefusesAnOversizeExactFileRoot(t *testing.T) {
 
 		delivered := []string{}
 		g := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			MaxFileSize(limit).
@@ -1316,7 +1445,7 @@ func TestStandInCloneRefusesASymlinkedRootItCannotContain(t *testing.T) {
 		t.Run(root+" is refused", func(t *testing.T) {
 			delivered := []string{}
 			g := NewGit().
-				BaseURL("file://" + baseDir).
+				BaseURL(fileBaseURL(baseDir)).
 				Owner("owner").
 				Repo("sample").
 				Root(root).
@@ -1359,7 +1488,7 @@ func TestStandInCloneRefusesARecursiveSymlinkedRoot(t *testing.T) {
 
 		delivered := []string{}
 		g := NewGit().
-			BaseURL("file://" + baseDir).
+			BaseURL(fileBaseURL(baseDir)).
 			Owner("owner").
 			Repo("sample").
 			Root("charts/**").
