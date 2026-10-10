@@ -33,6 +33,7 @@ func GetServiceEndpoint(ctx context.Context, client kubernetes.Interface, opts *
 // GetEndpoint returns those endpoints in the given service which match the selector. Eg: service name = "client"
 func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service) (*utils.Endpoint, error) {
 	var nodePort, clusterPort int32
+	var matched bool
 	endpoint := utils.Endpoint{}
 	if opts.WorkerNodeIP == "" {
 		opts.WorkerNodeIP = "localhost"
@@ -41,8 +42,15 @@ func GetEndpoint(ctx context.Context, opts *ServiceOptions, obj *corev1.Service)
 		nodePort = port.NodePort
 		clusterPort = port.Port
 		if opts.PortSelector != "" && port.Name == opts.PortSelector {
+			matched = true
 			break
 		}
+	}
+	// A non-empty PortSelector that matched no port would otherwise fall through
+	// with the last port's values and be returned as if it were the requested
+	// port; report that the endpoint was not found instead.
+	if opts.PortSelector != "" && !matched {
+		return nil, ErrEndpointNotFound
 	}
 	// get clusterip endpoint
 	endpoint.Internal = &utils.HostPort{
