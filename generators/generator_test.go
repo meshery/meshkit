@@ -70,3 +70,21 @@ func TestNewGeneratorWithOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestNewGenerator(t *testing.T) {
+	// option-free constructor should enable recursion by default (issue #726)
+	pm, err := NewGenerator("github", "https://github.com/owner/repo", "test")
+	if err != nil {
+		t.Fatalf("NewGenerator() err = %v", err)
+	}
+
+	ghpm, ok := pm.(github.GitHubPackageManager)
+	if !ok {
+		t.Fatalf("unexpected package manager type: %T", pm)
+	}
+
+	if !ghpm.Recursive {
+		t.Errorf("expected Recursive=true by default, got %v", ghpm.Recursive)
+	}
+}
+
