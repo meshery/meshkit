@@ -21,7 +21,7 @@ type GeneratorOptions struct {
 }
 
 func NewGenerator(registrant, url, packageName string) (models.PackageManager, error) {
-	return NewGeneratorWithOptions(registrant, url, packageName, GeneratorOptions{})
+	return NewGeneratorWithOptions(registrant, url, packageName, GeneratorOptions{Recursive: true})
 }
 
 func NewGeneratorWithOptions(registrant, url, packageName string, opts GeneratorOptions) (models.PackageManager, error) {
