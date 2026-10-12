@@ -1010,8 +1010,7 @@ func InvokeGenerationFromSheetWithOptions(wg *sync.WaitGroup, path string, model
 						done <- ErrGenerateModel(fmt.Errorf("no components found for model"), model.Model)
 						return
 					}
-					log.Info("Current model: ", model.Model)
-					log.Info("Extracted ", lengthOfComps, " components for ", model.ModelDisplayName, " (", model.Model, ")")
+					Log.Info(fmt.Sprintf("Current model: %s — extracted %d components for %s (%s)", model.Model, lengthOfComps, model.ModelDisplayName, model.Model))
 				} else {
 					if len(comps) > 0 {
 						log.Info("Model already exists: ", model.Model)
@@ -1158,19 +1157,16 @@ func GenerateDefsForCoreRegistrant(model ModelCSV, ComponentCSVHelper *Component
 			err = ErrGenerateModel(fmt.Errorf("no components found for model "), model.Model)
 			return err
 		} else if len(compDefComps)-actualCompCount == 0 {
-			Log.Info("Current model: ", model.Model)
-			Log.Info(" no change in components for ", model.ModelDisplayName, " (", model.Model, ")")
+			Log.Info(fmt.Sprintf("Current model: %s — no change in components for %s (%s)", model.Model, model.ModelDisplayName, model.Model))
 		} else {
-			Log.Info("Current model: ", model.Model)
-			Log.Info(" extracted ", len(compDefComps)-actualCompCount, " components for ", model.ModelDisplayName, " (", model.Model, ")")
+			Log.Info(fmt.Sprintf("Current model: %s — extracted %d components for %s (%s)", model.Model, len(compDefComps)-actualCompCount, model.ModelDisplayName, model.Model))
 		}
 	} else {
 		if len(compDefComps) > 0 {
 			if len(compDefComps)-actualCompCount == 0 {
 				Log.Info("Model already exists: ", model.Model)
 			} else {
-				Log.Info("Current model: ", model.Model)
-				Log.Info(" extracted ", len(compDefComps)-actualCompCount, " components for ", model.ModelDisplayName, " (", model.Model, ")")
+				Log.Info(fmt.Sprintf("Current model: %s — extracted %d components for %s (%s)", model.Model, len(compDefComps)-actualCompCount, model.ModelDisplayName, model.Model))
 			}
 		} else {
 			err = ErrGenerateModel(fmt.Errorf("no components found for model "), model.Model)
