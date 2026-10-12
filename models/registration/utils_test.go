@@ -3,7 +3,7 @@ package registration
 import (
 	"testing"
 
-	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/registry/entity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

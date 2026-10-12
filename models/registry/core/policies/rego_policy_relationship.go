@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/meshery/meshkit/models/meshmodel/registry"
-	"github.com/meshery/meshkit/models/meshmodel/registry/v1alpha3"
+	"github.com/meshery/meshkit/models/registry/manager"
+	"github.com/meshery/meshkit/models/registry/manager/v1alpha3"
 	"github.com/meshery/meshkit/utils"
 	patching "github.com/meshery/meshkit/utils/patching"
 	// NOTE: This file continues to reference v1beta1/pattern for `PatternFile`

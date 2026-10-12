@@ -24,7 +24,7 @@ import (
 	"unicode"
 
 	"github.com/meshery/meshkit/logger"
-	"github.com/meshery/meshkit/models/meshmodel/entity"
+	"github.com/meshery/meshkit/models/registry/entity"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 

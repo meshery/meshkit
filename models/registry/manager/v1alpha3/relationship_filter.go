@@ -2,8 +2,8 @@ package v1alpha3
 
 import (
 	"github.com/meshery/meshkit/database"
-	"github.com/meshery/meshkit/models/meshmodel/entity"
-	"github.com/meshery/meshkit/models/meshmodel/registry"
+	"github.com/meshery/meshkit/models/registry/entity"
+	"github.com/meshery/meshkit/models/registry/manager"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 
 	"gorm.io/gorm/clause"
