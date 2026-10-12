@@ -25,6 +25,9 @@ type Config struct {
 	Endpoint string `yaml:"endpoint" json:"endpoint"`
 	// Insecure determines whether to use an insecure connection (no TLS)
 	Insecure bool `yaml:"insecure" json:"insecure"`
+	// Adding extra flag to check if tracing is enabled
+	Enabled *bool `yaml:"enabled" json:"enabled"`
+
 }
 
 func InitTracerFromYamlConfig(ctx context.Context, config string) (*sdktrace.TracerProvider, error) {
@@ -43,6 +46,10 @@ func InitTracerFromYamlConfig(ctx context.Context, config string) (*sdktrace.Tra
 // It sets up OTLP gRPC exporter, resource attributes, and W3C trace context propagation
 func InitTracer(ctx context.Context, cfg Config) (*sdktrace.TracerProvider, error) {
 	// Validate configuration
+	if cfg.Enabled != nil && !*cfg.Enabled {
+    return nil, nil
+    }
+
 	if cfg.ServiceName == "" {
 		return nil, fmt.Errorf("service name is required")
 	}
