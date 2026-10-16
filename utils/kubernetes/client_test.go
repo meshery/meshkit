@@ -7,6 +7,69 @@ import (
 	"testing"
 )
 
+func TestProcessConfig(t *testing.T) {
+	config := []byte(`apiVersion: v1
+clusters:
+- cluster:
+    server: https://127.0.0.1:6443
+  name: test
+contexts:
+- context:
+    cluster: test
+    user: test
+  name: test
+current-context: test
+kind: Config
+users:
+- name: test
+  user:
+    token: test-token
+`)
+
+	got, output, err := ProcessConfig(config, "")
+	if err != nil {
+		t.Fatalf("ProcessConfig() error = %v", err)
+	}
+	if got.CurrentContext != "test" {
+		t.Errorf("CurrentContext = %q, want %q", got.CurrentContext, "test")
+	}
+	if len(output) == 0 {
+		t.Error("ProcessConfig() returned empty config data")
+	}
+}
+
+func TestProcessConfigInvalidInput(t *testing.T) {
+	if _, _, err := ProcessConfig([]byte("not a kubeconfig"), ""); err == nil {
+		t.Error("ProcessConfig() error = nil, want error for invalid input")
+	}
+}
+
+func TestDetectKubeConfigProvidedConfig(t *testing.T) {
+	config, err := DetectKubeConfig([]byte(`apiVersion: v1
+clusters:
+- cluster:
+    server: https://127.0.0.1:6443
+  name: test
+contexts:
+- context:
+    cluster: test
+    user: test
+  name: test
+current-context: test
+kind: Config
+users:
+- name: test
+  user:
+    token: test-token
+`))
+	if err != nil {
+		t.Fatalf("DetectKubeConfig() error = %v", err)
+	}
+	if config.Host != "https://127.0.0.1:6443" {
+		t.Errorf("DetectKubeConfig() Host = %q", config.Host)
+	}
+}
+
 func TestDetectKubeConfigReturnsExplicitKubeconfigError(t *testing.T) {
 	const invalidProxyURL = "://invalid-proxy"
 	kubeconfig := []byte(`apiVersion: v1
