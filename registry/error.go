@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	ErrAppendToSheetCode          = "meshkit-11302"
-	ErrUpdateToSheetCode          = "meshkit-11303"
+	ErrAppendToSheetCode          = "meshkit-11337"
+	ErrUpdateToSheetCode          = "meshkit-11338"
 	ErrGeneratesModelCode         = "meshkit-11305"
 	ErrCSVFileNotFoundCode        = "meshkit-11307"
 	ErrUpdateComponentsCode       = "meshkit-11308"
