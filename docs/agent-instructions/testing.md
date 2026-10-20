@@ -2,7 +2,7 @@
 
 ## Go toolchain
 
-Use the Go version pinned by `go.mod` (`go 1.26.4`); CI builds with Go 1.26 and
+Use the Go version pinned by `go.mod` (`go 1.27.1`); CI builds with Go 1.27 and
 `go-version-file: go.mod`.
 
 ## Make targets (prefer these for final verification)
