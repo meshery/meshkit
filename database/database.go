@@ -20,6 +20,8 @@ type Options struct {
 	Host     string `json:"host,omitempty"`
 	Port     string `json:"port,omitempty"`
 	Password string `json:"password,omitempty"`
+	Database string `json:"database,omitempty"`
+	SslMode  string `json:"sslmode,omitempty"`
 	Filename string `json:"filename,omitempty"`
 	Engine   string `json:"engine,omitempty"`
 	Logger   logger.Handler
@@ -49,10 +51,22 @@ func (h *Handler) DBClose() error {
 	}
 	return nil
 }
+
+func buildPostgresDSN(opts Options) string {
+	dsn := fmt.Sprintf("host=%s user=%s password=%s port=%s dbname=%s", opts.Host, opts.Username, opts.Password, opts.Port, opts.Database)
+	if opts.SslMode != "" {
+		dsn = fmt.Sprintf("%s sslmode=%s", dsn, opts.SslMode)
+	}
+	return dsn
+}
+
 func New(opts Options) (Handler, error) {
 	switch opts.Engine {
 	case POSTGRES:
-		dsn := fmt.Sprintf("host=%s user=%s password=%s port=%s", opts.Host, opts.Username, opts.Password, opts.Port)
+		if opts.Database == "" {
+			return Handler{}, ErrNoneDatabase
+		}
+		dsn := buildPostgresDSN(opts)
 		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err != nil {
 			return Handler{}, ErrDatabaseOpen(err)
