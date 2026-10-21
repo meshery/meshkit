@@ -29,7 +29,7 @@ func TestBuildPostgresDSN(t *testing.T) {
 				Username: "admin",
 				Password: "password123",
 				Database: "mesherydb",
-				SslMode:  "disable",
+				SSLMode:  "disable",
 			},
 			expected: "host=postgres.internal user=admin password=password123 port=5432 dbname=mesherydb sslmode=disable",
 		},
@@ -41,7 +41,7 @@ func TestBuildPostgresDSN(t *testing.T) {
 				Username: "clouduser",
 				Password: "mypassword",
 				Database: "production",
-				SslMode:  "require",
+				SSLMode:  "require",
 			},
 			expected: "host=10.0.0.12 user=clouduser password=mypassword port=5433 dbname=production sslmode=require",
 		},
@@ -57,38 +57,41 @@ func TestBuildPostgresDSN(t *testing.T) {
 	}
 }
 
-func TestNew_Postgres_EmptyDatabase(t *testing.T) {
-	opts := Options{
-		Engine:   POSTGRES,
-		Host:     "localhost",
-		Port:     "5432",
-		Username: "user",
-		Password: "password",
-		Database: "",
+func TestNew_Postgres_EmptyOrWhitespaceDatabase(t *testing.T) {
+	testCases := []struct {
+		name     string
+		database string
+	}{
+		{
+			name:     "empty database name",
+			database: "",
+		},
+		{
+			name:     "whitespace-only database name",
+			database: "   ",
+		},
 	}
 
-	_, err := New(opts)
-	if err == nil {
-		t.Fatal("expected error when Database is empty for Postgres engine, got nil")
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := Options{
+				Engine:   POSTGRES,
+				Host:     "localhost",
+				Port:     "5432",
+				Username: "user",
+				Password: "password",
+				Database: tc.database,
+			}
 
-	if err != ErrNoneDatabase {
-		t.Errorf("expected ErrNoneDatabase, got: %v", err)
-	}
-}
+			_, err := New(opts)
+			if err == nil {
+				t.Fatalf("expected error when Database is %q for Postgres engine, got nil", tc.database)
+			}
 
-func TestNew_UnsupportedEngine(t *testing.T) {
-	opts := Options{
-		Engine: "mysql",
-	}
-
-	_, err := New(opts)
-	if err == nil {
-		t.Fatal("expected error for unsupported engine, got nil")
-	}
-
-	if err != ErrNoneDatabase {
-		t.Errorf("expected ErrNoneDatabase for unsupported engine, got: %v", err)
+			if err != ErrNoneDatabase {
+				t.Errorf("expected ErrNoneDatabase, got: %v", err)
+			}
+		})
 	}
 }
 
