@@ -923,3 +923,54 @@ func TruncateErrorMessage(err error, wordLimit int) error {
 
 	return err
 }
+
+// SanitizePattern recursively trims leading and trailing whitespace from all
+// string keys and string values within a map (such as a component's
+// Configuration). Non-string types (bool, int, float64, nil, etc.) are
+// passed through unchanged. Returns an error if trimming causes two distinct
+// keys to collide (e.g. " name" and "name ").
+func SanitizePattern(input map[string]interface{}) (map[string]interface{}, error) {
+	if input == nil {
+		return nil, nil
+	}
+	output := make(map[string]interface{}, len(input))
+	for k, v := range input {
+		trimmedKey := strings.TrimSpace(k)
+		if _, exists := output[trimmedKey]; exists {
+			return nil, fmt.Errorf("key collision after trimming whitespace: %q", trimmedKey)
+		}
+		sanitizedValue, err := sanitizeValue(v)
+		if err != nil {
+			return nil, err
+		}
+		output[trimmedKey] = sanitizedValue
+	}
+	return output, nil
+}
+
+// sanitizeValue trims strings, recurses into maps and slices, and leaves
+// every other type untouched. Nil slices are preserved as nil rather than
+// converted to empty slices.
+func sanitizeValue(v interface{}) (interface{}, error) {
+	switch val := v.(type) {
+	case string:
+		return strings.TrimSpace(val), nil
+	case map[string]interface{}:
+		return SanitizePattern(val)
+	case []interface{}:
+		if val == nil {
+			return val, nil
+		}
+		out := make([]interface{}, len(val))
+		for i, item := range val {
+			sanitizedItem, err := sanitizeValue(item)
+			if err != nil {
+				return nil, err
+			}
+			out[i] = sanitizedItem
+		}
+		return out, nil
+	default:
+		return v, nil
+	}
+}
