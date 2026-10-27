@@ -4,7 +4,7 @@ MeshKit is primarily a shared Go library for the Meshery ecosystem, not a single
 application. Most top-level directories are reusable packages; the executable entrypoints
 live under `cmd/`, notably `cmd/errorutil` and `cmd/syncmodutil`.
 
-Go toolchain: `go.mod` pins `go 1.26.4`; CI builds with Go 1.26 (see
+Go toolchain: `go.mod` pins `go 1.27.1`; CI builds with Go 1.27 (see
 `.github/workflows/ci.yml`, which also uses `go-version-file: go.mod`).
 
 ## Core pipeline 1: structured errors
