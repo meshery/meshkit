@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
+	"unicode"
 
 	"github.com/meshery/meshkit/encoding"
 	"github.com/meshery/meshkit/files"
@@ -196,6 +199,7 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 				rel.Selectors = &selectorSet
 			}
 
+			relationship.Filename = sanitizeRelationshipFilename(relationship.Filename)
 			filenameGenerated := false
 			if relationship.Filename == "" {
 				relationship.Filename = fmt.Sprintf("%s-%s-%s-%s.json", rel.Kind, rel.RelationshipType, rel.SubType, utils.GetRandomAlphabetsOfDigit(5))
@@ -226,6 +230,26 @@ func ProcessRelationships(relationshipCSVHelper *RelationshipCSVHelper, spreadsh
 			}
 		}
 	}
+}
+
+// sanitizeRelationshipFilename cleans a file name read from the spreadsheet so
+// that it stays inside the relationships folder. It drops invisible formatting
+// and control characters (for example a U+200E copied into a cell), surrounding
+// spaces, and any directory part. It returns an empty string when nothing usable
+// is left, so the caller generates a new name.
+func sanitizeRelationshipFilename(name string) string {
+	cleaned := strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Cf, r) || unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, name)
+	cleaned = strings.TrimSpace(strings.ReplaceAll(cleaned, `\`, "/"))
+	cleaned = strings.TrimSpace(path.Base(cleaned))
+	if cleaned == "." || cleaned == ".." || cleaned == "/" {
+		return ""
+	}
+	return cleaned
 }
 
 func ConstructRelationshipPath(modelName, version, defVersion, outputLocation, filename string) (string, error) {
