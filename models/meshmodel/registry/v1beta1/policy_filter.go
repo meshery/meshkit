@@ -39,6 +39,7 @@ func (pf *PolicyFilter) GetById(db *database.Handler) (entity.Entity, error) {
 func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	pl := []entity.Entity{}
 	var policyDefinitionWithModel []v1beta1.PolicyDefinition
+
 	finder := db.Model(&v1beta1.PolicyDefinition{}).
 		Select("policy_definitions.*").
 		Joins("JOIN model_dbs ON model_dbs.id = policy_definitions.modelID")
@@ -61,8 +62,12 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 			finder = finder.Order(pf.OrderOn)
 		}
 	}
+
 	var count int64
-	finder.Session(&gorm.Session{}).Select("count(*)").Count(&count)
+	errCount := finder.Session(&gorm.Session{}).Select("count(*)").Count(&count).Error
+	if errCount != nil {
+		return pl, 0, 0, errCount
+	}
 
 	if pf.Limit != 0 {
 		finder = finder.Limit(pf.Limit)
