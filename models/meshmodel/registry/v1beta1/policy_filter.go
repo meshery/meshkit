@@ -9,6 +9,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+const policyDefinitionModelJoin = `JOIN model_dbs ON model_dbs.id = policy_definitions."modelID"`
+
 type PolicyFilter struct {
 	Id        string
 	Kind      string
@@ -42,7 +44,7 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 
 	finder := db.Model(&v1beta1.PolicyDefinition{}).
 		Select("policy_definitions.*").
-		Joins("JOIN model_dbs ON model_dbs.id = policy_definitions.modelID")
+		Joins(policyDefinitionModelJoin)
 	if pf.Kind != "" {
 		finder = finder.Where("policy_definitions.kind = ?", pf.Kind)
 	}
@@ -55,18 +57,24 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 	if pf.Id != "" {
 		finder = finder.Where("policy_definitions.id = ?", pf.Id)
 	}
-	if pf.OrderOn != "" {
-		if pf.Sort == "desc" {
-			finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: pf.OrderOn}, Desc: true})
-		} else {
-			finder = finder.Order(pf.OrderOn)
-		}
+	orderColumn := ""
+	switch pf.OrderOn {
+	case "id", "kind", "version", "modelID", "sub_type", "expression", "created_at", "updated_at":
+		orderColumn = pf.OrderOn
+	case "":
+	default:
+		orderColumn = "id"
+	}
+	if orderColumn != "" {
+		finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: orderColumn}, Desc: pf.Sort == "desc"})
+	}
+	if (pf.Limit != 0 || pf.Offset != 0) && orderColumn != "id" {
+		finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: "id"}})
 	}
 
 	var count int64
-	errCount := finder.Session(&gorm.Session{}).Select("count(*)").Count(&count).Error
-	if errCount != nil {
-		return pl, 0, 0, errCount
+	if err := finder.Session(&gorm.Session{}).Select("count(*)").Count(&count).Error; err != nil {
+		return pl, 0, 0, err
 	}
 
 	if pf.Limit != 0 {
