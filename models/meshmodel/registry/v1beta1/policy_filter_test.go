@@ -1,7 +1,9 @@
 package v1beta1
 
 import (
+	"bytes"
 	"errors"
+	"log"
 	"testing"
 
 	"github.com/gofrs/uuid"
@@ -16,13 +18,10 @@ import (
 )
 
 func TestPolicyFilterGetPaginationAndOrdering(t *testing.T) {
-	db, err := database.New(database.Options{Engine: database.SQLITE, Filename: ":memory:"})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec("CREATE TABLE model_dbs (id text PRIMARY KEY, name text)").Error)
-	require.NoError(t, db.Exec("CREATE TABLE policy_definitions (id text PRIMARY KEY, kind text, sub_type text, modelID text)").Error)
+	db := newPolicyFilterTestDB(t)
 
 	modelID := uuid.Must(uuid.FromString("00000000-0000-0000-0000-000000000001"))
-	require.NoError(t, db.Exec("INSERT INTO model_dbs (id, name) VALUES (?, ?)", modelID.String(), "test-model").Error)
+	require.NoError(t, db.Table("model_dbs").Create(map[string]interface{}{"id": modelID.String(), "name": "test-model"}).Error)
 	for _, policy := range []struct{ id, kind string }{
 		{"00000000-0000-0000-0000-000000000002", "zeta"},
 		{"00000000-0000-0000-0000-000000000003", "mu"},
@@ -30,7 +29,7 @@ func TestPolicyFilterGetPaginationAndOrdering(t *testing.T) {
 		{"00000000-0000-0000-0000-000000000005", "alpha"},
 	} {
 		policyID := uuid.Must(uuid.FromString(policy.id))
-		require.NoError(t, db.Exec("INSERT INTO policy_definitions (id, kind, sub_type, modelID) VALUES (?, ?, ?, ?)", policyID.String(), policy.kind, "test", modelID.String()).Error)
+		require.NoError(t, db.Table("policy_definitions").Create(map[string]interface{}{"id": policyID.String(), "kind": policy.kind, "sub_type": "test", "modelID": modelID.String()}).Error)
 	}
 
 	tests := []struct {
@@ -85,6 +84,24 @@ func TestPolicyFilterGetPaginationAndOrdering(t *testing.T) {
 	}
 }
 
+func TestPolicyFilterGetIncludesPoliciesWithoutModelUnlessFiltered(t *testing.T) {
+	db := newPolicyFilterTestDB(t)
+	policyID := uuid.Must(uuid.FromString("00000000-0000-0000-0000-000000000010"))
+	require.NoError(t, db.Table("policy_definitions").Create(map[string]interface{}{
+		"id": policyID.String(), "kind": "orphan", "sub_type": "test", "modelID": uuid.Nil.String(),
+	}).Error)
+
+	policies, count, _, err := (&PolicyFilter{}).Get(&db)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), count)
+	require.Len(t, policies, 1)
+
+	policies, count, _, err = (&PolicyFilter{ModelName: "missing"}).Get(&db)
+	require.NoError(t, err)
+	require.Zero(t, count)
+	require.Empty(t, policies)
+}
+
 func TestPolicyFilterGetWrapsDatabaseErrors(t *testing.T) {
 	for _, tt := range []struct {
 		name        string
@@ -94,10 +111,7 @@ func TestPolicyFilterGetWrapsDatabaseErrors(t *testing.T) {
 		{name: "scan"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			db, err := database.New(database.Options{Engine: database.SQLITE, Filename: ":memory:"})
-			require.NoError(t, err)
-			require.NoError(t, db.Exec("CREATE TABLE model_dbs (id text PRIMARY KEY, name text)").Error)
-			require.NoError(t, db.Exec("CREATE TABLE policy_definitions (id text PRIMARY KEY, kind text, sub_type text, modelID text)").Error)
+			db := newPolicyFilterTestDB(t)
 
 			wantErr := errors.New(tt.name + " query failed")
 			if tt.failOnCount {
@@ -112,8 +126,8 @@ func TestPolicyFilterGetWrapsDatabaseErrors(t *testing.T) {
 				}))
 			}
 
-			_, _, _, err = (&PolicyFilter{}).Get(&db)
-			var meshkitErr *meshkiterrors.Error
+			_, _, _, err := (&PolicyFilter{}).Get(&db)
+			var meshkitErr *meshkiterrors.ErrorV2
 			require.ErrorAs(t, err, &meshkitErr)
 			require.Equal(t, registry.ErrGetPolicyDefinitionsCode, meshkitErr.Code)
 			require.Contains(t, meshkitErr.Error(), wantErr.Error())
@@ -121,16 +135,39 @@ func TestPolicyFilterGetWrapsDatabaseErrors(t *testing.T) {
 	}
 }
 
-func TestPolicyFilterGetQuotesModelIDForPostgres(t *testing.T) {
+func TestPolicyFilterGetRejectsNegativePagination(t *testing.T) {
+	for _, filter := range []PolicyFilter{{Limit: -1}, {Offset: -1}} {
+		_, _, _, err := (&filter).Get(nil)
+		var meshkitErr *meshkiterrors.ErrorV2
+		require.ErrorAs(t, err, &meshkitErr)
+		require.Equal(t, registry.ErrInvalidPolicyPaginationCode, meshkitErr.Code)
+	}
+}
+
+func TestPolicyFilterGetBuildsPostgresQuery(t *testing.T) {
+	var queryLog bytes.Buffer
 	db, err := gorm.Open(postgres.New(postgres.Config{DSN: "host=localhost user=test dbname=test sslmode=disable"}), &gorm.Config{
 		DryRun:               true,
 		DisableAutomaticPing: true,
-		Logger:               gormlogger.Default.LogMode(gormlogger.Silent),
+		Logger:               gormlogger.New(log.New(&queryLog, "", 0), gormlogger.Config{LogLevel: gormlogger.Info}),
 	})
 	require.NoError(t, err)
 
-	var policies []core.PolicyDefinition
-	query := db.Model(&core.PolicyDefinition{}).Select("policy_definitions.*").Joins(policyDefinitionModelJoin).Find(&policies)
-	require.NoError(t, query.Error)
-	require.Contains(t, query.Statement.SQL.String(), `policy_definitions."modelID"`)
+	handler := database.Handler{DB: db}
+	_, _, _, err = (&PolicyFilter{ModelName: "test-model", OrderOn: "kind", Limit: 1}).Get(&handler)
+	var meshkitErr *meshkiterrors.ErrorV2
+	require.ErrorAs(t, err, &meshkitErr) // DryRun can build the query but cannot scan database rows.
+	require.Contains(t, queryLog.String(), `JOIN model_dbs ON model_dbs.id = policy_definitions."modelID"`)
+	require.Contains(t, queryLog.String(), `ORDER BY "policy_definitions"."kind"`)
+	require.Contains(t, queryLog.String(), `"policy_definitions"."id"`)
+}
+
+func newPolicyFilterTestDB(t *testing.T) database.Handler {
+	t.Helper()
+	db, err := database.New(database.Options{Engine: database.SQLITE, Filename: ":memory:"})
+	require.NoError(t, err)
+	_, err = registry.NewRegistryManager(&db)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.DBClose() })
+	return db
 }

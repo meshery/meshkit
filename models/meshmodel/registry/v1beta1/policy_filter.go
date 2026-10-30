@@ -40,11 +40,14 @@ func (pf *PolicyFilter) GetById(db *database.Handler) (entity.Entity, error) {
 
 func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	pl := []entity.Entity{}
+	if pf.Limit < 0 || pf.Offset < 0 {
+		return pl, 0, 0, registry.ErrInvalidPolicyPagination()
+	}
+
 	var policyDefinitionWithModel []v1beta1.PolicyDefinition
 
 	finder := db.Model(&v1beta1.PolicyDefinition{}).
-		Select("policy_definitions.*").
-		Joins(policyDefinitionModelJoin)
+		Select("policy_definitions.*")
 	if pf.Kind != "" {
 		finder = finder.Where("policy_definitions.kind = ?", pf.Kind)
 	}
@@ -52,7 +55,7 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 		finder = finder.Where("policy_definitions.sub_type = ?", pf.SubType)
 	}
 	if pf.ModelName != "" {
-		finder = finder.Where("model_dbs.name = ?", pf.ModelName)
+		finder = finder.Joins(policyDefinitionModelJoin).Where("model_dbs.name = ?", pf.ModelName)
 	}
 	if pf.Id != "" {
 		finder = finder.Where("policy_definitions.id = ?", pf.Id)
@@ -66,10 +69,10 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 		orderColumn = "id"
 	}
 	if orderColumn != "" {
-		finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: orderColumn}, Desc: pf.Sort == "desc"})
+		finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Table: "policy_definitions", Name: orderColumn}, Desc: pf.Sort == "desc"})
 	}
 	if (pf.Limit != 0 || pf.Offset != 0) && orderColumn != "id" {
-		finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: "id"}})
+		finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Table: "policy_definitions", Name: "id"}})
 	}
 
 	var count int64
