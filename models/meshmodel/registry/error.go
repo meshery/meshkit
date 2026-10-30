@@ -16,6 +16,7 @@ var (
 	ErrCreatingUserDataDirectoryCode   = "meshkit-11261"
 	ErrGetByIdCode                     = "meshkit-11262"
 	ErrGetPolicyDefinitionsCode        = "meshkit-11335"
+	ErrInvalidPolicyPaginationCode     = "meshkit-11336"
 )
 
 func ErrGetById(err error, id string) error {
@@ -31,13 +32,26 @@ func ErrGetById(err error, id string) error {
 }
 
 func ErrGetPolicyDefinitions(err error) error {
-	return errors.New(
+	return errors.NewV2(
 		ErrGetPolicyDefinitionsCode,
 		errors.Alert,
 		[]string{"Failed to retrieve policy definitions from the registry"},
-		[]string{"The policy registry query failed: ", err.Error()},
+		[]string{"The policy registry query failed"},
 		[]string{"The registry database query failed"},
 		[]string{"Check the registry database connection and retry the request"},
+		map[string]string{"cause": err.Error()},
+	)
+}
+
+func ErrInvalidPolicyPagination() error {
+	return errors.NewV2(
+		ErrInvalidPolicyPaginationCode,
+		errors.Alert,
+		[]string{"Policy limit and offset must be non-negative"},
+		[]string{"The policy filter contains a negative pagination value"},
+		[]string{"Limit and offset values must be zero or positive"},
+		[]string{"Set limit and offset to zero or a positive value"},
+		nil,
 	)
 }
 
