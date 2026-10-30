@@ -6,7 +6,9 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
+	meshkiterrors "github.com/meshery/meshkit/errors"
 	core "github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
+	"github.com/meshery/meshkit/models/meshmodel/registry"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -83,21 +85,40 @@ func TestPolicyFilterGetPaginationAndOrdering(t *testing.T) {
 	}
 }
 
-func TestPolicyFilterGetReturnsCountError(t *testing.T) {
-	db, err := database.New(database.Options{Engine: database.SQLITE, Filename: ":memory:"})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec("CREATE TABLE model_dbs (id text PRIMARY KEY, name text)").Error)
-	require.NoError(t, db.Exec("CREATE TABLE policy_definitions (id text PRIMARY KEY, kind text, sub_type text, modelID text)").Error)
+func TestPolicyFilterGetWrapsDatabaseErrors(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		failOnCount bool
+	}{
+		{name: "count", failOnCount: true},
+		{name: "scan"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			db, err := database.New(database.Options{Engine: database.SQLITE, Filename: ":memory:"})
+			require.NoError(t, err)
+			require.NoError(t, db.Exec("CREATE TABLE model_dbs (id text PRIMARY KEY, name text)").Error)
+			require.NoError(t, db.Exec("CREATE TABLE policy_definitions (id text PRIMARY KEY, kind text, sub_type text, modelID text)").Error)
 
-	wantErr := errors.New("count query failed")
-	require.NoError(t, db.Callback().Query().Before("gorm:query").Register("test:fail_policy_count", func(tx *gorm.DB) {
-		if _, ok := tx.Statement.Dest.(*int64); ok {
-			tx.AddError(wantErr)
-		}
-	}))
+			wantErr := errors.New(tt.name + " query failed")
+			if tt.failOnCount {
+				require.NoError(t, db.Callback().Query().Before("gorm:query").Register("test:fail_policy_count", func(tx *gorm.DB) {
+					if _, ok := tx.Statement.Dest.(*int64); ok {
+						tx.AddError(wantErr)
+					}
+				}))
+			} else {
+				require.NoError(t, db.Callback().Row().Before("gorm:row").Register("test:fail_policy_scan", func(tx *gorm.DB) {
+					tx.AddError(wantErr)
+				}))
+			}
 
-	_, _, _, err = (&PolicyFilter{}).Get(&db)
-	require.ErrorIs(t, err, wantErr)
+			_, _, _, err = (&PolicyFilter{}).Get(&db)
+			var meshkitErr *meshkiterrors.Error
+			require.ErrorAs(t, err, &meshkitErr)
+			require.Equal(t, registry.ErrGetPolicyDefinitionsCode, meshkitErr.Code)
+			require.Contains(t, meshkitErr.Error(), wantErr.Error())
+		})
+	}
 }
 
 func TestPolicyFilterGetQuotesModelIDForPostgres(t *testing.T) {

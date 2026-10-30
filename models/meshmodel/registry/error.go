@@ -15,6 +15,7 @@ var (
 	ErrUnknownHostInMapCode            = "meshkit-11260"
 	ErrCreatingUserDataDirectoryCode   = "meshkit-11261"
 	ErrGetByIdCode                     = "meshkit-11262"
+	ErrGetPolicyDefinitionsCode        = "meshkit-11335"
 )
 
 func ErrGetById(err error, id string) error {
@@ -27,6 +28,17 @@ func ErrGetById(err error, id string) error {
 		[]string{"Check if your ID is correct", "If the registry is inaccesible, please try again after some time"},
 	)
 
+}
+
+func ErrGetPolicyDefinitions(err error) error {
+	return errors.New(
+		ErrGetPolicyDefinitionsCode,
+		errors.Alert,
+		[]string{"Failed to retrieve policy definitions from the registry"},
+		[]string{"The policy registry query failed: ", err.Error()},
+		[]string{"The registry database query failed"},
+		[]string{"Check the registry database connection and retry the request"},
+	)
 }
 
 func ErrUnknownHost(err error) error {

@@ -74,7 +74,7 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 
 	var count int64
 	if err := finder.Session(&gorm.Session{}).Select("count(*)").Count(&count).Error; err != nil {
-		return pl, 0, 0, err
+		return pl, 0, 0, registry.ErrGetPolicyDefinitions(err)
 	}
 
 	if pf.Limit != 0 {
@@ -86,7 +86,7 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 
 	err := finder.Scan(&policyDefinitionWithModel).Error
 	if err != nil {
-		return pl, 0, 0, err
+		return pl, 0, 0, registry.ErrGetPolicyDefinitions(err)
 	}
 	for _, pm := range policyDefinitionWithModel {
 		pl = append(pl, &pm)
