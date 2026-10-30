@@ -5,7 +5,11 @@ import (
 	"github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	"github.com/meshery/meshkit/models/meshmodel/registry"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+const policyDefinitionModelJoin = `JOIN model_dbs ON model_dbs.id = policy_definitions."modelID"`
 
 type PolicyFilter struct {
 	Id        string
@@ -36,28 +40,56 @@ func (pf *PolicyFilter) GetById(db *database.Handler) (entity.Entity, error) {
 
 func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	pl := []entity.Entity{}
+	if pf.Limit < 0 || pf.Offset < 0 {
+		return pl, 0, 0, registry.ErrInvalidPolicyPagination()
+	}
+
 	var policyDefinitionWithModel []v1beta1.PolicyDefinition
+
 	finder := db.Model(&v1beta1.PolicyDefinition{}).
-		Select("policy_definition_dbs.*").
-		Joins("JOIN model_dbs ON model_dbs.id = policy_definition_dbs.model_id")
+		Select("policy_definitions.*")
 	if pf.Kind != "" {
-		finder = finder.Where("policy_definition_dbs.kind = ?", pf.Kind)
+		finder = finder.Where("policy_definitions.kind = ?", pf.Kind)
 	}
 	if pf.SubType != "" {
-		finder = finder.Where("policy_definition_dbs.sub_type = ?", pf.SubType)
+		finder = finder.Where("policy_definitions.sub_type = ?", pf.SubType)
 	}
 	if pf.ModelName != "" {
-		finder = finder.Where("model_dbs.name = ?", pf.ModelName)
+		finder = finder.Joins(policyDefinitionModelJoin).Where("model_dbs.name = ?", pf.ModelName)
 	}
 	if pf.Id != "" {
-		finder = finder.Where("policy_definition_dbs.id = ?", pf.Id)
+		finder = finder.Where("policy_definitions.id = ?", pf.Id)
 	}
+	orderColumn := ""
+	switch pf.OrderOn {
+	case "id", "kind", "version", "modelID", "sub_type", "expression", "created_at", "updated_at":
+		orderColumn = pf.OrderOn
+	case "":
+	default:
+		orderColumn = "id"
+	}
+	if orderColumn != "" {
+		finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Table: "policy_definitions", Name: orderColumn}, Desc: pf.Sort == "desc"})
+	}
+	if (pf.Limit != 0 || pf.Offset != 0) && orderColumn != "id" {
+		finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Table: "policy_definitions", Name: "id"}})
+	}
+
 	var count int64
-	finder.Count(&count)
+	if err := finder.Session(&gorm.Session{}).Select("count(*)").Count(&count).Error; err != nil {
+		return pl, 0, 0, registry.ErrGetPolicyDefinitions(err)
+	}
+
+	if pf.Limit != 0 {
+		finder = finder.Limit(pf.Limit)
+	}
+	if pf.Offset != 0 {
+		finder = finder.Offset(pf.Offset)
+	}
 
 	err := finder.Scan(&policyDefinitionWithModel).Error
 	if err != nil {
-		return pl, 0, 0, err
+		return pl, 0, 0, registry.ErrGetPolicyDefinitions(err)
 	}
 	for _, pm := range policyDefinitionWithModel {
 		pl = append(pl, &pm)
