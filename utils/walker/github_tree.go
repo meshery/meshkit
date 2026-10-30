@@ -582,6 +582,20 @@ func (g *Git) rankTree(entries []githubTreeEntry, recursive bool) []CandidateFil
 			continue
 		}
 
+		if !g.isAllowedFile(path.Base(entry.Path)) && entry.Path != root {
+			continue
+		}
+
+		if g.maxDepth > 0 && entry.Path != root {
+			rel := entry.Path
+			if root != "" {
+				rel = strings.TrimPrefix(entry.Path, root+"/")
+			}
+			if strings.Count(rel, "/") > g.maxDepth {
+				continue
+			}
+		}
+
 		kind, score, interesting := classifyPath(entry.Path)
 		// A root naming one exact file is an explicit request for it, which
 		// the clone route honours whatever the file is called.

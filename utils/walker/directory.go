@@ -1,7 +1,6 @@
 package walker
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -14,11 +13,7 @@ func WalkLocalDirectory(path string) ([]*File, error) {
 				return err
 			}
 			if !d.IsDir() {
-				file, err := os.OpenFile(path, os.O_RDONLY, 0444)
-				if err != nil {
-					return err
-				}
-				content, err := io.ReadAll(file)
+				content, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}
