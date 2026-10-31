@@ -14,6 +14,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/getter"
+	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/repo"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
@@ -271,7 +272,7 @@ func (c *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 		return ErrApplyHelmChart(err)
 	}
 
-	actionConfig, err := c.createHelmActionConfig(cfg, c.getRESTClientGetter())
+	actionConfig, err := newHelmActionConfig(c, cfg, c.getRESTClientGetter())
 	if err != nil {
 		return ErrApplyHelmChart(err)
 	}
@@ -421,6 +422,17 @@ func checkIfInstallable(ch *chart.Chart) error {
 // cfg.HelmDriver is SQL and a connection string is supplied, the connection
 // string is exposed via the process environment only for the duration of
 // initialization, through withHelmSQLConnectionString.
+var newHelmActionConfig = (*Client).createHelmActionConfig
+
+func setKubeClientNamespace(actionConfig *action.Configuration, namespace string) {
+	if actionConfig == nil || namespace == "" {
+		return
+	}
+	if kc, ok := actionConfig.KubeClient.(*kube.Client); ok {
+		kc.Namespace = namespace
+	}
+}
+
 func (c *Client) createHelmActionConfig(cfg ApplyHelmChartConfig, restClientGetter genericclioptions.RESTClientGetter) (*action.Configuration, error) {
 	actionConfig := new(action.Configuration)
 	initialize := func() error {
@@ -436,6 +448,8 @@ func (c *Client) createHelmActionConfig(cfg ApplyHelmChartConfig, restClientGett
 	if err != nil {
 		return nil, err
 	}
+
+	setKubeClientNamespace(actionConfig, cfg.Namespace)
 
 	return actionConfig, nil
 }
