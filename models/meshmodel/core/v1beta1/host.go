@@ -70,7 +70,7 @@ func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *k
 		return summary, err
 	}
 	if sourceURI == "" {
-		return summary, nil
+		return fmt.Sprintf("no source_uri declared for %s", comp.DisplayName), nil
 	}
 
 	act := kubernetes.UNINSTALL
@@ -125,7 +125,7 @@ func (gh GitHub) HandleDependents(comp component.ComponentDefinition, kc *kubern
 		return "", err
 	}
 	if sourceURI == "" {
-		return fmt.Sprintf("No operator dependency declared for %s", comp.DisplayName), nil
+		return fmt.Sprintf("no source_uri declared for %s", comp.DisplayName), nil
 	}
 
 	chartURL, shouldInstall, err := classifyGitHubChartURL(sourceURI)
@@ -137,7 +137,7 @@ func (gh GitHub) HandleDependents(comp component.ComponentDefinition, kc *kubern
 	}
 
 	fallbackNS := "default"
-	if comp.Model != nil && comp.Model.Name != "" {
+	if comp.Model != nil && isValidDNS1123Label(comp.Model.Name) {
 		fallbackNS = comp.Model.Name
 	}
 	namespace := resolveNamespace(comp, fallbackNS)

@@ -220,6 +220,60 @@ func TestResolveNamespace(t *testing.T) {
 			fallback: "fallback-ns",
 			wantNS:   "fallback-ns",
 		},
+		{
+			name: "invalid configured namespace falls back to valid fallback",
+			comp: component.ComponentDefinition{
+				Configuration: map[string]interface{}{
+					"namespace": "INVALID_NS",
+				},
+			},
+			fallback: "fallback-ns",
+			wantNS:   "fallback-ns",
+		},
+		{
+			name: "configured namespace containing underscores falls back to valid fallback",
+			comp: component.ComponentDefinition{
+				Configuration: map[string]interface{}{
+					"namespace": "invalid_namespace_with_underscores",
+				},
+			},
+			fallback: "fallback-ns",
+			wantNS:   "fallback-ns",
+		},
+		{
+			name: "invalid configured namespace and invalid fallback falls back to default",
+			comp: component.ComponentDefinition{
+				Configuration: map[string]interface{}{
+					"namespace": "INVALID_NS",
+				},
+			},
+			fallback: "INVALID_FALLBACK",
+			wantNS:   "default",
+		},
+		{
+			name: "empty fallback falls back to default",
+			comp: component.ComponentDefinition{
+				Configuration: nil,
+			},
+			fallback: "",
+			wantNS:   "default",
+		},
+		{
+			name: "uppercase fallback falls back to default",
+			comp: component.ComponentDefinition{
+				Configuration: nil,
+			},
+			fallback: "UPPERCASE-FALLBACK",
+			wantNS:   "default",
+		},
+		{
+			name: "fallback containing underscores falls back to default",
+			comp: component.ComponentDefinition{
+				Configuration: nil,
+			},
+			fallback: "fallback_with_underscores",
+			wantNS:   "default",
+		},
 	}
 
 	for _, tt := range tests {
@@ -289,6 +343,38 @@ func TestClassifyGitHubChartURL(t *testing.T) {
 			wantURL:     "https://example.com/charts/mychart.tar.gz",
 			wantInstall: true,
 			wantErr:     false,
+		},
+		{
+			name:        "direct HTTP tgz archive returns error (insecure scheme rejected)",
+			rawURI:      "http://example.com/charts/mychart.tgz",
+			wantURL:     "",
+			wantInstall: false,
+			wantErr:     true,
+			errContains: "insecure HTTP scheme",
+		},
+		{
+			name:        "direct HTTP tar.gz archive returns error (insecure scheme rejected)",
+			rawURI:      "http://example.com/charts/mychart.tar.gz",
+			wantURL:     "",
+			wantInstall: false,
+			wantErr:     true,
+			errContains: "insecure HTTP scheme",
+		},
+		{
+			name:        "non-archive HTTP raw yaml returns error (insecure scheme rejected)",
+			rawURI:      "http://example.com/crds/alloydb.yaml",
+			wantURL:     "",
+			wantInstall: false,
+			wantErr:     true,
+			errContains: "insecure HTTP scheme",
+		},
+		{
+			name:        "non-archive HTTP directory returns error (insecure scheme rejected)",
+			rawURI:      "http://example.com/charts/",
+			wantURL:     "",
+			wantInstall: false,
+			wantErr:     true,
+			errContains: "insecure HTTP scheme",
 		},
 		{
 			name:        "non-archive HTTPS raw yaml skipped without error",
@@ -395,7 +481,7 @@ func TestClassifyGitHubChartURL(t *testing.T) {
 func TestArtifactHubHandleDependents(t *testing.T) {
 	ah := ArtifactHub{}
 
-	t.Run("missing source_uri returns empty summary and nil error", func(t *testing.T) {
+	t.Run("missing source_uri returns observable summary and nil error", func(t *testing.T) {
 		called := false
 		orig := applyHelmChartFunc
 		t.Cleanup(func() { applyHelmChartFunc = orig })
@@ -412,8 +498,9 @@ func TestArtifactHubHandleDependents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected nil error, got %v", err)
 		}
-		if summary != "" {
-			t.Fatalf("expected empty summary, got %q", summary)
+		want := "no source_uri declared for TestComponent"
+		if summary != want {
+			t.Fatalf("summary = %q, want %q", summary, want)
 		}
 		if called {
 			t.Fatal("applyHelmChartFunc should not have been called")
@@ -721,11 +808,45 @@ func TestGitHubHandleDependents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected nil error, got %v", err)
 		}
-		if summary != "No operator dependency declared for WasmPlugin" {
-			t.Fatalf("summary = %q, want %q", summary, "No operator dependency declared for WasmPlugin")
+		want := "no source_uri declared for WasmPlugin"
+		if summary != want {
+			t.Fatalf("summary = %q, want %q", summary, want)
 		}
 		if called {
 			t.Fatal("applyHelmChartFunc should not have been called")
+		}
+	})
+
+	t.Run("HTTP chart archives return error and do not invoke Helm", func(t *testing.T) {
+		called := false
+		orig := applyHelmChartFunc
+		t.Cleanup(func() { applyHelmChartFunc = orig })
+		applyHelmChartFunc = func(c *kubernetes.Client, cfg kubernetes.ApplyHelmChartConfig) error {
+			called = true
+			return nil
+		}
+
+		comp := component.ComponentDefinition{
+			DisplayName: "WasmPlugin",
+			Metadata: component.ComponentDefinition_Metadata{
+				AdditionalProperties: map[string]interface{}{
+					"source_uri": "http://example.com/charts/wasm-plugin.tgz",
+				},
+			},
+		}
+
+		summary, err := gh.HandleDependents(comp, nil, true, false)
+		if err == nil {
+			t.Fatal("expected error for HTTP chart archive, got nil")
+		}
+		if !strings.Contains(err.Error(), "insecure HTTP scheme") {
+			t.Fatalf("error = %v, want containing insecure HTTP scheme", err)
+		}
+		if summary != "" {
+			t.Fatalf("expected empty summary on error before Helm dispatch, got %q", summary)
+		}
+		if called {
+			t.Fatal("applyHelmChartFunc should not have been called for insecure HTTP source_uri")
 		}
 	})
 
@@ -979,6 +1100,112 @@ func TestGitHubHandleDependents(t *testing.T) {
 		}
 		if capturedCfg.Namespace != "default" {
 			t.Fatalf("namespace = %q, want %q", capturedCfg.Namespace, "default")
+		}
+
+		// 4. Uppercase model name falls back to default
+		comp4 := component.ComponentDefinition{
+			DisplayName: "WasmPlugin",
+			Metadata: component.ComponentDefinition_Metadata{
+				AdditionalProperties: map[string]interface{}{
+					"source_uri": "https://example.com/chart.tgz",
+				},
+			},
+			Model: &modelv1beta1.ModelDefinition{
+				Name: "UPPERCASE-MODEL",
+			},
+		}
+		_, err = gh.HandleDependents(comp4, nil, true, false)
+		if err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+		if capturedCfg.Namespace != "default" {
+			t.Fatalf("namespace = %q, want %q", capturedCfg.Namespace, "default")
+		}
+
+		// 5. Model name containing underscores falls back to default
+		comp5 := component.ComponentDefinition{
+			DisplayName: "WasmPlugin",
+			Metadata: component.ComponentDefinition_Metadata{
+				AdditionalProperties: map[string]interface{}{
+					"source_uri": "https://example.com/chart.tgz",
+				},
+			},
+			Model: &modelv1beta1.ModelDefinition{
+				Name: "model_with_underscores",
+			},
+		}
+		_, err = gh.HandleDependents(comp5, nil, true, false)
+		if err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+		if capturedCfg.Namespace != "default" {
+			t.Fatalf("namespace = %q, want %q", capturedCfg.Namespace, "default")
+		}
+
+		// 6. Empty model name falls back to default
+		comp6 := component.ComponentDefinition{
+			DisplayName: "WasmPlugin",
+			Metadata: component.ComponentDefinition_Metadata{
+				AdditionalProperties: map[string]interface{}{
+					"source_uri": "https://example.com/chart.tgz",
+				},
+			},
+			Model: &modelv1beta1.ModelDefinition{
+				Name: "",
+			},
+		}
+		_, err = gh.HandleDependents(comp6, nil, true, false)
+		if err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+		if capturedCfg.Namespace != "default" {
+			t.Fatalf("namespace = %q, want %q", capturedCfg.Namespace, "default")
+		}
+
+		// 7. Invalid configured namespace falls back to valid model name
+		comp7 := component.ComponentDefinition{
+			DisplayName: "WasmPlugin",
+			Metadata: component.ComponentDefinition_Metadata{
+				AdditionalProperties: map[string]interface{}{
+					"source_uri": "https://example.com/chart.tgz",
+				},
+			},
+			Configuration: map[string]interface{}{
+				"namespace": "INVALID_NAMESPACE_NAME",
+			},
+			Model: &modelv1beta1.ModelDefinition{
+				Name: "valid-model-ns",
+			},
+		}
+		_, err = gh.HandleDependents(comp7, nil, true, false)
+		if err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+		if capturedCfg.Namespace != "valid-model-ns" {
+			t.Fatalf("namespace = %q, want %q", capturedCfg.Namespace, "valid-model-ns")
+		}
+
+		// 8. Valid configured namespace preserved even when model name is invalid
+		comp8 := component.ComponentDefinition{
+			DisplayName: "WasmPlugin",
+			Metadata: component.ComponentDefinition_Metadata{
+				AdditionalProperties: map[string]interface{}{
+					"source_uri": "https://example.com/chart.tgz",
+				},
+			},
+			Configuration: map[string]interface{}{
+				"namespace": "valid-configured-ns",
+			},
+			Model: &modelv1beta1.ModelDefinition{
+				Name: "UPPERCASE_INVALID_MODEL",
+			},
+		}
+		_, err = gh.HandleDependents(comp8, nil, true, false)
+		if err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+		if capturedCfg.Namespace != "valid-configured-ns" {
+			t.Fatalf("namespace = %q, want %q", capturedCfg.Namespace, "valid-configured-ns")
 		}
 	})
 

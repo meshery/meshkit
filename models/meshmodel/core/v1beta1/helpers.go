@@ -7,6 +7,7 @@ import (
 
 	"github.com/meshery/meshkit/utils"
 	"github.com/meshery/schemas/models/v1beta3/component"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 // resolveSourceURI extracts source_uri from component metadata first, falling back
@@ -44,25 +45,39 @@ func resolveSourceURI(comp component.ComponentDefinition) (string, error) {
 	return "", nil
 }
 
+// isValidDNS1123Label checks whether a string conforms to Kubernetes DNS-1123 label requirements.
+func isValidDNS1123Label(name string) bool {
+	if name == "" {
+		return false
+	}
+	errs := validation.IsDNS1123Label(name)
+	return len(errs) == 0
+}
+
 // resolveNamespace safely extracts the namespace from comp.Configuration["namespace"].
-// If missing, empty, or not a string, it returns the provided fallback namespace.
+// If the configured namespace is valid under DNS-1123 label rules, it is returned.
+// Otherwise, it validates and returns the fallback namespace, or "default" if the fallback is invalid or empty.
 func resolveNamespace(comp component.ComponentDefinition, fallback string) string {
 	if comp.Configuration != nil {
 		if val, ok := comp.Configuration["namespace"]; ok && val != nil {
 			if str, ok := val.(string); ok {
 				trimmed := strings.TrimSpace(str)
-				if trimmed != "" {
+				if isValidDNS1123Label(trimmed) {
 					return trimmed
 				}
 			}
 		}
 	}
-	return fallback
+	trimmedFallback := strings.TrimSpace(fallback)
+	if isValidDNS1123Label(trimmedFallback) {
+		return trimmedFallback
+	}
+	return "default"
 }
 
 // classifyGitHubChartURL inspects a source URI and determines if it represents a deployable
-// Helm chart archive (.tgz or .tar.gz). If valid, it normalizes git:// URLs to raw HTTPS URLs.
-// Non-archive sources return shouldInstall=false and err=nil.
+// Helm chart archive (.tgz or .tar.gz). It normalizes git:// URLs to raw HTTPS URLs.
+// Plain HTTP URLs return an error; non-archive HTTPS and git sources return shouldInstall=false and nil error.
 func classifyGitHubChartURL(rawURI string) (normalizedURL string, shouldInstall bool, err error) {
 	trimmed := strings.TrimSpace(rawURI)
 	if trimmed == "" {
@@ -80,13 +95,16 @@ func classifyGitHubChartURL(rawURI string) (normalizedURL string, shouldInstall 
 	isArchive := strings.HasSuffix(pathLower, ".tgz") || strings.HasSuffix(pathLower, ".tar.gz")
 
 	switch scheme {
-	case "https", "http":
+	case "https":
 		if !isArchive {
 			// Plain YAML manifest, directory, or non-chart URL -> skip cleanly
 			return "", false, nil
 		}
-		// Direct HTTP/S archive URL (e.g. GitHub release asset or hosted chart)
+		// Direct HTTPS archive URL (e.g. GitHub release asset or hosted chart)
 		return trimmed, true, nil
+
+	case "http":
+		return "", false, fmt.Errorf("insecure HTTP scheme %q in source URI %q: only HTTPS is permitted", parsed.Scheme, trimmed)
 
 	case "git":
 		hostLower := strings.ToLower(parsed.Host)
@@ -106,7 +124,7 @@ func classifyGitHubChartURL(rawURI string) (normalizedURL string, shouldInstall 
 			return "", false, nil
 		}
 
-		// Convert to raw HTTPS URL. Note: multi-segment refs containing '/' are unsupported
+		// Convert to raw HTTPS URL. Note: multi-segment refs containing / are unsupported
 		// as strings.SplitN with 4 parts treats the 3rd slash-delimited token as ref.
 		rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repo, ref, path)
 		return rawURL, true, nil
