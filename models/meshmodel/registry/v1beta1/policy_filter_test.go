@@ -17,19 +17,18 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
-func TestPolicyFilterGetPaginationAndOrdering(t *testing.T) {
+func TestPolicyFilterGet_GivenSeededPolicies_WhenOrderedAndPaginated_ThenReturnsExpectedPage(t *testing.T) {
 	db := newPolicyFilterTestDB(t)
 
 	modelID := uuid.Must(uuid.FromString("00000000-0000-0000-0000-000000000001"))
-	require.NoError(t, db.Table("model_dbs").Create(map[string]interface{}{"id": modelID.String(), "name": "test-model"}).Error)
+	seedPolicyModel(t, &db, modelID.String(), "test-model")
 	for _, policy := range []struct{ id, kind string }{
 		{"00000000-0000-0000-0000-000000000002", "zeta"},
 		{"00000000-0000-0000-0000-000000000003", "mu"},
 		{"00000000-0000-0000-0000-000000000004", "mu"},
 		{"00000000-0000-0000-0000-000000000005", "alpha"},
 	} {
-		policyID := uuid.Must(uuid.FromString(policy.id))
-		require.NoError(t, db.Table("policy_definitions").Create(map[string]interface{}{"id": policyID.String(), "kind": policy.kind, "sub_type": "test", "modelID": modelID.String()}).Error)
+		seedPolicy(t, &db, policy.id, policy.kind, "test", modelID.String())
 	}
 
 	tests := []struct {
@@ -39,23 +38,23 @@ func TestPolicyFilterGetPaginationAndOrdering(t *testing.T) {
 		wantIDs   []string
 	}{
 		{
-			name:      "descending pagination breaks ties by ID",
+			name:      "given duplicate kinds when sorted desc with limit and offset then ties break by ID",
 			filter:    PolicyFilter{OrderOn: "kind", Sort: "desc", Limit: 2, Offset: 1},
 			wantKinds: []string{"mu", "mu"},
 			wantIDs:   []string{"00000000-0000-0000-0000-000000000003", "00000000-0000-0000-0000-000000000004"},
 		},
 		{
-			name:      "ascending order without pagination",
+			name:      "given seeded policies when ordered by kind without pagination then returns all ascending",
 			filter:    PolicyFilter{OrderOn: "kind"},
 			wantKinds: []string{"alpha", "mu", "mu", "zeta"},
 		},
 		{
-			name:    "pagination without requested order uses ID",
+			name:    "given a limit and no order when getting then orders by ID",
 			filter:  PolicyFilter{Limit: 1},
 			wantIDs: []string{"00000000-0000-0000-0000-000000000002"},
 		},
 		{
-			name:    "invalid order uses ID instead of raw SQL",
+			name:    "given an invalid order column when getting then orders by ID instead of raw SQL",
 			filter:  PolicyFilter{OrderOn: "kind; invalid", Limit: 1},
 			wantIDs: []string{"00000000-0000-0000-0000-000000000002"},
 		},
@@ -84,12 +83,9 @@ func TestPolicyFilterGetPaginationAndOrdering(t *testing.T) {
 	}
 }
 
-func TestPolicyFilterGetIncludesPoliciesWithoutModelUnlessFiltered(t *testing.T) {
+func TestPolicyFilterGet_GivenPolicyWithoutModel_WhenModelNameFilterIsSet_ThenPolicyIsExcluded(t *testing.T) {
 	db := newPolicyFilterTestDB(t)
-	policyID := uuid.Must(uuid.FromString("00000000-0000-0000-0000-000000000010"))
-	require.NoError(t, db.Table("policy_definitions").Create(map[string]interface{}{
-		"id": policyID.String(), "kind": "orphan", "sub_type": "test", "modelID": uuid.Nil.String(),
-	}).Error)
+	seedPolicy(t, &db, "00000000-0000-0000-0000-000000000010", "orphan", "test", uuid.Nil.String())
 
 	policies, count, _, err := (&PolicyFilter{}).Get(&db)
 	require.NoError(t, err)
@@ -102,13 +98,56 @@ func TestPolicyFilterGetIncludesPoliciesWithoutModelUnlessFiltered(t *testing.T)
 	require.Empty(t, policies)
 }
 
-func TestPolicyFilterGetWrapsDatabaseErrors(t *testing.T) {
+func TestPolicyFilterGet_GivenSeededPolicies_WhenFiltered_ThenReturnsMatchingPolicies(t *testing.T) {
+	const (
+		m1 = "00000000-0000-0000-0000-000000000101"
+		m2 = "00000000-0000-0000-0000-000000000102"
+		p1 = "00000000-0000-0000-0000-000000000201"
+		p2 = "00000000-0000-0000-0000-000000000202"
+		p3 = "00000000-0000-0000-0000-000000000203"
+	)
+	db := newPolicyFilterTestDB(t)
+	seedPolicyModel(t, &db, m1, "model-one")
+	seedPolicyModel(t, &db, m2, "model-two")
+	seedPolicy(t, &db, p1, "a", "x", m1)
+	seedPolicy(t, &db, p2, "b", "y", m1)
+	seedPolicy(t, &db, p3, "a", "y", m2)
+
+	tests := []struct {
+		name    string
+		filter  PolicyFilter
+		wantIDs []string
+	}{
+		{"given policies when no filter then returns all", PolicyFilter{OrderOn: "id"}, []string{p1, p2, p3}},
+		{"given policies when filtered by kind then returns matching kind", PolicyFilter{Kind: "a", OrderOn: "id"}, []string{p1, p3}},
+		{"given policies when filtered by sub type then returns matching sub type", PolicyFilter{SubType: "y", OrderOn: "id"}, []string{p2, p3}},
+		{"given policies when filtered by model name then returns that model's policies", PolicyFilter{ModelName: "model-one", OrderOn: "id"}, []string{p1, p2}},
+		{"given policies when filtered by id then returns that policy", PolicyFilter{Id: p2}, []string{p2}},
+		{"given policies when filtered by kind and model name then returns the intersection", PolicyFilter{Kind: "a", ModelName: "model-two"}, []string{p3}},
+		{"given policies when no policy matches then returns empty", PolicyFilter{Kind: "missing"}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			policies, count, total, err := (&tt.filter).Get(&db)
+			require.NoError(t, err)
+			require.Equal(t, int64(len(tt.wantIDs)), count)
+			require.Equal(t, len(tt.wantIDs), total)
+			gotIDs := make([]string, 0, len(policies))
+			for _, policy := range policies {
+				gotIDs = append(gotIDs, policy.(*core.PolicyDefinition).ID.String())
+			}
+			require.ElementsMatch(t, tt.wantIDs, gotIDs)
+		})
+	}
+}
+
+func TestPolicyFilterGet_GivenFailingQuery_WhenGetting_ThenWrapsDatabaseError(t *testing.T) {
 	for _, tt := range []struct {
 		name        string
 		failOnCount bool
 	}{
-		{name: "count", failOnCount: true},
-		{name: "scan"},
+		{name: "given count query fails", failOnCount: true},
+		{name: "given scan query fails"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			db := newPolicyFilterTestDB(t)
@@ -135,7 +174,7 @@ func TestPolicyFilterGetWrapsDatabaseErrors(t *testing.T) {
 	}
 }
 
-func TestPolicyFilterGetRejectsNegativePagination(t *testing.T) {
+func TestPolicyFilterGet_GivenNegativeLimitOrOffset_WhenGetting_ThenReturnsInvalidPaginationError(t *testing.T) {
 	for _, filter := range []PolicyFilter{{Limit: -1}, {Offset: -1}} {
 		_, _, _, err := (&filter).Get(nil)
 		var meshkitErr *meshkiterrors.ErrorV2
@@ -144,7 +183,7 @@ func TestPolicyFilterGetRejectsNegativePagination(t *testing.T) {
 	}
 }
 
-func TestPolicyFilterGetBuildsPostgresQuery(t *testing.T) {
+func TestPolicyFilterGet_GivenPostgresDialect_WhenGetting_ThenBuildsExpectedQuery(t *testing.T) {
 	var queryLog bytes.Buffer
 	db, err := gorm.Open(postgres.New(postgres.Config{DSN: "host=localhost user=test dbname=test sslmode=disable"}), &gorm.Config{
 		DryRun:               true,
@@ -160,6 +199,18 @@ func TestPolicyFilterGetBuildsPostgresQuery(t *testing.T) {
 	require.Contains(t, queryLog.String(), `JOIN model_dbs ON model_dbs.id = policy_definitions."modelID"`)
 	require.Contains(t, queryLog.String(), `ORDER BY "policy_definitions"."kind"`)
 	require.Contains(t, queryLog.String(), `"policy_definitions"."id"`)
+}
+
+func seedPolicyModel(t *testing.T, db *database.Handler, id, name string) {
+	t.Helper()
+	require.NoError(t, db.Table("model_dbs").Create(map[string]interface{}{"id": id, "name": name}).Error)
+}
+
+func seedPolicy(t *testing.T, db *database.Handler, id, kind, subType, modelID string) {
+	t.Helper()
+	require.NoError(t, db.Table("policy_definitions").Create(map[string]interface{}{
+		"id": id, "kind": kind, "sub_type": subType, "modelID": modelID,
+	}).Error)
 }
 
 func newPolicyFilterTestDB(t *testing.T) database.Handler {
