@@ -166,7 +166,7 @@ func TestPolicyFilterGet_GivenFailingQuery_WhenGetting_ThenWrapsDatabaseError(t 
 			}
 
 			_, _, _, err := (&PolicyFilter{}).Get(&db)
-			var meshkitErr *meshkiterrors.ErrorV2
+			var meshkitErr *meshkiterrors.Error
 			require.ErrorAs(t, err, &meshkitErr)
 			require.Equal(t, registry.ErrGetPolicyDefinitionsCode, meshkitErr.Code)
 			require.Contains(t, meshkitErr.Error(), wantErr.Error())
@@ -177,7 +177,7 @@ func TestPolicyFilterGet_GivenFailingQuery_WhenGetting_ThenWrapsDatabaseError(t 
 func TestPolicyFilterGet_GivenNegativeLimitOrOffset_WhenGetting_ThenReturnsInvalidPaginationError(t *testing.T) {
 	for _, filter := range []PolicyFilter{{Limit: -1}, {Offset: -1}} {
 		_, _, _, err := (&filter).Get(nil)
-		var meshkitErr *meshkiterrors.ErrorV2
+		var meshkitErr *meshkiterrors.Error
 		require.ErrorAs(t, err, &meshkitErr)
 		require.Equal(t, registry.ErrInvalidPolicyPaginationCode, meshkitErr.Code)
 	}
@@ -194,7 +194,7 @@ func TestPolicyFilterGet_GivenPostgresDialect_WhenGetting_ThenBuildsExpectedQuer
 
 	handler := database.Handler{DB: db}
 	_, _, _, err = (&PolicyFilter{ModelName: "test-model", OrderOn: "kind", Limit: 1}).Get(&handler)
-	var meshkitErr *meshkiterrors.ErrorV2
+	var meshkitErr *meshkiterrors.Error
 	require.ErrorAs(t, err, &meshkitErr) // DryRun can build the query but cannot scan database rows.
 	require.Contains(t, queryLog.String(), `JOIN model_dbs ON model_dbs.id = policy_definitions."modelID"`)
 	require.Contains(t, queryLog.String(), `ORDER BY "policy_definitions"."kind"`)

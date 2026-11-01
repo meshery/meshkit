@@ -36,7 +36,7 @@ func ErrGetPolicyDefinitions(err error) error {
 		ErrGetPolicyDefinitionsCode,
 		errors.Alert,
 		[]string{"Failed to retrieve policy definitions from the registry"},
-		[]string{"The policy registry query failed"},
+		[]string{"The policy registry query failed", err.Error()},
 		[]string{"The registry database query failed"},
 		[]string{"Check the registry database connection and retry the request"},
 	)
