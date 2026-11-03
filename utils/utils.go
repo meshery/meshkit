@@ -665,6 +665,15 @@ func compareVersions(v1, v2 string) int {
 			part2 = v2Components[i]
 		}
 
+		// A version without a pre-release suffix ranks above the same
+		// version with one, so 1.0.0 is greater than 1.0.0-rc.1.
+		if i >= len(v1Components) && !isNumeric(part2) {
+			return 1
+		}
+		if i >= len(v2Components) && !isNumeric(part1) {
+			return -1
+		}
+
 		if isNumeric(part1) && isNumeric(part2) {
 			num1, _ := strconv.Atoi(part1)
 			num2, _ := strconv.Atoi(part2)
