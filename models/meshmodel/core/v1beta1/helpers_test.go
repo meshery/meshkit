@@ -665,13 +665,13 @@ func TestArtifactHubHandleDependents(t *testing.T) {
 		}
 	})
 
-	t.Run("action mapping for undeploy success", func(t *testing.T) {
-		var capturedCfg kubernetes.ApplyHelmChartConfig
+	t.Run("undeploy leaves the chart installed", func(t *testing.T) {
+		called := false
 		orig := applyHelmChartFunc
 		t.Cleanup(func() { applyHelmChartFunc = orig })
 		applyHelmChartFunc = func(c *kubernetes.Client, cfg kubernetes.ApplyHelmChartConfig) error {
-			capturedCfg = cfg
-			return nil
+			called = true
+			return errors.New("must not be called")
 		}
 
 		comp := component.ComponentDefinition{
@@ -687,37 +687,10 @@ func TestArtifactHubHandleDependents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected nil error, got %v", err)
 		}
-		if capturedCfg.Action != kubernetes.UNINSTALL {
-			t.Fatalf("captured action = %v, want UNINSTALL", capturedCfg.Action)
+		if called {
+			t.Fatal("undeploy must not uninstall the chart: its CRDs and every custom resource of those kinds would go with it")
 		}
-		wantSummary := "Undeployed dependent helm chart for WasmPlugin"
-		if summary != wantSummary {
-			t.Fatalf("summary = %q, want %q", summary, wantSummary)
-		}
-	})
-
-	t.Run("action mapping for undeploy failure", func(t *testing.T) {
-		orig := applyHelmChartFunc
-		t.Cleanup(func() { applyHelmChartFunc = orig })
-		helmErr := errors.New("release not found")
-		applyHelmChartFunc = func(c *kubernetes.Client, cfg kubernetes.ApplyHelmChartConfig) error {
-			return helmErr
-		}
-
-		comp := component.ComponentDefinition{
-			DisplayName: "WasmPlugin",
-			Metadata: component.ComponentDefinition_Metadata{
-				AdditionalProperties: map[string]interface{}{
-					"source_uri": "https://example.com/wasm.tgz",
-				},
-			},
-		}
-
-		summary, err := ah.HandleDependents(comp, nil, false, false)
-		if !errors.Is(err, helmErr) {
-			t.Fatalf("error = %v, want %v", err, helmErr)
-		}
-		wantSummary := "error undeploying dependent helm chart for WasmPlugin, please proceed with manual uninstall or try again"
+		wantSummary := "Left the dependent helm chart for WasmPlugin installed, it may be in use by other designs"
 		if summary != wantSummary {
 			t.Fatalf("summary = %q, want %q", summary, wantSummary)
 		}
@@ -1209,7 +1182,7 @@ func TestGitHubHandleDependents(t *testing.T) {
 		}
 	})
 
-	t.Run("deploy and undeploy map to correct Helm actions", func(t *testing.T) {
+	t.Run("deploy installs and undeploy leaves the chart installed", func(t *testing.T) {
 		var capturedCfg kubernetes.ApplyHelmChartConfig
 		orig := applyHelmChartFunc
 		t.Cleanup(func() { applyHelmChartFunc = orig })
@@ -1242,16 +1215,18 @@ func TestGitHubHandleDependents(t *testing.T) {
 			t.Fatalf("summary = %q, want %q", summary, "Deployed dependent helm chart for WasmPlugin")
 		}
 
-		// Undeploy
+		// Undeploy leaves the chart installed
+		capturedCfg = kubernetes.ApplyHelmChartConfig{}
 		summary, err = gh.HandleDependents(comp, nil, false, false)
 		if err != nil {
 			t.Fatalf("expected nil error, got %v", err)
 		}
-		if capturedCfg.Action != kubernetes.UNINSTALL {
-			t.Fatalf("Action = %v, want UNINSTALL", capturedCfg.Action)
+		if capturedCfg.URL != "" {
+			t.Fatalf("undeploy must not call Helm, got config %+v", capturedCfg)
 		}
-		if summary != "Undeployed dependent helm chart for WasmPlugin" {
-			t.Fatalf("summary = %q, want %q", summary, "Undeployed dependent helm chart for WasmPlugin")
+		wantSummary := "Left the dependent helm chart for WasmPlugin installed, it may be in use by other designs"
+		if summary != wantSummary {
+			t.Fatalf("summary = %q, want %q", summary, wantSummary)
 		}
 	})
 
@@ -1282,14 +1257,9 @@ func TestGitHubHandleDependents(t *testing.T) {
 			t.Fatalf("summary = %q, want %q", summary, wantDeployErrSummary)
 		}
 
-		// Undeploy failure
-		summary, err = gh.HandleDependents(comp, nil, false, false)
-		if !errors.Is(err, helmErr) {
-			t.Fatalf("err = %v, want %v", err, helmErr)
-		}
-		wantUndeployErrSummary := "error undeploying dependent helm chart for WasmPlugin, please proceed with manual uninstall or try again: failed to install release: timeout"
-		if summary != wantUndeployErrSummary {
-			t.Fatalf("summary = %q, want %q", summary, wantUndeployErrSummary)
+		// Undeploy does not call Helm, so a failing Helm does not fail it
+		if _, err = gh.HandleDependents(comp, nil, false, false); err != nil {
+			t.Fatalf("undeploy err = %v, want nil", err)
 		}
 	})
 }

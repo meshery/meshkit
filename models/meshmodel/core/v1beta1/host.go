@@ -6,6 +6,7 @@ import (
 	"github.com/meshery/meshkit/utils/kubernetes"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta3/component"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type MeshModelHostsWithEntitySummary struct {
@@ -64,6 +65,51 @@ const MesheryAnnotationPrefix = "design.meshery.io"
 
 var applyHelmChartFunc = (*kubernetes.Client).ApplyHelmChart
 
+// kindServed reports whether the cluster already serves the component's kind, which is the
+// signal that the operator and CRDs the component depends on are present. Any failure to
+// find out counts as "not served", so the install is attempted rather than skipped.
+// It is a variable so that tests can run without a cluster.
+var kindServed = func(kc *kubernetes.Client, comp component.ComponentDefinition) bool {
+	if kc == nil || kc.KubeClient == nil || comp.Component.Version == "" || comp.Component.Kind == "" {
+		return false
+	}
+	list, err := kc.KubeClient.Discovery().ServerResourcesForGroupVersion(comp.Component.Version)
+	if err != nil || list == nil {
+		return false
+	}
+	return resourceListServesKind(list, comp.Component.Kind)
+}
+
+func resourceListServesKind(list *metav1.APIResourceList, kind string) bool {
+	for _, r := range list.APIResources {
+		if r.Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+// skipDependentHelmAction reports whether the Helm action for a component's dependents is
+// skipped, and the summary to report when it is.
+//
+// The server calls HandleDependents once per component, and the Helm release is named after
+// the chart, so installing again for every component of a model (or on a redeploy) fails with
+// "cannot reuse a name that is still in use". The install is therefore skipped when the
+// cluster already serves the component's kind, unless an upgrade was requested.
+//
+// Undeploy never uninstalls the chart. Charts commonly ship their CRDs as templates, so the
+// uninstall removes them, and with them every custom resource of those kinds in the cluster,
+// including the ones other designs created.
+func skipDependentHelmAction(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, bool) {
+	if !isDeploy {
+		return fmt.Sprintf("Left the dependent helm chart for %s installed, it may be in use by other designs", comp.DisplayName), true
+	}
+	if !performUpgrade && kindServed(kc, comp) {
+		return fmt.Sprintf("Dependent resources for %s are already available in the cluster", comp.DisplayName), true
+	}
+	return "", false
+}
+
 func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (summary string, err error) {
 	sourceURI, err := resolveSourceURI(comp)
 	if err != nil {
@@ -73,9 +119,8 @@ func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *k
 		return fmt.Sprintf("no source_uri declared for %s", comp.DisplayName), nil
 	}
 
-	act := kubernetes.UNINSTALL
-	if isDeploy {
-		act = kubernetes.INSTALL
+	if summary, skip := skipDependentHelmAction(comp, kc, isDeploy, performUpgrade); skip {
+		return summary, nil
 	}
 
 	namespace := resolveNamespace(comp, "default")
@@ -84,23 +129,13 @@ func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *k
 		URL:                sourceURI,
 		Namespace:          namespace,
 		CreateNamespace:    true,
-		Action:             act,
+		Action:             kubernetes.INSTALL,
 		UpgradeIfInstalled: performUpgrade,
 	})
 	if err != nil {
-		if !isDeploy {
-			summary = fmt.Sprintf("error undeploying dependent helm chart for %s, please proceed with manual uninstall or try again", comp.DisplayName)
-		} else {
-			summary = fmt.Sprintf("error deploying dependent helm chart for %s, please procced with manual install or try again", comp.DisplayName)
-		}
-	} else {
-		if !isDeploy {
-			summary = fmt.Sprintf("Undeployed dependent helm chart for %s", comp.DisplayName)
-		} else {
-			summary = fmt.Sprintf("Deployed dependent helm chart for %s", comp.DisplayName)
-		}
+		return fmt.Sprintf("error deploying dependent helm chart for %s, please procced with manual install or try again", comp.DisplayName), err
 	}
-	return summary, err
+	return fmt.Sprintf("Deployed dependent helm chart for %s", comp.DisplayName), nil
 }
 
 func (ah ArtifactHub) String() string {
@@ -136,39 +171,27 @@ func (gh GitHub) HandleDependents(comp component.ComponentDefinition, kc *kubern
 		return fmt.Sprintf("No Helm operator dependency found for %s; skipped", comp.DisplayName), nil
 	}
 
+	if summary, skip := skipDependentHelmAction(comp, kc, isDeploy, performUpgrade); skip {
+		return summary, nil
+	}
+
 	fallbackNS := "default"
 	if comp.Model != nil && isValidDNS1123Label(comp.Model.Name) {
 		fallbackNS = comp.Model.Name
 	}
 	namespace := resolveNamespace(comp, fallbackNS)
 
-	act := kubernetes.UNINSTALL
-	if isDeploy {
-		act = kubernetes.INSTALL
-	}
-
 	err = applyHelmChartFunc(kc, kubernetes.ApplyHelmChartConfig{
 		URL:                chartURL,
 		Namespace:          namespace,
 		CreateNamespace:    true,
-		Action:             act,
+		Action:             kubernetes.INSTALL,
 		UpgradeIfInstalled: performUpgrade,
 	})
 	if err != nil {
-		if !isDeploy {
-			summary = fmt.Sprintf("error undeploying dependent helm chart for %s, please proceed with manual uninstall or try again: %v", comp.DisplayName, err)
-		} else {
-			summary = fmt.Sprintf("error deploying dependent helm chart for %s, please proceed with manual install or try again: %v", comp.DisplayName, err)
-		}
-		return summary, err
+		return fmt.Sprintf("error deploying dependent helm chart for %s, please proceed with manual install or try again: %v", comp.DisplayName, err), err
 	}
-
-	if !isDeploy {
-		summary = fmt.Sprintf("Undeployed dependent helm chart for %s", comp.DisplayName)
-	} else {
-		summary = fmt.Sprintf("Deployed dependent helm chart for %s", comp.DisplayName)
-	}
-	return summary, nil
+	return fmt.Sprintf("Deployed dependent helm chart for %s", comp.DisplayName), nil
 }
 
 func (gh GitHub) String() string {
