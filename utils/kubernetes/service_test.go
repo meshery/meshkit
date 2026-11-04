@@ -522,6 +522,35 @@ func TestGetEndpoint(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "PortSelector matching no port returns ErrEndpointNotFound",
+			args: args{
+				ctx: context.TODO(),
+				opts: &ServiceOptions{
+					PortSelector: "does-not-exist",
+					Mock: &utils.MockOptions{
+						DesiredEndpoint: "1.1.1.1:1001",
+					},
+				},
+				obj: &v1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test_service",
+						Namespace:   "default",
+						Annotations: map[string]string{},
+					},
+					Spec: v1.ServiceSpec{
+						ClusterIP: "1.1.1.1",
+						Ports: []v1.ServicePort{
+							{Name: "test_port_1", Port: 1000},
+							{Name: "test_port_2", Port: 1001},
+						},
+						Type: v1.ServiceTypeClusterIP,
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
