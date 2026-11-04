@@ -2,11 +2,13 @@ package v1beta1
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/meshery/meshkit/utils/kubernetes"
 	"github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta3/component"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type MeshModelHostsWithEntitySummary struct {
@@ -65,12 +67,22 @@ const MesheryAnnotationPrefix = "design.meshery.io"
 
 var applyHelmChartFunc = (*kubernetes.Client).ApplyHelmChart
 
+// releaseDeployedFunc reports whether the Helm release for a chart is already deployed in the
+// target namespace. It is a variable so that tests can run without a cluster.
+var releaseDeployedFunc = (*kubernetes.Client).HelmReleaseDeployed
+
 // kindServed reports whether the cluster already serves the component's kind, which is the
-// signal that the operator and CRDs the component depends on are present. Any failure to
-// find out counts as "not served", so the install is attempted rather than skipped.
+// signal that the CRDs the component depends on are present. It covers operators that were
+// installed without Helm, where there is no release to find. Built-in kinds (a group without a
+// dot, such as the core group or apps) are always served and say nothing about the operator, so
+// they never count. Any failure to find out counts as "not served".
 // It is a variable so that tests can run without a cluster.
 var kindServed = func(kc *kubernetes.Client, comp component.ComponentDefinition) bool {
 	if kc == nil || kc.KubeClient == nil || comp.Component.Version == "" || comp.Component.Kind == "" {
+		return false
+	}
+	gv, err := schema.ParseGroupVersion(comp.Component.Version)
+	if err != nil || !strings.Contains(gv.Group, ".") {
 		return false
 	}
 	list, err := kc.KubeClient.Discovery().ServerResourcesForGroupVersion(comp.Component.Version)
@@ -94,17 +106,27 @@ func resourceListServesKind(list *metav1.APIResourceList, kind string) bool {
 //
 // The server calls HandleDependents once per component, and the Helm release is named after
 // the chart, so installing again for every component of a model (or on a redeploy) fails with
-// "cannot reuse a name that is still in use". The install is therefore skipped when the
-// cluster already serves the component's kind, unless an upgrade was requested.
+// "cannot reuse a name that is still in use". On deploy the install is therefore skipped when
+// the release is already deployed, or, for an operator installed without Helm, when the cluster
+// already serves the component's kind. An explicit upgrade is never skipped. A failed lookup
+// falls through to the install, so the checks can only avoid a redundant install.
 //
 // Undeploy never uninstalls the chart. Charts commonly ship their CRDs as templates, so the
 // uninstall removes them, and with them every custom resource of those kinds in the cluster,
 // including the ones other designs created.
-func skipDependentHelmAction(comp component.ComponentDefinition, kc *kubernetes.Client, isDeploy, performUpgrade bool) (string, bool) {
+func skipDependentHelmAction(comp component.ComponentDefinition, kc *kubernetes.Client, cfg kubernetes.ApplyHelmChartConfig, isDeploy, performUpgrade bool) (string, bool) {
 	if !isDeploy {
 		return fmt.Sprintf("Left the dependent helm chart for %s installed, it may be in use by other designs", comp.DisplayName), true
 	}
-	if !performUpgrade && kindServed(kc, comp) {
+	if performUpgrade {
+		return "", false
+	}
+	if kc != nil {
+		if deployed, err := releaseDeployedFunc(kc, cfg); err == nil && deployed {
+			return fmt.Sprintf("Dependent helm chart for %s is already installed", comp.DisplayName), true
+		}
+	}
+	if kindServed(kc, comp) {
 		return fmt.Sprintf("Dependent resources for %s are already available in the cluster", comp.DisplayName), true
 	}
 	return "", false
@@ -119,19 +141,18 @@ func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *k
 		return fmt.Sprintf("no source_uri declared for %s", comp.DisplayName), nil
 	}
 
-	if summary, skip := skipDependentHelmAction(comp, kc, isDeploy, performUpgrade); skip {
-		return summary, nil
-	}
-
-	namespace := resolveNamespace(comp, "default")
-
-	err = applyHelmChartFunc(kc, kubernetes.ApplyHelmChartConfig{
+	cfg := kubernetes.ApplyHelmChartConfig{
 		URL:                sourceURI,
-		Namespace:          namespace,
+		Namespace:          resolveNamespace(comp, "default"),
 		CreateNamespace:    true,
 		Action:             kubernetes.INSTALL,
 		UpgradeIfInstalled: performUpgrade,
-	})
+	}
+	if summary, skip := skipDependentHelmAction(comp, kc, cfg, isDeploy, performUpgrade); skip {
+		return summary, nil
+	}
+
+	err = applyHelmChartFunc(kc, cfg)
 	if err != nil {
 		return fmt.Sprintf("error deploying dependent helm chart for %s, please procced with manual install or try again", comp.DisplayName), err
 	}
@@ -171,23 +192,22 @@ func (gh GitHub) HandleDependents(comp component.ComponentDefinition, kc *kubern
 		return fmt.Sprintf("No Helm operator dependency found for %s; skipped", comp.DisplayName), nil
 	}
 
-	if summary, skip := skipDependentHelmAction(comp, kc, isDeploy, performUpgrade); skip {
-		return summary, nil
-	}
-
 	fallbackNS := "default"
 	if comp.Model != nil && isValidDNS1123Label(comp.Model.Name) {
 		fallbackNS = comp.Model.Name
 	}
-	namespace := resolveNamespace(comp, fallbackNS)
-
-	err = applyHelmChartFunc(kc, kubernetes.ApplyHelmChartConfig{
+	cfg := kubernetes.ApplyHelmChartConfig{
 		URL:                chartURL,
-		Namespace:          namespace,
+		Namespace:          resolveNamespace(comp, fallbackNS),
 		CreateNamespace:    true,
 		Action:             kubernetes.INSTALL,
 		UpgradeIfInstalled: performUpgrade,
-	})
+	}
+	if summary, skip := skipDependentHelmAction(comp, kc, cfg, isDeploy, performUpgrade); skip {
+		return summary, nil
+	}
+
+	err = applyHelmChartFunc(kc, cfg)
 	if err != nil {
 		return fmt.Sprintf("error deploying dependent helm chart for %s, please proceed with manual install or try again: %v", comp.DisplayName, err), err
 	}
