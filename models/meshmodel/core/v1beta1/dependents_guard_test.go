@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -14,6 +15,16 @@ import (
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
+
+// The handler tests in helpers_test.go stub applyHelmChartFunc to capture the Helm config and to
+// inject failures. A deploy now goes through installChartOnceFunc, so by default it hands the
+// config to whatever applyHelmChartFunc currently is, and those tests keep checking the same
+// things without a cluster. Tests that care about the release lookup replace it with stubHelm.
+func init() {
+	installChartOnceFunc = func(c *kubernetes.Client, cfg kubernetes.ApplyHelmChartConfig, _ func() bool) (kubernetes.HelmInstallOutcome, error) {
+		return kubernetes.HelmInstalled, applyHelmChartFunc(c, cfg)
+	}
+}
 
 func chartComponent(name, kind string) component.ComponentDefinition {
 	comp := component.ComponentDefinition{
@@ -29,27 +40,50 @@ func chartComponent(name, kind string) component.ComponentDefinition {
 	return comp
 }
 
-// stubCluster replaces the Helm install, the release lookup and the kind discovery for the
-// duration of a test. No release is deployed until a test says so with stubRelease.
-// served maps a component kind to whether the cluster serves it; installs counts Helm calls.
-func stubCluster(t *testing.T, served map[string]bool) (installs *[]kubernetes.ApplyHelmChartConfig) {
+// fakeHelm stands in for the cluster: a single Helm release that is either deployed or not, the
+// kinds the cluster serves without Helm, and a record of every Helm call.
+type fakeHelm struct {
+	deployed    bool
+	servedKinds map[string]bool
+	onceErr     error
+	onceCalls   int32
+	installs    int
+	applies     []kubernetes.ApplyHelmChartConfig
+}
+
+// stubHelm replaces the install, the upgrade and the kind discovery for the duration of a test.
+// served maps a component kind to whether the cluster serves it without a Helm release.
+func stubHelm(t *testing.T, served map[string]bool) *fakeHelm {
 	t.Helper()
-	var calls []kubernetes.ApplyHelmChartConfig
-	origApply, origServed, origRelease := applyHelmChartFunc, kindServed, releaseDeployedFunc
-	t.Cleanup(func() { applyHelmChartFunc, kindServed, releaseDeployedFunc = origApply, origServed, origRelease })
-	releaseDeployedFunc = func(*kubernetes.Client, kubernetes.ApplyHelmChartConfig) (bool, error) { return false, nil }
+	f := &fakeHelm{servedKinds: served}
+	origApply, origOnce, origServed := applyHelmChartFunc, installChartOnceFunc, kindServed
+	t.Cleanup(func() { applyHelmChartFunc, installChartOnceFunc, kindServed = origApply, origOnce, origServed })
+
 	applyHelmChartFunc = func(_ *kubernetes.Client, cfg kubernetes.ApplyHelmChartConfig) error {
-		calls = append(calls, cfg)
-		// The first install makes every kind of the chart available, like the real cluster.
-		for k := range served {
-			served[k] = true
-		}
+		f.applies = append(f.applies, cfg)
 		return nil
 	}
-	kindServed = func(_ *kubernetes.Client, comp component.ComponentDefinition) bool {
-		return served[comp.Component.Kind]
+	// Mirrors InstallHelmChartOnce: a deployed release is left alone, then the caller is asked
+	// whether the chart's resources already exist, and only then is the chart installed.
+	installChartOnceFunc = func(_ *kubernetes.Client, _ kubernetes.ApplyHelmChartConfig, provided func() bool) (kubernetes.HelmInstallOutcome, error) {
+		atomic.AddInt32(&f.onceCalls, 1)
+		if f.onceErr != nil {
+			return kubernetes.HelmInstalled, f.onceErr
+		}
+		if f.deployed {
+			return kubernetes.HelmAlreadyInstalled, nil
+		}
+		if provided != nil && provided() {
+			return kubernetes.HelmProvidedElsewhere, nil
+		}
+		f.deployed = true
+		f.installs++
+		return kubernetes.HelmInstalled, nil
 	}
-	return &calls
+	kindServed = func(_ *kubernetes.Client, comp component.ComponentDefinition) bool {
+		return f.servedKinds[comp.Component.Kind]
+	}
+	return f
 }
 
 func TestDependentsInstallOncePerCluster(t *testing.T) {
@@ -59,14 +93,9 @@ func TestDependentsInstallOncePerCluster(t *testing.T) {
 	}
 	for name, h := range handlers {
 		t.Run(name, func(t *testing.T) {
-			kinds := []string{"InfisicalConnection", "InfisicalAuth", "InfisicalStaticSecret"}
-			served := map[string]bool{}
-			for _, k := range kinds {
-				served[k] = false
-			}
-			installs := stubCluster(t, served)
+			helm := stubHelm(t, nil)
 
-			for i, kind := range kinds {
+			for i, kind := range []string{"InfisicalConnection", "InfisicalAuth", "InfisicalStaticSecret"} {
 				summary, err := h.HandleDependents(chartComponent(kind, kind), nil, true, false)
 				if err != nil {
 					t.Fatalf("component %d (%s): unexpected error %v", i, kind, err)
@@ -74,44 +103,107 @@ func TestDependentsInstallOncePerCluster(t *testing.T) {
 				if i == 0 && summary != "Deployed dependent helm chart for "+kind {
 					t.Fatalf("first component summary = %q, want the install summary", summary)
 				}
-				if i > 0 && summary != "Dependent resources for "+kind+" are already available in the cluster" {
-					t.Fatalf("component %d summary = %q, want the already-available summary", i, summary)
+				if i > 0 && summary != "Dependent helm chart for "+kind+" is already installed" {
+					t.Fatalf("component %d summary = %q, want the already-installed summary", i, summary)
 				}
 			}
-			if len(*installs) != 1 {
-				t.Fatalf("Helm installs = %d, want 1: later components of the model must not install the release again", len(*installs))
+			if helm.installs != 1 {
+				t.Fatalf("Helm installs = %d, want 1: later components of the model must not install the release again", helm.installs)
 			}
 		})
 	}
 }
 
-func TestDependentsRedeployDoesNotReinstall(t *testing.T) {
-	installs := stubCluster(t, map[string]bool{"InfisicalAuth": true})
+func TestDependentsSkipWhenKindServedWithoutHelm(t *testing.T) {
+	// An operator installed without Helm: there is no release, but the cluster serves the kind.
+	helm := stubHelm(t, map[string]bool{"InfisicalAuth": true})
 
 	summary, err := GitHub{}.HandleDependents(chartComponent("auth", "InfisicalAuth"), nil, true, false)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
-	if len(*installs) != 0 {
-		t.Fatalf("Helm installs = %d, want 0 when the kind is already served", len(*installs))
+	if helm.installs != 0 {
+		t.Fatalf("Helm installs = %d, want 0 when the kind is already served", helm.installs)
 	}
 	if want := "Dependent resources for auth are already available in the cluster"; summary != want {
 		t.Fatalf("summary = %q, want %q", summary, want)
 	}
 }
 
-func TestDependentsUpgradeOverridesAlreadyServed(t *testing.T) {
-	installs := stubCluster(t, map[string]bool{"InfisicalAuth": true})
+func TestDependentsSkipWhenReleaseDeployed(t *testing.T) {
+	handlers := map[string]DependencyHandler{"artifacthub": ArtifactHub{}, "github": GitHub{}}
+	for name, h := range handlers {
+		t.Run(name, func(t *testing.T) {
+			// The kind is not served (for example its CRDs were removed), but the release exists.
+			helm := stubHelm(t, map[string]bool{"InfisicalAuth": false})
+			helm.deployed = true
 
-	ah := ArtifactHub{}
-	if _, err := ah.HandleDependents(chartComponent("auth", "InfisicalAuth"), nil, true, true); err != nil {
+			summary, err := h.HandleDependents(chartComponent("auth", "InfisicalAuth"), nil, true, false)
+			if err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			if helm.installs != 0 {
+				t.Fatalf("Helm installs = %d, want 0 when the release is deployed", helm.installs)
+			}
+			if want := "Dependent helm chart for auth is already installed"; summary != want {
+				t.Fatalf("summary = %q, want %q", summary, want)
+			}
+		})
+	}
+}
+
+func TestDependentsReportUnusableRelease(t *testing.T) {
+	// A release that exists in a state a new install cannot fix comes back as an error from
+	// the install step, and must reach the caller instead of being reported as success.
+	wantErr := errors.New(`helm release "operator" in namespace "default" is failed`)
+	handlers := map[string]DependencyHandler{"artifacthub": ArtifactHub{}, "github": GitHub{}}
+	for name, h := range handlers {
+		t.Run(name, func(t *testing.T) {
+			helm := stubHelm(t, nil)
+			helm.onceErr = wantErr
+
+			summary, err := h.HandleDependents(chartComponent("auth", "InfisicalAuth"), nil, true, false)
+			if !errors.Is(err, wantErr) {
+				t.Fatalf("error = %v, want %v", err, wantErr)
+			}
+			if !strings.HasPrefix(summary, "error deploying dependent helm chart for auth") {
+				t.Fatalf("summary = %q, want the deploy error summary", summary)
+			}
+		})
+	}
+}
+
+func TestDependentsUpgradeRunsHelmUpgrade(t *testing.T) {
+	// An explicit upgrade goes straight to ApplyHelmChart, whatever the release or the cluster has.
+	helm := stubHelm(t, map[string]bool{"InfisicalAuth": true})
+	helm.deployed = true
+
+	summary, err := ArtifactHub{}.HandleDependents(chartComponent("auth", "InfisicalAuth"), nil, true, true)
+	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
-	if len(*installs) != 1 {
-		t.Fatalf("Helm calls = %d, want 1: an explicit upgrade must run even when the kind is served", len(*installs))
+	if len(helm.applies) != 1 || !helm.applies[0].UpgradeIfInstalled {
+		t.Fatalf("expected one ApplyHelmChart call with UpgradeIfInstalled, got %+v", helm.applies)
 	}
-	if !(*installs)[0].UpgradeIfInstalled {
-		t.Fatal("expected UpgradeIfInstalled to be set")
+	if helm.onceCalls != 0 {
+		t.Fatalf("install-once calls = %d, want 0 for an explicit upgrade", helm.onceCalls)
+	}
+	if want := "Deployed dependent helm chart for auth"; summary != want {
+		t.Fatalf("summary = %q, want %q", summary, want)
+	}
+}
+
+func TestDependentsUpgradeFailureIsReported(t *testing.T) {
+	stubHelm(t, nil)
+	wantErr := errors.New("upgrade failed")
+	applyHelmChartFunc = func(*kubernetes.Client, kubernetes.ApplyHelmChartConfig) error { return wantErr }
+
+	summary, err := GitHub{}.HandleDependents(chartComponent("auth", "InfisicalAuth"), nil, true, true)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("error = %v, want %v", err, wantErr)
+	}
+	if !strings.HasPrefix(summary, "error deploying dependent helm chart for auth") {
+		t.Fatalf("summary = %q, want the deploy error summary", summary)
 	}
 }
 
@@ -119,13 +211,13 @@ func TestDependentsUndeployNeverCallsHelm(t *testing.T) {
 	handlers := map[string]DependencyHandler{"artifacthub": ArtifactHub{}, "github": GitHub{}}
 	for name, h := range handlers {
 		for _, servedNow := range []bool{true, false} {
-			installs := stubCluster(t, map[string]bool{"InfisicalAuth": servedNow})
+			helm := stubHelm(t, map[string]bool{"InfisicalAuth": servedNow})
 			summary, err := h.HandleDependents(chartComponent("auth", "InfisicalAuth"), nil, false, false)
 			if err != nil {
 				t.Fatalf("%s: unexpected error %v", name, err)
 			}
-			if len(*installs) != 0 {
-				t.Fatalf("%s: undeploy called Helm %d times, want 0", name, len(*installs))
+			if len(helm.applies) != 0 || helm.onceCalls != 0 {
+				t.Fatalf("%s: undeploy called Helm (apply %d, install-once %d), want none", name, len(helm.applies), helm.onceCalls)
 			}
 			if want := "Left the dependent helm chart for auth installed, it may be in use by other designs"; summary != want {
 				t.Fatalf("%s: summary = %q, want %q", name, summary, want)
@@ -159,82 +251,6 @@ func TestResourceListServesKind(t *testing.T) {
 	}
 	if resourceListServesKind(list, "Missing") {
 		t.Fatal("expected Missing not to be served")
-	}
-}
-
-// stubRelease overrides the release lookup installed by stubCluster and returns a call counter.
-func stubRelease(t *testing.T, deployed bool, err error) *int32 {
-	t.Helper()
-	var calls int32
-	releaseDeployedFunc = func(*kubernetes.Client, kubernetes.ApplyHelmChartConfig) (bool, error) {
-		atomic.AddInt32(&calls, 1)
-		return deployed, err
-	}
-	return &calls
-}
-
-func TestDependentsSkipWhenReleaseDeployed(t *testing.T) {
-	handlers := map[string]DependencyHandler{"artifacthub": ArtifactHub{}, "github": GitHub{}}
-	for name, h := range handlers {
-		t.Run(name, func(t *testing.T) {
-			// The kind is not served (for example its CRDs were removed), but the release exists.
-			installs := stubCluster(t, map[string]bool{"InfisicalAuth": false})
-			lookups := stubRelease(t, true, nil)
-
-			summary, err := h.HandleDependents(chartComponent("auth", "InfisicalAuth"), &kubernetes.Client{}, true, false)
-			if err != nil {
-				t.Fatalf("unexpected error %v", err)
-			}
-			if len(*installs) != 0 {
-				t.Fatalf("Helm installs = %d, want 0 when the release is deployed", len(*installs))
-			}
-			if *lookups != 1 {
-				t.Fatalf("release lookups = %d, want 1", *lookups)
-			}
-			if want := "Dependent helm chart for auth is already installed"; summary != want {
-				t.Fatalf("summary = %q, want %q", summary, want)
-			}
-		})
-	}
-}
-
-func TestDependentsReleaseLookupFailureFallsThrough(t *testing.T) {
-	// A failed lookup must not block the install.
-	installs := stubCluster(t, map[string]bool{"InfisicalAuth": false})
-	stubRelease(t, false, errors.New("cluster unreachable"))
-
-	if _, err := (GitHub{}).HandleDependents(chartComponent("auth", "InfisicalAuth"), &kubernetes.Client{}, true, false); err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-	if len(*installs) != 1 {
-		t.Fatalf("Helm installs = %d, want 1 when the release lookup fails", len(*installs))
-	}
-}
-
-func TestDependentsUpgradeSkipsReleaseLookup(t *testing.T) {
-	installs := stubCluster(t, map[string]bool{"InfisicalAuth": true})
-	lookups := stubRelease(t, true, nil)
-
-	if _, err := (GitHub{}).HandleDependents(chartComponent("auth", "InfisicalAuth"), &kubernetes.Client{}, true, true); err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-	if *lookups != 0 {
-		t.Fatalf("release lookups = %d, want 0 for an explicit upgrade", *lookups)
-	}
-	if len(*installs) != 1 || !(*installs)[0].UpgradeIfInstalled {
-		t.Fatalf("expected one Helm call with UpgradeIfInstalled, got %+v", *installs)
-	}
-}
-
-func TestDependentsUndeployDoesNotLookUpRelease(t *testing.T) {
-	stubCluster(t, map[string]bool{"InfisicalAuth": true})
-	lookups := stubRelease(t, true, nil)
-
-	if _, err := (ArtifactHub{}).HandleDependents(chartComponent("auth", "InfisicalAuth"), &kubernetes.Client{}, false, false); err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-	if *lookups != 0 {
-		t.Fatalf("release lookups = %d, want 0 on undeploy", *lookups)
 	}
 }
 
