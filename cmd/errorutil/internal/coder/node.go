@@ -124,7 +124,10 @@ func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.In
 	if ok {
 		for _, id := range spec.Names {
 			if isErrorCodeVarName(id.Name) {
-				value0 := id.Obj.Decl.(*ast.ValueSpec).Values[0]
+				value0, hasValue := errorCodeDeclValue(id)
+				if !hasValue {
+					logger.WithFields(logrus.Fields{"name": id.Name}).Warn("Err* variable detected without an inspectable declaration value.")
+				}
 				isLiteral := false
 				isInteger := false
 				oldValue := ""
@@ -172,4 +175,22 @@ func handleValueSpec(n ast.Node, update bool, updateAll bool, comp *component.In
 		}
 	}
 	return anyValueChanged
+}
+
+// errorCodeDeclValue returns the first value expression of the ValueSpec that
+// declares id, if there is one.
+//
+// Two legal Go constructs have no inspectable value: `var ErrFooCode string`
+// declares the symbol with no initializer, and an identifier the parser did not
+// resolve has no declaration object at all. Neither is an analyzable error code,
+// and neither must crash the analyzer.
+func errorCodeDeclValue(id *ast.Ident) (ast.Expr, bool) {
+	if id.Obj == nil {
+		return nil, false
+	}
+	spec, ok := id.Obj.Decl.(*ast.ValueSpec)
+	if !ok || len(spec.Values) == 0 {
+		return nil, false
+	}
+	return spec.Values[0], true
 }

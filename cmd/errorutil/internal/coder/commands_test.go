@@ -516,7 +516,9 @@ func TestCommandCheck(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				os.Rename(filepath.Join(dir, "errorutil_analyze_summary.json"), filepath.Join(dir, "b_sum.json"))
+				if err := os.Rename(filepath.Join(dir, "errorutil_analyze_summary.json"), filepath.Join(dir, "b_sum.json")); err != nil {
+					t.Fatal(err)
+				}
 				bSum := filepath.Join(dir, "b_sum.json")
 
 				comp2 := &component.Info{NextErrorCode: 1002}
@@ -524,7 +526,9 @@ func TestCommandCheck(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				os.Rename(filepath.Join(dir, "errorutil_analyze_summary.json"), filepath.Join(dir, "c_sum.json"))
+				if err := os.Rename(filepath.Join(dir, "errorutil_analyze_summary.json"), filepath.Join(dir, "c_sum.json")); err != nil {
+					t.Fatal(err)
+				}
 				cSum := filepath.Join(dir, "c_sum.json")
 
 				return []string{

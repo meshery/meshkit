@@ -25,3 +25,12 @@ errorutil-analyze:
 ## Build the Meshery Error Code Utility. 
 build-errorutil:
 	go build -o errorutil cmd/errorutil/main.go
+
+## Install the local pre-commit hook that validates error codes before commit.
+setup-hooks:
+	git config core.hooksPath .githooks
+	chmod +x .githooks/pre-commit
+
+## Run the pre-commit hook regression suite (bash; also runs in CI).
+test-hooks:
+	bash .githooks/test/run_tests.sh
