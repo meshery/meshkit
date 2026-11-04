@@ -20,13 +20,13 @@ import (
 )
 
 func CreateTempOCIContentDir() (tempDir string, err error) {
-	wd := utils.GetHome()	
+	wd := utils.GetHome()
 	wd = filepath.Join(wd, ".meshery", "content")
-	
+
 	if err := os.MkdirAll(wd, 0755); err != nil {
 		return "", err
 	}
-	
+
 	tempDir, err = os.MkdirTemp(wd, "oci")
 	if err != nil {
 		return "", err
