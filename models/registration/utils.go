@@ -45,7 +45,12 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 			return nil, ErrGetEntity(fmt.Errorf("Invalid model definition: %s", err.Error()))
 		}
 		et = &model
-	case schema.RelationshipSchemaVersionV1Beta2, v1alpha3.RelationshipSchemaVersion:
+	// Accept v1alpha3, v1beta2, and v1beta3 relationship schema version
+	// strings, mirroring the component/model compatibility above. The wire
+	// shapes are compatible with the v1alpha3 Go struct (meshery/meshery's
+	// relationship_version_bridge.go round-trips them with shallow typed
+	// copies), so all three decode into the same registration type.
+	case schema.RelationshipSchemaVersionV1Beta2, schema.RelationshipSchemaVersionV1Beta3, v1alpha3.RelationshipSchemaVersion:
 		var rel relationship.RelationshipDefinition
 		err := encoding.Unmarshal(byt, &rel)
 		if err != nil {
