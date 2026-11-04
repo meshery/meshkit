@@ -38,7 +38,7 @@ var (
 	ErrInvalidHelmChartCode                        = "meshkit-11292"
 	ErrInvalidDockerComposeCode                    = "meshkit-11293"
 	ErrInvalidKustomizationCode                    = "meshkit-11294"
-	ErrUncompressedTarCode                         = "meshkit-11305"
+	ErrUncompressedTarCode                         = "meshkit-11334"
 	ErrFileTypeNotSupportedForDesignConversionCode = "meshkit-11300"
 )
 

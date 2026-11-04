@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrMarshalStructToCSVCode = "meshkit-11301"
+	ErrMarshalStructToCSVCode = "meshkit-11339"
 	ErrReadCSVRowCode         = "meshkit-11306"
 )
 
