@@ -92,6 +92,7 @@ var kindServed = func(kc *kubernetes.Client, comp component.ComponentDefinition)
 	return resourceListServesKind(list, comp.Component.Kind)
 }
 
+// resourceListServesKind reports whether the API resource list contains the given kind.
 func resourceListServesKind(list *metav1.APIResourceList, kind string) bool {
 	for _, r := range list.APIResources {
 		if r.Kind == kind {
