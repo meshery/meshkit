@@ -30,63 +30,69 @@ const (
 	HelmProvidedElsewhere
 )
 
-// helmReleaseLock is the lock for one release, with the number of calls holding or waiting for it.
-type helmReleaseLock struct {
+// helmLock is one lock in the table, with the number of calls holding or waiting for it.
+type helmLock struct {
 	mu   sync.Mutex
 	refs int
 }
 
 var (
-	// helmReleaseLocks serializes InstallHelmChartOnce per cluster, namespace and release. An
-	// entry exists only while a call holds or waits for it, so the table is bounded by the
-	// number of calls in flight and does not grow with the number of releases ever touched.
-	helmReleaseLocks   = map[string]*helmReleaseLock{}
-	helmReleaseLocksMu sync.Mutex
+	// helmLocks serializes InstallHelmChartOnce. An entry exists only while a call holds or waits
+	// for it, so the table is bounded by the number of calls in flight and does not grow with the
+	// number of releases or charts ever touched.
+	helmLocks   = map[string]*helmLock{}
+	helmLocksMu sync.Mutex
 )
 
-// lockHelmRelease takes the lock for one release and returns the function that releases it.
-//
-// The release name is only known once the chart is loaded, so the key uses the release name
-// when the caller set one and the chart source otherwise. The chart name comes from the chart
-// itself, so two sources for the same chart are not serialized against each other; Helm's own
-// storage still rejects the second install in that case.
-func lockHelmRelease(c *Client, cfg ApplyHelmChartConfig) func() {
-	host := ""
-	if c != nil {
-		host = c.RestConfig.Host
-	}
-	identity := cfg.ReleaseName
-	if identity == "" {
-		switch {
-		case cfg.LocalPath != "":
-			identity = cfg.LocalPath
-		case cfg.URL != "":
-			identity = cfg.URL
-		default:
-			identity = fmt.Sprintf("%s/%s@%s", cfg.ChartLocation.Repository, cfg.ChartLocation.Chart, cfg.ChartLocation.Version)
-		}
-	}
-	key := fmt.Sprintf("%s|%s|%s", host, cfg.Namespace, identity)
-
-	helmReleaseLocksMu.Lock()
-	l, ok := helmReleaseLocks[key]
+// lockHelm takes the lock for key and returns the function that releases it.
+func lockHelm(key string) func() {
+	helmLocksMu.Lock()
+	l, ok := helmLocks[key]
 	if !ok {
-		l = &helmReleaseLock{}
-		helmReleaseLocks[key] = l
+		l = &helmLock{}
+		helmLocks[key] = l
 	}
 	l.refs++
-	helmReleaseLocksMu.Unlock()
+	helmLocksMu.Unlock()
 
 	l.mu.Lock()
 	return func() {
 		l.mu.Unlock()
-		helmReleaseLocksMu.Lock()
+		helmLocksMu.Lock()
 		l.refs--
 		if l.refs == 0 {
-			delete(helmReleaseLocks, key)
+			delete(helmLocks, key)
 		}
-		helmReleaseLocksMu.Unlock()
+		helmLocksMu.Unlock()
 	}
+}
+
+func helmLockHost(c *Client) string {
+	if c == nil {
+		return ""
+	}
+	return c.RestConfig.Host
+}
+
+// lockChartSource serializes fetching and loading one chart source, so that two calls for the same
+// source do not download the cached chart file at the same time.
+func lockChartSource(c *Client, cfg ApplyHelmChartConfig) func() {
+	identity := cfg.LocalPath
+	switch {
+	case identity != "":
+	case cfg.URL != "":
+		identity = cfg.URL
+	default:
+		identity = fmt.Sprintf("%s/%s@%s", cfg.ChartLocation.Repository, cfg.ChartLocation.Chart, cfg.ChartLocation.Version)
+	}
+	return lockHelm(fmt.Sprintf("source|%s|%s", helmLockHost(c), identity))
+}
+
+// lockHelmRelease serializes the lookup and the install of one release in one cluster and
+// namespace. The name is the resolved release name, so two chart sources that resolve to the same
+// release (two versions of one chart, say) share the lock.
+func lockHelmRelease(c *Client, namespace, name string) func() {
+	return lockHelm(fmt.Sprintf("release|%s|%s|%s", helmLockHost(c), namespace, name))
 }
 
 // InstallHelmChartOnce installs the chart unless its release is already there, and is safe to
@@ -94,8 +100,9 @@ func lockHelmRelease(c *Client, cfg ApplyHelmChartConfig) func() {
 //
 // ApplyHelmChart always installs, and Helm refuses a second install of the same release with
 // "cannot reuse a name that is still in use". This function looks at the release first, while
-// holding a lock for the release so that concurrent callers cannot both find it absent, and
-// loads the chart once for both the lookup and the install. The release name is cfg.ReleaseName,
+// holding a lock for the release (by its resolved name, so two chart URLs for one chart share it)
+// so that concurrent callers cannot both find it absent, and loads the chart once for both the
+// lookup and the install. The release name is cfg.ReleaseName,
 // or the chart's own name when that is empty, as in ApplyHelmChart. Action and UpgradeIfInstalled
 // are ignored: this is always an install. Use ApplyHelmChart to upgrade.
 //
@@ -118,17 +125,10 @@ func (c *Client) InstallHelmChartOnce(cfg ApplyHelmChartConfig, provided func() 
 	cfg.Action = INSTALL
 	cfg.UpgradeIfInstalled = false
 
-	unlock := lockHelmRelease(c, cfg)
-	defer unlock()
-
-	if err := setupChartVersion(&cfg); err != nil {
-		return HelmInstalled, ErrApplyHelmChart(err)
-	}
-	localPath, err := getHelmLocalPath(cfg)
-	if err != nil {
-		return HelmInstalled, ErrApplyHelmChart(err)
-	}
-	helmChart, err := loader.Load(localPath)
+	// The release name is only known once the chart is loaded, so the chart is fetched under a lock
+	// for its source, and the lookup and the install then run under a lock for the resolved release.
+	// The source lock is let go before the release lock is taken, so the two never nest.
+	helmChart, err := c.fetchChart(&cfg)
 	if err != nil {
 		return HelmInstalled, ErrApplyHelmChart(err)
 	}
@@ -138,6 +138,9 @@ func (c *Client) InstallHelmChartOnce(cfg ApplyHelmChartConfig, provided func() 
 	if err = checkIfInstallable(helmChart); err != nil {
 		return HelmInstalled, ErrApplyHelmChart(err)
 	}
+
+	unlock := lockHelmRelease(c, cfg.Namespace, cfg.ReleaseName)
+	defer unlock()
 
 	actionConfig, err := newHelmActionConfig(c, cfg, c.getRESTClientGetter())
 	if err != nil {
@@ -168,6 +171,22 @@ func (c *Client) InstallHelmChartOnce(cfg ApplyHelmChartConfig, provided func() 
 		return HelmInstalled, ErrApplyHelmChart(err)
 	}
 	return HelmInstalled, nil
+}
+
+// fetchChart resolves the chart version, downloads the chart (or reuses the cached file) and loads
+// it, holding the lock for the chart source meanwhile.
+func (c *Client) fetchChart(cfg *ApplyHelmChartConfig) (*chart.Chart, error) {
+	unlock := lockChartSource(c, *cfg)
+	defer unlock()
+
+	if err := setupChartVersion(cfg); err != nil {
+		return nil, err
+	}
+	localPath, err := getHelmLocalPath(*cfg)
+	if err != nil {
+		return nil, err
+	}
+	return loader.Load(localPath)
 }
 
 // latestRelease returns the latest revision of the named release in the namespace the action
