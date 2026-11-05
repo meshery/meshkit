@@ -157,7 +157,7 @@ func (ah ArtifactHub) HandleDependents(comp component.ComponentDefinition, kc *k
 	}
 	summary, err = applyDependentHelmChart(comp, kc, cfg, isDeploy, performUpgrade)
 	if err != nil {
-		return fmt.Sprintf("error deploying dependent helm chart for %s, please procced with manual install or try again", comp.DisplayName), err
+		return fmt.Sprintf("error deploying dependent helm chart for %s, please proceed with manual install or try again", comp.DisplayName), err
 	}
 	return summary, nil
 }

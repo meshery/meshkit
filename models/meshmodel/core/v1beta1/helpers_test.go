@@ -638,7 +638,7 @@ func TestArtifactHubHandleDependents(t *testing.T) {
 		}
 	})
 
-	t.Run("action mapping for deploy failure preserves typo spelling", func(t *testing.T) {
+	t.Run("action mapping for deploy failure reports the helm error", func(t *testing.T) {
 		orig := applyHelmChartFunc
 		t.Cleanup(func() { applyHelmChartFunc = orig })
 		helmErr := errors.New("cluster connection timeout")
@@ -659,7 +659,7 @@ func TestArtifactHubHandleDependents(t *testing.T) {
 		if !errors.Is(err, helmErr) {
 			t.Fatalf("error = %v, want %v", err, helmErr)
 		}
-		wantSummary := "error deploying dependent helm chart for WasmPlugin, please procced with manual install or try again"
+		wantSummary := "error deploying dependent helm chart for WasmPlugin, please proceed with manual install or try again"
 		if summary != wantSummary {
 			t.Fatalf("summary = %q, want %q", summary, wantSummary)
 		}
