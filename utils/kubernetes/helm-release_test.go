@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
 	kubefake "helm.sh/helm/v3/pkg/kube/fake"
 	"helm.sh/helm/v3/pkg/release"
@@ -39,7 +41,7 @@ func storeRelease(t *testing.T, s *storage.Storage, name string, status release.
 	}
 }
 
-func TestLatestReleaseStatus(t *testing.T) {
+func TestLatestRelease(t *testing.T) {
 	cases := []struct {
 		name      string
 		stored    map[string]release.Status
@@ -59,18 +61,22 @@ func TestLatestReleaseStatus(t *testing.T) {
 			for name, status := range tc.stored {
 				storeRelease(t, s, name, status)
 			}
-			got, found, err := latestReleaseStatus(cfg, tc.query)
+			rel, err := latestRelease(cfg, tc.query)
 			if err != nil {
 				t.Fatalf("unexpected error %v", err)
 			}
-			if found != tc.wantFound || got != tc.want {
-				t.Fatalf("latestReleaseStatus() = %q, %v, want %q, %v", got, found, tc.want, tc.wantFound)
+			var got release.Status
+			if rel != nil {
+				got = rel.Info.Status
+			}
+			if (rel != nil) != tc.wantFound || got != tc.want {
+				t.Fatalf("latestRelease() = %q (found %v), want %q (found %v)", got, rel != nil, tc.want, tc.wantFound)
 			}
 		})
 	}
 }
 
-func TestLatestReleaseStatusUsesNewestRevision(t *testing.T) {
+func TestLatestReleaseUsesNewestRevision(t *testing.T) {
 	cfg, s := memoryActionConfig()
 	for i, status := range []release.Status{release.StatusSuperseded, release.StatusFailed} {
 		rel := &release.Release{Name: "testchart", Namespace: "default", Version: i + 1, Info: &release.Info{Status: status}}
@@ -78,9 +84,9 @@ func TestLatestReleaseStatusUsesNewestRevision(t *testing.T) {
 			t.Fatalf("storing release: %v", err)
 		}
 	}
-	got, found, err := latestReleaseStatus(cfg, "testchart")
-	if err != nil || !found || got != release.StatusFailed {
-		t.Fatalf("latestReleaseStatus() = %q, %v, %v, want failed, true, nil", got, found, err)
+	rel, err := latestRelease(cfg, "testchart")
+	if err != nil || rel == nil || rel.Info.Status != release.StatusFailed {
+		t.Fatalf("latestRelease() = %v, %v, want the failed revision", rel, err)
 	}
 }
 
@@ -131,6 +137,49 @@ func TestInstallHelmChartOnceInstallsThenSkips(t *testing.T) {
 	}
 	if *downloads != 1 {
 		t.Fatalf("chart downloads = %d, want 1", *downloads)
+	}
+}
+
+// storeReleaseWithChart stores a deployed release that records the chart version it came from.
+func storeReleaseWithChart(t *testing.T, s *storage.Storage, name, chartVersion string) {
+	t.Helper()
+	rel := &release.Release{
+		Name: name, Namespace: "default", Version: 1,
+		Info:  &release.Info{Status: release.StatusDeployed},
+		Chart: &chart.Chart{Metadata: &chart.Metadata{Name: name, Version: chartVersion}},
+	}
+	if err := s.Create(rel); err != nil {
+		t.Fatalf("storing release: %v", err)
+	}
+}
+
+func TestInstallHelmChartOnceReportsOtherChartVersion(t *testing.T) {
+	cases := []struct {
+		name    string
+		version string // version of the deployed release; "" stores it without chart metadata
+		want    HelmInstallOutcome
+	}{
+		{"same version", "0.1.0", HelmAlreadyInstalled},
+		{"other version", "0.0.9", HelmAlreadyInstalledOtherVersion},
+		{"unknown version", "", HelmAlreadyInstalled},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, cfg, _ := onceFixture(t) // serves testchart 0.1.0
+			if tc.version == "" {
+				storeRelease(t, s, "testchart", release.StatusDeployed)
+			} else {
+				storeReleaseWithChart(t, s, "testchart", tc.version)
+			}
+
+			outcome, err := (&Client{}).InstallHelmChartOnce(cfg, nil)
+			if err != nil || outcome != tc.want {
+				t.Fatalf("call = %v, %v, want %v, nil", outcome, err, tc.want)
+			}
+			if _, err := s.Get("testchart", 2); err == nil {
+				t.Fatal("the deployed release was changed")
+			}
+		})
 	}
 }
 
@@ -256,6 +305,55 @@ func TestInstallHelmChartOnceConcurrentCallsInstallOnce(t *testing.T) {
 	}
 	if _, err := s.Get("testchart", 2); err == nil {
 		t.Fatal("more than one revision exists")
+	}
+}
+
+func helmReleaseLockCount() int {
+	helmReleaseLocksMu.Lock()
+	defer helmReleaseLocksMu.Unlock()
+	return len(helmReleaseLocks)
+}
+
+func TestLockHelmReleaseTableDoesNotGrow(t *testing.T) {
+	before := helmReleaseLockCount()
+	c := &Client{}
+
+	// Many different releases, each locked and released: nothing may be left behind.
+	for i := 0; i < 50; i++ {
+		unlock := lockHelmRelease(c, ApplyHelmChartConfig{Namespace: fmt.Sprintf("ns-%d", i), ReleaseName: "operator"})
+		unlock()
+	}
+	if got := helmReleaseLockCount(); got != before {
+		t.Fatalf("lock table has %d entries after releasing everything, want %d", got, before)
+	}
+
+	// An entry lives while a call holds the lock or waits for it, and goes with the last one.
+	cfg := ApplyHelmChartConfig{Namespace: "busy", ReleaseName: "operator"}
+	unlock := lockHelmRelease(c, cfg)
+	waiting := make(chan func())
+	go func() { waiting <- lockHelmRelease(c, cfg) }()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		helmReleaseLocksMu.Lock()
+		refs := 0
+		for _, l := range helmReleaseLocks {
+			if l.refs > 1 {
+				refs = l.refs
+			}
+		}
+		helmReleaseLocksMu.Unlock()
+		if refs == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the second caller never queued on the lock")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	unlock()
+	(<-waiting)()
+	if got := helmReleaseLockCount(); got != before {
+		t.Fatalf("lock table has %d entries after the last release, want %d", got, before)
 	}
 }
 
