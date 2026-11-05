@@ -308,41 +308,40 @@ func TestInstallHelmChartOnceConcurrentCallsInstallOnce(t *testing.T) {
 	}
 }
 
-func helmReleaseLockCount() int {
-	helmReleaseLocksMu.Lock()
-	defer helmReleaseLocksMu.Unlock()
-	return len(helmReleaseLocks)
+func helmLockCount() int {
+	helmLocksMu.Lock()
+	defer helmLocksMu.Unlock()
+	return len(helmLocks)
 }
 
-func TestLockHelmReleaseTableDoesNotGrow(t *testing.T) {
-	before := helmReleaseLockCount()
+func TestLockHelmTableDoesNotGrow(t *testing.T) {
+	before := helmLockCount()
 	c := &Client{}
 
-	// Many different releases, each locked and released: nothing may be left behind.
+	// Many different releases and sources, each locked and released: nothing may be left behind.
 	for i := 0; i < 50; i++ {
-		unlock := lockHelmRelease(c, ApplyHelmChartConfig{Namespace: fmt.Sprintf("ns-%d", i), ReleaseName: "operator"})
-		unlock()
+		lockHelmRelease(c, fmt.Sprintf("ns-%d", i), "operator")()
+		lockChartSource(c, ApplyHelmChartConfig{URL: fmt.Sprintf("https://example.com/chart-%d.tgz", i)})()
 	}
-	if got := helmReleaseLockCount(); got != before {
+	if got := helmLockCount(); got != before {
 		t.Fatalf("lock table has %d entries after releasing everything, want %d", got, before)
 	}
 
 	// An entry lives while a call holds the lock or waits for it, and goes with the last one.
-	cfg := ApplyHelmChartConfig{Namespace: "busy", ReleaseName: "operator"}
-	unlock := lockHelmRelease(c, cfg)
+	unlock := lockHelmRelease(c, "busy", "operator")
 	waiting := make(chan func())
-	go func() { waiting <- lockHelmRelease(c, cfg) }()
+	go func() { waiting <- lockHelmRelease(c, "busy", "operator") }()
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		helmReleaseLocksMu.Lock()
-		refs := 0
-		for _, l := range helmReleaseLocks {
-			if l.refs > 1 {
-				refs = l.refs
+		helmLocksMu.Lock()
+		queued := false
+		for _, l := range helmLocks {
+			if l.refs == 2 {
+				queued = true
 			}
 		}
-		helmReleaseLocksMu.Unlock()
-		if refs == 2 {
+		helmLocksMu.Unlock()
+		if queued {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -352,45 +351,96 @@ func TestLockHelmReleaseTableDoesNotGrow(t *testing.T) {
 	}
 	unlock()
 	(<-waiting)()
-	if got := helmReleaseLockCount(); got != before {
+	if got := helmLockCount(); got != before {
 		t.Fatalf("lock table has %d entries after the last release, want %d", got, before)
+	}
+}
+
+// lockFree reports whether lock can be taken within a short time, and releases it again.
+func lockFree(lock func() func()) bool {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		lock()()
+	}()
+	select {
+	case <-done:
+		return true
+	case <-time.After(100 * time.Millisecond):
+		return false
 	}
 }
 
 func TestLockHelmReleaseIsPerRelease(t *testing.T) {
 	c := &Client{}
-	cfg := ApplyHelmChartConfig{URL: "https://example.com/a-0.1.0.tgz", Namespace: "ns"}
-	unlock := lockHelmRelease(c, cfg)
+	unlock := lockHelmRelease(c, "ns", "operator")
 
-	acquired := func(c *Client, cfg ApplyHelmChartConfig) bool {
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			lockHelmRelease(c, cfg)()
-		}()
-		select {
-		case <-done:
-			return true
-		case <-time.After(100 * time.Millisecond):
-			return false
-		}
-	}
-
-	other := cfg
-	other.Namespace = "elsewhere"
-	if !acquired(c, other) {
+	if !lockFree(func() func() { return lockHelmRelease(c, "elsewhere", "operator") }) {
 		t.Fatal("a release in another namespace must not wait")
 	}
-	named := cfg
-	named.ReleaseName = "other"
-	if !acquired(c, named) {
+	if !lockFree(func() func() { return lockHelmRelease(c, "ns", "other") }) {
 		t.Fatal("a differently named release must not wait")
 	}
-	if acquired(c, cfg) {
+	if !lockFree(func() func() {
+		return lockChartSource(c, ApplyHelmChartConfig{URL: "https://example.com/operator-0.1.0.tgz"})
+	}) {
+		t.Fatal("the source lock must not block on a release lock")
+	}
+	if lockFree(func() func() { return lockHelmRelease(c, "ns", "operator") }) {
 		t.Fatal("the same release must wait while the lock is held")
 	}
 	unlock()
-	if !acquired(c, cfg) {
+	if !lockFree(func() func() { return lockHelmRelease(c, "ns", "operator") }) {
 		t.Fatal("the release must be free after unlock")
+	}
+}
+
+func TestInstallHelmChartOnceSerializesTwoSourcesOfOneChart(t *testing.T) {
+	// Two URLs that serve the same chart (two versions of it) resolve to one release, so they must
+	// share a lock: one installs and the other finds it deployed, instead of both finding it absent.
+	actionConfig, s := memoryActionConfig()
+	orig := newHelmActionConfig
+	t.Cleanup(func() { newHelmActionConfig = orig })
+	newHelmActionConfig = func(*Client, ApplyHelmChartConfig, genericclioptions.RESTClientGetter) (*action.Configuration, error) {
+		return actionConfig, nil
+	}
+	serve := func(version string) string {
+		data := createTestChartArchive(t, "testchart", version)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(data) }))
+		t.Cleanup(ts.Close)
+		return ts.URL + "/testchart-" + version + ".tgz"
+	}
+	urls := []string{serve("0.1.0"), serve("0.2.0")}
+
+	client := &Client{}
+	var wg sync.WaitGroup
+	outcomes := make([]HelmInstallOutcome, len(urls))
+	errs := make([]error, len(urls))
+	for i, u := range urls {
+		wg.Add(1)
+		go func(i int, u string) {
+			defer wg.Done()
+			outcomes[i], errs[i] = client.InstallHelmChartOnce(ApplyHelmChartConfig{URL: u, DownloadLocation: t.TempDir(), Namespace: "default"}, func() bool {
+				time.Sleep(20 * time.Millisecond) // widen the window between "absent" and the install
+				return false
+			})
+		}(i, u)
+	}
+	wg.Wait()
+
+	installed := 0
+	for i := range urls {
+		if errs[i] != nil {
+			t.Fatalf("source %d: unexpected error %v", i, errs[i])
+		}
+		if outcomes[i] == HelmInstalled {
+			installed++
+		}
+	}
+	if installed != 1 {
+		t.Fatalf("calls that installed = %d, want 1 (outcomes %v)", installed, outcomes)
+	}
+	if _, err := s.Get("testchart", 2); err == nil {
+		t.Fatal("more than one revision exists")
 	}
 }
