@@ -29,6 +29,7 @@ func (pf *PolicyFilter) Create(m map[string]interface{}) {
 	}
 }
 
+// GetById retrieves a policy definition by its ID. It returns the entity and an error if any occurred.
 func (pf *PolicyFilter) GetById(db *database.Handler) (entity.Entity, error) {
 	p := &v1beta1.PolicyDefinition{}
 	err := db.First(p, "id = ?", pf.Id).Error
@@ -38,6 +39,7 @@ func (pf *PolicyFilter) GetById(db *database.Handler) (entity.Entity, error) {
 	return p, err
 }
 
+// Get retrieves policy definitions based on the filter criteria specified in the PolicyFilter. It returns a slice of entities, the total count, the count of returned entities, and an error if any occurred.
 func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	pl := []entity.Entity{}
 	if pf.Limit < 0 || pf.Offset < 0 {
@@ -77,7 +79,7 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 
 	var count int64
 	if err := finder.Session(&gorm.Session{}).Select("count(*)").Count(&count).Error; err != nil {
-		return pl, 0, 0, registry.ErrGetPolicyDefinitions(err)
+		return pl, 0, 0, err
 	}
 
 	if pf.Limit != 0 {
@@ -89,7 +91,7 @@ func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, 
 
 	err := finder.Scan(&policyDefinitionWithModel).Error
 	if err != nil {
-		return pl, 0, 0, registry.ErrGetPolicyDefinitions(err)
+		return pl, 0, 0, err
 	}
 	for _, pm := range policyDefinitionWithModel {
 		pl = append(pl, &pm)
