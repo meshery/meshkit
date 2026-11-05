@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
@@ -19,14 +20,29 @@ const (
 	HelmInstalled HelmInstallOutcome = iota
 	// HelmAlreadyInstalled means the release was already deployed, so nothing was installed.
 	HelmAlreadyInstalled
+	// HelmAlreadyInstalledOtherVersion means the release was already deployed, so nothing was
+	// installed, but at a different chart version than the one asked for. An install never
+	// changes a deployed release; moving it to the new version takes an explicit upgrade.
+	HelmAlreadyInstalledOtherVersion
 	// HelmProvidedElsewhere means the release does not exist but the caller reported that
 	// what the chart provides is already available (for example an operator installed
 	// without Helm), so nothing was installed.
 	HelmProvidedElsewhere
 )
 
-// helmReleaseLocks serializes InstallHelmChartOnce per cluster, namespace and release.
-var helmReleaseLocks sync.Map
+// helmReleaseLock is the lock for one release, with the number of calls holding or waiting for it.
+type helmReleaseLock struct {
+	mu   sync.Mutex
+	refs int
+}
+
+var (
+	// helmReleaseLocks serializes InstallHelmChartOnce per cluster, namespace and release. An
+	// entry exists only while a call holds or waits for it, so the table is bounded by the
+	// number of calls in flight and does not grow with the number of releases ever touched.
+	helmReleaseLocks   = map[string]*helmReleaseLock{}
+	helmReleaseLocksMu sync.Mutex
+)
 
 // lockHelmRelease takes the lock for one release and returns the function that releases it.
 //
@@ -51,9 +67,26 @@ func lockHelmRelease(c *Client, cfg ApplyHelmChartConfig) func() {
 		}
 	}
 	key := fmt.Sprintf("%s|%s|%s", host, cfg.Namespace, identity)
-	mu, _ := helmReleaseLocks.LoadOrStore(key, &sync.Mutex{})
-	mu.(*sync.Mutex).Lock()
-	return mu.(*sync.Mutex).Unlock
+
+	helmReleaseLocksMu.Lock()
+	l, ok := helmReleaseLocks[key]
+	if !ok {
+		l = &helmReleaseLock{}
+		helmReleaseLocks[key] = l
+	}
+	l.refs++
+	helmReleaseLocksMu.Unlock()
+
+	l.mu.Lock()
+	return func() {
+		l.mu.Unlock()
+		helmReleaseLocksMu.Lock()
+		l.refs--
+		if l.refs == 0 {
+			delete(helmReleaseLocks, key)
+		}
+		helmReleaseLocksMu.Unlock()
+	}
 }
 
 // InstallHelmChartOnce installs the chart unless its release is already there, and is safe to
@@ -69,7 +102,10 @@ func lockHelmRelease(c *Client, cfg ApplyHelmChartConfig) func() {
 // What it does for each state of the release (its latest revision):
 //   - not found: provided is asked (it may be nil). If it reports true the install is skipped
 //     (HelmProvidedElsewhere), otherwise the chart is installed (HelmInstalled).
-//   - deployed: nothing is installed (HelmAlreadyInstalled).
+//   - deployed: nothing is installed (HelmAlreadyInstalled), or HelmAlreadyInstalledOtherVersion
+//     when the deployed chart version differs from the one asked for, so the caller can say that
+//     the release was left as it is. Upgrading is never implicit: it would add a revision for
+//     every component of a model and reset the values the operator was installed with.
 //   - failed, pending, uninstalling or uninstalled: an error that names the state. A fresh
 //     install cannot succeed over such a release, and replacing or rolling it back on the
 //     caller's behalf could hide a problem, so it is left for an operator to resolve.
@@ -108,17 +144,20 @@ func (c *Client) InstallHelmChartOnce(cfg ApplyHelmChartConfig, provided func() 
 		return HelmInstalled, ErrApplyHelmChart(err)
 	}
 
-	status, found, err := latestReleaseStatus(actionConfig, cfg.ReleaseName)
+	existing, err := latestRelease(actionConfig, cfg.ReleaseName)
 	if err != nil {
 		return HelmInstalled, ErrApplyHelmChart(err)
 	}
 	switch {
-	case found && status == release.StatusDeployed:
+	case existing != nil && existing.Info.Status == release.StatusDeployed:
+		if chartVersionDiffers(existing, helmChart) {
+			return HelmAlreadyInstalledOtherVersion, nil
+		}
 		return HelmAlreadyInstalled, nil
-	case found:
+	case existing != nil:
 		return HelmInstalled, ErrApplyHelmChart(fmt.Errorf(
 			"helm release %q in namespace %q is %s, so installing the chart again would fail; resolve it first, for example with helm uninstall",
-			cfg.ReleaseName, cfg.Namespace, status))
+			cfg.ReleaseName, cfg.Namespace, existing.Info.Status))
 	}
 
 	if provided != nil && provided() {
@@ -131,18 +170,29 @@ func (c *Client) InstallHelmChartOnce(cfg ApplyHelmChartConfig, provided func() 
 	return HelmInstalled, nil
 }
 
-// latestReleaseStatus returns the status of the latest revision of the named release in the
-// namespace the action configuration is bound to, and whether the release exists at all.
-func latestReleaseStatus(actionConfig *action.Configuration, name string) (status release.Status, found bool, err error) {
+// latestRelease returns the latest revision of the named release in the namespace the action
+// configuration is bound to, or nil when the release does not exist.
+func latestRelease(actionConfig *action.Configuration, name string) (*release.Release, error) {
 	rel, err := actionConfig.Releases.Last(name)
 	if err != nil {
 		if errors.Is(err, driver.ErrReleaseNotFound) {
-			return "", false, nil
+			return nil, nil
 		}
-		return "", false, err
+		return nil, err
 	}
 	if rel == nil || rel.Info == nil {
-		return "", false, fmt.Errorf("helm release %q has no status", name)
+		return nil, fmt.Errorf("helm release %q has no status", name)
 	}
-	return rel.Info.Status, true, nil
+	return rel, nil
+}
+
+// chartVersionDiffers reports whether the deployed release was installed from a different chart
+// version than want. When either version is unknown it reports false: a difference is only
+// claimed when it can be shown.
+func chartVersionDiffers(deployed *release.Release, want *chart.Chart) bool {
+	if deployed.Chart == nil || deployed.Chart.Metadata == nil || want == nil || want.Metadata == nil {
+		return false
+	}
+	have, wanted := deployed.Chart.Metadata.Version, want.Metadata.Version
+	return have != "" && wanted != "" && have != wanted
 }

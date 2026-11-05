@@ -109,8 +109,9 @@ func resourceListServesKind(list *metav1.APIResourceList, kind string) bool {
 // "cannot reuse a name that is still in use". On deploy the chart is therefore installed
 // through InstallHelmChartOnce, which skips it when the release is already deployed or, for an
 // operator installed without Helm, when the cluster already serves the component's kind, and
-// returns an error when the release exists in a state that a new install cannot fix. An
-// explicit upgrade always runs.
+// returns an error when the release exists in a state that a new install cannot fix. A deployed
+// release at another chart version is left alone and reported as such. An explicit upgrade always
+// runs.
 //
 // Undeploy never uninstalls the chart. Charts commonly ship their CRDs as templates, so the
 // uninstall removes them, and with them every custom resource of those kinds in the cluster,
@@ -133,6 +134,8 @@ func applyDependentHelmChart(comp component.ComponentDefinition, kc *kubernetes.
 	switch outcome {
 	case kubernetes.HelmAlreadyInstalled:
 		return fmt.Sprintf("Dependent helm chart for %s is already installed", comp.DisplayName), nil
+	case kubernetes.HelmAlreadyInstalledOtherVersion:
+		return fmt.Sprintf("Dependent helm chart for %s is already installed at a different chart version than the model declares; run an explicit upgrade to change it", comp.DisplayName), nil
 	case kubernetes.HelmProvidedElsewhere:
 		return fmt.Sprintf("Dependent resources for %s are already available in the cluster", comp.DisplayName), nil
 	}

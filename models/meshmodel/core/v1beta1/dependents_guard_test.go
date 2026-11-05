@@ -44,6 +44,7 @@ func chartComponent(name, kind string) component.ComponentDefinition {
 // kinds the cluster serves without Helm, and a record of every Helm call.
 type fakeHelm struct {
 	deployed    bool
+	otherVer    bool // the deployed release is at another chart version
 	servedKinds map[string]bool
 	onceErr     error
 	onceCalls   int32
@@ -71,6 +72,9 @@ func stubHelm(t *testing.T, served map[string]bool) *fakeHelm {
 			return kubernetes.HelmInstalled, f.onceErr
 		}
 		if f.deployed {
+			if f.otherVer {
+				return kubernetes.HelmAlreadyInstalledOtherVersion, nil
+			}
 			return kubernetes.HelmAlreadyInstalled, nil
 		}
 		if provided != nil && provided() {
@@ -146,6 +150,29 @@ func TestDependentsSkipWhenReleaseDeployed(t *testing.T) {
 				t.Fatalf("Helm installs = %d, want 0 when the release is deployed", helm.installs)
 			}
 			if want := "Dependent helm chart for auth is already installed"; summary != want {
+				t.Fatalf("summary = %q, want %q", summary, want)
+			}
+		})
+	}
+}
+
+func TestDependentsReportDeployedReleaseAtOtherVersion(t *testing.T) {
+	// A deployed release is never changed by a deploy, so a model that declares another chart
+	// version must be told, not silently treated as in sync.
+	handlers := map[string]DependencyHandler{"artifacthub": ArtifactHub{}, "github": GitHub{}}
+	for name, h := range handlers {
+		t.Run(name, func(t *testing.T) {
+			helm := stubHelm(t, nil)
+			helm.deployed, helm.otherVer = true, true
+
+			summary, err := h.HandleDependents(chartComponent("auth", "InfisicalAuth"), nil, true, false)
+			if err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			if helm.installs != 0 || len(helm.applies) != 0 {
+				t.Fatalf("Helm was called (installs %d, applies %d), want the release left alone", helm.installs, len(helm.applies))
+			}
+			if want := "Dependent helm chart for auth is already installed at a different chart version than the model declares; run an explicit upgrade to change it"; summary != want {
 				t.Fatalf("summary = %q, want %q", summary, want)
 			}
 		})
