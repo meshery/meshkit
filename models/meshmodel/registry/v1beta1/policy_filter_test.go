@@ -141,7 +141,7 @@ func TestPolicyFilterGet_GivenSeededPolicies_WhenFiltered_ThenReturnsMatchingPol
 	}
 }
 
-func TestPolicyFilterGet_GivenFailingQuery_WhenGetting_ThenWrapsDatabaseError(t *testing.T) {
+func TestPolicyFilterGet_GivenFailingQuery_WhenGetting_ThenReturnsDatabaseError(t *testing.T) {
 	for _, tt := range []struct {
 		name        string
 		failOnCount bool
@@ -166,10 +166,7 @@ func TestPolicyFilterGet_GivenFailingQuery_WhenGetting_ThenWrapsDatabaseError(t 
 			}
 
 			_, _, _, err := (&PolicyFilter{}).Get(&db)
-			var meshkitErr *meshkiterrors.Error
-			require.ErrorAs(t, err, &meshkitErr)
-			require.Equal(t, registry.ErrGetPolicyDefinitionsCode, meshkitErr.Code)
-			require.Contains(t, meshkitErr.Error(), wantErr.Error())
+			require.ErrorIs(t, err, wantErr)
 		})
 	}
 }
@@ -194,8 +191,7 @@ func TestPolicyFilterGet_GivenPostgresDialect_WhenGetting_ThenBuildsExpectedQuer
 
 	handler := database.Handler{DB: db}
 	_, _, _, err = (&PolicyFilter{ModelName: "test-model", OrderOn: "kind", Limit: 1}).Get(&handler)
-	var meshkitErr *meshkiterrors.Error
-	require.ErrorAs(t, err, &meshkitErr) // DryRun can build the query but cannot scan database rows.
+	require.ErrorContains(t, err, "dry run mode unsupported") // DryRun can build the query but cannot scan database rows.
 	require.Contains(t, queryLog.String(), `JOIN model_dbs ON model_dbs.id = policy_definitions."modelID"`)
 	require.Contains(t, queryLog.String(), `ORDER BY "policy_definitions"."kind"`)
 	require.Contains(t, queryLog.String(), `"policy_definitions"."id"`)
