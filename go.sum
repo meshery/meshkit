@@ -431,8 +431,8 @@ github.com/mattn/go-sqlite3 v1.14.32 h1:JD12Ag3oLy1zQA+BNn74xRgaBbdhbNIDYvQUEuuE
 github.com/mattn/go-sqlite3 v1.14.32/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/meshery/meshery-operator v0.8.11 h1:eDo2Sw0jjVrXsvvhF8LenADM58pK+7Z68ROPVIejTPc=
 github.com/meshery/meshery-operator v0.8.11/go.mod h1:hQEtFKKa5Fr/Mskk6bV5ip3bQ0+3F0u1voYS3XisBp4=
-github.com/meshery/schemas v1.3.114 h1:P/iw2z2TfKkt208yInOH1OXc7tQwHBNUFCL+f701H9g=
-github.com/meshery/schemas v1.3.114/go.mod h1:VaX+1NeWdTxVrD8rMkK9HSrNcq/7YrjZwv1Xc/O7Khc=
+github.com/meshery/schemas v1.3.115 h1:uheSQAILM6zZREdv4DKJcbG6iFrPt5HTcs7O8Mpmtas=
+github.com/meshery/schemas v1.3.115/go.mod h1:VaX+1NeWdTxVrD8rMkK9HSrNcq/7YrjZwv1Xc/O7Khc=
 github.com/miekg/dns v1.1.57 h1:Jzi7ApEIzwEPLHWRcafCN9LZSBbqQpxjt/wpgvg7wcM=
 github.com/miekg/dns v1.1.57/go.mod h1:uqRjCRUuEAA6qsOiJvDd+CFo/vW+y5WR6SNmHE55hZk=
 github.com/mitchellh/copystructure v1.2.0 h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw=
