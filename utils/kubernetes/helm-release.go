@@ -67,6 +67,8 @@ func lockHelm(key string) func() {
 	}
 }
 
+// helmLockHost identifies the cluster a client talks to, for the lock keys. A nil client or an
+// empty host share one identity, which only happens in tests.
 func helmLockHost(c *Client) string {
 	if c == nil {
 		return ""
