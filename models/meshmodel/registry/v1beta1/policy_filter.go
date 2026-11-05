@@ -11,16 +11,27 @@ import (
 
 const policyDefinitionModelJoin = `JOIN model_dbs ON model_dbs.id = policy_definitions."modelID"`
 
+// PolicyFilter selects policy definitions and controls their ordering and pagination.
+// When ModelName is set, only policies associated with a matching model are included;
+// policies without an associated model are excluded. Without ModelName, no model join
+// is applied.
 type PolicyFilter struct {
 	Id        string
 	Kind      string
 	Greedy    bool
 	SubType   string
 	ModelName string
-	OrderOn   string
-	Sort      string
-	Limit     int
-	Offset    int
+	// OrderOn accepts id, kind, version, modelID, sub_type, expression, created_at,
+	// or updated_at. An unsupported value falls back to id. An empty value leaves
+	// results unordered unless pagination requires an id ordering.
+	OrderOn string
+	// Sort orders the OrderOn column descending only when set to "desc"; otherwise
+	// that column is ascending. The pagination tie-breaker, when added, is ascending.
+	Sort string
+	// Limit is the maximum number of results. Zero means no limit.
+	Limit int
+	// Offset is the number of matching results to skip. Zero means no offset.
+	Offset int
 }
 
 func (pf *PolicyFilter) Create(m map[string]interface{}) {
@@ -39,7 +50,16 @@ func (pf *PolicyFilter) GetById(db *database.Handler) (entity.Entity, error) {
 	return p, err
 }
 
-// Get retrieves policy definitions based on the filter criteria specified in the PolicyFilter. It returns a slice of entities, the total count, the count of returned entities, and an error if any occurred.
+// Get retrieves policy definitions matching pf. When ModelName is set, only
+// policies associated with a model of that name are included; policies without an
+// associated model are excluded. Ordering and pagination follow the PolicyFilter
+// settings. When pagination is requested and the primary order is not id, results
+// use ascending id as a tie-breaker.
+//
+// The int64 count and int total returns both report the number of matching policies
+// before pagination, not the number of policies in the returned slice. A zero Limit
+// is unlimited; a zero Offset skips no results. Negative pagination values return
+// an error.
 func (pf *PolicyFilter) Get(db *database.Handler) ([]entity.Entity, int64, int, error) {
 	pl := []entity.Entity{}
 	if pf.Limit < 0 || pf.Offset < 0 {

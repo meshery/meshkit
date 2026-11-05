@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"testing"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/meshery/meshkit/database"
@@ -54,6 +55,11 @@ func TestPolicyFilterGet_GivenSeededPolicies_WhenOrderedAndPaginated_ThenReturns
 			wantIDs: []string{"00000000-0000-0000-0000-000000000002"},
 		},
 		{
+			name:    "given an offset and no limit when getting then returns remaining policies ordered by ID",
+			filter:  PolicyFilter{OrderOn: "id", Offset: 2},
+			wantIDs: []string{"00000000-0000-0000-0000-000000000004", "00000000-0000-0000-0000-000000000005"},
+		},
+		{
 			name:    "given an invalid order column when getting then orders by ID instead of raw SQL",
 			filter:  PolicyFilter{OrderOn: "kind; invalid", Limit: 1},
 			wantIDs: []string{"00000000-0000-0000-0000-000000000002"},
@@ -83,7 +89,7 @@ func TestPolicyFilterGet_GivenSeededPolicies_WhenOrderedAndPaginated_ThenReturns
 	}
 }
 
-func TestPolicyFilterGet_GivenPolicyWithoutModel_WhenModelNameFilterIsSet_ThenPolicyIsExcluded(t *testing.T) {
+func TestPolicyFilterGet_GivenOrphanPolicy_WhenFilteringByModelName_ThenPolicyIsExcluded(t *testing.T) {
 	db := newPolicyFilterTestDB(t)
 	seedPolicy(t, &db, "00000000-0000-0000-0000-000000000010", "orphan", "test", uuid.Nil.String())
 
@@ -96,6 +102,40 @@ func TestPolicyFilterGet_GivenPolicyWithoutModel_WhenModelNameFilterIsSet_ThenPo
 	require.NoError(t, err)
 	require.Zero(t, count)
 	require.Empty(t, policies)
+}
+
+func TestPolicyFilterGet_GivenSupportedOrderColumn_WhenSortedDescending_ThenReturnsPoliciesInOrder(t *testing.T) {
+	const (
+		modelID1  = "00000000-0000-0000-0000-000000000011"
+		modelID2  = "00000000-0000-0000-0000-000000000012"
+		policyID1 = "00000000-0000-0000-0000-000000000021"
+		policyID2 = "00000000-0000-0000-0000-000000000022"
+	)
+	db := newPolicyFilterTestDB(t)
+	older := time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
+	newer := older.Add(time.Hour)
+	for _, policy := range []map[string]interface{}{
+		{
+			"id": policyID1, "kind": "alpha", "version": "v1", "modelID": modelID1,
+			"sub_type": "a", "expression": []byte(`{"rank":"a"}`), "created_at": older, "updated_at": older,
+		},
+		{
+			"id": policyID2, "kind": "zeta", "version": "v2", "modelID": modelID2,
+			"sub_type": "z", "expression": []byte(`{"rank":"z"}`), "created_at": newer, "updated_at": newer,
+		},
+	} {
+		require.NoError(t, db.Table("policy_definitions").Create(policy).Error)
+	}
+
+	for _, orderOn := range []string{"id", "kind", "version", "modelID", "sub_type", "expression", "created_at", "updated_at"} {
+		t.Run(orderOn, func(t *testing.T) {
+			policies, _, _, err := (&PolicyFilter{OrderOn: orderOn, Sort: "desc"}).Get(&db)
+			require.NoError(t, err)
+			require.Len(t, policies, 2)
+			require.Equal(t, policyID2, policies[0].(*core.PolicyDefinition).ID.String())
+			require.Equal(t, policyID1, policies[1].(*core.PolicyDefinition).ID.String())
+		})
+	}
 }
 
 func TestPolicyFilterGet_GivenSeededPolicies_WhenFiltered_ThenReturnsMatchingPolicies(t *testing.T) {
@@ -193,8 +233,8 @@ func TestPolicyFilterGet_GivenPostgresDialect_WhenGetting_ThenBuildsExpectedQuer
 	_, _, _, err = (&PolicyFilter{ModelName: "test-model", OrderOn: "kind", Limit: 1}).Get(&handler)
 	require.ErrorContains(t, err, "dry run mode unsupported") // DryRun can build the query but cannot scan database rows.
 	require.Contains(t, queryLog.String(), `JOIN model_dbs ON model_dbs.id = policy_definitions."modelID"`)
-	require.Contains(t, queryLog.String(), `ORDER BY "policy_definitions"."kind"`)
-	require.Contains(t, queryLog.String(), `"policy_definitions"."id"`)
+	require.Contains(t, queryLog.String(), `ORDER BY "policy_definitions"."kind","policy_definitions"."id"`)
+	require.Contains(t, queryLog.String(), `LIMIT 1`)
 }
 
 func seedPolicyModel(t *testing.T, db *database.Handler, id, name string) {
