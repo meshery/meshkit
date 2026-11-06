@@ -16,12 +16,41 @@ toolchain and only works if the conventions below are followed strictly.
 - Create errors with `errors.NewV2(...)` when no existing error is a well-suited fit;
   the `(*errors.Error).NewV2(...)` helper may also be used where applicable. The legacy
   `errors.New(...)` constructor remains for existing call sites.
+- Use `errors.NewV3(code, severity, short, long, []errors.Cause{...})` when an error has
+  causes that each need their own remediations (meshery/meshkit#1138, the schemas error
+  construct of meshery/schemas#1334). It returns `*errors.ErrorV2` with `Causes` set and
+  the flat `ProbableCause` / `SuggestedRemediation` derived from them, so `GetCause`,
+  `GetRemedy`, `Error()` and every existing reader keep working. See "NewV3 rules" below.
 - Keep static text in the short-description, long-description, probable-cause, and
   remediation arrays as string literals, not composed constants or concatenations -
   errorutil extracts this text statically.
 - Errors are namespaced to Meshery components (a component usually corresponds to one
   git repository). Codes must be unique within a component. There are no predefined
   code ranges, and codes carry no meaning (unlike HTTP status codes).
+
+### NewV3 rules
+
+- Write every `errors.Cause` and `errors.Remediation` as a keyed composite literal whose
+  `ID`, `Description` and `Action` are string literals and whose `ActionPolicy` is
+  `errors.Automatic`, `errors.RequiresApproval` or `errors.Manual` (empty means `Manual`).
+- Ids are lowercase words joined by hyphens (`cluster-unreachable`) and never change once
+  published: events name matched causes by id, and docs pages anchor on them. Cause ids
+  are unique within an error; every cause has at least one remediation.
+- A remediation that answers several causes is declared once as a package-level
+  `var remX = errors.Remediation{...}` (any file of the package) and referenced from each
+  cause. errorutil resolves the variable; the flat remediation list carries it once.
+- `Automatic` and `RequiresApproval` need an `Action` (dot-separated lowercase words such
+  as `connection.reconnect`). An unknown policy is never coerced: `errors.ValidateCauses`
+  and errorutil reject it, and `Remediation.EffectivePolicy()` treats it as `Manual`.
+- Unit-test a package's NewV3 definitions with `errors.ValidateCauses(errors.GetCauses(err))`.
+- Go types: `ActionPolicy` and its constants alias the generated
+  `github.com/meshery/schemas/models/v1beta3/errorcode` values. `Cause` and `Remediation`
+  are MeshKit source types (value fields, because errorutil reads string literals and a
+  pointer field cannot be one) whose JSON is exactly the schemas `ProbableCause` /
+  `Remediation`; `CausesToSchema` converts them.
+- The structured logger adds a `probable-causes` field (nested JSON) for NewV3 errors.
+  Meshery Server's `writeMeshkitError` (`server/models/httputil`) reads `errors.GetCauses`
+  / `errors.AsErrorV2` to put the nested form on the wire.
 
 See the package documentation in `errors/errors.go` and
 <https://docs.meshery.io/project/contributing/contributing-error> for background.
@@ -42,9 +71,22 @@ See the package documentation in `errors/errors.go` and
   the component `name` (`meshkit`), `type` (`library`), and `next_error_code` - the
   counter from which errorutil allocates integer codes to placeholder symbols. Do not
   hand-pick codes; let errorutil allocate them from `next_error_code`.
+- errorutil reads definitions made with `errors.New`, `errors.NewV2` and `errors.NewV3`.
 - errorutil emits `errorutil_analyze_errors.json` and `errorutil_analyze_summary.json`
-  (analysis results: duplicates, violations of the conventions above) plus
-  `errorutil_errors_export.json` (the full export consumed by the docs pipeline).
+  (analysis results: duplicates, violations of the conventions above, and
+  `invalid_definitions` - NewV3 definitions it cannot export, each also logged as an
+  error) plus two exports:
+  - `errorutil_errors_export.json` - the legacy export consumed by the docs pipeline.
+    Its shape is frozen (snake_case keys, joined strings) because Meshery's
+    `error-codes-updater` builds `errorutil@master` and its Hugo shortcodes read those
+    keys. NewV3 entries additionally carry `probableCauses` (schemas `ProbableCause[]`).
+  - `errorutil_errors_index.json` - the component's definitions as a schemas
+    `ErrorReferenceIndex` (`schemaVersion` 2, `ErrorDefinition` entries in code order:
+    `code` `<component>-<n>`, `moniker`, `component`, `numericCode`, severity, descriptions
+    joined with `. `, nested causes, derived flat lists). Every entry is validated against
+    the construct's JSON Schema embedded in `github.com/meshery/schemas` before writing;
+    `referenceUrl` is left for the docs build to assign.
+- All four output files are git-ignored.
 - The `error-codes-updater` GitHub workflow (`.github/workflows/error-codes-updater.yaml`)
   runs the update on CI and publishes `errorutil_errors_export.json` into
   `meshery/meshery`'s `docs/data/errorref/` - that is how the public error-code

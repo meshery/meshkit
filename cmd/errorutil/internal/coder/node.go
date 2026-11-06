@@ -3,9 +3,12 @@ package coder
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
+	"strconv"
 	"strings"
 
 	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
+	mesherrors "github.com/meshery/meshkit/errors"
 	"github.com/sirupsen/logrus"
 
 	errutilerr "github.com/meshery/meshkit/cmd/errorutil/internal/error"
@@ -40,80 +43,116 @@ func isSelectorOrIdent(node ast.Node) (string, string, bool) {
 	return "", "", false
 }
 
-// isStringArray checks whether the node is a string array, and returns values joined with a \n if it is.
-func isStringArray(node ast.Node) (string, bool) {
-	isStringArr := false
-	str := ""
-	switch node := node.(type) {
-	case *ast.CompositeLit:
-		switch t := node.Type.(type) {
-		case *ast.ArrayType:
-			switch e := t.Elt.(type) {
-			case *ast.Ident:
-				isStringArr = e.Name == "string"
-			}
-		}
-		if isStringArr && node.Elts != nil {
-			var arr []string
-			for _, elt := range node.Elts {
-				switch e := elt.(type) {
-				case *ast.BasicLit:
-					arr = append(arr, strings.Trim(e.Value, "\""))
-				}
-			}
-			str = strings.Join(arr, "\n")
+// stringArrayLines checks whether the node is a []string composite literal, and returns its string literal
+// elements if it is. Elements that are not string literals (call expressions, identifiers, concatenations) are
+// skipped: their text is only known at run time.
+func stringArrayLines(node ast.Node) ([]string, bool) {
+	cl, ok := node.(*ast.CompositeLit)
+	if !ok {
+		return nil, false
+	}
+	at, ok := cl.Type.(*ast.ArrayType)
+	if !ok {
+		return nil, false
+	}
+	if e, ok := at.Elt.(*ast.Ident); !ok || e.Name != "string" {
+		return nil, false
+	}
+	var lines []string
+	for _, elt := range cl.Elts {
+		if s, ok := stringLiteral(elt); ok {
+			lines = append(lines, s)
 		}
 	}
-	return str, isStringArr
+	return lines, true
 }
 
-// isNewCallExpr checks whether node is a errors.New(...) call and returns the error information if so.
-func isNewCallExpr(node ast.Node) (*errutilerr.Error, bool) {
+// stringLiteral returns the value of a string literal node, unquoted.
+func stringLiteral(node ast.Node) (string, bool) {
+	lit, ok := node.(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return "", false
+	}
+	s, err := strconv.Unquote(lit.Value)
+	if err != nil {
+		return strings.Trim(lit.Value, "\"`"), true
+	}
+	return s, true
+}
+
+// constructorArity is the number of arguments of each MeshKit error constructor errorutil reads.
+var constructorArity = map[string]int{"New": 6, "NewV2": 7, "NewV3": 5}
+
+// parseNewCallExpr checks whether node is an errors.New(...), errors.NewV2(...) or errors.NewV3(...) call and
+// returns the error information if so. remediations resolves identifiers naming package-level errors.Remediation
+// variables, the way a shared remediation is written once and referenced from several causes; nil resolves none.
+func parseNewCallExpr(node ast.Node, remediations remediationResolver) (*errutilerr.Error, bool) {
 	empty := &errutilerr.Error{}
-	if ce, ok := node.(*ast.CallExpr); ok {
-		_, name, ok2 := isSelectorOrIdent(ce.Fun)
-		if ok2 && name == "New" {
-			// check the signature:
-			args := ce.Args
-			if len(args) != 6 {
-				return empty, false
+	ce, ok := node.(*ast.CallExpr)
+	if !ok {
+		return empty, false
+	}
+	_, name, ok := isSelectorOrIdent(ce.Fun)
+	if !ok {
+		return empty, false
+	}
+	arity, known := constructorArity[name]
+	args := ce.Args
+	if !known || len(args) != arity {
+		return empty, false
+	}
+	_, codeName, ok := isSelectorOrIdent(args[0])
+	if !ok {
+		return empty, false
+	}
+	_, severityName, ok := isSelectorOrIdent(args[1])
+	if !ok {
+		return empty, false
+	}
+	sDesc, ok := stringArrayLines(args[2])
+	if !ok {
+		return empty, false
+	}
+	lDesc, ok := stringArrayLines(args[3])
+	if !ok {
+		return empty, false
+	}
+	e := &errutilerr.Error{
+		Name:        codeName,
+		Code:        "", // Code is added after the whole code base is parsed
+		Severity:    severityName,
+		Constructor: name,
+	}
+	var cause, remedy []string
+	if name == "NewV3" {
+		causes, isCauses, problems := causesLiteral(args[4], remediations)
+		if !isCauses {
+			return empty, false
+		}
+		e.Problems = problems
+		cause, remedy = mesherrors.FlattenCauses(causes)
+		if len(problems) == 0 {
+			if err := mesherrors.ValidateCauses(causes); err != nil {
+				e.Problems = append(e.Problems, strings.Split(err.Error(), "\n")...)
 			}
-			_, codeName, ok := isSelectorOrIdent(args[0])
-			if !ok {
-				return empty, false
-			}
-			_, severityName, ok := isSelectorOrIdent(args[1])
-			if !ok {
-				return empty, false
-			}
-			sDesc, ok := isStringArray(args[2])
-			if !ok {
-				return empty, false
-			}
-			lDesc, ok := isStringArray(args[3])
-			if !ok {
-				return empty, false
-			}
-			cause, ok := isStringArray(args[4])
-			if !ok {
-				return empty, false
-			}
-			remedy, ok := isStringArray(args[5])
-			if !ok {
-				return empty, false
-			}
-			return &errutilerr.Error{
-				Name:                 codeName,
-				Code:                 "", // Code is added after the whole code base is parsed
-				Severity:             severityName,
-				ShortDescription:     sDesc,
-				LongDescription:      lDesc,
-				ProbableCause:        cause,
-				SuggestedRemediation: remedy,
-			}, true
+		}
+		if len(e.Problems) == 0 {
+			e.ProbableCauses = mesherrors.CausesToSchema(causes)
+		}
+	} else {
+		if cause, ok = stringArrayLines(args[4]); !ok {
+			return empty, false
+		}
+		if remedy, ok = stringArrayLines(args[5]); !ok {
+			return empty, false
 		}
 	}
-	return empty, false
+	e.ShortDescription = strings.Join(sDesc, "\n")
+	e.LongDescription = strings.Join(lDesc, "\n")
+	e.ProbableCause = strings.Join(cause, "\n")
+	e.SuggestedRemediation = strings.Join(remedy, "\n")
+	e.Lines = errutilerr.Lines{ShortDescription: sDesc, LongDescription: lDesc, ProbableCause: cause, SuggestedRemediation: remedy}
+	return e, true
 }
 
 // handleValueSpec inspects node n if it is a ValueSpec, analyzes and updates it (depending on update and updateAll).

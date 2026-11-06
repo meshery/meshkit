@@ -22,6 +22,7 @@ type analysisSummary struct {
 	CallExprCodes        []string            `yaml:"call_expr_codes" json:"call_expr_codes"`                // codes set by call expressions instead of literals
 	IntCodes             []int               `yaml:"int_codes" json:"int_codes"`                            // all error codes as integers
 	DeprecatedNewDefault []string            `yaml:"deprecated_new_default" json:"deprecated_new_default" ` // list of files with usage of deprecated NewDefault func
+	InvalidDefinitions   map[string][]string `yaml:"invalid_definitions" json:"invalid_definitions"`        // errors.NewV3 definitions errorutil cannot export, by error name, with the problems found
 }
 
 // SummarizeAnalysis summarizes the analysis and writes it to the specified output directory.
@@ -35,7 +36,8 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 		DuplicateNames:       []string{},
 		CallExprCodes:        []string{},
 		IntCodes:             []int{},
-		DeprecatedNewDefault: []string{}}
+		DeprecatedNewDefault: []string{},
+		InvalidDefinitions:   map[string][]string{}}
 	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
 			_, ok := summary.DuplicateCodes[k]
@@ -73,6 +75,14 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 		}
 	}
 	sort.Strings(summary.DuplicateNames)
+	for name, definitions := range infoAll.Errors {
+		for _, d := range definitions {
+			summary.InvalidDefinitions[name] = append(summary.InvalidDefinitions[name], d.Problems...)
+		}
+		if len(summary.InvalidDefinitions[name]) == 0 {
+			delete(summary.InvalidDefinitions, name)
+		}
+	}
 	for _, v := range infoAll.CallExprCodes {
 		summary.CallExprCodes = append(summary.CallExprCodes, v.Name)
 	}

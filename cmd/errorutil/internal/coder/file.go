@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.InfoAll, comp *component.Info) error {
+func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.InfoAll, comp *component.Info, remediations remediationResolver) error {
 	logger := logrus.WithFields(logrus.Fields{"path": path})
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
@@ -34,9 +34,12 @@ func handleFile(path string, update bool, updateAll bool, infoAll *errutilerr.In
 			// This would lead to duplicates detections in case of dot-import.
 			return false
 		}
-		if newErr, ok := isNewCallExpr(n); ok {
+		if newErr, ok := parseNewCallExpr(n, remediations); ok {
 			name := newErr.Name
-			logger.Infof("New.Error(...) call detected, error code name: '%s'", name)
+			logger.Infof("%s(...) call detected, error code name: '%s'", newErr.Constructor, name)
+			for _, problem := range newErr.Problems {
+				logger.Errorf("error '%s' defined with %s cannot be exported: %s", name, newErr.Constructor, problem)
+			}
 			_, ok := infoAll.Errors[name]
 			if !ok {
 				infoAll.Errors[name] = []errutilerr.Error{}

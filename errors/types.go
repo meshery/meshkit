@@ -24,6 +24,11 @@ type (
 		ProbableCause        []string
 		SuggestedRemediation []string
 		AdditionalInfo       interface{}
+		// Causes is the nested form NewV3 records: each probable cause with the
+		// remediations that answer it. ProbableCause and SuggestedRemediation are
+		// derived from it (FlattenCauses). Nil for New and NewV2 errors, and then
+		// omitted from JSON, so their serialized form is unchanged.
+		Causes []Cause `json:",omitempty"`
 	}
 )
 

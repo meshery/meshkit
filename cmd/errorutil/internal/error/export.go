@@ -10,6 +10,7 @@ import (
 
 	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 	"github.com/meshery/meshkit/cmd/errorutil/internal/config"
+	"github.com/meshery/schemas/models/v1beta3/errorcode"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -30,6 +31,27 @@ type Error struct {
 	ShortDescription     string `yaml:"short_description" json:"short_description"`         // might contain newlines (JSON encoded)
 	ProbableCause        string `yaml:"probable_cause" json:"probable_cause"`               // might contain newlines (JSON encoded)
 	SuggestedRemediation string `yaml:"suggested_remediation" json:"suggested_remediation"` // might contain newlines (JSON encoded)
+	// ProbableCauses is the nested form of an errors.NewV3 definition: each cause with the remediations that
+	// answer it, in the schemas error construct's ProbableCause shape (meshery/schemas#1334). Omitted for New and
+	// NewV2 definitions, and for a NewV3 definition errorutil rejected, so the export's legacy shape is unchanged.
+	ProbableCauses []errorcode.ProbableCause `yaml:"probableCauses,omitempty" json:"probableCauses,omitempty"`
+
+	// The fields below are analysis data, kept in errorutil_analyze_errors.json and never exported.
+
+	// Constructor is the MeshKit constructor of the definition: New, NewV2 or NewV3.
+	Constructor string `yaml:"constructor,omitempty" json:"constructor,omitempty"`
+	// Problems lists why errorutil cannot export a NewV3 definition's causes. Each is reported as an error.
+	Problems []string `yaml:"problems,omitempty" json:"problems,omitempty"`
+	// Lines holds the literal lines of each description list, before they are joined with newlines above.
+	Lines Lines `yaml:"-" json:"-"`
+}
+
+// Lines holds the literal lines of an error definition's string lists.
+type Lines struct {
+	ShortDescription     []string
+	LongDescription      []string
+	ProbableCause        []string
+	SuggestedRemediation []string
 }
 
 // externalAll is used to export all Errors including information about the component for e.g. documentation purposes.
@@ -82,6 +104,7 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 					LongDescription:      details.LongDescription,
 					ProbableCause:        details.ProbableCause,
 					SuggestedRemediation: details.SuggestedRemediation,
+					ProbableCauses:       details.ProbableCauses,
 				}
 			} else {
 				log.Errorf("duplicate error details for error name '%s' and code '%s'", errorInfo.Name, errorInfo.Code)
@@ -95,5 +118,8 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 		return err
 	}
 	log.Infof("exporting to %s", fname)
-	return os.WriteFile(fname, jsn, 0600)
+	if err := os.WriteFile(fname, jsn, 0600); err != nil {
+		return err
+	}
+	return ExportIndex(componentInfo, export.Errors, infoAll, outputDir)
 }
