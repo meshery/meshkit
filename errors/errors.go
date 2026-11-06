@@ -11,7 +11,9 @@
 // The initial value of the code is a placeholder string, e.g. "replace_me", set by the developer.
 // The final value of the code is an integer, set by the errorutil tool, as part of a CI workflow.
 //
-// 2) Error details defined using the function New(...) in this package, see below for details.
+// 2) Error details defined using the function New(...), NewV2(...) or NewV3(...) in this package, see below for details.
+// NewV3 nests each probable cause with the remediations that answer it, and each remediation can carry an
+// action and an ActionPolicy; the flat probable cause and remediation lists are derived from it.
 //
 // Additionally, the following conventions apply:
 //
