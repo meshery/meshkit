@@ -2,7 +2,6 @@ package github
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -97,29 +96,28 @@ func TestGenerateCompFromGitHub(t *testing.T) {
 				t.Errorf("error while generating components: %v", err)
 				return
 			}
+			// Write each component to a temporary directory: the test checks that
+			// generation and serialization succeed, and must never rewrite files
+			// in the source tree.
+			outDir := t.TempDir()
 			for _, comp := range comps {
-				currentDirectory, _ := os.Getwd()
 				if comp.Model == nil {
 					t.Errorf("component %s has nil Model", comp.Component.Kind)
 					continue
 				}
-				dirName := filepath.Join(currentDirectory, comp.Model.Name)
-				_, err := os.Stat(dirName)
-				if errors.Is(err, os.ErrNotExist) {
-					err = os.Mkdir(dirName, fs.ModePerm)
-					if err != nil {
-						t.Errorf("error creating dir at %s: %v", dirName, err)
-						return
-					}
+				dirName := filepath.Join(outDir, comp.Model.Name)
+				if err := os.MkdirAll(dirName, fs.ModePerm); err != nil {
+					t.Errorf("error creating dir at %s: %v", dirName, err)
+					return
 				}
-				byt, _ := json.MarshalIndent(comp, "", "")
-
-				f, err := os.Create(fmt.Sprintf("%s/%s%s", dirName, comp.Component.Kind, ".json"))
+				byt, err := json.MarshalIndent(comp, "", "")
 				if err != nil {
-					t.Errorf("error creating file for %s: %v", comp.Component.Kind, err)
+					t.Errorf("error marshaling %s: %v", comp.Component.Kind, err)
 					continue
 				}
-				_, _ = f.Write(byt)
+				if err := os.WriteFile(filepath.Join(dirName, comp.Component.Kind+".json"), byt, 0o600); err != nil {
+					t.Errorf("error writing file for %s: %v", comp.Component.Kind, err)
+				}
 			}
 			t.Log("generated ", len(comps), "want: ", test.want)
 			if len(comps) != test.want {
