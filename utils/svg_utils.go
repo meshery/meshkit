@@ -85,10 +85,8 @@ func UpdateSVGString(svgStr string, width, height int, skipHeader bool) (string,
 			} else {
 				for i, a := range se.Attr {
 					xmlnsindex := -1
-					nahbro := 0
 					if a.Name.Local == "xmlns" {
 						xmlnsindex = i
-						nahbro++
 					}
 					if xmlnsindex > -1 {
 						se.Attr = append(se.Attr[0:xmlnsindex], se.Attr[xmlnsindex+1:]...)

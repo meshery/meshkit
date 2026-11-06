@@ -2,7 +2,7 @@
 
 ## Build, test, and lint
 
-- Use Go 1.25.x (`go.mod` pins `go 1.26.4`; CI uses Go 1.25).
+- Use Go 1.27.x (`go.mod` pins `go 1.27.1`; CI uses Go 1.27).
 - Prefer the repo `make` targets for final verification:
   - `make test` - runs `go test --short ./... -race -coverprofile=coverage.txt -covermode=atomic`
   - `make check` - runs `golangci-lint run -c .golangci.yml -v ./...`
