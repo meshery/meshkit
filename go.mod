@@ -14,6 +14,7 @@ replace (
 require (
 	cuelang.org/go v0.15.1
 	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/dlclark/regexp2 v1.11.0
 	github.com/docker/cli v27.5.1+incompatible
 	github.com/fluxcd/pkg/oci v0.43.1
@@ -98,7 +99,6 @@ require (
 	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.3 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
