@@ -11,15 +11,27 @@ type EventBuilder struct {
 	event Event
 }
 
+// NewEvent starts an event with its ID and OperationID minted (uuid v4),
+// CreatedAt set to now and Status Unread. The producer mints the ID here, at
+// construction, so a copy broadcast before or instead of the stored row
+// carries the same non-nil ID the row is persisted with.
 func NewEvent() *EventBuilder {
-	operationId := uuid.Must(uuid.NewV4())
 	return &EventBuilder{
 		event: Event{
+			ID:          uuid.Must(uuid.NewV4()),
 			CreatedAt:   time.Now(),
-			OperationID: operationId,
+			OperationID: uuid.Must(uuid.NewV4()),
 			Status:      Unread,
 		},
 	}
+}
+
+// WithID sets the event's ID, replacing the one NewEvent mints. Use it only
+// when the producer already minted the ID upstream, for example to retry
+// persisting an event it has broadcast.
+func (e *EventBuilder) WithID(id core.Uuid) *EventBuilder {
+	e.event.ID = id
+	return e
 }
 
 func (e *EventBuilder) ActedUpon(resource core.Uuid) *EventBuilder {

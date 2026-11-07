@@ -153,7 +153,7 @@ Producers build events through a fluent builder defined in
 
 ```go
 event := events.
-    NewEvent().                                 // assigns OperationID, CreatedAt, Status=Unread
+    NewEvent().                                 // assigns ID, OperationID, CreatedAt, Status=Unread
     FromOwner(userID).
     FromSystem(systemID).
     WithCategory("pattern").
@@ -195,9 +195,10 @@ resolved := events.NewEvent().Resolves(key, time.Now()).
     WithDescription("Connection to cluster prod-1 restored").Build()
 ```
 
-- The producer mints every id. Nothing in MeshKit mints `traceId`,
-  `parentId` or a correlation key at persist time: an id minted there never
-  reaches the copy already broadcast.
+- The producer mints every id. `NewEvent` mints the event's `id` at
+  construction, and nothing in MeshKit mints `id`, `traceId`, `parentId` or a
+  correlation key at persist time: an id minted there never reaches the copy
+  already broadcast.
 - `correlationKey` names the condition, qualified by source and component,
   then subject and kind. Never use an error code alone.
 - The server, not MeshKit, applies the upsert-by-`correlationKey` semantics
@@ -228,9 +229,13 @@ b, err := events.NewEvent().WithMetadata(meta).   // WithMetadata replaces the m
 `Details` on the `EventError` for instance values (never secrets,
 credentials, design contents or request bodies).
 
-`Event.ID` is generated automatically in the GORM `BeforeCreate` hook
-(see [`models/events/database.go`](../models/events/database.go)) so
-producers do not assign it manually.
+`Event.ID` (uuid v4) is minted by `NewEvent` when the event is constructed,
+so the event a producer broadcasts carries the same ID as its stored row,
+even when it is broadcast before or instead of being persisted. `WithID`
+replaces it only when the producer already minted the ID upstream. The GORM
+`BeforeCreate` hook (see [`models/events/database.go`](../models/events/database.go))
+keeps a non-nil ID and assigns one only to an event constructed without the
+builder, as a fallback.
 
 The same struct flows over the wire (camelCase JSON), into the database
 (snake_case columns via `db:` tags), and into the GraphQL `Event` type
@@ -529,7 +534,7 @@ A correctly behaved subscriber/producer pair satisfies:
    asynchronously through goroutines; do not assume the message has
    been consumed by the time `Publish` returns.
 7. **Use `events.NewEvent().Build()` to construct events** — never
-   build the struct directly. The builder fills in `OperationID`,
+   build the struct directly. The builder fills in `ID`, `OperationID`,
    `CreatedAt`, and `Status` with sensible defaults.
 
 ---
