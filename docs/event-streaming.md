@@ -113,7 +113,7 @@ locally.
 // models/events/events.go (excerpt)
 type Event struct {
     ID          ID                     `db:"id" json:"id"`
-    Owner       *Owner                 `db:"owner"        json:"owner,omitempty"`
+    Owner       *Owner                 `db:"owner"        json:"owner,omitempty" gorm:"index:idx_events_owner_idempotency_key,priority:1"`
     SystemID    SystemID               `db:"system_id"    json:"systemId"`
     OperationID OperationID            `db:"operation_id" json:"operationId"`
 
@@ -130,8 +130,10 @@ type Event struct {
     UpdatedAt   UpdatedAt              `db:"updated_at" json:"updatedAt"`
     DeletedAt   *DeletedAt             `db:"deleted_at" json:"deletedAt,omitempty"`
 
-    // Optional, omitted when unset (see "Conditions, provenance and trace context").
+    // Optional, omitted when unset (see "Retries: idempotencyKey" and
+    // "Conditions, provenance and trace context").
     // Each also carries matching db: and gorm:"column:" tags.
+    IdempotencyKey  *string           `json:"idempotencyKey,omitempty"`
     CorrelationKey  *string           `json:"correlationKey,omitempty"`
     OccurrenceCount *int              `json:"occurrenceCount,omitempty"`
     FirstSeenAt     *time.Time        `json:"firstSeenAt,omitempty"`
@@ -164,6 +166,43 @@ event := events.
     WithMetadata(map[string]interface{}{"summary": "..."}).
     Build()
 ```
+
+### Retries: `idempotencyKey`
+
+`Event.IdempotencyKey` carries the schemas v1beta3
+`EventPayload.idempotencyKey` (meshery/schemas v1.3.116 and later): an
+optional, client-chosen key of 1 to 255 characters that makes recording one
+event safe to retry. Under `createEvent`, a create carrying a key its
+authenticated caller already used records nothing and is answered 200 with
+the event the first create recorded (`Event-Disposition: replayed`), whatever
+the rest of the payload says. Because MeshKit's `Event` decodes the field,
+Meshery Server keeps the key when it decodes a client event instead of
+dropping it.
+
+```go
+event := events.NewEvent().
+    FromOwner(userID).
+    WithCategory("perf").WithAction("run").
+    WithIdempotencyKey("mesheryctl/perf-run/" + runID). // names the occurrence
+    Build()
+```
+
+- Name the occurrence, for example a run id, so a client replaying a local
+  queue after a timeout never records a duplicate. A `correlationKey` names a
+  condition and spans many creates; an `idempotencyKey` makes one create safe
+  to retry.
+- `Build` copies the key into every event it builds. Set a new key before
+  building another occurrence from the same builder, or the server answers
+  that occurrence as a replay of the first.
+- GORM `AutoMigrate` adds a nullable `idempotency_key` column and a
+  non-unique composite index `idx_events_owner_idempotency_key` on
+  `(owner, idempotency_key)`, so a server finds the event a key is bound to
+  by owner and key. The contract scopes keys to the authenticated caller
+  (organization and user), not to the client-settable `owner` field, so the
+  server sets `owner` from the caller and applies the replay semantics;
+  MeshKit does neither.
+- `Event.Validate()` rejects a key that is empty or longer than 255
+  characters with `ErrInvalidEvent`.
 
 ### Conditions, provenance and trace context
 
@@ -646,7 +685,8 @@ MeshKit:
 - [`models/events/build.go`](../models/events/build.go) — `EventBuilder`;
   `NewEvent` mints `Event.ID`.
 - [`models/events/correlation.go`](../models/events/correlation.go) —
-  operation id, condition correlation, provenance and trace-context setters;
+  operation id, idempotency key, condition correlation, provenance and
+  trace-context setters;
   `NewTraceID` / `NewSpanID`.
 - [`models/events/event_error.go`](../models/events/event_error.go) —
   `NewEventError`, `WithError`, `MatchCause`, `Event.Validate`.
