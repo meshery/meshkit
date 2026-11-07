@@ -172,12 +172,17 @@ event := events.
 `Event.IdempotencyKey` carries the schemas v1beta3
 `EventPayload.idempotencyKey` (meshery/schemas v1.3.116 and later): an
 optional, client-chosen key of 1 to 255 characters that makes recording one
-event safe to retry. Under `createEvent`, a create carrying a key its
-authenticated caller already used records nothing and is answered 200 with
-the event the first create recorded (`Event-Disposition: replayed`), whatever
-the rest of the payload says. Because MeshKit's `Event` decodes the field,
-Meshery Server keeps the key when it decodes a client event instead of
-dropping it.
+event safe to retry. MeshKit carries the field: `Event` encodes, decodes,
+validates and persists it, and nothing more. The replay semantics are the
+schemas `createEvent` contract: a create carrying a key its authenticated
+caller already used records nothing and is answered 200 with the event the
+first create recorded (`Event-Disposition: replayed`), whatever the rest of
+the payload says. Meshery Server honours that contract only once its
+follow-up lands: today its client event handler rebuilds the event without
+copying the key (`ApplyClientEventFields`) and persists it without a replay
+lookup (`PersistClientEvent`), so a keyed retry to Meshery Server still
+records a second event. Do not rely on replay against a server that predates
+that follow-up.
 
 ```go
 event := events.NewEvent().
@@ -192,15 +197,16 @@ event := events.NewEvent().
   condition and spans many creates; an `idempotencyKey` makes one create safe
   to retry.
 - `Build` copies the key into every event it builds. Set a new key before
-  building another occurrence from the same builder, or the server answers
-  that occurrence as a replay of the first.
+  building another occurrence from the same builder: under the
+  `createEvent` contract, a server that honours it answers that occurrence
+  as a replay of the first.
 - GORM `AutoMigrate` adds a nullable `idempotency_key` column and a
   non-unique composite index `idx_events_owner_idempotency_key` on
   `(owner, idempotency_key)`, so a server finds the event a key is bound to
   by owner and key. The contract scopes keys to the authenticated caller
-  (organization and user), not to the client-settable `owner` field, so the
-  server sets `owner` from the caller and applies the replay semantics;
-  MeshKit does neither.
+  (organization and user), not to the client-settable `owner` field, so a
+  server that honours the contract sets `owner` from the caller and applies
+  the replay semantics; MeshKit does neither.
 - `Event.Validate()` rejects a key that is empty or longer than 255
   characters with `ErrInvalidEvent`.
 
