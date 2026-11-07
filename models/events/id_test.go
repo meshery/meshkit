@@ -72,6 +72,40 @@ func TestPersistedEventKeepsBuilderID(t *testing.T) {
 	}
 }
 
+// Meshery Server reuses one builder for several events and persists each by
+// value with Save; every built event keeps its own ID and its own row.
+func TestReusedBuilderBuildsDistinctEvents(t *testing.T) {
+	db := newEventsDB(t)
+	b := NewEvent().FromOwner(userID).FromSystem(systemID)
+	first := b.WithDescription("first").Build()
+	second := b.WithDescription("second").Build()
+	if first.ID == uuid.Nil || second.ID == uuid.Nil || first.ID == second.ID {
+		t.Fatalf("reused builder IDs: %s, %s", first.ID, second.ID)
+	}
+	if first.Description != "first" {
+		t.Errorf("a later builder call changed an already built event: %q", first.Description)
+	}
+	for _, ev := range []Event{*first, *second} {
+		if err := db.Save(&ev).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	var count int64
+	if err := db.Model(&Event{}).Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Errorf("stored %d rows, want 2", count)
+	}
+	id := uuid.Must(uuid.FromString("66666666-6666-4666-8666-666666666666"))
+	if got := b.WithID(id).Build().ID; got != id {
+		t.Errorf("WithID on a reused builder: ID = %s, want %s", got, id)
+	}
+	if got := b.Build().ID; got == id || got == uuid.Nil {
+		t.Errorf("Build after a pinned ID returned %s", got)
+	}
+}
+
 // An event constructed without the builder still gets an ID at persist time.
 func TestBeforeCreateAssignsNilID(t *testing.T) {
 	db := newEventsDB(t)
