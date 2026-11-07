@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	meshkiterrors "github.com/meshery/meshkit/errors"
 	"github.com/meshery/schemas/models/v1beta3/errorcode"
@@ -157,17 +158,27 @@ var (
 	parentIDPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 )
 
+func checkLength(field string, v *string) error {
+	if v == nil {
+		return nil
+	}
+	if n := utf8.RuneCountInString(*v); n < 1 || n > 255 {
+		return fmt.Errorf("%s: length %d is not 1 to 255 characters", field, n)
+	}
+	return nil
+}
+
 // Validate checks the event's optional idempotency key, correlation,
 // provenance and trace fields, and its `metadata.error` when that is an EventError or a decoded
 // object in the EventError shape, against the schemas event construct. An event that sets none of them is valid.
 // It returns ErrInvalidEvent listing every violation.
 func (ev *Event) Validate() error {
 	var errs []error
-	if ev.IdempotencyKey != nil && (len(*ev.IdempotencyKey) < 1 || len(*ev.IdempotencyKey) > 255) {
-		errs = append(errs, fmt.Errorf("idempotencyKey: length %d is not 1 to 255", len(*ev.IdempotencyKey)))
+	if err := checkLength("idempotencyKey", ev.IdempotencyKey); err != nil {
+		errs = append(errs, err)
 	}
-	if ev.CorrelationKey != nil && (len(*ev.CorrelationKey) < 1 || len(*ev.CorrelationKey) > 255) {
-		errs = append(errs, fmt.Errorf("correlationKey: length %d is not 1 to 255", len(*ev.CorrelationKey)))
+	if err := checkLength("correlationKey", ev.CorrelationKey); err != nil {
+		errs = append(errs, err)
 	}
 	if ev.OccurrenceCount != nil && *ev.OccurrenceCount < 1 {
 		errs = append(errs, fmt.Errorf("occurrenceCount: %d is less than 1", *ev.OccurrenceCount))
@@ -175,11 +186,11 @@ func (ev *Event) Validate() error {
 	if ev.FirstSeenAt != nil && ev.LastSeenAt != nil && ev.LastSeenAt.Before(*ev.FirstSeenAt) {
 		errs = append(errs, fmt.Errorf("lastSeenAt: %s is before firstSeenAt %s", ev.LastSeenAt, ev.FirstSeenAt))
 	}
-	if ev.Source != nil && (len(*ev.Source) < 1 || len(*ev.Source) > 255) {
-		errs = append(errs, fmt.Errorf("source: length %d is not 1 to 255", len(*ev.Source)))
+	if err := checkLength("source", ev.Source); err != nil {
+		errs = append(errs, err)
 	}
-	if ev.Type != nil && (len(*ev.Type) < 1 || len(*ev.Type) > 255) {
-		errs = append(errs, fmt.Errorf("type: length %d is not 1 to 255", len(*ev.Type)))
+	if err := checkLength("type", ev.Type); err != nil {
+		errs = append(errs, err)
 	}
 	if ev.SpecVersion != nil && *ev.SpecVersion != SpecVersion10 {
 		errs = append(errs, fmt.Errorf("specversion: %q is not %q", *ev.SpecVersion, SpecVersion10))
