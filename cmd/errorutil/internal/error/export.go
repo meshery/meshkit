@@ -33,14 +33,16 @@ type Error struct {
 	SuggestedRemediation string `yaml:"suggested_remediation" json:"suggested_remediation"` // might contain newlines (JSON encoded)
 	// ProbableCauses is the nested form of an errors.NewV3 definition: each cause with the remediations that
 	// answer it, in the schemas error construct's ProbableCause shape (meshery/schemas#1334). Omitted for New and
-	// NewV2 definitions, and for a NewV3 definition errorutil rejected, so the export's legacy shape is unchanged.
+	// NewV2 definitions, so the export's legacy shape is unchanged. A NewV3 definition errorutil rejected is not
+	// exported at all.
 	ProbableCauses []errorcode.ProbableCause `yaml:"probableCauses,omitempty" json:"probableCauses,omitempty"`
 
 	// The fields below are analysis data, kept in errorutil_analyze_errors.json and never exported.
 
 	// Constructor is the MeshKit constructor of the definition: New, NewV2 or NewV3.
 	Constructor string `yaml:"constructor,omitempty" json:"constructor,omitempty"`
-	// Problems lists why errorutil cannot export a NewV3 definition's causes. Each is reported as an error.
+	// Problems lists why errorutil rejects a NewV3 definition. Each is reported as an error, and a definition with
+	// problems is left out of both exports.
 	Problems []string `yaml:"problems,omitempty" json:"problems,omitempty"`
 	// Lines holds the literal lines of each description list, before they are joined with newlines above.
 	Lines Lines `yaml:"-" json:"-"`
@@ -96,6 +98,13 @@ func Export(componentInfo *component.Info, infoAll *InfoAll, outputDir string) e
 			// no duplicates?
 			if len(infoAll.Errors[errorInfo.Name]) == 1 {
 				details := infoAll.Errors[errorInfo.Name][0]
+				if len(details.Problems) > 0 {
+					// A rejected NewV3 definition is never exported in a reduced form: its causes and text would be
+					// incomplete. It is listed in the summary's invalid_definitions and fails analyze and update.
+					log.Errorf("invalid %s definition for error name '%s' and code '%s' - skipping export", details.Constructor, errorInfo.Name, errorInfo.Code)
+					delete(export.Errors, k)
+					continue
+				}
 				export.Errors[k] = Error{
 					Name:                 details.Name,
 					Code:                 errorInfo.Code,

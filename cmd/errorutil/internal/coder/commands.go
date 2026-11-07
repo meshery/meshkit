@@ -2,12 +2,14 @@ package coder
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 
@@ -100,7 +102,29 @@ func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) e
 	if err != nil {
 		return err
 	}
-	return mesherr.Export(componentInfo, errorsInfo, globalFlags.outDir)
+	if err := mesherr.Export(componentInfo, errorsInfo, globalFlags.outDir); err != nil {
+		return err
+	}
+	return invalidDefinitionsError(mesherr.InvalidDefinitions(errorsInfo))
+}
+
+// invalidDefinitionsError fails analyze and update while any errors.NewV3 definition is invalid, naming each
+// definition with its problems. Invalid definitions are already left out of both exports.
+func invalidDefinitionsError(invalid map[string][]string) error {
+	if len(invalid) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(invalid))
+	for name := range invalid {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var b strings.Builder
+	fmt.Fprintf(&b, "%d invalid errors.NewV3 definition(s), left out of the exports:", len(names))
+	for _, name := range names {
+		fmt.Fprintf(&b, "\n  %s: %s", name, strings.Join(invalid[name], "; "))
+	}
+	return errors.New(b.String())
 }
 
 func commandAnalyze() *cobra.Command {

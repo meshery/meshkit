@@ -266,6 +266,8 @@ const (
 	ErrUnkeyedCode    = "meshery-server-1004"
 	ErrUnknownVarCode = "meshery-server-1005"
 	ErrRuntimeDescCode = "meshery-server-1006"
+	ErrConflictCode   = "meshery-server-1007"
+	ErrValidCode      = "meshery-server-1008"
 )
 
 var description = "Computed at run time."
@@ -295,6 +297,19 @@ func ErrRuntimeDesc(err error) error {
 		[]errors.Cause{{ID: "a", Description: "A.", Remediations: []errors.Remediation{{ID: "r", Description: "R."}}}})
 }
 
+func ErrConflict() error {
+	return errors.NewV3(ErrConflictCode, errors.Alert, []string{"s"}, []string{},
+		[]errors.Cause{
+			{ID: "a", Description: "A.", Remediations: []errors.Remediation{{ID: "shared", Description: "Text one."}}},
+			{ID: "b", Description: "B.", Remediations: []errors.Remediation{{ID: "shared", Description: "Text two."}}},
+		})
+}
+
+func ErrValid() error {
+	return errors.NewV3(ErrValidCode, errors.Alert, []string{"s"}, []string{},
+		[]errors.Cause{{ID: "a", Description: "A.", Remediations: []errors.Remediation{{ID: "r", Description: "R."}}}})
+}
+
 func ErrUnknownVar() error {
 	return errors.NewV3(ErrUnknownVarCode, errors.Alert, []string{"s"}, []string{},
 		[]errors.Cause{{ID: "a", Description: "A.", Remediations: []errors.Remediation{notDeclared}}})
@@ -302,49 +317,71 @@ func ErrUnknownVar() error {
 `
 
 // errorutil refuses NewV3 definitions that break the contract: it reports each as an error finding, records it
-// in the summary, and exports the code without probableCauses.
+// in the summary, leaves it out of both exports, and fails analyze and update naming each one.
 func TestInvalidNewV3DefinitionsAreFindings(t *testing.T) {
-	_, flags := writeSamplePackage(t, invalidErrorGo)
-	if err := os.WriteFile(filepath.Join(flags.infoDir, "component_info.json"), []byte(`{"name": "meshery-server", "type": "component", "next_error_code": 1007}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	hook := logtest.NewGlobal()
-	defer hook.Reset()
-	if err := walkSummarizeExport(flags, false, false); err != nil {
-		t.Fatalf("analyze: %v", err)
-	}
-	all := strings.Join(findings(hook), "\n")
-	for _, want := range []string{
-		"'ErrBadPolicyCode' defined with NewV3 cannot be exported: causes[0].remediations[0].actionPolicy: \"whenever\"",
-		"'ErrNoActionCode' defined with NewV3 cannot be exported",
-		"needs an action",
-		"'ErrNonLiteralCode' defined with NewV3 cannot be exported: causes[0].Description: use a string literal",
-		"'ErrUnkeyedCode' defined with NewV3 cannot be exported: causes[0]: field 0 is unkeyed",
-		"'ErrUnknownVarCode' defined with NewV3 cannot be exported: causes[0].remediations[0]: notDeclared is not a package-level errors.Remediation variable",
-		"'ErrRuntimeDescCode' defined with NewV3 cannot be exported: shortDescription[1]: use a string literal",
-		"longDescription[1]: use a string literal",
-	} {
-		if !strings.Contains(all, want) {
-			t.Errorf("findings lack %q:\n%s", want, all)
-		}
-	}
+	for _, update := range []bool{false, true} {
+		t.Run(map[bool]string{false: "analyze", true: "update"}[update], func(t *testing.T) {
+			_, flags := writeSamplePackage(t, invalidErrorGo)
+			if err := os.WriteFile(filepath.Join(flags.infoDir, "component_info.json"), []byte(`{"name": "meshery-server", "type": "component", "next_error_code": 1009}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			hook := logtest.NewGlobal()
+			defer hook.Reset()
+			invalidNames := []string{"ErrBadPolicyCode", "ErrConflictCode", "ErrNoActionCode", "ErrNonLiteralCode", "ErrRuntimeDescCode", "ErrUnkeyedCode", "ErrUnknownVarCode"}
+			err := walkSummarizeExport(flags, update, false)
+			if err == nil {
+				t.Fatal("walkSummarizeExport succeeded with invalid NewV3 definitions, want an error")
+			}
+			for _, want := range append([]string{
+				"7 invalid errors.NewV3 definition(s)",
+				"ErrRuntimeDescCode: shortDescription[1]: use a string literal",
+				"\"shared\"",
+			}, invalidNames...) {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error lacks %q:\n%v", want, err)
+				}
+			}
+			if strings.Contains(err.Error(), "ErrValidCode") {
+				t.Errorf("error names the valid definition:\n%v", err)
+			}
+			all := strings.Join(findings(hook), "\n")
+			for _, want := range []string{
+				"'ErrBadPolicyCode' defined with NewV3 cannot be exported: causes[0].remediations[0].actionPolicy: \"whenever\"",
+				"'ErrNoActionCode' defined with NewV3 cannot be exported",
+				"needs an action",
+				"'ErrNonLiteralCode' defined with NewV3 cannot be exported: causes[0].Description: use a string literal",
+				"'ErrUnkeyedCode' defined with NewV3 cannot be exported: causes[0]: field 0 is unkeyed",
+				"'ErrUnknownVarCode' defined with NewV3 cannot be exported: causes[0].remediations[0]: notDeclared is not a package-level errors.Remediation variable",
+				"'ErrRuntimeDescCode' defined with NewV3 cannot be exported: shortDescription[1]: use a string literal",
+				"longDescription[1]: use a string literal",
+				"'ErrConflictCode' defined with NewV3 cannot be exported",
+			} {
+				if !strings.Contains(all, want) {
+					t.Errorf("findings lack %q:\n%s", want, all)
+				}
+			}
 
-	var summary struct {
-		InvalidDefinitions map[string][]string `json:"invalid_definitions"`
-	}
-	readJSON(t, filepath.Join(flags.outDir, "errorutil_analyze_summary.json"), &summary)
-	if len(summary.InvalidDefinitions) != 6 {
-		t.Errorf("summary invalid_definitions = %v, want 6 entries", summary.InvalidDefinitions)
-	}
+			var summary struct {
+				InvalidDefinitions map[string][]string `json:"invalid_definitions"`
+			}
+			readJSON(t, filepath.Join(flags.outDir, "errorutil_analyze_summary.json"), &summary)
+			if len(summary.InvalidDefinitions) != len(invalidNames) {
+				t.Errorf("summary invalid_definitions = %v, want %d entries", summary.InvalidDefinitions, len(invalidNames))
+			}
 
-	var index errorcode.ErrorReferenceIndex
-	readJSON(t, filepath.Join(flags.outDir, "errorutil_errors_index.json"), &index)
-	if len(index.Errors) != 6 {
-		t.Fatalf("index has %d errors, want 6", len(index.Errors))
-	}
-	for _, d := range index.Errors {
-		if d.ProbableCauses != nil {
-			t.Errorf("%s exported probableCauses errorutil rejected", d.Code)
-		}
+			// Only the valid definition is exported, in both files.
+			var export struct {
+				Errors map[string]mesherr.Error `json:"errors"`
+			}
+			readJSON(t, filepath.Join(flags.outDir, "errorutil_errors_export.json"), &export)
+			if len(export.Errors) != 1 || export.Errors["1008"].Name != "ErrValidCode" {
+				t.Errorf("legacy export = %+v, want only ErrValidCode", export.Errors)
+			}
+			var index errorcode.ErrorReferenceIndex
+			readJSON(t, filepath.Join(flags.outDir, "errorutil_errors_index.json"), &index)
+			if len(index.Errors) != 1 || index.Errors[0].Moniker != "ErrValidCode" {
+				t.Errorf("index = %+v, want only ErrValidCode", index.Errors)
+			}
+		})
 	}
 }
