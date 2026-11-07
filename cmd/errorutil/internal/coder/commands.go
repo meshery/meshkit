@@ -187,6 +187,8 @@ A MeshKit compatible error consist of
   - The initial value of the code is a placeholder string, e.g. "replace_me", set by the developer.
   - The final value of the code is an integer, set by this tool, as part of a CI workflow.
 - Error details defined using the function errors.New(code, severity, sdescription, ldescription, probablecause, remedy) from MeshKit.
+  errors.NewV2 and errors.NewV3 (nested causes with remediations) are read as well; see docs/agent-instructions/errors.md for the NewV3 rules.
+  A NewV3 definition that breaks those rules is left out of both exports, and analyze and update exit non-zero naming it.
  - The first parameter, 'code', has to be passed as the error code constant (or variable), not a string literal.
  - The second parameter, 'severity', has its own type; consult its Go-doc for further details.
  - The remaining parameters are string arrays for short and long description, probable cause, and suggested remediation.
@@ -202,10 +204,11 @@ Additionally, the following conventions apply:
 - There are no predefined error code ranges for components. Every component is free to use its own range.
 - Codes carry no meaning, as e.g. HTTP status codes do.
 
-This tool produces three files:
+This tool produces four files:
 - errorutil_analyze_errors.json: raw data with all errors and some metadata
 - errorutil_analyze_summary.json: summary of raw data, also used for validation and troubleshooting
 - errorutil_errors_export.json: export of errors which can be used to create the error code reference on the Meshery website
+- errorutil_errors_index.json: the same errors as a meshery/schemas ErrorReferenceIndex (machine-readable error reference)
 
 Typically, the 'analyze' command of the tool is used by the developer to verify errors, i.e. that there are no duplicate names or details.
 A CI workflow is used to replace the placeholder code strings with integer code, and export errors. Using this export, the workflow updates
