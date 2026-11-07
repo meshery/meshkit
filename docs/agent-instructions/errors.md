@@ -42,8 +42,9 @@ toolchain and only works if the conventions below are followed strictly.
 - `Automatic` and `RequiresApproval` need an `Action` (dot-separated lowercase words such
   as `connection.reconnect`). An unknown policy is never coerced: `errors.ValidateCauses`
   and errorutil reject it, and `Remediation.EffectivePolicy()` treats it as `Manual`.
-- Every element of the short- and long-description lists is a string literal; errorutil
-  reports any other element. Append instance text such as `err.Error()` to the returned
+- Pass the short- and long-description lists as `[]string` literals and the causes as an
+  `[]errors.Cause` literal (not a variable or `nil`), and make every description element a
+  string literal; errorutil rejects anything else. Append instance text such as `err.Error()` to the returned
   error's `LongDescription` after `NewV3` returns.
 - Unit-test a package's NewV3 definitions with `errors.ValidateCauses(errors.GetCauses(err))`.
 - Go types: `ActionPolicy` and its constants alias the generated
