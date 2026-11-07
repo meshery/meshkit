@@ -62,9 +62,14 @@ func TestBuildDeepCopiesMetadataValues(t *testing.T) {
 			},
 		},
 		{
-			name:   "pointer to struct",
-			value:  func() interface{} { return &cloneOuter{Name: "o", Ptr: &cloneInner{Tags: []string{"t"}}} },
-			mutate: func(v interface{}) { p := v.(*cloneOuter); p.Name = "changed"; p.Ptr.Tags[0] = "changed"; p.Ptr.Labels = map[string]string{} },
+			name:  "pointer to struct",
+			value: func() interface{} { return &cloneOuter{Name: "o", Ptr: &cloneInner{Tags: []string{"t"}}} },
+			mutate: func(v interface{}) {
+				p := v.(*cloneOuter)
+				p.Name = "changed"
+				p.Ptr.Tags[0] = "changed"
+				p.Ptr.Labels = map[string]string{}
+			},
 		},
 		{
 			name:   "pointer to scalar",
