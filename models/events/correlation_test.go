@@ -195,6 +195,7 @@ func TestEventValidateRejects(t *testing.T) {
 		{"long idempotency key", NewEvent().WithIdempotencyKey(strings.Repeat("k", 256)).Build(), "idempotencyKey"},
 		{"last before first", NewEvent().WithFirstSeenAt(t1).WithLastSeenAt(t0).Build(), "lastSeenAt"},
 		{"empty source", NewEvent().WithSource("").Build(), "source"},
+		{"long multibyte idempotency key", NewEvent().WithIdempotencyKey(strings.Repeat("键", 256)).Build(), "idempotencyKey"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -206,6 +207,14 @@ func TestEventValidateRejects(t *testing.T) {
 				t.Errorf("Validate error code = %q, want %q", meshkiterrors.GetCode(err), ErrInvalidEventCode)
 			}
 		})
+	}
+}
+
+func TestEventValidateCountsCharacters(t *testing.T) {
+	key := strings.Repeat("键", 255)
+	ev := NewEvent().WithIdempotencyKey(key).WithCorrelationKey(key).WithSource(key).WithType(key).Build()
+	if err := ev.Validate(); err != nil {
+		t.Errorf("Validate rejected 255-character multibyte fields: %v", err)
 	}
 }
 
