@@ -62,9 +62,6 @@ func NewEventError(err error, matched ...EventMatchedCause) (EventError, error) 
 
 	var probableCause, suggestedRemediation []string
 	if len(mk.Causes) > 0 {
-		if len(mk.Causes) > maxEventErrorCauses {
-			return EventError{}, ErrInvalidEventError(mk.Code, fmt.Errorf("%d probable causes, at most %d", len(mk.Causes), maxEventErrorCauses))
-		}
 		if verr := meshkiterrors.ValidateCauses(mk.Causes); verr != nil {
 			return EventError{}, ErrInvalidEventError(mk.Code, verr)
 		}
@@ -75,39 +72,69 @@ func NewEventError(err error, matched ...EventMatchedCause) (EventError, error) 
 		probableCause = nonEmptyLines(mk.ProbableCause)
 		suggestedRemediation = nonEmptyLines(mk.SuggestedRemediation)
 	}
-	if len(probableCause) > maxEventErrorCauses || len(suggestedRemediation) > maxEventErrorRemediations {
-		return EventError{}, ErrInvalidEventError(mk.Code, fmt.Errorf("%d probable causes and %d remediations, at most %d and %d",
-			len(probableCause), len(suggestedRemediation), maxEventErrorCauses, maxEventErrorRemediations))
-	}
 	if len(probableCause) > 0 {
 		ee.ProbableCause = &probableCause
 	}
 	if len(suggestedRemediation) > 0 {
 		ee.SuggestedRemediation = &suggestedRemediation
 	}
-
 	if len(matched) > 0 {
-		if len(matched) > maxEventErrorCauses {
-			return EventError{}, ErrInvalidEventError(mk.Code, fmt.Errorf("%d matched causes, at most %d", len(matched), maxEventErrorCauses))
-		}
-		for i, m := range matched {
-			if !causeIDPattern.MatchString(m.CauseID) {
-				return EventError{}, ErrInvalidEventError(mk.Code, fmt.Errorf("matchedCauses[%d].causeId %q is not lowercase words joined by hyphens", i, m.CauseID))
-			}
-			if m.Confidence != nil && !(*m.Confidence >= 0 && *m.Confidence <= 1) {
-				return EventError{}, ErrInvalidEventError(mk.Code, fmt.Errorf("matchedCauses[%d].confidence %v is not between 0 and 1", i, *m.Confidence))
-			}
-		}
 		list := append([]EventMatchedCause(nil), matched...)
 		ee.MatchedCauses = &list
 	}
-	if verr := ee.Validate(); verr != nil {
+	if verr := validateEventError(ee); verr != nil {
 		return EventError{}, ErrInvalidEventError(mk.Code, verr)
 	}
 	return ee, nil
 }
 
 var causeIDPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
+
+var errorSeverities = map[errorcode.ErrorSeverity]bool{
+	errorcode.SeverityEmergency: true, errorcode.SeverityAlert: true, errorcode.SeverityCritical: true,
+	errorcode.SeverityFatal: true, errorcode.SeverityError: true, errorcode.SeverityWarning: true,
+	errorcode.SeverityInformational: true, errorcode.SeverityDebug: true,
+}
+
+// validateEventError checks ee against the schemas EventError contract: a
+// code, a known severity, the list limits, each matched cause's id and
+// confidence, and the cross-checks of EventError.Validate. It returns every
+// violation joined.
+func validateEventError(ee EventError) error {
+	var errs []error
+	if ee.Code == "" {
+		errs = append(errs, fmt.Errorf("code: is empty"))
+	}
+	if ee.Severity != nil && !errorSeverities[*ee.Severity] {
+		errs = append(errs, fmt.Errorf("severity: %q is not an error severity", *ee.Severity))
+	}
+	if ee.ProbableCauses != nil && len(*ee.ProbableCauses) > maxEventErrorCauses {
+		errs = append(errs, fmt.Errorf("probableCauses: %d, at most %d", len(*ee.ProbableCauses), maxEventErrorCauses))
+	}
+	if ee.ProbableCause != nil && len(*ee.ProbableCause) > maxEventErrorCauses {
+		errs = append(errs, fmt.Errorf("probableCause: %d, at most %d", len(*ee.ProbableCause), maxEventErrorCauses))
+	}
+	if ee.SuggestedRemediation != nil && len(*ee.SuggestedRemediation) > maxEventErrorRemediations {
+		errs = append(errs, fmt.Errorf("suggestedRemediation: %d, at most %d", len(*ee.SuggestedRemediation), maxEventErrorRemediations))
+	}
+	if ee.MatchedCauses != nil {
+		if len(*ee.MatchedCauses) > maxEventErrorCauses {
+			errs = append(errs, fmt.Errorf("matchedCauses: %d, at most %d", len(*ee.MatchedCauses), maxEventErrorCauses))
+		}
+		for i, m := range *ee.MatchedCauses {
+			if !causeIDPattern.MatchString(m.CauseID) {
+				errs = append(errs, fmt.Errorf("matchedCauses[%d].causeId: %q is not lowercase words joined by hyphens", i, m.CauseID))
+			}
+			if m.Confidence != nil && !(*m.Confidence >= 0 && *m.Confidence <= 1) {
+				errs = append(errs, fmt.Errorf("matchedCauses[%d].confidence: %v is not between 0 and 1", i, *m.Confidence))
+			}
+		}
+	}
+	if verr := ee.Validate(); verr != nil {
+		errs = append(errs, verr)
+	}
+	return stderrors.Join(errs...)
+}
 
 // nonEmptyLines drops empty lines and MeshKit's "None" placeholder, which the
 // schema's flat lists do not allow.
@@ -182,10 +209,7 @@ func (ev *Event) Validate() error {
 	if ee, ok, derr := metadataEventError(ev.Metadata[MetadataErrorKey]); derr != nil {
 		errs = append(errs, fmt.Errorf("metadata.error: %w", derr))
 	} else if ok {
-		if ee.Code == "" {
-			errs = append(errs, fmt.Errorf("metadata.error.code: is empty"))
-		}
-		if verr := ee.Validate(); verr != nil {
+		if verr := validateEventError(ee); verr != nil {
 			errs = append(errs, fmt.Errorf("metadata.error: %w", verr))
 		}
 	}
