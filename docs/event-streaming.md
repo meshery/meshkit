@@ -196,9 +196,10 @@ resolved := events.NewEvent().Resolves(key, time.Now()).
 ```
 
 - The producer mints every id. `NewEvent` mints the event's `id` at
-  construction, and nothing in MeshKit mints `id`, `traceId`, `parentId` or a
-  correlation key at persist time: an id minted there never reaches the copy
-  already broadcast.
+  construction. Nothing in MeshKit mints `traceId`, `parentId` or a
+  correlation key at persist time, and it mints `id` there only as a fallback
+  for an event not built with `NewEvent` (see below): an id minted at persist
+  time never reaches the copy already broadcast.
 - `correlationKey` names the condition, qualified by source and component,
   then subject and kind. Never use an error code alone.
 - The server, not MeshKit, applies the upsert-by-`correlationKey` semantics
