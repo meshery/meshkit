@@ -629,14 +629,15 @@ MeshKit:
   typed multi-listener channel (operator sync, etc.).
 - [`models/events/events.go`](../models/events/events.go) — generated
   `Event` struct and severity/status enums.
-- [`models/events/build.go`](../models/events/build.go) — `EventBuilder`.
+- [`models/events/build.go`](../models/events/build.go) — `EventBuilder`;
+  `NewEvent` mints `Event.ID`.
 - [`models/events/correlation.go`](../models/events/correlation.go) —
   operation id, condition correlation, provenance and trace-context setters;
   `NewTraceID` / `NewSpanID`.
 - [`models/events/event_error.go`](../models/events/event_error.go) —
   `NewEventError`, `WithError`, `MatchCause`, `Event.Validate`.
 - [`models/events/database.go`](../models/events/database.go) — GORM
-  hooks; assigns `Event.ID`.
+  hooks; assigns `Event.ID` only when it is nil.
 
 Meshery Server (linked):
 
