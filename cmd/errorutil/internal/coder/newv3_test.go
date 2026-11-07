@@ -385,3 +385,28 @@ func TestInvalidNewV3DefinitionsAreFindings(t *testing.T) {
 		})
 	}
 }
+
+// When analyze or update fails on invalid NewV3 definitions, the command
+// prints the error naming them and not the usage block that would bury it.
+func TestInvalidNewV3FailureOmitsUsage(t *testing.T) {
+	for _, sub := range []string{"analyze", "update"} {
+		t.Run(sub, func(t *testing.T) {
+			_, flags := writeSamplePackage(t, invalidErrorGo)
+			if err := os.WriteFile(filepath.Join(flags.infoDir, "component_info.json"), []byte(`{"name": "meshery-server", "type": "component", "next_error_code": 1009}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cmd := RootCommand()
+			var out strings.Builder
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			cmd.SetArgs([]string{"-d", flags.rootDir, "-i", flags.infoDir, "-o", flags.outDir, sub})
+			err := cmd.Execute()
+			if err == nil || !strings.Contains(err.Error(), "invalid errors.NewV3 definition(s)") {
+				t.Fatalf("%s error = %v, want the invalid NewV3 definitions", sub, err)
+			}
+			if strings.Contains(out.String(), "Usage:") {
+				t.Errorf("%s printed the usage block on failure:\n%s", sub, out.String())
+			}
+		})
+	}
+}

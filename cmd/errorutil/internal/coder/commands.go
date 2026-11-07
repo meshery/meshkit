@@ -133,6 +133,9 @@ func commandAnalyze() *cobra.Command {
 		Short: "Analyze a directory tree",
 		Long:  `analyze analyzes a directory tree for error codes`,
 		Args:  cobra.MinimumNArgs(0),
+		// An invalid NewV3 definition fails the run; print only the error that
+		// names it, not the usage block.
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gFlags, err := getGlobalFlags(cmd)
 			if err != nil {
@@ -150,6 +153,9 @@ func commandUpdate() *cobra.Command {
 		Short: "Update error codes and details",
 		Long:  "update replaces error codes where specified, and updates error details",
 		Args:  cobra.MinimumNArgs(0),
+		// An invalid NewV3 definition fails the run; print only the error that
+		// names it, not the usage block.
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gFlags, err := getGlobalFlags(cmd)
 			if err != nil {

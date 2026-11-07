@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"reflect"
 	"regexp"
+	"strings"
 
 	meshkiterrors "github.com/meshery/meshkit/errors"
 	"github.com/meshery/schemas/models/v1beta3/errorcode"
@@ -211,6 +213,9 @@ func metadataEventError(v interface{}) (EventError, bool, error) {
 		if _, ok := val["code"]; !ok {
 			return EventError{}, false, nil
 		}
+		if err := exactKeys(val, reflect.TypeOf(EventError{}), ""); err != nil {
+			return EventError{}, false, err
+		}
 		raw, err := json.Marshal(val)
 		if err != nil {
 			return EventError{}, false, err
@@ -224,4 +229,54 @@ func metadataEventError(v interface{}) (EventError, bool, error) {
 		return ee, true, nil
 	}
 	return EventError{}, false, nil
+}
+
+// exactKeys reports the first object key in v that is not exactly the JSON
+// name of a field of the struct type t, at any depth. encoding/json matches
+// keys case-insensitively, so DisallowUnknownFields alone accepts keys such as
+// "MatchedCauses" that the closed schemas EventError construct rejects. Values
+// typed as a map or interface (such as details) are free-form and not checked.
+func exactKeys(v interface{}, t reflect.Type, path string) error {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Struct:
+		obj, ok := v.(map[string]interface{})
+		if !ok {
+			return nil // a type mismatch is reported by the strict decode
+		}
+		fields := map[string]reflect.Type{}
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+			if name == "-" || !f.IsExported() {
+				continue
+			}
+			if name == "" {
+				name = f.Name
+			}
+			fields[name] = f.Type
+		}
+		for key, child := range obj {
+			ft, ok := fields[key]
+			if !ok {
+				return fmt.Errorf("%s%q: unknown key", path, key)
+			}
+			if err := exactKeys(child, ft, path+key+"."); err != nil {
+				return err
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		list, ok := v.([]interface{})
+		if !ok {
+			return nil
+		}
+		for i, item := range list {
+			if err := exactKeys(item, t.Elem(), fmt.Sprintf("%s[%d].", strings.TrimSuffix(path, "."), i)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
