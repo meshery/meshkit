@@ -33,7 +33,7 @@ var (
 
 // newFields lists the JSON keys this change adds; none may appear on an event
 // that sets none of them.
-var newFields = []string{"correlationKey", "occurrenceCount", "firstSeenAt", "lastSeenAt", "resolvedAt", "source", "type", "specversion", "traceId", "parentId"}
+var newFields = []string{"idempotencyKey", "correlationKey", "occurrenceCount", "firstSeenAt", "lastSeenAt", "resolvedAt", "source", "type", "specversion", "traceId", "parentId"}
 
 func legacyEvent() *Event {
 	return NewEvent().WithOperationID(opID).FromOwner(userID).FromSystem(systemID).
@@ -142,7 +142,7 @@ func TestCorrelatedEventJSONRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range newFields[:4] {
+	for _, key := range newFields[1:5] {
 		if !strings.Contains(string(raw), `"`+key+`"`) {
 			t.Errorf("JSON lacks %q: %s", key, raw)
 		}
@@ -191,8 +191,11 @@ func TestEventValidateRejects(t *testing.T) {
 		{"short parent", NewEvent().WithTraceContext(traceHex, "abc").Build(), "parentId"},
 		{"spec version", NewEvent().WithSpecVersion("0.3").Build(), "specversion"},
 		{"empty key", NewEvent().WithCorrelationKey("").Build(), "correlationKey"},
+		{"empty idempotency key", NewEvent().WithIdempotencyKey("").Build(), "idempotencyKey"},
+		{"long idempotency key", NewEvent().WithIdempotencyKey(strings.Repeat("k", 256)).Build(), "idempotencyKey"},
 		{"last before first", NewEvent().WithFirstSeenAt(t1).WithLastSeenAt(t0).Build(), "lastSeenAt"},
 		{"empty source", NewEvent().WithSource("").Build(), "source"},
+		{"long multibyte idempotency key", NewEvent().WithIdempotencyKey(strings.Repeat("键", 256)).Build(), "idempotencyKey"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -204,6 +207,14 @@ func TestEventValidateRejects(t *testing.T) {
 				t.Errorf("Validate error code = %q, want %q", meshkiterrors.GetCode(err), ErrInvalidEventCode)
 			}
 		})
+	}
+}
+
+func TestEventValidateCountsCharacters(t *testing.T) {
+	key := strings.Repeat("键", 255)
+	ev := NewEvent().WithIdempotencyKey(key).WithCorrelationKey(key).WithSource(key).WithType(key).Build()
+	if err := ev.Validate(); err != nil {
+		t.Errorf("Validate rejected 255-character multibyte fields: %v", err)
 	}
 }
 
@@ -290,6 +301,153 @@ func TestEventPersistsNewColumns(t *testing.T) {
 	var keyed int64
 	if err := db.Model(&Event{}).Where("correlation_key = ? AND resolved_at IS NULL", condKey).Count(&keyed).Error; err != nil || keyed != 1 {
 		t.Errorf("open condition lookup = %d, %v", keyed, err)
+	}
+}
+
+// --- idempotencyKey ---
+
+const runKey = "mesheryctl/perf-run/8f14e45f-ceea-467f-a0e6-8b3b7c9b6a2d"
+
+func TestWithIdempotencyKey(t *testing.T) {
+	b := NewEvent().WithIdempotencyKey(runKey)
+	first := b.Build()
+	if first.IdempotencyKey == nil || *first.IdempotencyKey != runKey {
+		t.Fatalf("IdempotencyKey = %v, want %q", first.IdempotencyKey, runKey)
+	}
+	if err := first.Validate(); err != nil {
+		t.Errorf("event with an idempotency key invalid: %v", err)
+	}
+	// A later key on the same builder does not reach an event already built.
+	second := b.WithIdempotencyKey("other").Build()
+	if *first.IdempotencyKey != runKey || *second.IdempotencyKey != "other" {
+		t.Errorf("keys = %q / %q, want %q / %q", *first.IdempotencyKey, *second.IdempotencyKey, runKey, "other")
+	}
+	if ev := NewEvent().Build(); ev.IdempotencyKey != nil {
+		t.Errorf("NewEvent set IdempotencyKey %q", *ev.IdempotencyKey)
+	}
+}
+
+// The key round-trips through JSON under the schemas name, decodes from the
+// schemas EventPayload's wire form, and is absent (not null) when unset.
+func TestIdempotencyKeyJSONRoundTrip(t *testing.T) {
+	ev := NewEvent().FromOwner(userID).WithCategory("perf").WithAction("run").WithIdempotencyKey(runKey).Build()
+	raw, err := json.Marshal(ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"idempotencyKey":"`+runKey+`"`) {
+		t.Errorf("JSON lacks idempotencyKey: %s", raw)
+	}
+	var back Event
+	if err := json.Unmarshal(raw, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.IdempotencyKey == nil || *back.IdempotencyKey != runKey {
+		t.Errorf("round trip IdempotencyKey = %v", back.IdempotencyKey)
+	}
+
+	key := runKey
+	payload, err := json.Marshal(eventv1beta3.EventPayload{IdempotencyKey: &key})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fromClient Event
+	if err := json.Unmarshal(payload, &fromClient); err != nil {
+		t.Fatalf("MeshKit Event cannot decode a schemas EventPayload: %v", err)
+	}
+	if fromClient.IdempotencyKey == nil || *fromClient.IdempotencyKey != runKey {
+		t.Errorf("decoded client event lost idempotencyKey: %s", payload)
+	}
+	var schemaPayload eventv1beta3.EventPayload
+	if err := json.Unmarshal(raw, &schemaPayload); err != nil {
+		t.Fatalf("schemas EventPayload cannot decode MeshKit's event: %v", err)
+	}
+	if schemaPayload.IdempotencyKey == nil || *schemaPayload.IdempotencyKey != runKey {
+		t.Errorf("schemas EventPayload decoded idempotencyKey %v", schemaPayload.IdempotencyKey)
+	}
+
+	unkeyed, err := json.Marshal(legacyEvent())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(unkeyed), "idempotencyKey") {
+		t.Errorf("event without a key serializes one: %s", unkeyed)
+	}
+	var legacy Event
+	if err := json.Unmarshal(unkeyed, &legacy); err != nil {
+		t.Fatal(err)
+	}
+	if legacy.IdempotencyKey != nil {
+		t.Errorf("payload without a key decoded IdempotencyKey %q", *legacy.IdempotencyKey)
+	}
+}
+
+// AutoMigrate adds a nullable idempotency_key column and the composite
+// (owner, idempotency_key) index, a row without a key stores NULL, and a key
+// is found by owner + key.
+func TestEventPersistsIdempotencyKey(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{Logger: gormlogger.Default.LogMode(gormlogger.Silent)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&Event{}); err != nil {
+		t.Fatal(err)
+	}
+	m := db.Migrator()
+	if !m.HasColumn(&Event{}, "idempotency_key") {
+		t.Fatal("column idempotency_key not created")
+	}
+	cols, err := m.ColumnTypes(&Event{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cols {
+		if c.Name() != "idempotency_key" {
+			continue
+		}
+		if nullable, ok := c.Nullable(); !ok || !nullable {
+			t.Errorf("idempotency_key nullable = %v (known %v), want nullable", nullable, ok)
+		}
+	}
+	if !m.HasIndex(&Event{}, "idx_events_owner_idempotency_key") {
+		t.Fatal("index idx_events_owner_idempotency_key not created")
+	}
+	indexes, err := m.GetIndexes(&Event{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, idx := range indexes {
+		if idx.Name() != "idx_events_owner_idempotency_key" {
+			continue
+		}
+		if got := idx.Columns(); !reflect.DeepEqual(got, []string{"owner", "idempotency_key"}) {
+			t.Errorf("index columns = %v, want [owner idempotency_key]", got)
+		}
+		if unique, _ := idx.Unique(); unique {
+			t.Error("index is unique; the caller scope is the server's to enforce")
+		}
+	}
+
+	keyed := NewEvent().FromOwner(userID).WithIdempotencyKey(runKey).Build()
+	unkeyed := legacyEvent()
+	for _, ev := range []*Event{keyed, unkeyed} {
+		if err := db.Create(ev).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	var gotUnkeyed Event
+	if err := db.First(&gotUnkeyed, "id = ?", unkeyed.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if gotUnkeyed.IdempotencyKey != nil {
+		t.Errorf("row without a key read back IdempotencyKey %q", *gotUnkeyed.IdempotencyKey)
+	}
+	var bound Event
+	if err := db.Where("owner = ? AND idempotency_key = ?", userID, runKey).First(&bound).Error; err != nil {
+		t.Fatalf("lookup by owner + key: %v", err)
+	}
+	if bound.ID != keyed.ID || bound.IdempotencyKey == nil || *bound.IdempotencyKey != runKey {
+		t.Errorf("lookup by owner + key found %+v", bound)
 	}
 }
 
