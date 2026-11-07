@@ -11,15 +11,14 @@ type EventBuilder struct {
 	event Event
 }
 
-// NewEvent starts an event with its ID and OperationID minted (uuid v4),
-// CreatedAt set to now and Status Unread. The producer mints the ID here, at
+// NewEvent starts an event with its ID and OperationID minted (uuid v4) and
+// Status Unread. The producer mints the ID here, at
 // construction, so a copy broadcast before or instead of the stored row
 // carries the same non-nil ID the row is persisted with.
 func NewEvent() *EventBuilder {
 	return &EventBuilder{
 		event: Event{
 			ID:          uuid.Must(uuid.NewV4()),
-			CreatedAt:   time.Now(),
 			OperationID: uuid.Must(uuid.NewV4()),
 			Status:      Unread,
 		},
@@ -71,6 +70,45 @@ func (e *EventBuilder) FromSystem(id core.Uuid) *EventBuilder {
 	return e
 }
 
+// Build returns a distinct *Event carrying the builder's current fields, with
+// its Metadata deep-copied and CreatedAt set to the build time, and then mints
+// a fresh ID on the builder. Every Build is therefore a distinct event with its
+// own non-nil ID and its own timestamp, so a reused builder never hands two
+// events the same primary key, its events order by when each was built, and
+// mutating the builder after Build does not affect an event already built.
 func (e *EventBuilder) Build() *Event {
-	return &e.event
+	event := e.event
+	event.Metadata = cloneMetadata(e.event.Metadata)
+	event.CreatedAt = time.Now()
+	e.event.ID = uuid.Must(uuid.NewV4())
+	return &event
+}
+
+// cloneMetadata deep-copies the nested maps and slices of a metadata map, so
+// in-place writes through either copy (such as WithEventError setting
+// metadata.error) never reach the other.
+func cloneMetadata(m map[string]interface{}) map[string]interface{} {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		out[k] = cloneMetadataValue(v)
+	}
+	return out
+}
+
+func cloneMetadataValue(v interface{}) interface{} {
+	switch t := v.(type) {
+	case map[string]interface{}:
+		return cloneMetadata(t)
+	case []interface{}:
+		out := make([]interface{}, len(t))
+		for i, item := range t {
+			out[i] = cloneMetadataValue(item)
+		}
+		return out
+	default:
+		return v
+	}
 }
