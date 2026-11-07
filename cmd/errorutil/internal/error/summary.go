@@ -36,8 +36,7 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 		DuplicateNames:       []string{},
 		CallExprCodes:        []string{},
 		IntCodes:             []int{},
-		DeprecatedNewDefault: []string{},
-		InvalidDefinitions:   map[string][]string{}}
+		DeprecatedNewDefault: []string{}}
 	for k, v := range infoAll.LiteralCodes {
 		if len(v) > 1 {
 			_, ok := summary.DuplicateCodes[k]
@@ -75,14 +74,7 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 		}
 	}
 	sort.Strings(summary.DuplicateNames)
-	for name, definitions := range infoAll.Errors {
-		for _, d := range definitions {
-			summary.InvalidDefinitions[name] = append(summary.InvalidDefinitions[name], d.Problems...)
-		}
-		if len(summary.InvalidDefinitions[name]) == 0 {
-			delete(summary.InvalidDefinitions, name)
-		}
-	}
+	summary.InvalidDefinitions = InvalidDefinitions(infoAll)
 	for _, v := range infoAll.CallExprCodes {
 		summary.CallExprCodes = append(summary.CallExprCodes, v.Name)
 	}
@@ -96,6 +88,21 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 	fname := filepath.Join(outputDir, config.App+"_analyze_summary.json")
 	log.Infof("writing summary to %s", fname)
 	return os.WriteFile(fname, jsn, 0600)
+}
+
+// InvalidDefinitions returns the errors.NewV3 definitions errorutil rejected, by error name, with the problems
+// found. errorutil leaves them out of both exports, and analyze and update fail while any remain.
+func InvalidDefinitions(infoAll *InfoAll) map[string][]string {
+	invalid := map[string][]string{}
+	for name, definitions := range infoAll.Errors {
+		for _, d := range definitions {
+			invalid[name] = append(invalid[name], d.Problems...)
+		}
+		if len(invalid[name]) == 0 {
+			delete(invalid, name)
+		}
+	}
+	return invalid
 }
 
 func contains(s []int, str int) bool {

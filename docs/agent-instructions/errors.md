@@ -77,8 +77,12 @@ See the package documentation in `errors/errors.go` and
 - errorutil reads definitions made with `errors.New`, `errors.NewV2` and `errors.NewV3`.
 - errorutil emits `errorutil_analyze_errors.json` and `errorutil_analyze_summary.json`
   (analysis results: duplicates, violations of the conventions above, and
-  `invalid_definitions` - NewV3 definitions it cannot export, each also logged as an
-  error) plus two exports:
+  `invalid_definitions` - NewV3 definitions it rejects, each also logged as an
+  error) plus two exports. A rejected NewV3 definition (for example a non-literal
+  description element, or one remediation id given conflicting fields by two causes) is
+  left out of both exports, never exported in a reduced form, and `analyze` and `update`
+  exit non-zero with an error naming each one and its problems. New and NewV2
+  definitions are unaffected:
   - `errorutil_errors_export.json` - the legacy export consumed by the docs pipeline.
     Its shape is frozen (snake_case keys, joined strings) because Meshery's
     `error-codes-updater` builds `errorutil@master` and its Hugo shortcodes read those
