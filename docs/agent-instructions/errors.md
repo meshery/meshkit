@@ -83,7 +83,8 @@ See the package documentation in `errors/errors.go` and
   (analysis results: duplicates, violations of the conventions above, and
   `invalid_definitions` - NewV3 definitions it rejects, each also logged as an
   error) plus two exports. A rejected NewV3 definition (for example a non-literal
-  description element, or one remediation id given conflicting fields by two causes) is
+  description element, a description or causes argument that is a variable or `nil`
+  instead of a literal, or one remediation id given conflicting fields by two causes) is
   left out of both exports, never exported in a reduced form, and `analyze` and `update`
   exit non-zero with an error naming each one and its problems. New and NewV2
   definitions are unaffected:

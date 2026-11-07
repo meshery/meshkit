@@ -277,9 +277,28 @@ const (
 	ErrRuntimeDescCode = "meshery-server-1006"
 	ErrConflictCode   = "meshery-server-1007"
 	ErrValidCode      = "meshery-server-1008"
+	ErrCausesVarCode  = "meshery-server-1009"
+	ErrNilCausesCode  = "meshery-server-1010"
+	ErrDescVarCode    = "meshery-server-1011"
 )
 
 var description = "Computed at run time."
+
+var commonCauses = []errors.Cause{{ID: "a", Description: "A.", Remediations: []errors.Remediation{{ID: "r", Description: "R."}}}}
+
+var shortLines = []string{"s"}
+
+func ErrCausesVar() error {
+	return errors.NewV3(ErrCausesVarCode, errors.Alert, []string{"Foo"}, []string{"Bar"}, commonCauses)
+}
+
+func ErrNilCauses() error {
+	return errors.NewV3(ErrNilCausesCode, errors.Alert, []string{"Foo"}, []string{"Bar"}, nil)
+}
+
+func ErrDescVar() error {
+	return errors.NewV3(ErrDescVarCode, errors.Alert, shortLines, nil, commonCauses)
+}
 
 func ErrBadPolicy() error {
 	return errors.NewV3(ErrBadPolicyCode, errors.Alert, []string{"s"}, []string{},
@@ -331,18 +350,22 @@ func TestInvalidNewV3DefinitionsAreFindings(t *testing.T) {
 	for _, update := range []bool{false, true} {
 		t.Run(map[bool]string{false: "analyze", true: "update"}[update], func(t *testing.T) {
 			_, flags := writeSamplePackage(t, invalidErrorGo)
-			if err := os.WriteFile(filepath.Join(flags.infoDir, "component_info.json"), []byte(`{"name": "meshery-server", "type": "component", "next_error_code": 1009}`), 0o600); err != nil {
+			if err := os.WriteFile(filepath.Join(flags.infoDir, "component_info.json"), []byte(`{"name": "meshery-server", "type": "component", "next_error_code": 1012}`), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			hook := logtest.NewGlobal()
 			defer hook.Reset()
-			invalidNames := []string{"ErrBadPolicyCode", "ErrConflictCode", "ErrNoActionCode", "ErrNonLiteralCode", "ErrRuntimeDescCode", "ErrUnkeyedCode", "ErrUnknownVarCode"}
+			invalidNames := []string{"ErrBadPolicyCode", "ErrCausesVarCode", "ErrConflictCode", "ErrDescVarCode", "ErrNilCausesCode", "ErrNoActionCode", "ErrNonLiteralCode", "ErrRuntimeDescCode", "ErrUnkeyedCode", "ErrUnknownVarCode"}
 			err := walkSummarizeExport(flags, update, false)
 			if err == nil {
 				t.Fatal("walkSummarizeExport succeeded with invalid NewV3 definitions, want an error")
 			}
 			for _, want := range append([]string{
-				"7 invalid errors.NewV3 definition(s)",
+				"10 invalid errors.NewV3 definition(s)",
+				"ErrCausesVarCode: causes: write the causes as an []errors.Cause literal",
+				"ErrNilCausesCode: causes: write the causes as an []errors.Cause literal",
+				"ErrDescVarCode: shortDescription: write the description as a []string literal",
+				"longDescription: write the description as a []string literal",
 				"ErrRuntimeDescCode: shortDescription[1]: use a string literal",
 				"\"shared\"",
 			}, invalidNames...) {
@@ -401,7 +424,7 @@ func TestInvalidNewV3FailureOmitsUsage(t *testing.T) {
 	for _, sub := range []string{"analyze", "update"} {
 		t.Run(sub, func(t *testing.T) {
 			_, flags := writeSamplePackage(t, invalidErrorGo)
-			if err := os.WriteFile(filepath.Join(flags.infoDir, "component_info.json"), []byte(`{"name": "meshery-server", "type": "component", "next_error_code": 1009}`), 0o600); err != nil {
+			if err := os.WriteFile(filepath.Join(flags.infoDir, "component_info.json"), []byte(`{"name": "meshery-server", "type": "component", "next_error_code": 1012}`), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			cmd := RootCommand()

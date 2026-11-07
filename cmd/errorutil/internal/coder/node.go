@@ -67,8 +67,12 @@ func stringArrayLines(node ast.Node) ([]string, bool) {
 	return lines, true
 }
 
-// nonLiteralLines returns a problem for each element of the []string literal node that is not a string literal.
-func nonLiteralLines(node ast.Node, field string) []string {
+// descriptionProblems returns the problems of a NewV3 description argument: one when it is not a []string
+// literal (readable is false), otherwise one for each element that is not a string literal.
+func descriptionProblems(node ast.Node, readable bool, field string) []string {
+	if !readable {
+		return []string{field + ": write the description as a []string literal"}
+	}
 	var problems []string
 	for i, elt := range node.(*ast.CompositeLit).Elts {
 		if _, ok := stringLiteral(elt); !ok {
@@ -120,12 +124,9 @@ func parseNewCallExpr(node ast.Node, remediations remediationResolver) (*errutil
 	if !ok {
 		return empty, false
 	}
-	sDesc, ok := stringArrayLines(args[2])
-	if !ok {
-		return empty, false
-	}
-	lDesc, ok := stringArrayLines(args[3])
-	if !ok {
+	sDesc, sOK := stringArrayLines(args[2])
+	lDesc, lOK := stringArrayLines(args[3])
+	if name != "NewV3" && (!sOK || !lOK) {
 		return empty, false
 	}
 	e := &errutilerr.Error{
@@ -136,14 +137,14 @@ func parseNewCallExpr(node ast.Node, remediations remediationResolver) (*errutil
 	}
 	var cause, remedy []string
 	if name == "NewV3" {
+		e.Problems = append(descriptionProblems(args[2], sOK, "shortDescription"), descriptionProblems(args[3], lOK, "longDescription")...)
 		causes, isCauses, problems := causesLiteral(args[4], remediations)
 		if !isCauses {
-			return empty, false
+			e.Problems = append(e.Problems, "causes: write the causes as an []errors.Cause literal")
 		}
-		e.Problems = append(nonLiteralLines(args[2], "shortDescription"), nonLiteralLines(args[3], "longDescription")...)
 		e.Problems = append(e.Problems, problems...)
 		cause, remedy = mesherrors.FlattenCauses(causes)
-		if len(problems) == 0 {
+		if isCauses && len(problems) == 0 {
 			if err := mesherrors.ValidateCauses(causes); err != nil {
 				e.Problems = append(e.Problems, strings.Split(err.Error(), "\n")...)
 			}
