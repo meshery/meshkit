@@ -27,14 +27,6 @@ func NewEvent() *EventBuilder {
 	}
 }
 
-// WithID sets the ID of the next event Build returns, replacing the one the
-// builder minted. Use it only when the producer already minted the ID
-// upstream, for example to retry persisting an event it has broadcast.
-func (e *EventBuilder) WithID(id core.Uuid) *EventBuilder {
-	e.event.ID = id
-	return e
-}
-
 func (e *EventBuilder) ActedUpon(resource core.Uuid) *EventBuilder {
 	e.event.ActedUpon = resource
 	return e
