@@ -83,17 +83,16 @@ func UpdateSVGString(svgStr string, width, height int, skipHeader bool) (string,
 					se.Attr = append(se.Attr[0:xmlnsindex], se.Attr[xmlnsindex+1:]...)
 				}
 			} else {
-				for i, a := range se.Attr {
-					xmlnsindex := -1
-					nahbro := 0
-					if a.Name.Local == "xmlns" {
-						xmlnsindex = i
-						nahbro++
-					}
-					if xmlnsindex > -1 {
-						se.Attr = append(se.Attr[0:xmlnsindex], se.Attr[xmlnsindex+1:]...)
+				// Drop xmlns from every other element. Filtering into a new slice
+				// avoids deleting from se.Attr while ranging over it, which shifted
+				// the remaining attributes under the loop.
+				kept := se.Attr[:0:0]
+				for _, a := range se.Attr {
+					if a.Name.Local != "xmlns" {
+						kept = append(kept, a)
 					}
 				}
+				se.Attr = kept
 			}
 			t = se
 		}
