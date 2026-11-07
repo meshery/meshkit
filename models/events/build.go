@@ -83,32 +83,3 @@ func (e *EventBuilder) Build() *Event {
 	e.event.ID = uuid.Must(uuid.NewV4())
 	return &event
 }
-
-// cloneMetadata deep-copies the nested maps and slices of a metadata map, so
-// in-place writes through either copy (such as WithEventError setting
-// metadata.error) never reach the other.
-func cloneMetadata(m map[string]interface{}) map[string]interface{} {
-	if m == nil {
-		return nil
-	}
-	out := make(map[string]interface{}, len(m))
-	for k, v := range m {
-		out[k] = cloneMetadataValue(v)
-	}
-	return out
-}
-
-func cloneMetadataValue(v interface{}) interface{} {
-	switch t := v.(type) {
-	case map[string]interface{}:
-		return cloneMetadata(t)
-	case []interface{}:
-		out := make([]interface{}, len(t))
-		for i, item := range t {
-			out[i] = cloneMetadataValue(item)
-		}
-		return out
-	default:
-		return v
-	}
-}
