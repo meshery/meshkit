@@ -95,6 +95,9 @@ func TestStoredEventErrorValidated(t *testing.T) {
 	for name, metaErr := range map[string]string{
 		"unknown matched cause": `{"code":"meshkit-1","probableCauses":[{"id":"a","description":"A","remediations":[{"id":"r","description":"R"}]}],"probableCause":["A"],"suggestedRemediation":["R"],"matchedCauses":[{"causeId":"b"}]}`,
 		"severity not a string": `{"code":"meshkit-1","severity":2}`,
+		"unknown severity":      `{"code":"meshkit-1","severity":"bogus"}`,
+		"confidence above 1":    `{"code":"meshkit-1","matchedCauses":[{"causeId":"a","confidence":5}]}`,
+		"bad cause id":          `{"code":"meshkit-1","matchedCauses":[{"causeId":"Not An Id"}]}`,
 		"unknown key":           `{"code":"meshkit-1","severity":"error","Bogus":1}`,
 		"empty code":            `{"code":"","severity":"error"}`,
 	} {
