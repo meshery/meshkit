@@ -36,13 +36,6 @@ func TestNewEventMintsDistinctIDs(t *testing.T) {
 	}
 }
 
-func TestWithIDReplacesMintedID(t *testing.T) {
-	id := uuid.Must(uuid.FromString("55555555-5555-4555-8555-555555555555"))
-	if got := NewEvent().WithID(id).Build().ID; got != id {
-		t.Errorf("ID = %s, want %s", got, id)
-	}
-}
-
 // Both GORM write paths the ecosystem uses keep the builder's ID: Create, and
 // Save (Meshery Server's EventsPersister), which updates by primary key first
 // and inserts when no row matches.
@@ -96,13 +89,6 @@ func TestReusedBuilderBuildsDistinctEvents(t *testing.T) {
 	}
 	if count != 2 {
 		t.Errorf("stored %d rows, want 2", count)
-	}
-	id := uuid.Must(uuid.FromString("66666666-6666-4666-8666-666666666666"))
-	if got := b.WithID(id).Build().ID; got != id {
-		t.Errorf("WithID on a reused builder: ID = %s, want %s", got, id)
-	}
-	if got := b.Build().ID; got == id || got == uuid.Nil {
-		t.Errorf("Build after a pinned ID returned %s", got)
 	}
 }
 

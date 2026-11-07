@@ -234,9 +234,7 @@ so the event a producer broadcasts carries the same ID as its stored row,
 even when it is broadcast before or instead of being persisted. `Build`
 returns a copy and mints a fresh ID for the next build, so a builder reused
 for several events yields distinct events with distinct IDs and rows, and
-its own copy of the metadata map. `WithID`
-replaces the ID of the next build only when the producer already minted it
-upstream. The GORM
+its own copy of the metadata map. The GORM
 `BeforeCreate` hook (see [`models/events/database.go`](../models/events/database.go))
 keeps a non-nil ID and assigns one only to an event constructed without the
 builder, as a fallback.
