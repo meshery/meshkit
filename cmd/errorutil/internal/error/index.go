@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
@@ -63,27 +64,27 @@ func Definition(componentInfo *component.Info, numericCode string, name string, 
 }
 
 // ExportIndex writes the component's exported errors as a schemas ErrorReferenceIndex to <app>_errors_index.json.
-// exported is the legacy export's entries, keyed by numeric code. A definition that breaks the schemas contract
+// exported is the legacy export's entries; each definition's numericCode comes from its entry's Code. A definition that breaks the schemas contract
 // (for example a code name the moniker pattern rejects) is reported as an error and left out, so the file always
 // validates; referenceUrl is left for the docs build to assign.
 func ExportIndex(componentInfo *component.Info, exported map[string]Error, infoAll *InfoAll, outputDir string) error {
-	codes := make([]string, 0, len(exported))
-	for k := range exported {
-		codes = append(codes, k)
+	entries := make([]Error, 0, len(exported))
+	for _, e := range exported {
+		entries = append(entries, e)
 	}
-	sort.Slice(codes, func(i, j int) bool {
-		a, _ := strconv.Atoi(codes[i])
-		b, _ := strconv.Atoi(codes[j])
+	numericCode := func(e Error) string { return strings.TrimPrefix(e.Code, componentInfo.Name+"-") }
+	sort.Slice(entries, func(i, j int) bool {
+		a, _ := strconv.Atoi(numericCode(entries[i]))
+		b, _ := strconv.Atoi(numericCode(entries[j]))
 		return a < b
 	})
 	index := errorcode.ErrorReferenceIndex{SchemaVersion: errorcode.SchemaVersion2, Errors: []errorcode.ErrorDefinition{}}
-	for _, k := range codes {
-		e := exported[k]
+	for _, e := range entries {
 		var details *Error
 		if found := infoAll.Errors[e.Name]; len(found) == 1 {
 			details = &found[0]
 		}
-		d := Definition(componentInfo, k, e.Name, details)
+		d := Definition(componentInfo, numericCode(e), e.Name, details)
 		if err := validateDefinition(d); err != nil {
 			log.Errorf("error '%s' (code %s) left out of %s: %v", e.Name, d.Code, config.App+IndexFileSuffix, err)
 			continue

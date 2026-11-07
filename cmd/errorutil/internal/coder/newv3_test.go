@@ -152,6 +152,15 @@ func TestMixedPackageUpdateAndAnalyze(t *testing.T) {
 			t.Errorf("update did not allocate %s:\n%s", code, src)
 		}
 	}
+	var updated errorcode.ErrorReferenceIndex
+	readJSON(t, filepath.Join(flags.outDir, "errorutil_errors_index.json"), &updated)
+	var allocated []string
+	for _, d := range updated.Errors {
+		allocated = append(allocated, d.Code+"/"+d.NumericCode)
+	}
+	if want := []string{"meshery-server-1033/1033", "meshery-server-1034/1034", "meshery-server-1035/1035", "meshery-server-1036/1036"}; !reflect.DeepEqual(allocated, want) {
+		t.Errorf("index after update = %v, want %v", allocated, want)
+	}
 
 	// analyze of the updated package: no findings at all.
 	hook.Reset()
