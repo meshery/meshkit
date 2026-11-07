@@ -141,6 +141,12 @@ var (
 	actionPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$`)
 )
 
+// IsID reports whether s is a well-formed cause or remediation id: lowercase
+// words joined by hyphens, for example `cluster-unreachable`.
+func IsID(s string) bool {
+	return idPattern.MatchString(s)
+}
+
 // ValidateCauses checks causes against the schemas error construct
 // (docs/error-definition-contract.md in meshery/schemas): ids present and well
 // formed, cause ids unique, a repeated remediation id identical wherever it
@@ -152,7 +158,7 @@ func ValidateCauses(causes []Cause) error {
 	var errs []error
 	for i, cause := range causes {
 		path := fmt.Sprintf("causes[%d]", i)
-		if !idPattern.MatchString(cause.ID) {
+		if !IsID(cause.ID) {
 			errs = append(errs, fmt.Errorf("%s.id: %q is not lowercase words joined by hyphens", path, cause.ID))
 		}
 		if strings.TrimSpace(cause.Description) == "" {
@@ -163,7 +169,7 @@ func ValidateCauses(causes []Cause) error {
 		}
 		for j, r := range cause.Remediations {
 			rpath := fmt.Sprintf("%s.remediations[%d]", path, j)
-			if !idPattern.MatchString(r.ID) {
+			if !IsID(r.ID) {
 				errs = append(errs, fmt.Errorf("%s.id: %q is not lowercase words joined by hyphens", rpath, r.ID))
 			}
 			if strings.TrimSpace(r.Description) == "" {
@@ -207,7 +213,7 @@ func ValidateCauses(causes []Cause) error {
 //
 //	errors.NewV3(ErrConnectCode, errors.Alert,
 //	    []string{"Unable to connect to the cluster"},
-//	    []string{err.Error()},
+//	    []string{"Meshery Server could not reach the cluster's API server"},
 //	    []errors.Cause{
 //	        {ID: "cluster-unreachable", Description: "The cluster's API server is not reachable.",
 //	            Remediations: []errors.Remediation{
@@ -221,6 +227,10 @@ func ValidateCauses(causes []Cause) error {
 //	                remReconnect,
 //	            }},
 //	    })
+//
+// errorutil reports a description element that is not a string literal. To
+// carry instance text such as err.Error(), append it to the returned error's
+// LongDescription after NewV3 returns.
 func NewV3(code string, severity Severity, sdescription []string, ldescription []string, causes []Cause) *ErrorV2 {
 	stored := make([]Cause, 0, len(causes))
 	for _, c := range causes {
@@ -258,6 +268,49 @@ func GetCauses(err error) []Cause {
 		return errV2.Causes
 	}
 	return nil
+}
+
+// SeverityNamed returns the MeshKit Severity whose constant is named name, as
+// errorutil reads it from source (`Alert` for errors.Alert).
+func SeverityNamed(name string) (Severity, bool) {
+	switch name {
+	case "Emergency":
+		return Emergency, true
+	case "None":
+		return None, true
+	case "Alert":
+		return Alert, true
+	case "Critical":
+		return Critical, true
+	case "Fatal":
+		return Fatal, true
+	default:
+		return 0, false
+	}
+}
+
+// IsSchemaSeverity reports whether s is one of the eight levels of the schemas
+// ErrorSeverity ladder.
+func IsSchemaSeverity(s errorcode.ErrorSeverity) bool {
+	switch s {
+	case errorcode.SeverityEmergency, errorcode.SeverityAlert, errorcode.SeverityCritical, errorcode.SeverityFatal,
+		errorcode.SeverityError, errorcode.SeverityWarning, errorcode.SeverityInformational, errorcode.SeverityDebug:
+		return true
+	default:
+		return false
+	}
+}
+
+// NonEmptyLines returns lines trimmed, without empty lines and MeshKit's
+// "None" placeholder, which the schemas flat lists do not allow.
+func NonEmptyLines(lines []string) []string {
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if line = strings.TrimSpace(line); line != "" && line != NoneString[0] {
+			out = append(out, line)
+		}
+	}
+	return out
 }
 
 // SchemaSeverity maps a MeshKit severity to the schemas construct's

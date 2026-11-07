@@ -67,6 +67,17 @@ func stringArrayLines(node ast.Node) ([]string, bool) {
 	return lines, true
 }
 
+// nonLiteralLines returns a problem for each element of the []string literal node that is not a string literal.
+func nonLiteralLines(node ast.Node, field string) []string {
+	var problems []string
+	for i, elt := range node.(*ast.CompositeLit).Elts {
+		if _, ok := stringLiteral(elt); !ok {
+			problems = append(problems, fmt.Sprintf("%s[%d]: use a string literal; append instance text to LongDescription after NewV3 returns", field, i))
+		}
+	}
+	return problems
+}
+
 // stringLiteral returns the value of a string literal node, unquoted.
 func stringLiteral(node ast.Node) (string, bool) {
 	lit, ok := node.(*ast.BasicLit)
@@ -129,7 +140,8 @@ func parseNewCallExpr(node ast.Node, remediations remediationResolver) (*errutil
 		if !isCauses {
 			return empty, false
 		}
-		e.Problems = problems
+		e.Problems = append(nonLiteralLines(args[2], "shortDescription"), nonLiteralLines(args[3], "longDescription")...)
+		e.Problems = append(e.Problems, problems...)
 		cause, remedy = mesherrors.FlattenCauses(causes)
 		if len(problems) == 0 {
 			if err := mesherrors.ValidateCauses(causes); err != nil {
