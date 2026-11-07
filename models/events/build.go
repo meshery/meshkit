@@ -26,9 +26,9 @@ func NewEvent() *EventBuilder {
 	}
 }
 
-// WithID sets the event's ID, replacing the one NewEvent mints. Use it only
-// when the producer already minted the ID upstream, for example to retry
-// persisting an event it has broadcast.
+// WithID sets the ID of the next event Build returns, replacing the one the
+// builder minted. Use it only when the producer already minted the ID
+// upstream, for example to retry persisting an event it has broadcast.
 func (e *EventBuilder) WithID(id core.Uuid) *EventBuilder {
 	e.event.ID = id
 	return e
@@ -79,6 +79,10 @@ func (e *EventBuilder) FromSystem(id core.Uuid) *EventBuilder {
 	return e
 }
 
+// Build returns a copy of the event and mints a fresh ID for the next one, so
+// every event built from a reused builder is a distinct row with its own ID.
 func (e *EventBuilder) Build() *Event {
-	return &e.event
+	event := e.event
+	e.event.ID = uuid.Must(uuid.NewV4())
+	return &event
 }
