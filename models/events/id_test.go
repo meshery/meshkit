@@ -2,6 +2,7 @@ package events
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gofrs/uuid"
 	sqlite "gorm.io/driver/sqlite"
@@ -143,5 +144,22 @@ func TestBuildIsolatesBuiltEventFromBuilder(t *testing.T) {
 	again := b.Build()
 	if got := again.Metadata["nested"].(map[string]interface{})["k"]; got != "v" {
 		t.Errorf("nested metadata write on a built event reached the builder: %v", got)
+	}
+}
+
+// Each Build stamps CreatedAt with its own build time, so events from a reused
+// builder order by when each was built, not when the builder was created.
+func TestReusedBuilderStampsEachBuildTime(t *testing.T) {
+	b := NewEvent().WithCategory("pattern")
+	time.Sleep(2 * time.Millisecond)
+	before := time.Now()
+	first := b.WithDescription("OCI Image built").Build()
+	time.Sleep(2 * time.Millisecond)
+	second := b.WithDescription("OCI Artifact temporarily saved").Build()
+	if first.CreatedAt.Before(before) {
+		t.Errorf("first CreatedAt %s predates its Build at %s", first.CreatedAt, before)
+	}
+	if !second.CreatedAt.After(first.CreatedAt) {
+		t.Errorf("second CreatedAt %s is not after first %s", second.CreatedAt, first.CreatedAt)
 	}
 }

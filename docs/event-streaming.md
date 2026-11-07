@@ -153,7 +153,7 @@ Producers build events through a fluent builder defined in
 
 ```go
 event := events.
-    NewEvent().                                 // assigns ID, OperationID, CreatedAt, Status=Unread
+    NewEvent().                                 // assigns ID, OperationID, Status=Unread
     FromOwner(userID).
     FromSystem(systemID).
     WithCategory("pattern").
@@ -236,9 +236,10 @@ even when it is broadcast before or instead of being persisted. The GORM
 `BeforeCreate` hook (see [`models/events/database.go`](../models/events/database.go))
 keeps a non-nil ID and assigns one only to an event constructed without the
 builder, as a fallback. Every `Build` returns a distinct `*Event` (its
-`Metadata` deep-copied) and then mints a fresh ID on the builder, so a reused
-builder yields distinct events with distinct IDs and each persists as its own
-row. Mutating the builder after `Build` (for example calling `WithMetadata`
+`Metadata` deep-copied and `CreatedAt` set to the build time) and then mints a
+fresh ID on the builder, so a reused builder yields distinct events with
+distinct IDs, each stamped with when it was built (not when the builder was
+created), and each persists as its own row. Mutating the builder after `Build` (for example calling `WithMetadata`
 or `WithEventError`) does not affect an event already built: set every field
 before calling `Build`.
 
@@ -540,7 +541,8 @@ A correctly behaved subscriber/producer pair satisfies:
    been consumed by the time `Publish` returns.
 7. **Use `events.NewEvent().Build()` to construct events** — never
    build the struct directly. The builder fills in `ID`, `OperationID`,
-   `CreatedAt`, and `Status` with sensible defaults.
+   and `Status` with sensible defaults, and `Build` stamps `CreatedAt` with
+   the build time.
 
 ---
 

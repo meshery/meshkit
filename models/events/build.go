@@ -11,15 +11,14 @@ type EventBuilder struct {
 	event Event
 }
 
-// NewEvent starts an event with its ID and OperationID minted (uuid v4),
-// CreatedAt set to now and Status Unread. The producer mints the ID here, at
+// NewEvent starts an event with its ID and OperationID minted (uuid v4) and
+// Status Unread. The producer mints the ID here, at
 // construction, so a copy broadcast before or instead of the stored row
 // carries the same non-nil ID the row is persisted with.
 func NewEvent() *EventBuilder {
 	return &EventBuilder{
 		event: Event{
 			ID:          uuid.Must(uuid.NewV4()),
-			CreatedAt:   time.Now(),
 			OperationID: uuid.Must(uuid.NewV4()),
 			Status:      Unread,
 		},
@@ -72,13 +71,15 @@ func (e *EventBuilder) FromSystem(id core.Uuid) *EventBuilder {
 }
 
 // Build returns a distinct *Event carrying the builder's current fields, with
-// its Metadata deep-copied, and then mints a fresh ID on the builder. Every
-// Build is therefore a distinct event with its own non-nil ID, so a reused
-// builder never hands two events the same primary key, and mutating the
-// builder after Build does not affect an event already built.
+// its Metadata deep-copied and CreatedAt set to the build time, and then mints
+// a fresh ID on the builder. Every Build is therefore a distinct event with its
+// own non-nil ID and its own timestamp, so a reused builder never hands two
+// events the same primary key, its events order by when each was built, and
+// mutating the builder after Build does not affect an event already built.
 func (e *EventBuilder) Build() *Event {
 	event := e.event
 	event.Metadata = cloneMetadata(e.event.Metadata)
+	event.CreatedAt = time.Now()
 	e.event.ID = uuid.Must(uuid.NewV4())
 	return &event
 }
