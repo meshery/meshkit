@@ -1,6 +1,8 @@
 package events
 
 import (
+	"bytes"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"regexp"
@@ -92,7 +94,7 @@ func NewEventError(err error, matched ...EventMatchedCause) (EventError, error) 
 			if !causeIDPattern.MatchString(m.CauseID) {
 				return EventError{}, ErrInvalidEventError(mk.Code, fmt.Errorf("matchedCauses[%d].causeId %q is not lowercase words joined by hyphens", i, m.CauseID))
 			}
-			if m.Confidence != nil && (*m.Confidence < 0 || *m.Confidence > 1) {
+			if m.Confidence != nil && !(*m.Confidence >= 0 && *m.Confidence <= 1) {
 				return EventError{}, ErrInvalidEventError(mk.Code, fmt.Errorf("matchedCauses[%d].confidence %v is not between 0 and 1", i, *m.Confidence))
 			}
 		}
@@ -148,8 +150,8 @@ var (
 )
 
 // Validate checks the event's optional correlation, provenance and trace
-// fields, and its `metadata.error` when that is an EventError, against the
-// schemas event construct. An event that sets none of them is valid.
+// fields, and its `metadata.error` when that is an EventError or a decoded
+// object in the EventError shape, against the schemas event construct. An event that sets none of them is valid.
 // It returns ErrInvalidEvent listing every violation.
 func (ev *Event) Validate() error {
 	var errs []error
@@ -177,7 +179,9 @@ func (ev *Event) Validate() error {
 	if ev.ParentID != nil && (!parentIDPattern.MatchString(*ev.ParentID) || *ev.ParentID == "0000000000000000") {
 		errs = append(errs, fmt.Errorf("parentId: %q is not 16 lowercase hex digits, not all zeros", *ev.ParentID))
 	}
-	if ee, ok := ev.Metadata[MetadataErrorKey].(EventError); ok {
+	if ee, ok, derr := metadataEventError(ev.Metadata[MetadataErrorKey]); derr != nil {
+		errs = append(errs, fmt.Errorf("metadata.error: %w", derr))
+	} else if ok {
 		if ee.Code == "" {
 			errs = append(errs, fmt.Errorf("metadata.error.code: is empty"))
 		}
@@ -189,4 +193,32 @@ func (ev *Event) Validate() error {
 		return nil
 	}
 	return ErrInvalidEvent(stderrors.Join(errs...))
+}
+
+// metadataEventError returns the EventError a `metadata.error` value carries:
+// the value itself when an EventError, or the strict decoding of a JSON object
+// that has the contract's "code" key, as an event read back from storage holds.
+// Any other value (a legacy MeshKit error serialized with Go field names) is
+// not an EventError and is reported as absent.
+func metadataEventError(v interface{}) (EventError, bool, error) {
+	switch val := v.(type) {
+	case EventError:
+		return val, true, nil
+	case map[string]interface{}:
+		if _, ok := val["code"]; !ok {
+			return EventError{}, false, nil
+		}
+		raw, err := json.Marshal(val)
+		if err != nil {
+			return EventError{}, false, err
+		}
+		dec := json.NewDecoder(bytes.NewReader(raw))
+		dec.DisallowUnknownFields()
+		var ee EventError
+		if err := dec.Decode(&ee); err != nil {
+			return EventError{}, false, err
+		}
+		return ee, true, nil
+	}
+	return EventError{}, false, nil
 }

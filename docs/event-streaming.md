@@ -203,7 +203,10 @@ resolved := events.NewEvent().Resolves(key, time.Now()).
 - The server, not MeshKit, applies the upsert-by-`correlationKey` semantics
   of `createEvent` (replay, increment, resolve, `Event-Disposition`).
 - `Event.Validate()` checks these fields (and an `EventError` in
-  `metadata.error`) against the construct and returns `ErrInvalidEvent`.
+  `metadata.error`, including one decoded from storage as a JSON object with
+  a `code` key) against the construct and returns `ErrInvalidEvent`. A legacy
+  `metadata.error` serialized with Go field names (`Code`, numeric
+  `Severity`) is left unchecked, so existing stored events still validate.
 
 ### Error events: `metadata.error`
 
