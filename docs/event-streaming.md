@@ -235,7 +235,10 @@ so the event a producer broadcasts carries the same ID as its stored row,
 even when it is broadcast before or instead of being persisted. The GORM
 `BeforeCreate` hook (see [`models/events/database.go`](../models/events/database.go))
 keeps a non-nil ID and assigns one only to an event constructed without the
-builder, as a fallback.
+builder, as a fallback. `Build` returns the builder's own event, so every
+`Build` from one builder yields the same event and ID: start each distinct
+event with its own `NewEvent`, or a later persist by primary key (`Save`)
+overwrites the earlier row.
 
 The same struct flows over the wire (camelCase JSON), into the database
 (snake_case columns via `db:` tags), and into the GraphQL `Event` type
