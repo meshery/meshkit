@@ -100,6 +100,10 @@ func TestStoredEventErrorValidated(t *testing.T) {
 		"bad cause id":          `{"code":"meshkit-1","matchedCauses":[{"causeId":"Not An Id"}]}`,
 		"unknown key":           `{"code":"meshkit-1","severity":"error","Bogus":1}`,
 		"empty code":            `{"code":"","severity":"error"}`,
+		"miscased key":          `{"code":"meshkit-1","SHORTDESCRIPTION":"x"}`,
+		"miscased list key":     `{"code":"meshkit-1","MatchedCauses":[{"causeId":"a"}]}`,
+		"miscased nested key":   `{"code":"meshkit-1","matchedCauses":[{"CauseId":"a"}]}`,
+		"miscased cause key":    `{"code":"meshkit-1","probableCauses":[{"id":"a","Description":"A","remediations":[{"id":"r","description":"R"}]}]}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			var ev Event
