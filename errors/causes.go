@@ -306,7 +306,7 @@ func IsSchemaSeverity(s errorcode.ErrorSeverity) bool {
 func NonEmptyLines(lines []string) []string {
 	out := make([]string, 0, len(lines))
 	for _, line := range lines {
-		if line = strings.TrimSpace(line); line != "" && line != NoneString[0] {
+		if line = strings.TrimSpace(line); line != "" && line != noneText {
 			out = append(out, line)
 		}
 	}
