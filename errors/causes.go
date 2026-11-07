@@ -228,7 +228,9 @@ func ValidateCauses(causes []Cause) error {
 //	            }},
 //	    })
 //
-// errorutil reports a description element that is not a string literal. To
+// errorutil rejects description lists or causes not written as []string and
+// []errors.Cause literals (a variable or nil, for example), and any description
+// element that is not a string literal. To
 // carry instance text such as err.Error(), append it to the returned error's
 // LongDescription after NewV3 returns.
 func NewV3(code string, severity Severity, sdescription []string, ldescription []string, causes []Cause) *ErrorV2 {
