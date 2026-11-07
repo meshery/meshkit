@@ -242,6 +242,12 @@ distinct IDs, each stamped with when it was built (not when the builder was
 created), and each persists as its own row. Mutating the builder after
 `Build` (for example calling `WithMetadata` or `WithEventError`) does not
 affect an event already built: set every field before calling `Build`.
+The `Metadata` copy is a true deep copy of every reference kind (maps,
+slices, arrays, pointers, interfaces and exported struct fields, recursively,
+preserving aliases and cycles), so an in-place write to a value the producer
+stored in metadata, such as a `[]string` or `map[string]string`, never
+reaches a built event. Unexported struct fields, channels and funcs are
+copied by value.
 
 The same struct flows over the wire (camelCase JSON), into the database
 (snake_case columns via `db:` tags), and into the GraphQL `Event` type
