@@ -215,10 +215,10 @@ event := events.NewEvent().
   `(owner, idempotency_key)`, so a server can look up an event by owner and
   key. Meshery Server binds keys in its own `event_idempotency_bindings`
   table instead, keyed on `(owner, idempotency_key)`, because the bound event
-  is not always the row the create inserted. The contract scopes keys to the authenticated caller
-  (organization and user), not to the client-settable `owner` field, so a
-  server that honours the contract sets `owner` from the caller and applies
-  the replay semantics; MeshKit does neither.
+  is not always the row the create inserted. The contract scopes keys to the
+  authenticated caller (organization and user), not to the client-settable
+  `owner` field, so a server that honours the contract sets `owner` from the
+  caller and applies the replay semantics; MeshKit does neither.
 - `Event.Validate()` rejects a key that is empty or longer than 255
   characters with `ErrInvalidEvent`.
 
