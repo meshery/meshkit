@@ -42,6 +42,10 @@ const (
 	Fatal            // Fatal condition
 )
 
+// noneText is the placeholder text MeshKit uses for an absent description,
+// cause or remediation.
+const noneText = "None"
+
 var (
-	NoneString = []string{"None"}
+	NoneString = []string{noneText}
 )
