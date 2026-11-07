@@ -51,9 +51,11 @@ toolchain and only works if the conventions below are followed strictly.
   are MeshKit source types (value fields, because errorutil reads string literals and a
   pointer field cannot be one) whose JSON is exactly the schemas `ProbableCause` /
   `Remediation`; `CausesToSchema` converts them.
-- The structured logger adds a `probable-causes` field (nested JSON) for NewV3 errors.
-  Meshery Server's `writeMeshkitError` (`server/models/httputil`) reads `errors.GetCauses`
-  / `errors.AsErrorV2` to put the nested form on the wire.
+- `errors.GetCauses` and `errors.AsErrorV2` expose the nested form, and MeshKit's
+  structured logger emits it as a `probable-causes` field (nested JSON) for NewV3 errors.
+  That is all MeshKit guarantees. HTTP error responses (Meshery Server's
+  `writeMeshkitError`, the schemas error response envelope) and other consumers carry
+  only the flat lists today and adopt the nested form separately.
 
 See the package documentation in `errors/errors.go` and
 <https://docs.meshery.io/project/contributing/contributing-error> for background.
