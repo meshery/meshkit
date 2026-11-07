@@ -239,9 +239,9 @@ builder, as a fallback. Every `Build` returns a distinct `*Event` (its
 `Metadata` deep-copied and `CreatedAt` set to the build time) and then mints a
 fresh ID on the builder, so a reused builder yields distinct events with
 distinct IDs, each stamped with when it was built (not when the builder was
-created), and each persists as its own row. Mutating the builder after `Build` (for example calling `WithMetadata`
-or `WithEventError`) does not affect an event already built: set every field
-before calling `Build`.
+created), and each persists as its own row. Mutating the builder after
+`Build` (for example calling `WithMetadata` or `WithEventError`) does not
+affect an event already built: set every field before calling `Build`.
 
 The same struct flows over the wire (camelCase JSON), into the database
 (snake_case columns via `db:` tags), and into the GraphQL `Event` type
