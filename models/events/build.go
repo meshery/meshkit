@@ -1,7 +1,6 @@
 package events
 
 import (
-	"maps"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -72,12 +71,6 @@ func (e *EventBuilder) FromSystem(id core.Uuid) *EventBuilder {
 	return e
 }
 
-// Build returns a copy of the event and mints a fresh ID for the next one, so
-// every event built from a reused builder is a distinct row with its own ID,
-// and a later builder call never changes the metadata of an event already built.
 func (e *EventBuilder) Build() *Event {
-	event := e.event
-	event.Metadata = maps.Clone(e.event.Metadata)
-	e.event.ID = uuid.Must(uuid.NewV4())
-	return &event
+	return &e.event
 }
