@@ -106,6 +106,23 @@ func TestReusedBuilderBuildsDistinctEvents(t *testing.T) {
 	}
 }
 
+func TestReusedBuilderKeepsBuiltEventError(t *testing.T) {
+	first := EventError{Code: "meshkit-11001"}
+	second := EventError{Code: "meshkit-11002"}
+	b := NewEvent().WithMetadata(map[string]interface{}{"k": "v"})
+	ev1 := b.WithEventError(first).Build()
+	ev2 := b.WithEventError(second).Build()
+	if got, ok := ev1.Metadata[MetadataErrorKey].(EventError); !ok || got.Code != first.Code {
+		t.Errorf("first event's metadata.error = %v, want code %s", ev1.Metadata[MetadataErrorKey], first.Code)
+	}
+	if got, ok := ev2.Metadata[MetadataErrorKey].(EventError); !ok || got.Code != second.Code {
+		t.Errorf("second event's metadata.error = %v, want code %s", ev2.Metadata[MetadataErrorKey], second.Code)
+	}
+	if ev1.Metadata["k"] != "v" || ev2.Metadata["k"] != "v" {
+		t.Error("Build dropped other metadata keys")
+	}
+}
+
 // An event constructed without the builder still gets an ID at persist time.
 func TestBeforeCreateAssignsNilID(t *testing.T) {
 	db := newEventsDB(t)
