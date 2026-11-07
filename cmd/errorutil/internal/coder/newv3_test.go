@@ -39,9 +39,9 @@ func ErrWithInfo(info any) error {
 }
 
 func ErrNested(err error) error {
-	return errors.NewV3(ErrNestedCode, errors.Alert,
+	e := errors.NewV3(ErrNestedCode, errors.Alert,
 		[]string{"Unable to connect to the cluster"},
-		[]string{"Meshery Server could not reach the cluster.", err.Error()},
+		[]string{"Meshery Server could not reach the cluster."},
 		[]errors.Cause{
 			{
 				ID:          "cluster-unreachable",
@@ -60,6 +60,8 @@ func ErrNested(err error) error {
 				},
 			},
 		})
+	e.LongDescription = append(e.LongDescription, err.Error())
+	return e
 }
 
 func ErrLiteralPolicy() error {
@@ -92,8 +94,8 @@ func writeSamplePackage(t *testing.T, errorGo string) (root string, flags global
 		}
 	}
 	files := map[string]string{
-		filepath.Join(pkg, "error.go"):                  errorGo,
-		filepath.Join(pkg, "shared.go"):                 sharedGo,
+		filepath.Join(pkg, "error.go"):                errorGo,
+		filepath.Join(pkg, "shared.go"):               sharedGo,
 		filepath.Join(helpers, "component_info.json"): `{"name": "meshery-server", "type": "component", "next_error_code": 1033}`,
 	}
 	for path, content := range files {
@@ -263,6 +265,7 @@ const (
 	ErrNonLiteralCode = "meshery-server-1003"
 	ErrUnkeyedCode    = "meshery-server-1004"
 	ErrUnknownVarCode = "meshery-server-1005"
+	ErrRuntimeDescCode = "meshery-server-1006"
 )
 
 var description = "Computed at run time."
@@ -287,6 +290,11 @@ func ErrUnkeyed() error {
 		[]errors.Cause{{"a", "A.", nil}})
 }
 
+func ErrRuntimeDesc(err error) error {
+	return errors.NewV3(ErrRuntimeDescCode, errors.Alert, []string{"s", description}, []string{"l", err.Error()},
+		[]errors.Cause{{ID: "a", Description: "A.", Remediations: []errors.Remediation{{ID: "r", Description: "R."}}}})
+}
+
 func ErrUnknownVar() error {
 	return errors.NewV3(ErrUnknownVarCode, errors.Alert, []string{"s"}, []string{},
 		[]errors.Cause{{ID: "a", Description: "A.", Remediations: []errors.Remediation{notDeclared}}})
@@ -297,7 +305,7 @@ func ErrUnknownVar() error {
 // in the summary, and exports the code without probableCauses.
 func TestInvalidNewV3DefinitionsAreFindings(t *testing.T) {
 	_, flags := writeSamplePackage(t, invalidErrorGo)
-	if err := os.WriteFile(filepath.Join(flags.infoDir, "component_info.json"), []byte(`{"name": "meshery-server", "type": "component", "next_error_code": 1006}`), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(flags.infoDir, "component_info.json"), []byte(`{"name": "meshery-server", "type": "component", "next_error_code": 1007}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	hook := logtest.NewGlobal()
@@ -313,6 +321,8 @@ func TestInvalidNewV3DefinitionsAreFindings(t *testing.T) {
 		"'ErrNonLiteralCode' defined with NewV3 cannot be exported: causes[0].Description: use a string literal",
 		"'ErrUnkeyedCode' defined with NewV3 cannot be exported: causes[0]: field 0 is unkeyed",
 		"'ErrUnknownVarCode' defined with NewV3 cannot be exported: causes[0].remediations[0]: notDeclared is not a package-level errors.Remediation variable",
+		"'ErrRuntimeDescCode' defined with NewV3 cannot be exported: shortDescription[1]: use a string literal",
+		"longDescription[1]: use a string literal",
 	} {
 		if !strings.Contains(all, want) {
 			t.Errorf("findings lack %q:\n%s", want, all)
@@ -323,14 +333,14 @@ func TestInvalidNewV3DefinitionsAreFindings(t *testing.T) {
 		InvalidDefinitions map[string][]string `json:"invalid_definitions"`
 	}
 	readJSON(t, filepath.Join(flags.outDir, "errorutil_analyze_summary.json"), &summary)
-	if len(summary.InvalidDefinitions) != 5 {
-		t.Errorf("summary invalid_definitions = %v, want 5 entries", summary.InvalidDefinitions)
+	if len(summary.InvalidDefinitions) != 6 {
+		t.Errorf("summary invalid_definitions = %v, want 6 entries", summary.InvalidDefinitions)
 	}
 
 	var index errorcode.ErrorReferenceIndex
 	readJSON(t, filepath.Join(flags.outDir, "errorutil_errors_index.json"), &index)
-	if len(index.Errors) != 5 {
-		t.Fatalf("index has %d errors, want 5", len(index.Errors))
+	if len(index.Errors) != 6 {
+		t.Fatalf("index has %d errors, want 6", len(index.Errors))
 	}
 	for _, d := range index.Errors {
 		if d.ProbableCauses != nil {

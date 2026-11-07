@@ -23,9 +23,9 @@ var remFixProducer = errors.Remediation{
 // ErrNotMeshkitError is returned when an event's metadata.error is built from
 // an error that carries no MeshKit error code.
 func ErrNotMeshkitError(err error) error {
-	return errors.NewV3(ErrNotMeshkitErrorCode, errors.Alert,
+	return withDetail(errors.NewV3(ErrNotMeshkitErrorCode, errors.Alert,
 		[]string{"The error is not a MeshKit error"},
-		[]string{errorText(err)},
+		[]string{"The error has no MeshKit error code"},
 		[]errors.Cause{
 			{
 				ID:          "plain-error",
@@ -34,15 +34,15 @@ func ErrNotMeshkitError(err error) error {
 					{ID: "use-meshkit-error", Description: "Wrap the failure in a MeshKit error defined in the package's error.go, or report it in the event description instead of metadata.error."},
 				},
 			},
-		})
+		}), errorText(err))
 }
 
 // ErrInvalidEventError is returned when an event's metadata.error would break
 // the schemas event construct's EventError contract.
 func ErrInvalidEventError(code string, err error) error {
-	return errors.NewV3(ErrInvalidEventErrorCode, errors.Alert,
+	return withDetail(errors.NewV3(ErrInvalidEventErrorCode, errors.Alert,
 		[]string{"The error cannot be attached to an event"},
-		[]string{fmt.Sprintf("Error %s: %s", code, errorText(err))},
+		[]string{"The event's metadata.error would break the schemas EventError contract"},
 		[]errors.Cause{
 			{
 				ID:          "invalid-definition",
@@ -58,15 +58,15 @@ func ErrInvalidEventError(code string, err error) error {
 					remFixProducer,
 				},
 			},
-		})
+		}), fmt.Sprintf("Error %s: %s", code, errorText(err)))
 }
 
 // ErrInvalidEvent is returned by Event.Validate when an event's correlation,
 // provenance or trace fields break the schemas event construct.
 func ErrInvalidEvent(err error) error {
-	return errors.NewV3(ErrInvalidEventCode, errors.Alert,
+	return withDetail(errors.NewV3(ErrInvalidEventCode, errors.Alert,
 		[]string{"The event is not valid"},
-		[]string{errorText(err)},
+		[]string{"The event breaks the schemas event construct"},
 		[]errors.Cause{
 			{
 				ID:          "invalid-field",
@@ -75,14 +75,14 @@ func ErrInvalidEvent(err error) error {
 					remFixProducer,
 				},
 			},
-		})
+		}), errorText(err))
 }
 
 // ErrMintTraceContext is returned when a trace or span id cannot be minted.
 func ErrMintTraceContext(err error) error {
-	return errors.NewV3(ErrMintTraceContextCode, errors.Alert,
+	return withDetail(errors.NewV3(ErrMintTraceContextCode, errors.Alert,
 		[]string{"Unable to mint a trace context id"},
-		[]string{errorText(err)},
+		[]string{"A trace or span id could not be generated"},
 		[]errors.Cause{
 			{
 				ID:          "no-entropy",
@@ -91,7 +91,16 @@ func ErrMintTraceContext(err error) error {
 					{ID: "check-random-source", Description: "Check that the operating system's random source is readable by the process."},
 				},
 			},
-		})
+		}), errorText(err))
+}
+
+// withDetail appends the instance text detail to e's long description, where
+// errorutil, which exports only the literal lines, does not read it.
+func withDetail(e *errors.ErrorV2, detail string) error {
+	if detail != "" {
+		e.LongDescription = append(e.LongDescription, detail)
+	}
+	return e
 }
 
 func errorText(err error) string {

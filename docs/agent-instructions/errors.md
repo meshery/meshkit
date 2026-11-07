@@ -42,6 +42,9 @@ toolchain and only works if the conventions below are followed strictly.
 - `Automatic` and `RequiresApproval` need an `Action` (dot-separated lowercase words such
   as `connection.reconnect`). An unknown policy is never coerced: `errors.ValidateCauses`
   and errorutil reject it, and `Remediation.EffectivePolicy()` treats it as `Manual`.
+- Every element of the short- and long-description lists is a string literal; errorutil
+  reports any other element. Append instance text such as `err.Error()` to the returned
+  error's `LongDescription` after `NewV3` returns.
 - Unit-test a package's NewV3 definitions with `errors.ValidateCauses(errors.GetCauses(err))`.
 - Go types: `ActionPolicy` and its constants alias the generated
   `github.com/meshery/schemas/models/v1beta3/errorcode` values. `Cause` and `Remediation`

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
@@ -23,15 +22,6 @@ import (
 // Meshery docs build reads it as is.
 const IndexFileSuffix = "_errors_index.json"
 
-// severityNames maps the identifiers of MeshKit's Severity constants to the schemas ErrorSeverity. None, and any
-// identifier errorutil does not know, has no schema severity.
-var severityNames = map[string]errorcode.ErrorSeverity{
-	"Emergency": errorcode.SeverityEmergency,
-	"Alert":     errorcode.SeverityAlert,
-	"Critical":  errorcode.SeverityCritical,
-	"Fatal":     errorcode.SeverityFatal,
-}
-
 // Definition returns the schemas ErrorDefinition of one exported error. details is the error's analysis entry,
 // nil when errorutil found no (or duplicate) details for it.
 func Definition(componentInfo *component.Info, numericCode string, name string, details *Error) errorcode.ErrorDefinition {
@@ -44,8 +34,10 @@ func Definition(componentInfo *component.Info, numericCode string, name string, 
 	if details == nil {
 		return d
 	}
-	if sev, ok := severityNames[details.Severity]; ok {
-		d.Severity = &sev
+	if named, ok := mesherrors.SeverityNamed(details.Severity); ok {
+		if sev, ok := named.SchemaSeverity(); ok {
+			d.Severity = &sev
+		}
 	}
 	if s := mesherrors.JoinDescription(details.Lines.ShortDescription); s != "" {
 		d.ShortDescription = &s
@@ -59,7 +51,7 @@ func Definition(componentInfo *component.Info, numericCode string, name string, 
 		d.ProbableCauses = &causes
 		cause, remedy = errorcode.FlattenProbableCauses(causes)
 	} else {
-		cause, remedy = nonEmpty(details.Lines.ProbableCause), nonEmpty(details.Lines.SuggestedRemediation)
+		cause, remedy = mesherrors.NonEmptyLines(details.Lines.ProbableCause), mesherrors.NonEmptyLines(details.Lines.SuggestedRemediation)
 	}
 	if len(cause) > 0 {
 		d.ProbableCause = &cause
@@ -68,16 +60,6 @@ func Definition(componentInfo *component.Info, numericCode string, name string, 
 		d.SuggestedRemediation = &remedy
 	}
 	return d
-}
-
-func nonEmpty(lines []string) []string {
-	out := []string{}
-	for _, l := range lines {
-		if l = strings.TrimSpace(l); l != "" && l != mesherrors.NoneString[0] {
-			out = append(out, l)
-		}
-	}
-	return out
 }
 
 // ExportIndex writes the component's exported errors as a schemas ErrorReferenceIndex to <app>_errors_index.json.
