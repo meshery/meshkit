@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -683,6 +684,53 @@ func TestGetAllVersionDirsSortedDesc(t *testing.T) {
 	// First should be highest version
 	if filepath.Base(result[0]) != "v3.0.0" {
 		t.Errorf("expected v3.0.0 first, got %s", filepath.Base(result[0]))
+	}
+}
+
+func TestGetAllVersionDirsSortedDesc_ReleaseAbovePreRelease(t *testing.T) {
+	dir := t.TempDir()
+	versions := []string{"v1.32.0-alpha.3", "v1.32.0", "v1.32.0-1", "v1.32.0-rc.1", "v1.31.2"}
+	for _, v := range versions {
+		if err := os.Mkdir(filepath.Join(dir, v), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := GetAllVersionDirsSortedDesc(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{"v1.32.0", "v1.32.0-rc.1", "v1.32.0-alpha.3", "v1.32.0-1", "v1.31.2"}
+	got := make([]string, len(result))
+	for i, r := range result {
+		got[i] = filepath.Base(r)
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("expected order %v, got %v", want, got)
+	}
+}
+
+func TestCompareVersions_PreRelease(t *testing.T) {
+	tests := []struct {
+		greater, lesser string
+	}{
+		{"1.0.0", "1.0.0-rc.1"},
+		{"1.0.0", "1.0.0-1"},
+		{"v1.32.0", "v1.32.0-1"},
+		{"1.0.0-2", "1.0.0-1"},
+		{"1.0.0-rc.1", "1.0.0-1"},
+		{"1.0.0-rc.1", "1.0.0-alpha.3"},
+		{"1.0.0-alpha.10", "1.0.0-alpha.2"},
+		{"1.0.0-alpha.1", "1.0.0-alpha"},
+		{"1.0.1-alpha", "1.0.0"},
+	}
+	for _, tt := range tests {
+		if got := compareVersions(tt.greater, tt.lesser); got <= 0 {
+			t.Errorf("compareVersions(%q, %q) = %d, want > 0", tt.greater, tt.lesser, got)
+		}
+		if got := compareVersions(tt.lesser, tt.greater); got >= 0 {
+			t.Errorf("compareVersions(%q, %q) = %d, want < 0", tt.lesser, tt.greater, got)
+		}
 	}
 }
 
