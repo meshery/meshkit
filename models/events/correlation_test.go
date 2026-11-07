@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	stderrors "errors"
+	"math"
 	"reflect"
 	"regexp"
 	"strings"
@@ -85,6 +86,43 @@ func TestLegacyEventUnchanged(t *testing.T) {
 	}
 	if err := decoded.Validate(); err != nil {
 		t.Errorf("legacy payload with a Go-field-name metadata.error is invalid: %v", err)
+	}
+}
+
+// A stored metadata.error in the contract's camelCase shape is decoded and
+// validated, so a violation read back from storage is reported.
+func TestStoredEventErrorValidated(t *testing.T) {
+	for name, metaErr := range map[string]string{
+		"unknown matched cause": `{"code":"meshkit-1","probableCauses":[{"id":"a","description":"A","remediations":[{"id":"r","description":"R"}]}],"probableCause":["A"],"suggestedRemediation":["R"],"matchedCauses":[{"causeId":"b"}]}`,
+		"severity not a string": `{"code":"meshkit-1","severity":2}`,
+		"unknown key":           `{"code":"meshkit-1","severity":"error","Bogus":1}`,
+		"empty code":            `{"code":"","severity":"error"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			var ev Event
+			if err := json.Unmarshal([]byte(`{"metadata":{"error":`+metaErr+`}}`), &ev); err != nil {
+				t.Fatal(err)
+			}
+			if err := ev.Validate(); meshkiterrors.GetCode(err) != ErrInvalidEventCode {
+				t.Errorf("stored metadata.error %s: %v", metaErr, err)
+			}
+		})
+	}
+
+	built, err := NewEvent().WithError(connectError(), MatchCauseWithConfidence("cluster-unreachable", 0.8))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(built.Build())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back Event
+	if err := json.Unmarshal(raw, &back); err != nil {
+		t.Fatal(err)
+	}
+	if err := back.Validate(); err != nil {
+		t.Errorf("stored valid metadata.error rejected: %v", err)
 	}
 }
 
@@ -368,6 +406,9 @@ func TestNewEventErrorRejects(t *testing.T) {
 	}
 	if _, err := NewEventError(connectError(), MatchCauseWithConfidence("cluster-unreachable", 1.5)); err == nil {
 		t.Error("confidence 1.5 accepted")
+	}
+	if _, err := NewEventError(connectError(), MatchCauseWithConfidence("cluster-unreachable", float32(math.NaN()))); meshkiterrors.GetCode(err) != ErrInvalidEventErrorCode {
+		t.Errorf("NaN confidence: %v", err)
 	}
 	bad := meshkiterrors.NewV3("meshkit-1", meshkiterrors.Alert, nil, nil, []meshkiterrors.Cause{
 		{ID: "a", Description: "A", Remediations: []meshkiterrors.Remediation{{ID: "r", Description: "R", ActionPolicy: meshkiterrors.Automatic}}},
