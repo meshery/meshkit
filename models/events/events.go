@@ -73,13 +73,14 @@ type Event struct {
 
 	// IdempotencyKey is the client-chosen key that makes recording this event
 	// safe to retry (schemas v1beta3 EventPayload.idempotencyKey, 1 to 255
-	// characters). The server answers a create carrying a key its caller
-	// already used as a replay of the event that create recorded, rather than
-	// recording or counting it again. Name the occurrence, for example a run
+	// characters). Under the schemas createEvent contract, a server answers a
+	// create carrying a key its caller already used as a replay of the event
+	// that create recorded, rather than recording or counting it again;
+	// MeshKit only carries the key. Name the occurrence, for example a run
 	// id. It is indexed with Owner as idx_events_owner_idempotency_key so a
 	// server can find the event a key is bound to; the index is not unique,
-	// because the contract scopes keys to the authenticated caller, which the
-	// server enforces.
+	// because the contract scopes keys to the authenticated caller, which a
+	// server that honours the contract enforces.
 	IdempotencyKey *string `db:"idempotency_key" json:"idempotencyKey,omitempty" gorm:"column:idempotency_key;index:idx_events_owner_idempotency_key,priority:2"`
 
 	// The fields below are the schemas event construct's condition correlation,

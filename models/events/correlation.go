@@ -19,8 +19,10 @@ func (e *EventBuilder) WithOperationID(id core.Uuid) *EventBuilder {
 }
 
 // WithIdempotencyKey sets the client-chosen key that makes recording this
-// event safe to retry: a create carrying a key its caller already used records
-// nothing and is answered with the event the first create recorded. Name the
+// event safe to retry: under the schemas createEvent contract, a create
+// carrying a key its caller already used records nothing and is answered with
+// the event the first create recorded. MeshKit only carries the key; replay is
+// the receiving server's to honour. Name the
 // occurrence, for example a run id, never the condition (that is
 // WithCorrelationKey). Build copies the key into every event it builds, so set
 // a new key before building another occurrence from the same builder.
