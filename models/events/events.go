@@ -67,7 +67,20 @@ type Event struct {
 
 	// UpdatedAt Timestamp when the resource was updated.
 	UpdatedAt UpdatedAt `db:"updated_at" json:"updatedAt"`
-	Owner     *Owner    `db:"owner" json:"owner,omitempty"`
+	// Owner is part of the composite idx_events_owner_idempotency_key index
+	// (see IdempotencyKey); the index adds no constraint to the column.
+	Owner *Owner `db:"owner" json:"owner,omitempty" gorm:"index:idx_events_owner_idempotency_key,priority:1"`
+
+	// IdempotencyKey is the client-chosen key that makes recording this event
+	// safe to retry (schemas v1beta3 EventPayload.idempotencyKey, 1 to 255
+	// characters). The server answers a create carrying a key its caller
+	// already used as a replay of the event that create recorded, rather than
+	// recording or counting it again. Name the occurrence, for example a run
+	// id. It is indexed with Owner as idx_events_owner_idempotency_key so a
+	// server can find the event a key is bound to; the index is not unique,
+	// because the contract scopes keys to the authenticated caller, which the
+	// server enforces.
+	IdempotencyKey *string `db:"idempotency_key" json:"idempotencyKey,omitempty" gorm:"column:idempotency_key;index:idx_events_owner_idempotency_key,priority:2"`
 
 	// The fields below are the schemas event construct's condition correlation,
 	// provenance and trace context (docs/event-correlation-contract.md in

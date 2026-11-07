@@ -18,6 +18,17 @@ func (e *EventBuilder) WithOperationID(id core.Uuid) *EventBuilder {
 	return e
 }
 
+// WithIdempotencyKey sets the client-chosen key that makes recording this
+// event safe to retry: a create carrying a key its caller already used records
+// nothing and is answered with the event the first create recorded. Name the
+// occurrence, for example a run id, never the condition (that is
+// WithCorrelationKey). Build copies the key into every event it builds, so set
+// a new key before building another occurrence from the same builder.
+func (e *EventBuilder) WithIdempotencyKey(key string) *EventBuilder {
+	e.event.IdempotencyKey = &key
+	return e
+}
+
 // WithCorrelationKey sets the key of the ongoing condition this event records
 // an occurrence of. Qualify it by source and component, then subject and kind
 // of condition, for example `meshery-server/k8s-connection/<id>/unreachable`;

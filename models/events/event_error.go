@@ -157,12 +157,15 @@ var (
 	parentIDPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 )
 
-// Validate checks the event's optional correlation, provenance and trace
-// fields, and its `metadata.error` when that is an EventError or a decoded
+// Validate checks the event's optional idempotency key, correlation,
+// provenance and trace fields, and its `metadata.error` when that is an EventError or a decoded
 // object in the EventError shape, against the schemas event construct. An event that sets none of them is valid.
 // It returns ErrInvalidEvent listing every violation.
 func (ev *Event) Validate() error {
 	var errs []error
+	if ev.IdempotencyKey != nil && (len(*ev.IdempotencyKey) < 1 || len(*ev.IdempotencyKey) > 255) {
+		errs = append(errs, fmt.Errorf("idempotencyKey: length %d is not 1 to 255", len(*ev.IdempotencyKey)))
+	}
 	if ev.CorrelationKey != nil && (len(*ev.CorrelationKey) < 1 || len(*ev.CorrelationKey) > 255) {
 		errs = append(errs, fmt.Errorf("correlationKey: length %d is not 1 to 255", len(*ev.CorrelationKey)))
 	}
