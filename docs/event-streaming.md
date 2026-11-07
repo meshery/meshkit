@@ -113,7 +113,7 @@ locally.
 // models/events/events.go (excerpt)
 type Event struct {
     ID          ID                     `db:"id" json:"id"`
-    UserID      *UserID                `db:"user_id"      json:"userId,omitempty"`
+    Owner       *Owner                 `db:"owner"        json:"owner,omitempty"`
     SystemID    SystemID               `db:"system_id"    json:"systemId"`
     OperationID OperationID            `db:"operation_id" json:"operationId"`
 
@@ -129,6 +129,19 @@ type Event struct {
     CreatedAt   CreatedAt              `db:"created_at" json:"createdAt"`
     UpdatedAt   UpdatedAt              `db:"updated_at" json:"updatedAt"`
     DeletedAt   *DeletedAt             `db:"deleted_at" json:"deletedAt,omitempty"`
+
+    // Optional, omitted when unset (see "Conditions, provenance and trace context").
+    // Each also carries matching db: and gorm:"column:" tags.
+    CorrelationKey  *string           `json:"correlationKey,omitempty"`
+    OccurrenceCount *int              `json:"occurrenceCount,omitempty"`
+    FirstSeenAt     *time.Time        `json:"firstSeenAt,omitempty"`
+    LastSeenAt      *time.Time        `json:"lastSeenAt,omitempty"`
+    ResolvedAt      *time.Time        `json:"resolvedAt,omitempty"`
+    Source          *string           `json:"source,omitempty"`
+    Type            *string           `json:"type,omitempty"`
+    SpecVersion     *EventSpecVersion `json:"specversion,omitempty"`
+    TraceID         *string           `json:"traceId,omitempty"`
+    ParentID        *string           `json:"parentId,omitempty"`
 }
 
 type EventSeverity string // alert | critical | debug | emergency | error | informational | warning | success
@@ -141,7 +154,7 @@ Producers build events through a fluent builder defined in
 ```go
 event := events.
     NewEvent().                                 // assigns OperationID, CreatedAt, Status=Unread
-    FromUser(userID).
+    FromOwner(userID).
     FromSystem(systemID).
     WithCategory("pattern").
     WithAction("deploy").
@@ -151,6 +164,69 @@ event := events.
     WithMetadata(map[string]interface{}{"summary": "..."}).
     Build()
 ```
+
+### Conditions, provenance and trace context
+
+The schemas event construct (`schemas/constructs/v1beta3/event`,
+`docs/event-correlation-contract.md` in meshery/schemas, meshery/schemas#1334)
+adds optional fields that MeshKit's `Event` carries with the same JSON names
+and DB columns. All are pointers and omitted when unset, so an event that
+sets none of them serializes and persists exactly as before; GORM
+`AutoMigrate` adds them as nullable columns (`correlation_key`,
+`occurrence_count`, `first_seen_at`, `last_seen_at`, `resolved_at`, `source`,
+`type`, `specversion`, `trace_id`, `parent_id`).
+
+```go
+traceID, _ := events.NewTraceID()          // minted once by the client that starts the operation
+spanID, _ := events.NewSpanID()
+event := events.NewEvent().
+    WithOperationID(opID).                 // group every event of one operation (NewEvent mints a random one)
+    WithTraceContext(traceID, spanID).     // or WithTraceContextFrom(ctx) from an OpenTelemetry span
+    WithSource("meshery-server").          // which surface emitted it
+    WithType("io.meshery.connection.unreachable").WithSpecVersion(events.SpecVersion10).
+    WithCorrelationKey("meshery-server/k8s-connection/" + connID + "/unreachable").
+    WithLastSeenAt(time.Now()).
+    WithCategory("connection").WithAction("update").WithSeverity(events.Error).
+    Build()
+
+// Later, once, when the condition clears:
+resolved := events.NewEvent().Resolves(key, time.Now()).
+    WithCategory("connection").WithSeverity(events.Success).
+    WithDescription("Connection to cluster prod-1 restored").Build()
+```
+
+- The producer mints every id. Nothing in MeshKit mints `traceId`,
+  `parentId` or a correlation key at persist time: an id minted there never
+  reaches the copy already broadcast.
+- `correlationKey` names the condition, qualified by source and component,
+  then subject and kind. Never use an error code alone.
+- The server, not MeshKit, applies the upsert-by-`correlationKey` semantics
+  of `createEvent` (replay, increment, resolve, `Event-Disposition`).
+- `Event.Validate()` checks these fields (and an `EventError` in
+  `metadata.error`, including one decoded from storage as a JSON object with
+  a `code` key) against the construct and returns `ErrInvalidEvent`. A legacy
+  `metadata.error` serialized with Go field names (`Code`, numeric
+  `Severity`) is left unchecked, so existing stored events still validate.
+
+### Error events: `metadata.error`
+
+`events.NewEventError(err, matched...)` turns a MeshKit error into the
+schemas `EventError` (`events.EventError` is an alias of the generated
+type). For an `errors.NewV3` error it carries the nested `probableCauses`
+plus the derived flat lists, and each `MatchCause(id)` /
+`MatchCauseWithConfidence(id, c)` must name one of its causes. For an
+`errors.New` / `NewV2` error it carries the flat lists alone (unpaired). It
+returns `ErrNotMeshkitError` for an error without a MeshKit code and
+`ErrInvalidEventError` when the result would break the contract.
+
+```go
+b, err := events.NewEvent().WithMetadata(meta).   // WithMetadata replaces the map: call it first
+    WithError(connErr, events.MatchCause("credentials-expired"))
+```
+
+`WithError` / `WithEventError` keep every other metadata key. Set
+`Details` on the `EventError` for instance values (never secrets,
+credentials, design contents or request bodies).
 
 `Event.ID` is generated automatically in the GORM `BeforeCreate` hook
 (see [`models/events/database.go`](../models/events/database.go)) so
@@ -550,6 +626,11 @@ MeshKit:
 - [`models/events/events.go`](../models/events/events.go) — generated
   `Event` struct and severity/status enums.
 - [`models/events/build.go`](../models/events/build.go) — `EventBuilder`.
+- [`models/events/correlation.go`](../models/events/correlation.go) —
+  operation id, condition correlation, provenance and trace-context setters;
+  `NewTraceID` / `NewSpanID`.
+- [`models/events/event_error.go`](../models/events/event_error.go) —
+  `NewEventError`, `WithError`, `MatchCause`, `Event.Validate`.
 - [`models/events/database.go`](../models/events/database.go) — GORM
   hooks; assigns `Event.ID`.
 
