@@ -245,7 +245,8 @@ func NewModelCSVHelper(sheetURL, spreadsheetName string, spreadsheetID int64, lo
 }
 
 func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool, modelName string) error {
-	ch := make(chan ModelCSV, 1)
+	// Each row must be consumed before the parser can signal completion.
+	ch := make(chan ModelCSV)
 	errorChan := make(chan error, 1)
 	csvReader, err := csv.NewCSVParser[ModelCSV](mch.CSVPath, rowIndex, nil, func(columns []string, currentRow []string) bool {
 		index := 0
@@ -267,12 +268,16 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool, modelName string)
 	}
 
 	go func() {
+		defer close(errorChan)
 		Log.Info("Parsing Models...")
+
 		err := csvReader.Parse(ch, errorChan)
 		if err != nil {
 			errorChan <- err
 		}
 	}()
+
+	var parseErr error
 	for {
 		select {
 
@@ -281,11 +286,13 @@ func (mch *ModelCSVHelper) ParseModelsSheet(parseForDocs bool, modelName string)
 				continue
 			}
 			mch.Models = append(mch.Models, data)
-		case err := <-errorChan:
-			return files.ErrFileRead(err)
-
-		case <-csvReader.Context.Done():
-			return nil
+		case err, open := <-errorChan:
+			// Parse cancels its context before returning its error. Wait for
+			// the producer to finish forwarding errors before returning.
+			if !open {
+				return parseErr
+			}
+			parseErr = err
 		}
 	}
 }
