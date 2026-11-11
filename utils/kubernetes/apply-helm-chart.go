@@ -408,7 +408,7 @@ func getHelmChartURL(cfg ApplyHelmChartConfig) (string, error) {
 // it and renamed into place only once complete. Writing the final path directly would let a
 // failed or interrupted download leave a truncated chart there, which every later call would
 // then reuse and fail to load.
-func fetchHelmChart(chartURL, downloadPath string) (path string, err error) {
+func fetchHelmChart(chartURL, downloadPath string) (string, error) {
 	filename := filepath.Base(chartURL)
 
 	// This allows the caller of the function to use the perfered location to download the helm chart, e.g. "~/.meshery/manifests"
