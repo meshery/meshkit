@@ -19,8 +19,9 @@ to) decides what happens. Implementation: `planInstallOrUpgrade` and `recoverAba
 | `deployed`, `failed`, `superseded` | upgrade (Helm upgrades from the last deployed revision, or from the failed one when none was ever deployed) |
 | `uninstalled` (history kept) | install with `Replace` |
 | `pending-install`, `pending-upgrade`, `pending-rollback`, started less than `PendingReleaseTimeout` ago | `ErrHelmReleasePending`; nothing changes |
-| the same, started longer ago, and a revision was deployed before | the revision is marked `failed` (description says it was abandoned), then the release is upgraded from the deployed revision |
-| the same, started longer ago, and no revision was ever deployed (an interrupted first install) | the revision is marked `failed`, then the install runs again with `Replace` |
+| `pending-upgrade` or `pending-rollback`, started longer ago | the revision is marked `failed` (description says it was abandoned), then the release is upgraded |
+| `pending-install`, started longer ago, with a deployed revision | the same: marked `failed`, then upgraded from the deployed revision |
+| `pending-install`, started longer ago, with no deployed revision (an interrupted first install) | the revision is marked `failed`, then the install runs again with `Replace` |
 | the same, longer ago, but `DryRun` | `ErrHelmReleasePending`; a dry run never writes the release record |
 | any pending revision, with a negative `PendingReleaseTimeout` | `ErrHelmReleasePending`; recovery is turned off |
 | `uninstalling`, or a status MeshKit does not know | `ErrHelmReleaseState`; nothing changes |
@@ -42,8 +43,10 @@ The alternatives considered:
   revision to roll back to.
 - **Mark the revision failed, then upgrade or reinstall (chosen).** Marking it failed is exactly
   what Helm records when an operation fails, and unblocks both of Helm's actions. When a revision
-  was deployed before, Helm's upgrade continues from it. When none was (an interrupted first
-  install), the install runs again with `Replace`, which Helm allows over a failed release: it
+  was deployed before, and always after an interrupted upgrade or rollback (Helm supersedes the
+  previous revision before it records the new one as deployed, so a crash in between leaves no
+  deployed revision), Helm's upgrade continues from it. Only an interrupted install with no
+  deployed revision runs again, with `Replace`, which Helm allows over a failed release: it
   adopts the resources the interrupted install created (they carry the release's ownership
   annotations), and, unlike an upgrade, runs the chart's install hooks and renders
   `.Release.IsInstall` as true. Either way nothing is deleted, it takes one operation, and the

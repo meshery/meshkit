@@ -108,6 +108,10 @@ func TestPlanInstallOrUpgradeCoversEveryReleaseState(t *testing.T) {
 		{name: "pending-install abandoned after a deployed revision", revisions: []revision{{release.StatusDeployed, stale}, {release.StatusFailed, stale}, {release.StatusPendingInstall, stale}}, wantAction: UPGRADE, wantAbandon: true},
 		{name: "pending-upgrade abandoned", revisions: []revision{{release.StatusDeployed, stale}, {release.StatusPendingUpgrade, stale}}, wantAction: UPGRADE, wantAbandon: true},
 		{name: "pending-rollback abandoned", revisions: []revision{{release.StatusDeployed, stale}, {release.StatusPendingRollback, stale}}, wantAction: UPGRADE, wantAbandon: true},
+		// Helm supersedes the previous revision before it records the new one as deployed, so an
+		// upgrade or rollback interrupted in between leaves no deployed revision: still an upgrade.
+		{name: "pending-upgrade abandoned after superseding", revisions: []revision{{release.StatusSuperseded, stale}, {release.StatusPendingUpgrade, stale}}, wantAction: UPGRADE, wantAbandon: true},
+		{name: "pending-rollback abandoned after superseding", revisions: []revision{{release.StatusSuperseded, stale}, {release.StatusPendingRollback, stale}}, wantAction: UPGRADE, wantAbandon: true},
 		{name: "pending without a start time", revisions: []revision{{release.StatusPendingInstall, -1}}, wantAction: INSTALL, wantReplace: true, wantAbandon: true},
 		{name: "abandoned but recovery turned off", revisions: []revision{{release.StatusPendingInstall, 1000 * time.Hour}}, timeout: -1, wantErrCode: ErrHelmReleasePendingCode},
 		{name: "pending-install in progress", revisions: []revision{{release.StatusPendingInstall, fresh}}, wantErrCode: ErrHelmReleasePendingCode},
@@ -224,6 +228,8 @@ func TestApplyHelmChartUpgradeIfInstalledReachesDeployed(t *testing.T) {
 			[]release.Status{release.StatusSuperseded, release.StatusFailed, release.StatusFailed, release.StatusDeployed}, false},
 		{"pending-upgrade abandoned", []revision{{release.StatusDeployed, stale}, {release.StatusPendingUpgrade, stale}},
 			[]release.Status{release.StatusSuperseded, release.StatusFailed, release.StatusDeployed}, false},
+		{"pending-upgrade abandoned after superseding", []revision{{release.StatusSuperseded, stale}, {release.StatusPendingUpgrade, stale}},
+			[]release.Status{release.StatusSuperseded, release.StatusSuperseded, release.StatusDeployed}, false},
 		{"pending-rollback abandoned", []revision{{release.StatusSuperseded, stale}, {release.StatusDeployed, stale}, {release.StatusPendingRollback, stale}},
 			[]release.Status{release.StatusSuperseded, release.StatusSuperseded, release.StatusFailed, release.StatusDeployed}, false},
 	}

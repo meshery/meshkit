@@ -51,14 +51,15 @@ type helmReleasePlan struct {
 //     ErrHelmReleasePending, because the operation that left it there may still be running.
 //   - pending for at least the pending timeout: the operation is treated as abandoned (the process
 //     running it was restarted, say). The revision is marked failed, exactly as Helm records an
-//     operation that fails, and stays in the history with a description saying why. Then, when a
-//     revision of the release was ever deployed, the release is upgraded from it. When none was,
-//     as after an interrupted first install, the install runs again with Replace, which Helm
-//     allows over a failed release: it adopts the resources the interrupted install created, and
-//     it runs the chart's install hooks and renders .Release.IsInstall as an install, which an
-//     upgrade would not. Neither path deletes anything, as uninstalling and reinstalling would,
-//     or takes a second operation, as rolling back and then upgrading would. A dry run never
-//     changes the release record, so it returns ErrHelmReleasePending.
+//     operation that fails, and stays in the history with a description saying why. An
+//     interrupted upgrade or rollback is then followed by an upgrade, and so is an interrupted
+//     install over a release that has a deployed revision. An interrupted install with no deployed
+//     revision (a first install, or one over an uninstalled release) runs again with Replace,
+//     which Helm allows over a failed release: it adopts the resources the interrupted install
+//     created, and it runs the chart's install hooks and renders .Release.IsInstall as an
+//     install, which an upgrade would not. Neither path deletes anything, as uninstalling and
+//     reinstalling would, or takes a second operation, as rolling back and then upgrading would.
+//     A dry run never changes the release record, so it returns ErrHelmReleasePending.
 //   - pending, with a negative PendingReleaseTimeout: ErrHelmReleasePending however old it is.
 //     Helm records no owner or heartbeat for an operation, so elapsed time is the only sign that
 //     one was abandoned; a caller whose releases are also operated by tools that run longer than
@@ -91,12 +92,18 @@ func planInstallOrUpgrade(actionConfig *action.Configuration, cfg ApplyHelmChart
 		if timeout < 0 || pendingFor < timeout || cfg.DryRun {
 			return helmReleasePlan{}, ErrHelmReleasePending(cfg.ReleaseName, cfg.Namespace, status.String(), latest.Version, pendingFor, timeout, cfg.DryRun)
 		}
-		deployed, err := hasDeployedRevision(actionConfig, cfg.ReleaseName)
-		if err != nil {
-			return helmReleasePlan{}, ErrHelmReleaseStorage(cfg.ReleaseName, cfg.Namespace, err)
-		}
-		if !deployed {
-			return helmReleasePlan{action: INSTALL, replace: true, abandoned: latest, pendingFor: pendingFor}, nil
+		// Only an interrupted install is installed again. An interrupted upgrade or rollback stays
+		// on the upgrade path even when no revision is deployed now: Helm supersedes the previous
+		// revision before it records the new one as deployed, so a crash in between leaves
+		// [superseded, pending-upgrade] for a release that was deployed.
+		if status == release.StatusPendingInstall {
+			deployed, err := hasDeployedRevision(actionConfig, cfg.ReleaseName)
+			if err != nil {
+				return helmReleasePlan{}, ErrHelmReleaseStorage(cfg.ReleaseName, cfg.Namespace, err)
+			}
+			if !deployed {
+				return helmReleasePlan{action: INSTALL, replace: true, abandoned: latest, pendingFor: pendingFor}, nil
+			}
 		}
 		return helmReleasePlan{action: UPGRADE, abandoned: latest, pendingFor: pendingFor}, nil
 	default:
