@@ -103,7 +103,7 @@ func ErrOperatorHelmReleaseState(err error) error {
 				{ID: "wait-for-operator-release-operation", Description: "Wait for that operation to finish, then deploy Meshery Operator again."},
 			}},
 			{ID: "operator-release-operation-interrupted", Description: "An earlier install, upgrade, rollback or uninstall of the meshery-operator release was interrupted, for example by a restart of Meshery Server, and left the release pending or uninstalling.", Remediations: []errors.Remediation{
-				{ID: "await-pending-operator-release-recovery", Description: "Deploy again once the release has been pending for longer than the pending timeout (10 minutes by default): the abandoned revision is then marked failed and the release upgraded."},
+				{ID: "await-pending-operator-release-recovery", Description: "For a release that is pending-install, pending-upgrade or pending-rollback, deploy again once it has been pending for longer than the pending timeout (10 minutes by default): the abandoned revision is then marked failed and the release upgraded, or installed again if no revision was ever deployed. An uninstalling release is not recovered this way."},
 				{ID: "recover-operator-release-manually", Description: "To recover now, inspect the release with helm history meshery-operator -n meshery, then run helm rollback meshery-operator <last deployed revision> -n meshery, or helm uninstall meshery-operator -n meshery if no revision was ever deployed or the release is uninstalling, and deploy again."},
 			}},
 		})
@@ -116,7 +116,7 @@ func ErrOperatorHelmReleaseState(err error) error {
 // in it. err is the classified error from MeshKit's Helm client.
 func ErrOperatorClusterAccess(err error) error {
 	e := errors.NewV3(ErrOperatorClusterAccessCode, errors.Alert,
-		[]string{"Meshery Server could not reach the cluster to manage Meshery Operator"},
+		[]string{"Meshery Server could not access the cluster or the Meshery Operator Helm release record"},
 		[]string{},
 		[]errors.Cause{
 			{ID: "cluster-unreachable", Description: "The Kubernetes API server of the cluster could not be reached from Meshery Server.", Remediations: []errors.Remediation{

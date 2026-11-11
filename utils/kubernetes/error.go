@@ -330,9 +330,10 @@ func ErrHelmReleaseStorage(releaseName, namespace string, err error) error {
 }
 
 // ErrHelmReleasePending is returned when the latest revision of a release is pending-install,
-// pending-upgrade or pending-rollback and ApplyHelmChart will not recover it: either it has been
-// pending for less than the pending timeout, so the operation that left it there may still be
-// running, or the call is a dry run, which never changes the release record.
+// pending-upgrade or pending-rollback and ApplyHelmChart will not recover it: it has been pending
+// for less than the pending timeout, so the operation that left it there may still be running, or
+// the call is a dry run, which never changes the release record, or the recovery is turned off (a
+// negative timeout).
 func ErrHelmReleasePending(releaseName, namespace, status string, revision int, pendingFor, timeout time.Duration, dryRun bool) error {
 	e := errors.NewV3(ErrHelmReleasePendingCode, errors.Alert,
 		[]string{"Helm release has an operation in progress"},
@@ -342,15 +343,18 @@ func ErrHelmReleasePending(releaseName, namespace, status string, revision int, 
 				{ID: "wait-and-retry", Description: "Wait for the running operation to finish, then retry."},
 			}},
 			{ID: "operation-interrupted", Description: "The process that ran the last install, upgrade or rollback stopped before finishing it, for example because it was restarted, and left the release pending.", Remediations: []errors.Remediation{
-				{ID: "retry-after-pending-timeout", Description: "Retry once the release has been pending for longer than the pending timeout: it is then marked failed and upgraded automatically."},
+				{ID: "retry-after-pending-timeout", Description: "Retry once the release has been pending for longer than the pending timeout: the revision is then marked failed and the release upgraded, or installed again if no revision was ever deployed."},
 				{ID: "recover-pending-release-manually", Description: "To recover it now, inspect it with helm history <release> -n <namespace>, then run helm rollback <release> <last deployed revision> -n <namespace>, or helm uninstall <release> -n <namespace> if no revision was ever deployed."},
 			}},
 		})
 	e.LongDescription = append(e.LongDescription, fmt.Sprintf("Helm release %q in namespace %q has been %s at revision %d for %s.", releaseName, namespace, status, revision, pendingFor.Round(time.Second)))
-	if dryRun && pendingFor >= timeout {
-		e.LongDescription = append(e.LongDescription, fmt.Sprintf("That is longer than the %s pending timeout, so the operation is treated as abandoned, but a dry run never changes the release record; run without dry run to mark the revision failed and upgrade the release.", timeout))
-	} else {
-		e.LongDescription = append(e.LongDescription, fmt.Sprintf("It is treated as abandoned, marked failed and upgraded once it has been pending for %s.", timeout))
+	switch {
+	case timeout < 0:
+		e.LongDescription = append(e.LongDescription, "Recovery of abandoned operations is turned off for this call (a negative pending timeout), so the release is left for an operator to recover.")
+	case dryRun && pendingFor >= timeout:
+		e.LongDescription = append(e.LongDescription, fmt.Sprintf("That is longer than the %s pending timeout, so the operation is treated as abandoned, but a dry run never changes the release record; run without dry run to recover the release.", timeout))
+	default:
+		e.LongDescription = append(e.LongDescription, fmt.Sprintf("It is treated as abandoned once it has been pending for %s: the revision is then marked failed and the release upgraded, or installed again if no revision was ever deployed.", timeout))
 	}
 	return e
 }

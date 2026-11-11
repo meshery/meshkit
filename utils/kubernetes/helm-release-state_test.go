@@ -90,6 +90,7 @@ func TestPlanInstallOrUpgradeCoversEveryReleaseState(t *testing.T) {
 		name        string
 		revisions   []revision
 		dryRun      bool
+		timeout     time.Duration // 0 uses the test's timeout
 		wantAction  HelmChartAction
 		wantReplace bool
 		wantAbandon bool
@@ -101,10 +102,14 @@ func TestPlanInstallOrUpgradeCoversEveryReleaseState(t *testing.T) {
 		{name: "failed upgrade", revisions: []revision{{release.StatusDeployed, stale}, {release.StatusFailed, stale}}, wantAction: UPGRADE},
 		{name: "superseded", revisions: []revision{{release.StatusSuperseded, stale}}, wantAction: UPGRADE},
 		{name: "uninstalled with history kept", revisions: []revision{{release.StatusUninstalled, stale}}, wantAction: INSTALL, wantReplace: true},
-		{name: "pending-install abandoned", revisions: []revision{{release.StatusPendingInstall, stale}}, wantAction: UPGRADE, wantAbandon: true},
+		// An interrupted first install is installed again, so that install hooks run; once a
+		// revision was deployed, an abandoned operation is followed by an upgrade from it.
+		{name: "pending-install abandoned", revisions: []revision{{release.StatusPendingInstall, stale}}, wantAction: INSTALL, wantReplace: true, wantAbandon: true},
+		{name: "pending-install abandoned after a deployed revision", revisions: []revision{{release.StatusDeployed, stale}, {release.StatusFailed, stale}, {release.StatusPendingInstall, stale}}, wantAction: UPGRADE, wantAbandon: true},
 		{name: "pending-upgrade abandoned", revisions: []revision{{release.StatusDeployed, stale}, {release.StatusPendingUpgrade, stale}}, wantAction: UPGRADE, wantAbandon: true},
 		{name: "pending-rollback abandoned", revisions: []revision{{release.StatusDeployed, stale}, {release.StatusPendingRollback, stale}}, wantAction: UPGRADE, wantAbandon: true},
-		{name: "pending without a start time", revisions: []revision{{release.StatusPendingInstall, -1}}, wantAction: UPGRADE, wantAbandon: true},
+		{name: "pending without a start time", revisions: []revision{{release.StatusPendingInstall, -1}}, wantAction: INSTALL, wantReplace: true, wantAbandon: true},
+		{name: "abandoned but recovery turned off", revisions: []revision{{release.StatusPendingInstall, 1000 * time.Hour}}, timeout: -1, wantErrCode: ErrHelmReleasePendingCode},
 		{name: "pending-install in progress", revisions: []revision{{release.StatusPendingInstall, fresh}}, wantErrCode: ErrHelmReleasePendingCode},
 		{name: "pending-upgrade in progress", revisions: []revision{{release.StatusDeployed, stale}, {release.StatusPendingUpgrade, fresh}}, wantErrCode: ErrHelmReleasePendingCode},
 		{name: "pending-rollback in progress", revisions: []revision{{release.StatusDeployed, stale}, {release.StatusPendingRollback, fresh}}, wantErrCode: ErrHelmReleasePendingCode},
@@ -118,6 +123,9 @@ func TestPlanInstallOrUpgradeCoversEveryReleaseState(t *testing.T) {
 			actionConfig, s := memoryActionConfig()
 			seedRevisions(t, s, tc.revisions...)
 			cfg := ApplyHelmChartConfig{ReleaseName: "testchart", Namespace: "default", PendingReleaseTimeout: timeout, DryRun: tc.dryRun}
+			if tc.timeout != 0 {
+				cfg.PendingReleaseTimeout = tc.timeout
+			}
 
 			plan, err := planInstallOrUpgrade(actionConfig, cfg, time.Now())
 			if tc.wantErrCode != "" {
@@ -194,26 +202,30 @@ func TestPendingReleaseStartedInTheFutureIsInProgress(t *testing.T) {
 // recovers from, and checks the release history it leaves behind.
 func TestApplyHelmChartUpgradeIfInstalledReachesDeployed(t *testing.T) {
 	stale := 2 * DefaultPendingReleaseTimeout
-	// When no revision was ever deployed, Helm upgrades from the failed one and then marks it
-	// superseded (keeping its description), so a failed or abandoned first install ends up
-	// superseded rather than failed.
+	// When no revision was ever deployed, Helm upgrades a failed release from the failed revision
+	// and then marks it superseded, so a failed first install ends up superseded. An abandoned
+	// first install is installed again instead, with Replace, which leaves the failed revision as
+	// it is.
 	cases := []struct {
-		name      string
-		revisions []revision
-		want      []release.Status // by revision number, from 1
+		name        string
+		revisions   []revision
+		want        []release.Status // by revision number, from 1
+		wantInstall bool             // the last revision was written by an install, not an upgrade
 	}{
-		{"not installed", nil, []release.Status{release.StatusDeployed}},
-		{"deployed", []revision{{release.StatusDeployed, stale}}, []release.Status{release.StatusSuperseded, release.StatusDeployed}},
-		{"failed first install", []revision{{release.StatusFailed, stale}}, []release.Status{release.StatusSuperseded, release.StatusDeployed}},
+		{"not installed", nil, []release.Status{release.StatusDeployed}, true},
+		{"deployed", []revision{{release.StatusDeployed, stale}}, []release.Status{release.StatusSuperseded, release.StatusDeployed}, false},
+		{"failed first install", []revision{{release.StatusFailed, stale}}, []release.Status{release.StatusSuperseded, release.StatusDeployed}, false},
 		{"failed upgrade", []revision{{release.StatusDeployed, stale}, {release.StatusFailed, stale}},
-			[]release.Status{release.StatusSuperseded, release.StatusFailed, release.StatusDeployed}},
-		{"superseded", []revision{{release.StatusSuperseded, stale}}, []release.Status{release.StatusSuperseded, release.StatusDeployed}},
-		{"uninstalled with history kept", []revision{{release.StatusUninstalled, stale}}, []release.Status{release.StatusSuperseded, release.StatusDeployed}},
-		{"pending-install abandoned", []revision{{release.StatusPendingInstall, stale}}, []release.Status{release.StatusSuperseded, release.StatusDeployed}},
+			[]release.Status{release.StatusSuperseded, release.StatusFailed, release.StatusDeployed}, false},
+		{"superseded", []revision{{release.StatusSuperseded, stale}}, []release.Status{release.StatusSuperseded, release.StatusDeployed}, false},
+		{"uninstalled with history kept", []revision{{release.StatusUninstalled, stale}}, []release.Status{release.StatusSuperseded, release.StatusDeployed}, true},
+		{"pending-install abandoned", []revision{{release.StatusPendingInstall, stale}}, []release.Status{release.StatusFailed, release.StatusDeployed}, true},
+		{"pending-install abandoned after a deployed revision", []revision{{release.StatusDeployed, stale}, {release.StatusFailed, stale}, {release.StatusPendingInstall, stale}},
+			[]release.Status{release.StatusSuperseded, release.StatusFailed, release.StatusFailed, release.StatusDeployed}, false},
 		{"pending-upgrade abandoned", []revision{{release.StatusDeployed, stale}, {release.StatusPendingUpgrade, stale}},
-			[]release.Status{release.StatusSuperseded, release.StatusFailed, release.StatusDeployed}},
+			[]release.Status{release.StatusSuperseded, release.StatusFailed, release.StatusDeployed}, false},
 		{"pending-rollback abandoned", []revision{{release.StatusSuperseded, stale}, {release.StatusDeployed, stale}, {release.StatusPendingRollback, stale}},
-			[]release.Status{release.StatusSuperseded, release.StatusSuperseded, release.StatusFailed, release.StatusDeployed}},
+			[]release.Status{release.StatusSuperseded, release.StatusSuperseded, release.StatusFailed, release.StatusDeployed}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -233,6 +245,16 @@ func TestApplyHelmChartUpgradeIfInstalledReachesDeployed(t *testing.T) {
 			latest, err := s.Last("testchart")
 			if err != nil || latest.Chart.Metadata.Version != "0.1.0" {
 				t.Fatalf("latest revision = %+v, %v, want the requested chart 0.1.0", latest, err)
+			}
+			// Helm describes the revision an install writes as "Install complete" and the one an
+			// upgrade writes as "Upgrade complete": this is the action that ran, and with it the
+			// hooks (pre-install or pre-upgrade) that the chart got.
+			wantDescription := "Upgrade complete"
+			if tc.wantInstall {
+				wantDescription = "Install complete"
+			}
+			if latest.Info.Description != wantDescription {
+				t.Fatalf("latest revision description = %q, want %q", latest.Info.Description, wantDescription)
 			}
 
 			// An abandoned revision says why it failed, in the history and in the log.
@@ -478,8 +500,8 @@ func TestApplyHelmChartClassifiesFailures(t *testing.T) {
 		if got := meshkiterrors.GetCode(err); got != ErrHelmReleaseStorageCode {
 			t.Fatalf("error = %q (%v), want %q", got, err, ErrHelmReleaseStorageCode)
 		}
-		if h := historyOf(t, actionConfig.Releases, "testchart"); len(h) != 2 {
-			t.Fatalf("history = %v, want the seeded revision only, with no upgrade attempted", h[1:])
+		if h := historyOf(t, actionConfig.Releases, "testchart"); fmt.Sprint(h[1:]) != fmt.Sprint([]release.Status{release.StatusPendingInstall}) {
+			t.Fatalf("history = %v, want the seeded revision only, still pending, with no action attempted", h[1:])
 		}
 	})
 

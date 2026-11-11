@@ -143,7 +143,8 @@ type ApplyHelmChartConfig struct {
 	//   - uninstalled with its history kept: install, replacing the uninstalled release.
 	//   - pending-install, pending-upgrade or pending-rollback for less than
 	//     PendingReleaseTimeout: ErrHelmReleasePending, since the operation may still be running.
-	//   - pending for longer: the revision is marked failed and the release is upgraded.
+	//   - pending for longer: the revision is marked failed and the release is upgraded, or
+	//     installed again when no revision of it was ever deployed.
 	//   - uninstalling: ErrHelmReleaseState; finishing the uninstall is left to an operator.
 	//
 	// It has no effect on any other Action.
@@ -152,7 +153,12 @@ type ApplyHelmChartConfig struct {
 	// PendingReleaseTimeout is how long the latest revision of a release may stay
 	// pending-install, pending-upgrade or pending-rollback before an INSTALL with
 	// UpgradeIfInstalled treats the operation that left it there as abandoned, marks the
-	// revision failed and upgrades the release.
+	// revision failed and upgrades (or, if never deployed, reinstalls) the release.
+	//
+	// Helm records no owner or heartbeat for an operation, so elapsed time is the only sign that
+	// one was abandoned. Raise it when other tools operate the same release with a longer Helm
+	// timeout; a negative value turns the recovery off, so a pending release is always reported
+	// as ErrHelmReleasePending.
 	//
 	// Defaults to DefaultPendingReleaseTimeout.
 	PendingReleaseTimeout time.Duration

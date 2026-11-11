@@ -19,8 +19,10 @@ to) decides what happens. Implementation: `planInstallOrUpgrade` and `recoverAba
 | `deployed`, `failed`, `superseded` | upgrade (Helm upgrades from the last deployed revision, or from the failed one when none was ever deployed) |
 | `uninstalled` (history kept) | install with `Replace` |
 | `pending-install`, `pending-upgrade`, `pending-rollback`, started less than `PendingReleaseTimeout` ago | `ErrHelmReleasePending`; nothing changes |
-| the same, started longer ago | the revision is marked `failed` (description says it was abandoned), then the release is upgraded |
+| the same, started longer ago, and a revision was deployed before | the revision is marked `failed` (description says it was abandoned), then the release is upgraded from the deployed revision |
+| the same, started longer ago, and no revision was ever deployed (an interrupted first install) | the revision is marked `failed`, then the install runs again with `Replace` |
 | the same, longer ago, but `DryRun` | `ErrHelmReleasePending`; a dry run never writes the release record |
+| any pending revision, with a negative `PendingReleaseTimeout` | `ErrHelmReleasePending`; recovery is turned off |
 | `uninstalling`, or a status MeshKit does not know | `ErrHelmReleaseState`; nothing changes |
 
 `PendingReleaseTimeout` defaults to `DefaultPendingReleaseTimeout` (10 minutes, twice Helm's
@@ -38,10 +40,29 @@ The alternatives considered:
 - **Roll back to the last deployed revision, then upgrade.** Two operations and two revisions to
   reach the requested chart, and impossible for a pending first install, which has no deployed
   revision to roll back to.
-- **Mark the revision failed, then upgrade (chosen).** This is exactly what Helm records when an
-  operation fails, and Helm's upgrade already knows how to continue from a failed revision, with
-  or without an earlier deployed one. It deletes nothing, takes one operation, and leaves the
-  abandoned revision in `helm history` with a description saying why.
+- **Mark the revision failed, then upgrade or reinstall (chosen).** Marking it failed is exactly
+  what Helm records when an operation fails, and unblocks both of Helm's actions. When a revision
+  was deployed before, Helm's upgrade continues from it. When none was (an interrupted first
+  install), the install runs again with `Replace`, which Helm allows over a failed release: it
+  adopts the resources the interrupted install created (they carry the release's ownership
+  annotations), and, unlike an upgrade, runs the chart's install hooks and renders
+  `.Release.IsInstall` as true. Either way nothing is deleted, it takes one operation, and the
+  abandoned revision stays in `helm history`, failed, with a description saying why.
+
+A release that is `failed` from the start (Helm itself recorded the failure) is still upgraded,
+as `helm upgrade --install` does.
+
+### Residual risk: operations started elsewhere
+
+Helm records no owner, lease or heartbeat for an operation, and custom release labels are copied
+into later revisions by the Helm CLI, so nothing in the release record says whether the process
+running a pending operation is still alive. Elapsed time is the only signal. MeshKit's own
+operations do not wait for resources and finish in seconds, far within the default timeout, but a
+tool that operates the same release with a Helm `--timeout` longer than `PendingReleaseTimeout`
+could still be running when its revision is marked failed. Callers in that situation should raise
+`PendingReleaseTimeout`, or set it negative to turn the recovery off and get
+`ErrHelmReleasePending` instead. Refusing to recover at all would bring back the original defect:
+one interrupted install blocking every later deploy until someone runs Helm by hand.
 
 An `uninstalling` release is not recovered: completing the uninstall deletes the release's
 resources, which an install must not do on its own. The error tells the operator to finish it

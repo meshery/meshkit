@@ -1,11 +1,13 @@
 package kubernetes
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v3/pkg/storage/driver"
 )
 
 const (
@@ -13,7 +15,8 @@ const (
 	// stay pending-install, pending-upgrade or pending-rollback before an INSTALL with
 	// UpgradeIfInstalled treats the operation that left it there as abandoned and recovers the
 	// release. It is twice Helm's default operation timeout (5m), so an operation that is still
-	// running elsewhere with Helm's defaults is never mistaken for an abandoned one.
+	// running elsewhere with Helm's defaults is never mistaken for an abandoned one. MeshKit's own
+	// operations do not wait for resources and finish well within it.
 	DefaultPendingReleaseTimeout = 10 * time.Minute
 
 	// DefaultHelmMaxHistory is the number of revisions an UPGRADE keeps for a release by default,
@@ -28,8 +31,8 @@ type helmReleasePlan struct {
 	// replace installs over a release that was uninstalled with its history kept.
 	replace bool
 	// abandoned is the latest revision when an operation that never finished left it pending. It is
-	// marked failed before the upgrade, which Helm then performs from the last deployed revision
-	// or, when none was ever deployed, from the abandoned one.
+	// marked failed before the action runs: an upgrade from the last deployed revision, or, when no
+	// revision was ever deployed, the install again (with replace).
 	abandoned *release.Release
 	// pendingFor is how long abandoned had been pending when the plan was made.
 	pendingFor time.Duration
@@ -48,11 +51,18 @@ type helmReleasePlan struct {
 //     ErrHelmReleasePending, because the operation that left it there may still be running.
 //   - pending for at least the pending timeout: the operation is treated as abandoned (the process
 //     running it was restarted, say). The revision is marked failed, exactly as Helm records an
-//     operation that fails, and the release is upgraded. This neither deletes anything, as
-//     uninstalling and reinstalling would, nor takes a second operation, as rolling back and then
-//     upgrading would. The revision stays in the history with a description saying why: failed,
-//     or superseded when no revision was ever deployed, since Helm then upgrades from it. A dry
-//     run never changes the release record, so it returns ErrHelmReleasePending.
+//     operation that fails, and stays in the history with a description saying why. Then, when a
+//     revision of the release was ever deployed, the release is upgraded from it. When none was,
+//     as after an interrupted first install, the install runs again with Replace, which Helm
+//     allows over a failed release: it adopts the resources the interrupted install created, and
+//     it runs the chart's install hooks and renders .Release.IsInstall as an install, which an
+//     upgrade would not. Neither path deletes anything, as uninstalling and reinstalling would,
+//     or takes a second operation, as rolling back and then upgrading would. A dry run never
+//     changes the release record, so it returns ErrHelmReleasePending.
+//   - pending, with a negative PendingReleaseTimeout: ErrHelmReleasePending however old it is.
+//     Helm records no owner or heartbeat for an operation, so elapsed time is the only sign that
+//     one was abandoned; a caller whose releases are also operated by tools that run longer than
+//     the timeout can raise it, or turn the recovery off this way.
 //   - uninstalling, or a status this code does not know: ErrHelmReleaseState. Finishing an
 //     uninstall deletes the release's resources, which is not something an install should do on
 //     its own, so it is left to an operator.
@@ -78,8 +88,15 @@ func planInstallOrUpgrade(actionConfig *action.Configuration, cfg ApplyHelmChart
 		// value in the future (clock skew between hosts) as just now, which errs towards waiting.
 		pendingFor := now.Sub(latest.Info.LastDeployed.Time)
 		timeout := pendingReleaseTimeout(cfg)
-		if pendingFor < timeout || cfg.DryRun {
+		if timeout < 0 || pendingFor < timeout || cfg.DryRun {
 			return helmReleasePlan{}, ErrHelmReleasePending(cfg.ReleaseName, cfg.Namespace, status.String(), latest.Version, pendingFor, timeout, cfg.DryRun)
+		}
+		deployed, err := hasDeployedRevision(actionConfig, cfg.ReleaseName)
+		if err != nil {
+			return helmReleasePlan{}, ErrHelmReleaseStorage(cfg.ReleaseName, cfg.Namespace, err)
+		}
+		if !deployed {
+			return helmReleasePlan{action: INSTALL, replace: true, abandoned: latest, pendingFor: pendingFor}, nil
 		}
 		return helmReleasePlan{action: UPGRADE, abandoned: latest, pendingFor: pendingFor}, nil
 	default:
@@ -88,35 +105,55 @@ func planInstallOrUpgrade(actionConfig *action.Configuration, cfg ApplyHelmChart
 }
 
 // recoverAbandonedRelease marks the revision that an abandoned operation left pending as failed,
-// so that the upgrade that follows can run: Helm refuses to upgrade a release whose latest
-// revision is pending. Nothing happens when the plan has no abandoned revision.
+// so that the action that follows can run: Helm refuses to upgrade a release whose latest
+// revision is pending, and to install over one unless it is failed or uninstalled. Nothing happens
+// when the plan has no abandoned revision.
 //
-// The write is unconditional, as all of Helm's release record updates are. The revision has been
-// pending for at least the pending timeout, so another process finishing it at the same moment is
-// not a realistic race, and the in-process release lock rules it out within one process.
+// The write is unconditional, as all of Helm's release record updates are. Within one process the
+// release lock rules out a concurrent operation; across processes, the pending timeout is the only
+// guard (see planInstallOrUpgrade).
 func recoverAbandonedRelease(actionConfig *action.Configuration, cfg ApplyHelmChartConfig, plan helmReleasePlan) error {
-	rel := plan.abandoned
-	if rel == nil {
+	if plan.abandoned == nil {
 		return nil
 	}
-	status := rel.Info.Status
+	// Change a copy, so that a failed write leaves nothing changed, even with a storage driver that
+	// hands out the stored record itself (the in-memory one does).
+	rel := *plan.abandoned
+	info := *rel.Info
+	rel.Info = &info
+	status := info.Status
 	pendingFor := plan.pendingFor.Round(time.Second)
-	cfg.Logger("helm release %q in namespace %q has been %s at revision %d for %s, longer than the %s pending timeout: marking the revision failed and upgrading the release",
-		cfg.ReleaseName, cfg.Namespace, status, rel.Version, pendingFor, pendingReleaseTimeout(cfg))
+	next := "upgrading the release"
+	if plan.action == INSTALL {
+		next = "installing it again, since no revision was ever deployed"
+	}
+	cfg.Logger("helm release %q in namespace %q has been %s at revision %d for %s, longer than the %s pending timeout: marking the revision failed and %s",
+		cfg.ReleaseName, cfg.Namespace, status, rel.Version, pendingFor, pendingReleaseTimeout(cfg), next)
 	rel.SetStatus(release.StatusFailed, fmt.Sprintf("Marked failed by MeshKit: the %s operation was abandoned, still pending after %s", status, pendingFor))
-	if err := actionConfig.Releases.Update(rel); err != nil {
+	if err := actionConfig.Releases.Update(&rel); err != nil {
 		return ErrHelmReleaseStorage(cfg.ReleaseName, cfg.Namespace, err)
 	}
 	return nil
 }
 
-// pendingReleaseTimeout returns the configured pending timeout, or DefaultPendingReleaseTimeout
-// when none is set.
+// pendingReleaseTimeout returns the configured pending timeout, DefaultPendingReleaseTimeout when
+// none is set, and a negative value when the recovery of abandoned operations is turned off.
 func pendingReleaseTimeout(cfg ApplyHelmChartConfig) time.Duration {
-	if cfg.PendingReleaseTimeout > 0 {
+	if cfg.PendingReleaseTimeout != 0 {
 		return cfg.PendingReleaseTimeout
 	}
 	return DefaultPendingReleaseTimeout
+}
+
+// hasDeployedRevision reports whether any revision of the release is deployed.
+func hasDeployedRevision(actionConfig *action.Configuration, name string) (bool, error) {
+	if _, err := actionConfig.Releases.Deployed(name); err != nil {
+		if errors.Is(err, driver.ErrNoDeployedReleases) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // helmMaxHistory returns the history limit for Helm's Upgrade action: DefaultHelmMaxHistory when
