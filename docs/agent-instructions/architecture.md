@@ -55,6 +55,10 @@ Intentionally reusable across Meshery services and tools:
   identification, sanitization, and conversion; `utils/walker/` crawls remote repositories
   for import and is documented in [../git-walkers.md](../git-walkers.md); `config/`, `schema/`, `schemas/`,
   `validator/`, `orchestration/`, and `encoding/` round out the shared surface.
+- `utils/kubernetes/` builds Kubernetes clients and applies manifests and Helm charts; how
+  `ApplyHelmChart` picks install or upgrade from the release's state, recovers abandoned pending
+  releases, and classifies its errors (mapped to Meshery Operator errors in
+  `models/controllers/`) is documented in [../helm-releases.md](../helm-releases.md).
 
 ## Executable entrypoints (`cmd/`)
 
