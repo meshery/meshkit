@@ -50,8 +50,9 @@ type helmReleasePlan struct {
 //     running it was restarted, say). The revision is marked failed, exactly as Helm records an
 //     operation that fails, and the release is upgraded. This neither deletes anything, as
 //     uninstalling and reinstalling would, nor takes a second operation, as rolling back and then
-//     upgrading would, and the revision stays in the history, failed, with a description saying
-//     why. A dry run never changes the release record, so it returns ErrHelmReleasePending.
+//     upgrading would. The revision stays in the history with a description saying why: failed,
+//     or superseded when no revision was ever deployed, since Helm then upgrades from it. A dry
+//     run never changes the release record, so it returns ErrHelmReleasePending.
 //   - uninstalling, or a status this code does not know: ErrHelmReleaseState. Finishing an
 //     uninstall deletes the release's resources, which is not something an install should do on
 //     its own, so it is left to an operator.
