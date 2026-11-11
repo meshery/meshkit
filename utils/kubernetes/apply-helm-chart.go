@@ -1,18 +1,19 @@
 package kubernetes
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/meshery/meshkit/utils"
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/repo"
@@ -133,8 +134,34 @@ type ApplyHelmChartConfig struct {
 	// Kubernetes version against which the DryRun is performed
 	KubernetesVersion string
 
-	// Upgrade the release if already installed
+	// UpgradeIfInstalled makes an INSTALL idempotent: the latest revision of the release decides
+	// whether it is installed or upgraded, the way helm upgrade --install does, and a release that
+	// an interrupted operation left pending is recovered rather than failing every later call.
+	//
+	//   - not installed: install.
+	//   - deployed, failed or superseded: upgrade.
+	//   - uninstalled with its history kept: install, replacing the uninstalled release.
+	//   - pending-install, pending-upgrade or pending-rollback for less than
+	//     PendingReleaseTimeout: ErrHelmReleasePending, since the operation may still be running.
+	//   - pending for longer: the revision is marked failed and the release is upgraded.
+	//   - uninstalling: ErrHelmReleaseState; finishing the uninstall is left to an operator.
+	//
+	// It has no effect on any other Action.
 	UpgradeIfInstalled bool
+
+	// PendingReleaseTimeout is how long the latest revision of a release may stay
+	// pending-install, pending-upgrade or pending-rollback before an INSTALL with
+	// UpgradeIfInstalled treats the operation that left it there as abandoned, marks the
+	// revision failed and upgrades the release.
+	//
+	// Defaults to DefaultPendingReleaseTimeout.
+	PendingReleaseTimeout time.Duration
+
+	// MaxHistory is the number of revisions an UPGRADE keeps for the release; older ones are
+	// deleted. A negative value keeps every revision.
+	//
+	// Defaults to DefaultHelmMaxHistory.
+	MaxHistory int
 
 	// URL is the url for charts
 	//
@@ -249,64 +276,59 @@ type ApplyHelmChartConfig struct {
 //		},
 //		OverrideValues: vals,
 //	})
+//
+// Errors name what failed, so that callers can report a cause and remedy that fit:
+// ErrHelmChartFetch (the chart could not be located, downloaded or loaded),
+// ErrHelmClusterUnreachable (the API server could not be reached), ErrHelmReleaseStorage (the
+// release record could not be read or written), ErrHelmReleasePending and ErrHelmReleaseState
+// (the release is in a state that blocks the install, see UpgradeIfInstalled), and
+// ErrApplyHelmChart (Helm's install, upgrade or uninstall itself failed).
+//
+// Calls for the same release in the same cluster and namespace are serialized within the
+// process. Across processes, Helm's release record is the only protection, which is what
+// PendingReleaseTimeout accounts for.
 func (c *Client) ApplyHelmChart(cfg ApplyHelmChartConfig) error {
 	setupDefaults(&cfg)
 
-	if err := setupChartVersion(&cfg); err != nil {
-		return ErrApplyHelmChart(err)
+	// An uninstall needs only the release name, so when the name is given it does not depend on
+	// the chart repository being reachable.
+	var helmChart *chart.Chart
+	if cfg.Action != UNINSTALL || cfg.ReleaseName == "" {
+		var err error
+		if helmChart, err = c.fetchChart(&cfg); err != nil {
+			return ErrHelmChartFetch(err)
+		}
+		if cfg.ReleaseName == "" {
+			cfg.ReleaseName = helmChart.Name()
+		}
+		if err = checkIfInstallable(helmChart); err != nil {
+			return err
+		}
 	}
 
-	localPath, err := getHelmLocalPath(cfg)
-	if err != nil {
-		return ErrApplyHelmChart(err)
-	}
-
-	helmChart, err := loader.Load(localPath)
-	if err != nil {
-		return ErrApplyHelmChart(err)
-	}
-	if cfg.ReleaseName == "" {
-		cfg.ReleaseName = helmChart.Name()
-	}
-	if err = checkIfInstallable(helmChart); err != nil {
-		return ErrApplyHelmChart(err)
-	}
+	unlock := lockHelmRelease(c, cfg.Namespace, cfg.ReleaseName)
+	defer unlock()
 
 	actionConfig, err := newHelmActionConfig(c, cfg, c.getRESTClientGetter())
 	if err != nil {
-		return ErrApplyHelmChart(err)
+		return ErrHelmReleaseStorage(cfg.ReleaseName, cfg.Namespace, err)
+	}
+	// Every Helm action checks this first too, but reports it as an ordinary action failure.
+	if err = actionConfig.KubeClient.IsReachable(); err != nil {
+		return ErrHelmClusterUnreachable(cfg.ReleaseName, cfg.Namespace, err)
 	}
 
-	// Before installing a helm chart, check if it already exists in the cluster
-	// this is a workaround make the helm chart installation idempotent
+	plan := helmReleasePlan{action: cfg.Action}
 	if cfg.Action == INSTALL && cfg.UpgradeIfInstalled {
-		if err := updateActionIfReleaseFound(actionConfig, &cfg, *helmChart); err != nil {
-			return ErrApplyHelmChart(err)
+		if plan, err = planInstallOrUpgrade(actionConfig, cfg, time.Now()); err != nil {
+			return err
+		}
+		if err = recoverAbandonedRelease(actionConfig, cfg, plan); err != nil {
+			return err
 		}
 	}
 
-	if err := generateAction(actionConfig, cfg)(helmChart); err != nil {
-		return ErrApplyHelmChart(err)
-	}
-
-	return nil
-}
-
-// updateActionIfReleaseFound changes cfg.Action to UPGRADE if the release is found in the cluster
-// this is a workaround of making the helm chart installation idempotent
-func updateActionIfReleaseFound(actionConfig *action.Configuration, cfg *ApplyHelmChartConfig, c chart.Chart) error {
-	releases, err := action.NewList(actionConfig).Run()
-	if err != nil {
-		return err
-	}
-
-	for _, r := range releases {
-		if r.Name == cfg.ReleaseName {
-			cfg.Action = UPGRADE
-			return nil
-		}
-	}
-	return nil
+	return runHelmAction(actionConfig, cfg, plan, helmChart)
 }
 
 // setupDefaults adds the default value to the configuration
@@ -360,7 +382,7 @@ func getHelmLocalPath(cfg ApplyHelmChartConfig) (string, error) {
 
 	url, err := getHelmChartURL(cfg)
 	if err != nil {
-		return "", ErrApplyHelmChart(err)
+		return "", err
 	}
 
 	return fetchHelmChart(url, cfg.DownloadLocation)
@@ -381,7 +403,12 @@ func getHelmChartURL(cfg ApplyHelmChartConfig) (string, error) {
 //
 // if the chart is already present in the download location
 // then the download is skipped
-func fetchHelmChart(chartURL, downloadPath string) (string, error) {
+//
+// Because an existing file is reused as is, the chart is downloaded into a temporary file next to
+// it and renamed into place only once complete. Writing the final path directly would let a
+// failed or interrupted download leave a truncated chart there, which every later call would
+// then reuse and fail to load.
+func fetchHelmChart(chartURL, downloadPath string) (path string, err error) {
 	filename := filepath.Base(chartURL)
 
 	// This allows the caller of the function to use the perfered location to download the helm chart, e.g. "~/.meshery/manifests"
@@ -396,11 +423,30 @@ func fetchHelmChart(chartURL, downloadPath string) (string, error) {
 		return downloadPath, nil
 	}
 
-	if err := utils.DownloadFile(downloadPath, chartURL); err != nil {
-		return "", ErrApplyHelmChart(err)
+	tmp, err := os.CreateTemp(filepath.Dir(downloadPath), "."+filename+".*.part")
+	if err != nil {
+		return "", err
+	}
+	tmpPath := tmp.Name()
+	if err = tmp.Close(); err != nil {
+		return "", errors.Join(err, removeIfExists(tmpPath))
+	}
+	if err = utils.DownloadFile(tmpPath, chartURL); err != nil {
+		return "", errors.Join(err, removeIfExists(tmpPath))
+	}
+	if err = os.Rename(tmpPath, downloadPath); err != nil {
+		return "", errors.Join(err, removeIfExists(tmpPath))
 	}
 
 	return downloadPath, nil
+}
+
+// removeIfExists removes path, and reports a failure other than path not existing.
+func removeIfExists(path string) error {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // checkIfInstallable validates if a chart can be installed
@@ -480,54 +526,43 @@ func withHelmSQLConnectionString(connectionString string, initialize func() erro
 	return initialize()
 }
 
-// generateAction generates an action function using action.Configuration
-// and ApplyHelmChartConfig and returns it
-//
-// The intention is to create a factory function which creates a layer of abstraction
-// on top of helm actions making them follow the same interface, hence easing extending
-// the number of supported helm actions
-func generateAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig) func(*chart.Chart) error {
-	switch cfg.Action {
+// runHelmAction runs the Helm action the plan names against the release cfg.ReleaseName, and
+// reports its failure as ErrApplyHelmChart. ch is the loaded chart, unused (and possibly nil)
+// for an uninstall.
+func runHelmAction(actionConfig *action.Configuration, cfg ApplyHelmChartConfig, plan helmReleasePlan, ch *chart.Chart) error {
+	var err error
+	switch plan.action {
 	case UNINSTALL:
-		return func(c *chart.Chart) error {
-			act := action.NewUninstall(actionConfig)
-
-			act.DryRun = cfg.DryRun
-			if _, err := act.Run(cfg.ReleaseName); err != nil {
-				return ErrApplyHelmChart(err)
-			}
-			return nil
-		}
+		act := action.NewUninstall(actionConfig)
+		act.DryRun = cfg.DryRun
+		_, err = act.Run(cfg.ReleaseName)
 	case UPGRADE:
-		return func(c *chart.Chart) error {
-			act := action.NewUpgrade(actionConfig)
-			act.Namespace = cfg.Namespace
-			act.DryRun = cfg.DryRun
-			if _, err := act.Run(c.Name(), c, cfg.OverrideValues); err != nil {
-				return ErrApplyHelmChart(err)
-			}
-			return nil
-		}
+		act := action.NewUpgrade(actionConfig)
+		act.Namespace = cfg.Namespace
+		act.DryRun = cfg.DryRun
+		act.MaxHistory = helmMaxHistory(cfg)
+		// The release, not the chart: the two names differ whenever ReleaseName is set.
+		_, err = act.Run(cfg.ReleaseName, ch, cfg.OverrideValues)
 	default:
-		return func(c *chart.Chart) error {
-			act := action.NewInstall(actionConfig)
-			act.ReleaseName = cfg.ReleaseName
-			act.CreateNamespace = cfg.CreateNamespace
-			act.Namespace = cfg.Namespace
-			act.DryRun = cfg.DryRun
-			if _, err := act.Run(c, cfg.OverrideValues); err != nil {
-				return ErrApplyHelmChart(err)
-			}
-			return nil
-		}
+		act := action.NewInstall(actionConfig)
+		act.ReleaseName = cfg.ReleaseName
+		act.CreateNamespace = cfg.CreateNamespace
+		act.Namespace = cfg.Namespace
+		act.DryRun = cfg.DryRun
+		act.Replace = plan.replace
+		_, err = act.Run(ch, cfg.OverrideValues)
 	}
+	if err != nil {
+		return ErrApplyHelmChart(err)
+	}
+	return nil
 }
 
 // createHelmPathFromHelmChartLocation takes in the HelmChartLocation and returns the
 // chart url which can be used to download the chart
 func createHelmPathFromHelmChartLocation(loc HelmChartLocation) (string, error) {
 	if loc.Chart == "" {
-		return "", ErrApplyHelmChart(fmt.Errorf("\"Chart\" cannot be empty"))
+		return "", fmt.Errorf("\"Chart\" cannot be empty")
 	}
 
 	chartURL, err := repo.FindChartInRepoURL(loc.Repository, loc.Chart, loc.Version, "", "", "", getter.Providers{
@@ -538,7 +573,7 @@ func createHelmPathFromHelmChartLocation(loc HelmChartLocation) (string, error) 
 	},
 	)
 	if err != nil {
-		return "", ErrApplyHelmChart(err)
+		return "", err
 	}
 
 	return chartURL, nil

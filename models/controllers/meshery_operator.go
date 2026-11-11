@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	mesherykube "github.com/meshery/meshkit/utils/kubernetes"
@@ -77,7 +76,7 @@ func (mo *mesheryOperator) Deploy(force bool) error {
 		return nil
 	}
 	if status == Deploying {
-		return ErrDeployController(fmt.Errorf("already a Meshery Operator is being deployed"))
+		return ErrOperatorDeploymentInProgress()
 	}
 	err := applyOperatorHelmChart(mo.deploymentConf.HelmChartRepo, *mo.client, mo.deploymentConf.MesheryReleaseVersion, false, mo.deploymentConf.GetHelmOverrides(false))
 	if err != nil {
@@ -89,7 +88,7 @@ func (mo *mesheryOperator) Deploy(force bool) error {
 func (mo *mesheryOperator) Undeploy() error {
 	err := applyOperatorHelmChart(mo.deploymentConf.HelmChartRepo, *mo.client, mo.deploymentConf.MesheryReleaseVersion, true, mo.deploymentConf.GetHelmOverrides(false))
 	if err != nil {
-		return ErrDeployController(err)
+		return ErrUndeployController(err)
 	}
 	mo.setStatus(Undeployed)
 	return nil

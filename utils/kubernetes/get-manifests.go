@@ -7,12 +7,12 @@ import (
 func GetManifestsFromHelm(url string) (string, error) {
 	chartLocation, err := fetchHelmChart(url, "")
 	if err != nil {
-		return "", ErrApplyHelmChart(err)
+		return "", ErrHelmChartFetch(err)
 	}
 
 	chart, err := loader.Load(chartLocation)
 	if err != nil {
-		return "", ErrApplyHelmChart(err)
+		return "", ErrHelmChartFetch(err)
 	}
 	manifests := ""
 	for _, crdobject := range chart.CRDObjects() {
