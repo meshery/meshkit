@@ -1,0 +1,5 @@
+,,,,
+Model,Version,kind,type,subType
+kubernetes,v1.0.0,edge,hierarchical,inventory
+istio,v1.0.0,edge,hierarchical,parent
+kubernetes,v1.0.0,edge,sibling,inventory
