@@ -41,14 +41,14 @@ func gkeExecConfig() *clientcmdapi.ExecConfig {
 	}
 }
 
-func staticFactory(token string, calls *atomic.Int32) TokenSourceFactory {
+func staticFactory(token string, calls *atomic.Int32) tokenSourceFactory {
 	return func(context.Context, Spec) (oauth2.TokenSource, error) {
 		calls.Add(1)
 		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token, TokenType: "Bearer"}), nil
 	}
 }
 
-func failingFactory(calls *atomic.Int32) TokenSourceFactory {
+func failingFactory(calls *atomic.Int32) tokenSourceFactory {
 	return func(context.Context, Spec) (oauth2.TokenSource, error) {
 		calls.Add(1)
 		return nil, ErrAWSCredentialsUnavailable(fmt.Errorf("no credentials in chain"), "demo")
@@ -103,7 +103,7 @@ func TestAuthenticatorInstallsBearerTransport(t *testing.T) {
 	server := newAuthorizationRecorder(t, "in-process-token")
 
 	var calls atomic.Int32
-	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("in-process-token", &calls)), WithLookPath(notOnPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("in-process-token", &calls)), withLookPath(notOnPath))
 
 	config := redirectedConfig(server.Server, testEKSHost, eksExecConfig())
 	if err := auth.Apply(config); err != nil {
@@ -199,7 +199,7 @@ func TestAuthenticatorPreservesClientGoCredentialPrecedence(t *testing.T) {
 			var calls atomic.Int32
 			// Neither credentials nor the plugin exist; intercepting would
 			// turn a working config into an error.
-			auth := NewAuthenticator(WithTokenSourceFactory(failingFactory(&calls)), WithLookPath(notOnPath))
+			auth := NewAuthenticator(WithTokenSourceFactory(failingFactory(&calls)), withLookPath(notOnPath))
 			exec := eksExecConfig()
 			config := eksConfig(exec)
 			tt.mutate(config)
@@ -272,7 +272,7 @@ func TestAuthenticatorRefusesUntrustedEndpoints(t *testing.T) {
 			factory := staticFactory("process-credential", &calls)
 
 			// Without the plugin: a clear error and nothing minted.
-			auth := NewAuthenticator(WithTokenSourceFactory(factory), WithLookPath(notOnPath))
+			auth := NewAuthenticator(WithTokenSourceFactory(factory), withLookPath(notOnPath))
 			config := tt.config()
 			exec := config.ExecProvider
 			err := auth.Apply(config)
@@ -285,7 +285,7 @@ func TestAuthenticatorRefusesUntrustedEndpoints(t *testing.T) {
 
 			// With the plugin: the plugin is used, logged once, nothing minted.
 			log, logs := bufferLogger(t)
-			auth = NewAuthenticator(WithTokenSourceFactory(factory), WithLookPath(onPath), WithLogger(log))
+			auth = NewAuthenticator(WithTokenSourceFactory(factory), withLookPath(onPath), withLogger(log))
 			for i := 0; i < 2; i++ {
 				config = tt.config()
 				exec = config.ExecProvider
@@ -310,7 +310,7 @@ func TestAuthenticatorRefusesUntrustedEndpoints(t *testing.T) {
 func TestAuthenticatorSendsNoCredentialsToAttackerHost(t *testing.T) {
 	attacker := newAuthorizationRecorder(t, "process-credential")
 	var calls atomic.Int32
-	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("process-credential", &calls)), WithLookPath(onPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("process-credential", &calls)), withLookPath(onPath))
 
 	// The attacker serves valid TLS for its own name and puts its CA in the
 	// kubeconfig; only the endpoint rules stand in the way.
@@ -341,7 +341,7 @@ func TestAuthenticatorSendsNoCredentialsToAttackerHost(t *testing.T) {
 func TestAuthenticatorAcceptsGKEEndpointForms(t *testing.T) {
 	server := newAuthorizationRecorder(t, "adc-token")
 	var calls atomic.Int32
-	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("adc-token", &calls)), WithLookPath(notOnPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("adc-token", &calls)), withLookPath(notOnPath))
 
 	// An IP endpoint with the cluster CA, end to end.
 	ipConfig := &rest.Config{
@@ -374,7 +374,7 @@ func TestAuthenticatorAcceptsGKEEndpointForms(t *testing.T) {
 
 func TestAuthenticatorMissingCredentialsWithoutPluginFails(t *testing.T) {
 	var calls atomic.Int32
-	auth := NewAuthenticator(WithTokenSourceFactory(failingFactory(&calls)), WithLookPath(notOnPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(failingFactory(&calls)), withLookPath(notOnPath))
 
 	err := auth.Apply(eksConfig(eksExecConfig()))
 	if err == nil {
@@ -419,8 +419,8 @@ func TestAuthenticatorMissingCredentialsFallsBackToPluginOnPath(t *testing.T) {
 	log, logs := bufferLogger(t)
 	auth := NewAuthenticator(
 		WithTokenSourceFactory(failingFactory(&calls)),
-		WithLookPath(onPath),
-		WithLogger(log),
+		withLookPath(onPath),
+		withLogger(log),
 	)
 
 	for i := 0; i < 2; i++ {
@@ -461,7 +461,7 @@ func TestAuthenticatorDisabled(t *testing.T) {
 	}{
 		{name: "environment variable", env: "true"},
 		{name: "environment variable numeric", env: "1"},
-		{name: "option", opts: []Option{WithDisabled(true)}},
+		{name: "option", opts: []Option{withDisabled(true)}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -495,7 +495,7 @@ func TestAuthenticatorDisabled(t *testing.T) {
 }
 
 func TestDefaultTokenSourceFactoryRejectsUnknownProvider(t *testing.T) {
-	_, err := DefaultTokenSourceFactory(context.Background(), Spec{Provider: "aks"})
+	_, err := defaultTokenSourceFactory(context.Background(), Spec{Provider: "aks"})
 	if got := errors.GetCode(err); got != ErrUnsupportedCloudProviderCode {
 		t.Fatalf("error code = %q, want %q (error: %v)", got, ErrUnsupportedCloudProviderCode, err)
 	}
@@ -560,9 +560,9 @@ func TestNewGKETokenSourceFetchesTokenAtSetup(t *testing.T) {
 	endpoint := useGoogleTokenEndpoint(t, http.StatusOK, validGoogleToken)
 	useADCFile(t, fakeServiceAccountKey(t, nil))
 
-	source, err := NewGKETokenSource(context.Background())
+	source, err := setupGKETokenSource(context.Background())
 	if err != nil {
-		t.Fatalf("NewGKETokenSource() error = %v", err)
+		t.Fatalf("setupGKETokenSource() error = %v", err)
 	}
 	token, err := source.Token()
 	if err != nil {
@@ -592,7 +592,7 @@ func TestNewGKETokenSourceRejectsUnsupportedADCFiles(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			useADCFile(t, data)
-			_, err := NewGKETokenSource(context.Background())
+			_, err := setupGKETokenSource(context.Background())
 			if got := errors.GetCode(err); got != ErrGCPCredentialsUnavailableCode {
 				t.Fatalf("error code = %q, want %q (error: %v)", got, ErrGCPCredentialsUnavailableCode, err)
 			}
@@ -604,8 +604,8 @@ func TestNewGKETokenSourceRejectsUnsupportedADCFiles(t *testing.T) {
 
 	t.Run("authorized_user without token_uri is accepted", func(t *testing.T) {
 		useADCFile(t, []byte(`{"type":"authorized_user","client_id":"id","client_secret":"s","refresh_token":"r"}`))
-		if _, err := NewGKETokenSource(context.Background()); err != nil {
-			t.Fatalf("NewGKETokenSource() error = %v", err)
+		if _, err := setupGKETokenSource(context.Background()); err != nil {
+			t.Fatalf("setupGKETokenSource() error = %v", err)
 		}
 	})
 }
@@ -614,7 +614,7 @@ func TestNewGKETokenSourceRejectsUnusableCredentials(t *testing.T) {
 	useGoogleTokenEndpoint(t, http.StatusBadRequest, `{"error":"invalid_grant","error_description":"revoked"}`)
 	useADCFile(t, fakeServiceAccountKey(t, nil))
 
-	_, err := NewGKETokenSource(context.Background())
+	_, err := setupGKETokenSource(context.Background())
 	if got := errors.GetCode(err); got != ErrGCPCredentialsUnavailableCode {
 		t.Fatalf("error code = %q, want %q (error: %v)", got, ErrGCPCredentialsUnavailableCode, err)
 	}
@@ -632,8 +632,8 @@ func TestNewGKETokenSourceSetupTimeoutCancelsTheRequest(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	if _, err := NewGKETokenSource(ctx); err == nil {
-		t.Fatal("NewGKETokenSource() succeeded against a stalled token endpoint")
+	if _, err := setupGKETokenSource(ctx); err == nil {
+		t.Fatal("setupGKETokenSource() succeeded against a stalled token endpoint")
 	}
 	select {
 	case <-cancelled:
@@ -646,7 +646,7 @@ func TestAuthenticatorFallsBackToGKEPluginWhenADCCannotMint(t *testing.T) {
 	useGoogleTokenEndpoint(t, http.StatusBadRequest, `{"error":"invalid_grant","error_description":"revoked"}`)
 	useADCFile(t, fakeServiceAccountKey(t, nil))
 
-	auth := NewAuthenticator(WithLookPath(onPath))
+	auth := NewAuthenticator(withLookPath(onPath))
 	config := &rest.Config{Host: testGKEDNSHost, ExecProvider: gkeExecConfig()}
 	if err := auth.Apply(config); err != nil {
 		t.Fatalf("Apply() error = %v", err)
@@ -661,7 +661,7 @@ func TestAuthenticatorFallsBackToGKEPluginWhenADCCannotMint(t *testing.T) {
 
 // sequenceFactory returns, on its nth call, a source yielding tokens[n] (or
 // the last entry once exhausted). An empty token makes the source fail.
-func sequenceFactory(calls *atomic.Int32, tokens ...string) TokenSourceFactory {
+func sequenceFactory(calls *atomic.Int32, tokens ...string) tokenSourceFactory {
 	return func(context.Context, Spec) (oauth2.TokenSource, error) {
 		n := int(calls.Add(1)) - 1
 		if n >= len(tokens) {
@@ -683,7 +683,7 @@ func (failingSource) Token() (*oauth2.Token, error) {
 func TestAuthenticatorSetsUpAgainAfterUnauthorized(t *testing.T) {
 	server := newAuthorizationRecorder(t, "fresh")
 	var calls atomic.Int32
-	auth := NewAuthenticator(WithTokenSourceFactory(sequenceFactory(&calls, "stale", "fresh")), WithLookPath(onPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(sequenceFactory(&calls, "stale", "fresh")), withLookPath(onPath))
 
 	config := redirectedConfig(server.Server, testEKSHost, eksExecConfig())
 	if err := auth.Apply(config); err != nil {
@@ -712,7 +712,7 @@ func TestAuthenticatorSetsUpAgainAfterUnauthorized(t *testing.T) {
 func TestAuthenticatorSetsUpAgainAfterTokenFailure(t *testing.T) {
 	server := newAuthorizationRecorder(t, "fresh")
 	var calls atomic.Int32
-	auth := NewAuthenticator(WithTokenSourceFactory(sequenceFactory(&calls, "", "fresh")), WithLookPath(onPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(sequenceFactory(&calls, "", "fresh")), withLookPath(onPath))
 
 	config := redirectedConfig(server.Server, testEKSHost, eksExecConfig())
 	if err := auth.Apply(config); err != nil {
@@ -733,7 +733,7 @@ func TestAuthenticatorCachedFallbackRequiresOwnCommandOnPath(t *testing.T) {
 	var calls atomic.Int32
 	auth := NewAuthenticator(
 		WithTokenSourceFactory(failingFactory(&calls)),
-		WithLookPath(func(file string) (string, error) {
+		withLookPath(func(file string) (string, error) {
 			if file == "aws" {
 				return "/usr/bin/aws", nil
 			}
@@ -770,7 +770,7 @@ func TestAuthenticatorRetriesSetupWhenFallbackPluginDisappears(t *testing.T) {
 	}
 	var installed atomic.Bool
 	installed.Store(true)
-	auth := NewAuthenticator(WithTokenSourceFactory(factory), WithLookPath(func(file string) (string, error) {
+	auth := NewAuthenticator(WithTokenSourceFactory(factory), withLookPath(func(file string) (string, error) {
 		if installed.Load() {
 			return onPath(file)
 		}
@@ -806,7 +806,7 @@ func TestAuthenticatorRetriesSetupAfterFallbackInterval(t *testing.T) {
 		calls.Add(1)
 		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "minted"}), nil
 	}
-	auth := NewAuthenticator(WithTokenSourceFactory(factory), WithLookPath(onPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(factory), withLookPath(onPath))
 	clock := newFakeClock()
 	auth.clock = clock
 
@@ -892,7 +892,7 @@ func TestAuthenticatorSetupDoesNotHoldLocksAndSharesFailure(t *testing.T) {
 	f := newBlockingFactory(func() (oauth2.TokenSource, error) {
 		return nil, fmt.Errorf("STS throttled")
 	})
-	auth := NewAuthenticator(WithTokenSourceFactory(f.factory), WithLookPath(notOnPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(f.factory), withLookPath(notOnPath))
 	auth.clock = newFakeClock()
 
 	const callers = 8
@@ -937,7 +937,7 @@ func TestAuthenticatorSetupTimeoutCancels(t *testing.T) {
 		return nil, nil
 	})
 	clock := newFakeClock()
-	auth := NewAuthenticator(WithTokenSourceFactory(f.factory), WithLookPath(notOnPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(f.factory), withLookPath(notOnPath))
 	auth.clock = clock
 
 	result := make(chan error, 1)
@@ -963,7 +963,7 @@ func TestAuthenticatorTokenAfterResetSharesOneBoundedSetup(t *testing.T) {
 		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "first"}), nil
 	})
 	clock := newFakeClock()
-	auth := NewAuthenticator(WithTokenSourceFactory(f.factory), WithLookPath(notOnPath))
+	auth := NewAuthenticator(WithTokenSourceFactory(f.factory), withLookPath(notOnPath))
 	auth.clock = clock
 
 	close(f.release)

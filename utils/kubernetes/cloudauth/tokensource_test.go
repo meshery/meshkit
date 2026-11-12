@@ -418,9 +418,9 @@ func isolateAWSEnvironment(t *testing.T) {
 func TestNewEKSTokenSourceMissingCredentials(t *testing.T) {
 	isolateAWSEnvironment(t)
 
-	_, err := NewEKSTokenSource(context.Background(), EKSConfig{ClusterID: "demo", Region: "us-west-2"})
+	_, err := setupEKSTokenSource(context.Background(), EKSConfig{ClusterID: "demo", Region: "us-west-2"})
 	if err == nil {
-		t.Fatal("NewEKSTokenSource() succeeded without credentials")
+		t.Fatal("setupEKSTokenSource() succeeded without credentials")
 	}
 	if got := errors.GetCode(err); got != ErrAWSCredentialsUnavailableCode {
 		t.Fatalf("error code = %q, want %q (error: %v)", got, ErrAWSCredentialsUnavailableCode, err)
@@ -432,7 +432,7 @@ func TestNewEKSTokenSourceMissingRegion(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "AKID")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
 
-	_, err := NewEKSTokenSource(context.Background(), EKSConfig{ClusterID: "demo"})
+	_, err := setupEKSTokenSource(context.Background(), EKSConfig{ClusterID: "demo"})
 	if got := errors.GetCode(err); got != ErrEKSRegionUnresolvedCode {
 		t.Fatalf("error code = %q, want %q (error: %v)", got, ErrEKSRegionUnresolvedCode, err)
 	}
@@ -443,9 +443,9 @@ func TestNewEKSTokenSourceWithProcessEnvCredentials(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "AKIDPROCESS")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
 
-	source, err := NewEKSTokenSource(context.Background(), EKSConfig{ClusterID: "demo", Region: "eu-central-1"})
+	source, err := setupEKSTokenSource(context.Background(), EKSConfig{ClusterID: "demo", Region: "eu-central-1"})
 	if err != nil {
-		t.Fatalf("NewEKSTokenSource() error = %v", err)
+		t.Fatalf("setupEKSTokenSource() error = %v", err)
 	}
 	token, err := source.Token()
 	if err != nil {
