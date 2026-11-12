@@ -33,7 +33,7 @@ const (
 	awsCredentialCheckTimeout = 15 * time.Second
 )
 
-// NewEKSTokenSource resolves AWS credentials for cfg through the AWS SDK
+// setupEKSTokenSource resolves AWS credentials for cfg through the AWS SDK
 // default chain (plus an STS AssumeRole when cfg.RoleARN is set), verifies
 // that they can be retrieved, and returns a token source that mints and
 // refreshes EKS bearer tokens for cfg.ClusterID.
@@ -41,7 +41,7 @@ const (
 // It returns ErrAWSCredentialsUnavailable when no usable credentials are
 // available to the process, and ErrEKSRegionUnresolved when no region is
 // configured anywhere.
-func NewEKSTokenSource(ctx context.Context, cfg EKSConfig) (oauth2.TokenSource, error) {
+func setupEKSTokenSource(ctx context.Context, cfg EKSConfig) (oauth2.TokenSource, error) {
 	awsCfg, err := loadAWSConfig(ctx, cfg)
 	if err != nil {
 		return nil, ErrAWSCredentialsUnavailable(err, cfg.ClusterID)

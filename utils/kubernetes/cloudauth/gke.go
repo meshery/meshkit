@@ -37,7 +37,7 @@ var googleTransport http.RoundTripper
 // from. It is called once per mint, with that mint's context.
 type googleCredentialsLoader func(ctx context.Context) (*google.Credentials, error)
 
-// NewGKETokenSource returns a token source backed by Google Application
+// setupGKETokenSource returns a token source backed by Google Application
 // Default Credentials: GOOGLE_APPLICATION_CREDENTIALS, the gcloud ADC file,
 // or the GCE/GKE metadata server (Workload Identity). Tokens carry the
 // cloud-platform and userinfo.email scopes; on the metadata server both
@@ -60,7 +60,7 @@ type googleCredentialsLoader func(ctx context.Context) (*google.Credentials, err
 //
 // It returns ErrGCPCredentialsUnavailable when no usable Application Default
 // Credentials can be found or they cannot produce a token.
-func NewGKETokenSource(ctx context.Context) (oauth2.TokenSource, error) {
+func setupGKETokenSource(ctx context.Context) (oauth2.TokenSource, error) {
 	return newGKETokenSource(ctx, loadApplicationDefaultCredentials, ErrGCPCredentialsUnavailable)
 }
 
@@ -71,8 +71,14 @@ func NewGKETokenSource(ctx context.Context) (oauth2.TokenSource, error) {
 // empty or https://oauth2.googleapis.com/token, so a key cannot redirect its
 // signed JWT grant to another endpoint.
 //
-// Like NewGKETokenSource it fetches one token up front, bounded by ctx and a
+// Like setupGKETokenSource it fetches one token up front, bounded by ctx and a
 // timeout, so an unusable key fails now; ctx bounds only that setup.
+//
+// The returned source performs no endpoint checks of its own. Supply it
+// through an Authenticator, by returning it from the factory passed to
+// WithTokenSourceFactory, so its tokens reach only trusted GKE endpoints;
+// attaching it to a rest.Config directly would send them to whatever server
+// the config names.
 func NewGKETokenSourceFromJSON(ctx context.Context, serviceAccountKey []byte) (oauth2.TokenSource, error) {
 	if _, err := checkGoogleCredentialsJSON(serviceAccountKey, google.ServiceAccount); err != nil {
 		return nil, ErrGCPServiceAccountKey(err)
@@ -132,7 +138,7 @@ func mintGoogleToken(ctx context.Context, load googleCredentialsLoader) (*oauth2
 
 // loadApplicationDefaultCredentials finds Application Default Credentials
 // the way google.FindDefaultCredentials does and rejects credential files
-// this package does not accept (see NewGKETokenSource). Metadata server
+// this package does not accept (see setupGKETokenSource). Metadata server
 // credentials carry no JSON and are always accepted.
 func loadApplicationDefaultCredentials(ctx context.Context) (*google.Credentials, error) {
 	creds, err := google.FindDefaultCredentials(ctx, gkeScopes...)

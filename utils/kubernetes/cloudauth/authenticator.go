@@ -32,20 +32,18 @@ const (
 	defaultSetupTimeout = 30 * time.Second
 )
 
-// TokenSourceFactory builds the token source for a recognized Spec,
-// verifying up front that the credentials it needs are available. ctx bounds
-// only that setup and is cancelled when the setup deadline passes; the
-// returned source must keep working after ctx ends.
-type TokenSourceFactory func(ctx context.Context, spec Spec) (oauth2.TokenSource, error)
+// tokenSourceFactory builds the token source for a recognized Spec; see
+// WithTokenSourceFactory.
+type tokenSourceFactory func(ctx context.Context, spec Spec) (oauth2.TokenSource, error)
 
-// DefaultTokenSourceFactory mints EKS tokens with NewEKSTokenSource and GKE
-// tokens with NewGKETokenSource.
-func DefaultTokenSourceFactory(ctx context.Context, spec Spec) (oauth2.TokenSource, error) {
+// defaultTokenSourceFactory mints EKS tokens with setupEKSTokenSource and GKE
+// tokens with setupGKETokenSource.
+func defaultTokenSourceFactory(ctx context.Context, spec Spec) (oauth2.TokenSource, error) {
 	switch spec.Provider {
 	case ProviderEKS:
-		return NewEKSTokenSource(ctx, spec.EKS)
+		return setupEKSTokenSource(ctx, spec.EKS)
 	case ProviderGKE:
-		return NewGKETokenSource(ctx)
+		return setupGKETokenSource(ctx)
 	default:
 		return nil, ErrUnsupportedCloudProvider(spec.Provider)
 	}
@@ -54,33 +52,32 @@ func DefaultTokenSourceFactory(ctx context.Context, spec Spec) (oauth2.TokenSour
 // Option configures an Authenticator.
 type Option func(*Authenticator)
 
-// WithTokenSourceFactory replaces DefaultTokenSourceFactory, for example to
-// mint with credentials stored with a cloud connection, or in tests. A
-// source the factory returns that was not built by this package is called
-// under the mint deadline in its own goroutine, since oauth2.TokenSource
-// takes no context.
-func WithTokenSourceFactory(factory TokenSourceFactory) Option {
+// WithTokenSourceFactory replaces the default factory, which mints with the
+// Meshery process's own AWS and Google credentials. The factory builds the
+// token source for a recognized Spec, verifying up front that the
+// credentials it needs are available; ctx bounds only that setup and is
+// cancelled when the setup deadline passes, and the returned source must
+// keep working after ctx ends. Sources the factory returns are attached only
+// to endpoints the Authenticator trusts for spec.Provider. A source that was
+// not built by this package is called under the mint deadline in its own
+// goroutine, since oauth2.TokenSource takes no context.
+func WithTokenSourceFactory(factory func(ctx context.Context, spec Spec) (oauth2.TokenSource, error)) Option {
 	return func(a *Authenticator) { a.factory = factory }
 }
 
-// WithLookPath replaces exec.LookPath when deciding whether the exec plugin
+// withLookPath replaces exec.LookPath when deciding whether the exec plugin
 // binary is installed and can serve as a fallback.
-func WithLookPath(lookPath func(file string) (string, error)) Option {
+func withLookPath(lookPath func(file string) (string, error)) Option {
 	return func(a *Authenticator) { a.lookPath = lookPath }
 }
 
-// WithDisabled disables in-process minting regardless of DisableEnvVar.
-func WithDisabled(disabled bool) Option {
+// withDisabled disables in-process minting regardless of DisableEnvVar.
+func withDisabled(disabled bool) Option {
 	return func(a *Authenticator) { a.disabled = disabled }
 }
 
-// WithLogger replaces the Authenticator's default MeshKit logger. Each
-// decision to fall back to the exec plugin is logged as a warning: one
-// carrying ErrInProcessCloudAuthFallback when in-process setup failed (at
-// most once per cluster identity per fallbackRetryInterval), and one
-// carrying ErrUntrustedClusterEndpointFallback when the cluster endpoint may
-// not receive in-process tokens (once per provider and endpoint).
-func WithLogger(log logger.Handler) Option {
+// withLogger replaces the Authenticator's default MeshKit logger.
+func withLogger(log logger.Handler) Option {
 	return func(a *Authenticator) { a.log = log }
 }
 
@@ -97,8 +94,14 @@ func WithLogger(log logger.Handler) Option {
 // a restart. A decision to fall back to the exec plugin is reconsidered
 // after fallbackRetryInterval, or at once when the plugin binary has since
 // disappeared.
+//
+// Each decision to fall back to the exec plugin is logged as a warning: one
+// carrying ErrInProcessCloudAuthFallback when in-process setup failed (at
+// most once per cluster identity per fallbackRetryInterval), and one
+// carrying ErrUntrustedClusterEndpointFallback when the cluster endpoint may
+// not receive in-process tokens (once per provider and endpoint).
 type Authenticator struct {
-	factory      TokenSourceFactory
+	factory      tokenSourceFactory
 	lookPath     func(string) (string, error)
 	getenv       func(string) string
 	clock        clock
@@ -114,12 +117,12 @@ type Authenticator struct {
 	warnedEndpoints map[string]struct{}
 }
 
-// NewAuthenticator returns an Authenticator using DefaultTokenSourceFactory,
-// exec.LookPath and a MeshKit logger writing to standard output unless
-// overridden by opts.
+// NewAuthenticator returns an Authenticator that mints with the Meshery
+// process's own cloud credentials, looks fallback plugins up with
+// exec.LookPath, and logs to standard output through a MeshKit logger.
 func NewAuthenticator(opts ...Option) *Authenticator {
 	a := &Authenticator{
-		factory:         DefaultTokenSourceFactory,
+		factory:         defaultTokenSourceFactory,
 		lookPath:        exec.LookPath,
 		getenv:          os.Getenv,
 		clock:           realClock{},
