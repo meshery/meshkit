@@ -26,12 +26,15 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 		return nil, ErrGetEntity(fmt.Errorf("Does not contain versionmeta"))
 	}
 	switch sv.SchemaVersion {
-	// Accept both the legacy v1beta1 and the canonical-casing v1beta3 schema
-	// version strings for components and models. v1beta3 lifted the component
-	// and model wire format to camelCase (see v1beta3/const.go); the legacy
-	// v1beta1 strings remain accepted for backward compatibility with
-	// existing on-disk definitions that have not been regenerated yet.
-	case v1beta1.ComponentSchemaVersion, v1beta3.ComponentSchemaVersion:
+	// Accept every schema version string a component definition is written
+	// with: the legacy v1beta1 string, components.meshery.io/v1beta2 (what
+	// v1beta3.ComponentSchemaVersion names: the components nested in a
+	// v1beta3 design), and components.meshery.io/v1beta3, the default of the
+	// standalone v1beta3 component construct and of its templates. All three
+	// decode into the v1beta3 component definition. Rejecting the v1beta3
+	// string made every model scaffolded by `mesheryctl model init`
+	// unimportable ("No valid component or relationship found").
+	case v1beta1.ComponentSchemaVersion, v1beta3.ComponentSchemaVersion, schema.ComponentSchemaVersionV1Beta3:
 		var compDef component.ComponentDefinition
 		err := encoding.Unmarshal(byt, &compDef)
 		if err != nil {

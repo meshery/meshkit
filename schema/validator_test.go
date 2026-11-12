@@ -313,3 +313,13 @@ func TestNormalizeDocumentPreservesScalarTypes(t *testing.T) {
 	require.True(t, ok)
 	assert.IsType(t, int32(0), nested[0])
 }
+
+// TestComponentSchemaVersionV1Beta3MatchesConstruct pins the constant to the
+// schemaVersion the embedded v1beta3 component construct declares: the
+// registry discovers that string from meshery/schemas, so it must resolve to a
+// component document.
+func TestComponentSchemaVersionV1Beta3MatchesConstruct(t *testing.T) {
+	ref, err := DetectRef([]byte("schemaVersion: " + ComponentSchemaVersionV1Beta3))
+	require.NoError(t, err)
+	assert.Equal(t, Ref{SchemaVersion: ComponentSchemaVersionV1Beta3, Type: TypeComponent}, ref)
+}
