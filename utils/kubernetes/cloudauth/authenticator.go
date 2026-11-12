@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 	"sync"
+	"time"
 
 	"golang.org/x/oauth2"
 	"k8s.io/client-go/rest"
@@ -68,10 +69,17 @@ func WithFallbackObserver(observe func(spec Spec, err error)) Option {
 // in-process token minting. It caches one token source per cluster
 // identity, so every rest.Config it touches for the same cluster shares one
 // token and one refresh schedule. It is safe for concurrent use.
+//
+// A cached source is set up again whenever it fails to produce a token or
+// the API server rejects one of its tokens, so credentials rewritten on disk
+// (a refreshed ~/.aws/credentials or gcloud ADC file) are picked up without
+// a restart. A decision to fall back to the exec plugin is reconsidered
+// after fallbackRetryInterval.
 type Authenticator struct {
 	factory    TokenSourceFactory
 	lookPath   func(string) (string, error)
 	getenv     func(string) string
+	now        func() time.Time
 	disabled   bool
 	onFallback func(Spec, error)
 
@@ -79,16 +87,33 @@ type Authenticator struct {
 	entries map[string]*authEntry
 }
 
-// authEntry is the cached outcome of setting up one cluster identity.
-// Setup runs under the entry's own lock so that a slow credential check for
-// one cluster does not block requests for another.
+// fallbackRetryInterval is how long a decision to fall back to the exec
+// plugin is reused before in-process setup is tried again, so a transient
+// setup failure does not disable in-process minting for the process
+// lifetime.
+const fallbackRetryInterval = 5 * time.Minute
+
+// authEntry is the shared state for one cluster identity, and the token
+// source installed into every rest.Config for it. Setup runs under the
+// entry's own lock so that a slow credential check for one cluster does not
+// block requests for another.
 type authEntry struct {
-	mu       sync.Mutex
-	resolved bool
-	// source is the in-process token source; nil after resolution means
-	// "fall back to the exec plugin".
+	auth *Authenticator
+	spec Spec
+
+	mu sync.Mutex
+	// source is the in-process token source; nil until set up, and again
+	// after it fails or is reset.
 	source oauth2.TokenSource
+	// setupAt is when source was set up.
+	setupAt time.Time
+	// fallbackErr is the setup error behind a cached decision to fall back
+	// to the exec plugin, made at fallbackAt; nil when there is none.
+	fallbackErr error
+	fallbackAt  time.Time
 }
+
+var _ transport.ResettableTokenSource = (*authEntry)(nil)
 
 // NewAuthenticator returns an Authenticator using DefaultTokenSourceFactory
 // and exec.LookPath unless overridden by opts.
@@ -97,6 +122,7 @@ func NewAuthenticator(opts ...Option) *Authenticator {
 		factory:  DefaultTokenSourceFactory,
 		lookPath: exec.LookPath,
 		getenv:   os.Getenv,
+		now:      time.Now,
 		entries:  make(map[string]*authEntry),
 	}
 	for _, opt := range opts {
@@ -155,39 +181,87 @@ func (a *Authenticator) isDisabled() bool {
 	return err == nil && disabled
 }
 
-// tokenSource returns the cached token source for spec, setting one up on
-// first use. It returns (nil, nil) when the exec plugin should be used
+// tokenSource returns the shared token source for spec, setting one up when
+// none is cached. It returns (nil, nil) when the exec plugin should be used
 // instead. Successful setups and fallback decisions are cached; errors are
-// not, so a later call retries once credentials appear.
+// not, so a later call retries once credentials appear. A cached fallback
+// decision is only reused when spec.Command is itself on PATH, because
+// stanzas naming different commands share one cluster identity.
 func (a *Authenticator) tokenSource(spec Spec) (oauth2.TokenSource, error) {
 	key := spec.cacheKey()
 	a.mu.Lock()
 	entry, ok := a.entries[key]
 	if !ok {
-		entry = &authEntry{}
+		entry = &authEntry{auth: a, spec: spec}
 		a.entries[key] = entry
 	}
 	a.mu.Unlock()
 
 	entry.mu.Lock()
 	defer entry.mu.Unlock()
-	if entry.resolved {
-		return entry.source, nil
+	now := a.now()
+	setupErr := entry.fallbackErr
+	retry := setupErr == nil || now.Sub(entry.fallbackAt) >= fallbackRetryInterval
+	if entry.source == nil && retry {
+		entry.fallbackErr = nil
+		setupErr = entry.setupLocked()
+	}
+	if entry.source != nil {
+		return entry, nil
 	}
 
-	source, err := a.factory(context.Background(), spec)
-	if err != nil {
-		if _, lookErr := a.lookPath(spec.Command); lookErr != nil {
-			return nil, ErrInProcessCloudAuthUnavailable(err, spec.Provider, spec.Command)
-		}
+	if _, lookErr := a.lookPath(spec.Command); lookErr != nil {
+		return nil, ErrInProcessCloudAuthUnavailable(setupErr, spec.Provider, spec.Command)
+	}
+	if retry {
+		entry.fallbackErr = setupErr
+		entry.fallbackAt = now
 		if a.onFallback != nil {
-			a.onFallback(spec, err)
+			a.onFallback(spec, setupErr)
 		}
-		entry.resolved = true
-		return nil, nil
 	}
+	return nil, nil
+}
 
-	entry.resolved = true
-	entry.source = source
-	return source, nil
+// setupLocked builds a new in-process source for the entry. The caller
+// holds e.mu.
+func (e *authEntry) setupLocked() error {
+	source, err := e.auth.factory(context.Background(), e.spec)
+	if err != nil {
+		return err
+	}
+	e.source = source
+	e.setupAt = e.auth.now()
+	e.fallbackErr = nil
+	return nil
+}
+
+// Token returns a token from the entry's in-process source, setting the
+// source up again first when a previous failure or reset discarded it. A
+// failed token discards the source, so the next call re-reads credentials.
+func (e *authEntry) Token() (*oauth2.Token, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.source == nil {
+		if err := e.setupLocked(); err != nil {
+			return nil, err
+		}
+	}
+	token, err := e.source.Token()
+	if err != nil {
+		e.source = nil
+		return nil, err
+	}
+	return token, nil
+}
+
+// ResetTokenOlderThan is called by client-go when the API server answers
+// 401. It discards the source if it was set up before t, so the next token
+// comes from freshly loaded credentials rather than the rejected ones.
+func (e *authEntry) ResetTokenOlderThan(t time.Time) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.source != nil && e.setupAt.Before(t) {
+		e.source = nil
+	}
 }

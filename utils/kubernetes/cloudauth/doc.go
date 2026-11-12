@@ -67,7 +67,15 @@
 // a workstation with the cloud CLI installed). If the binary is not on PATH
 // either, Apply returns ErrInProcessCloudAuthUnavailable, which explains that
 // in-process minting needs cloud credentials in the Meshery process and that
-// a kubeconfig alone is not enough.
+// a kubeconfig alone is not enough. A cached fallback decision is reused only
+// for stanzas whose own command is on PATH, and is reconsidered after five
+// minutes so a transient setup failure does not stick.
+//
+// One token source is shared per cluster identity. It is set up again
+// whenever it fails to produce a token or the API server answers 401, so
+// credentials rewritten on disk (for example session keys refreshed in
+// ~/.aws/credentials, or a new gcloud ADC login) take effect without
+// restarting the process.
 //
 // Setting MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true (any value accepted by
 // strconv.ParseBool) disables in-process minting entirely and leaves every

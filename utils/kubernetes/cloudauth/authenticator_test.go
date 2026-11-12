@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/meshery/meshkit/errors"
 	"golang.org/x/oauth2"
@@ -400,5 +401,181 @@ func TestAuthenticatorFallsBackToGKEPluginWhenADCCannotMint(t *testing.T) {
 	}
 	if config.WrapTransport != nil {
 		t.Fatal("Apply() wrapped the transport although ADC could not mint a token")
+	}
+}
+
+// sequenceFactory returns, on its nth call, a source yielding tokens[n] (or
+// the last entry once exhausted). An empty token makes the source fail.
+func sequenceFactory(calls *atomic.Int32, tokens ...string) TokenSourceFactory {
+	return func(context.Context, Spec) (oauth2.TokenSource, error) {
+		n := int(calls.Add(1)) - 1
+		if n >= len(tokens) {
+			n = len(tokens) - 1
+		}
+		if tokens[n] == "" {
+			return failingSource{}, nil
+		}
+		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: tokens[n], TokenType: "Bearer"}), nil
+	}
+}
+
+type failingSource struct{}
+
+func (failingSource) Token() (*oauth2.Token, error) {
+	return nil, fmt.Errorf("security token included in the request is expired")
+}
+
+// acceptingServer answers 200 only to the given bearer token and 401
+// otherwise.
+func acceptingServer(t *testing.T, token string) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer "+token {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		_, _ = io.WriteString(w, "ok")
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func getStatus(t *testing.T, client *http.Client, url string) int {
+	t.Helper()
+	resp, err := client.Get(url)
+	if err != nil {
+		return 0
+	}
+	_ = resp.Body.Close()
+	return resp.StatusCode
+}
+
+func TestAuthenticatorSetsUpAgainAfterUnauthorized(t *testing.T) {
+	server := acceptingServer(t, "fresh")
+	var calls atomic.Int32
+	auth := NewAuthenticator(WithTokenSourceFactory(sequenceFactory(&calls, "stale", "fresh")), WithLookPath(onPath))
+
+	config := &rest.Config{Host: server.URL, ExecProvider: eksExecConfig()}
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	client, err := rest.HTTPClientFor(config)
+	if err != nil {
+		t.Fatalf("HTTPClientFor() error = %v", err)
+	}
+	if got := getStatus(t, client, server.URL); got != http.StatusUnauthorized {
+		t.Fatalf("first GET status = %d, want 401 with the stale credentials", got)
+	}
+	if got := getStatus(t, client, server.URL); got != http.StatusOK {
+		t.Fatalf("GET after 401 status = %d, want 200 from re-loaded credentials", got)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("factory calls = %d, want 2 (a 401 must re-run setup once)", got)
+	}
+
+	// Clients built later share the refreshed source.
+	second := &rest.Config{Host: server.URL, ExecProvider: eksExecConfig()}
+	if err := auth.Apply(second); err != nil {
+		t.Fatalf("second Apply() error = %v", err)
+	}
+	secondClient, err := rest.HTTPClientFor(second)
+	if err != nil {
+		t.Fatalf("HTTPClientFor() error = %v", err)
+	}
+	if got := getStatus(t, secondClient, server.URL); got != http.StatusOK || calls.Load() != 2 {
+		t.Fatalf("second client status = %d, factory calls = %d; want 200 and 2", got, calls.Load())
+	}
+}
+
+func TestAuthenticatorSetsUpAgainAfterTokenFailure(t *testing.T) {
+	server := acceptingServer(t, "fresh")
+	var calls atomic.Int32
+	auth := NewAuthenticator(WithTokenSourceFactory(sequenceFactory(&calls, "", "fresh")), WithLookPath(onPath))
+
+	config := &rest.Config{Host: server.URL, ExecProvider: eksExecConfig()}
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	client, err := rest.HTTPClientFor(config)
+	if err != nil {
+		t.Fatalf("HTTPClientFor() error = %v", err)
+	}
+	if got := getStatus(t, client, server.URL); got == http.StatusOK {
+		t.Fatal("first GET succeeded although the token source failed")
+	}
+	if got := getStatus(t, client, server.URL); got != http.StatusOK {
+		t.Fatalf("GET after a failed token status = %d, want 200 from re-loaded credentials", got)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("factory calls = %d, want 2", got)
+	}
+}
+
+func TestAuthenticatorCachedFallbackRequiresOwnCommandOnPath(t *testing.T) {
+	var calls atomic.Int32
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(failingFactory(&calls)),
+		WithLookPath(func(file string) (string, error) {
+			if file == "gcloud" {
+				return "/usr/bin/gcloud", nil
+			}
+			return notOnPath(file)
+		}),
+	)
+
+	gcloud := &rest.Config{ExecProvider: &clientcmdapi.ExecConfig{Command: "gcloud", Args: []string{"config", "config-helper"}}}
+	if err := auth.Apply(gcloud); err != nil {
+		t.Fatalf("Apply(gcloud) error = %v", err)
+	}
+	if gcloud.ExecProvider == nil {
+		t.Fatal("Apply(gcloud) did not fall back to the installed gcloud")
+	}
+
+	plugin := &rest.Config{ExecProvider: &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin"}}
+	err := auth.Apply(plugin)
+	if got := errors.GetCode(err); got != ErrInProcessCloudAuthUnavailableCode {
+		t.Fatalf("Apply(gke-gcloud-auth-plugin) error = %v, want code %q (its binary is not on PATH)", err, ErrInProcessCloudAuthUnavailableCode)
+	}
+	if !strings.Contains(err.Error(), "no credentials in chain") {
+		t.Fatalf("error %q does not carry the setup failure", err)
+	}
+}
+
+func TestAuthenticatorRetriesSetupAfterFallbackInterval(t *testing.T) {
+	var calls atomic.Int32
+	factory := func(ctx context.Context, spec Spec) (oauth2.TokenSource, error) {
+		if calls.Load() == 0 {
+			calls.Add(1)
+			return nil, fmt.Errorf("transient STS failure")
+		}
+		calls.Add(1)
+		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "minted"}), nil
+	}
+	auth := NewAuthenticator(WithTokenSourceFactory(factory), WithLookPath(onPath))
+	clock := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	auth.now = func() time.Time { return clock }
+
+	apply := func() *rest.Config {
+		t.Helper()
+		config := &rest.Config{ExecProvider: eksExecConfig()}
+		if err := auth.Apply(config); err != nil {
+			t.Fatalf("Apply() error = %v", err)
+		}
+		return config
+	}
+
+	if apply().ExecProvider == nil {
+		t.Fatal("first Apply() did not fall back to the plugin")
+	}
+	clock = clock.Add(fallbackRetryInterval - time.Second)
+	if apply().ExecProvider == nil || calls.Load() != 1 {
+		t.Fatalf("Apply() within the retry interval re-ran setup (factory calls = %d)", calls.Load())
+	}
+	clock = clock.Add(time.Second)
+	if apply().ExecProvider != nil {
+		t.Fatal("Apply() after the retry interval did not switch to in-process minting")
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("factory calls = %d, want 2", got)
 	}
 }
