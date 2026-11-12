@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/meshery/meshkit/logger"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
@@ -56,13 +58,12 @@ func WithDisabled(disabled bool) Option {
 	return func(a *Authenticator) { a.disabled = disabled }
 }
 
-// WithFallbackObserver registers a callback invoked once per cluster
-// identity when in-process minting fails but the exec plugin binary is on
-// PATH, so the stanza is left for client-go to run. It receives the error
-// that prevented in-process minting, so the fallback is never silent to a
-// caller that wants to log it.
-func WithFallbackObserver(observe func(spec Spec, err error)) Option {
-	return func(a *Authenticator) { a.onFallback = observe }
+// WithLogger replaces the Authenticator's default MeshKit logger. Each
+// decision to fall back to the exec plugin because in-process setup failed
+// is logged as a warning carrying ErrInProcessCloudAuthFallback; a decision
+// is made at most once per cluster identity per fallbackRetryInterval.
+func WithLogger(log logger.Handler) Option {
+	return func(a *Authenticator) { a.log = log }
 }
 
 // Authenticator replaces recognized cloud exec stanzas in rest.Configs with
@@ -76,12 +77,12 @@ func WithFallbackObserver(observe func(spec Spec, err error)) Option {
 // a restart. A decision to fall back to the exec plugin is reconsidered
 // after fallbackRetryInterval.
 type Authenticator struct {
-	factory    TokenSourceFactory
-	lookPath   func(string) (string, error)
-	getenv     func(string) string
-	now        func() time.Time
-	disabled   bool
-	onFallback func(Spec, error)
+	factory  TokenSourceFactory
+	lookPath func(string) (string, error)
+	getenv   func(string) string
+	now      func() time.Time
+	disabled bool
+	log      logger.Handler
 
 	mu      sync.Mutex
 	entries map[string]*authEntry
@@ -115,8 +116,9 @@ type authEntry struct {
 
 var _ transport.ResettableTokenSource = (*authEntry)(nil)
 
-// NewAuthenticator returns an Authenticator using DefaultTokenSourceFactory
-// and exec.LookPath unless overridden by opts.
+// NewAuthenticator returns an Authenticator using DefaultTokenSourceFactory,
+// exec.LookPath and a MeshKit logger writing to standard output unless
+// overridden by opts.
 func NewAuthenticator(opts ...Option) *Authenticator {
 	a := &Authenticator{
 		factory:  DefaultTokenSourceFactory,
@@ -124,6 +126,12 @@ func NewAuthenticator(opts ...Option) *Authenticator {
 		getenv:   os.Getenv,
 		now:      time.Now,
 		entries:  make(map[string]*authEntry),
+	}
+	if log, err := logger.New("meshkit-cloudauth", logger.Options{
+		Format:   logger.TerminalLogFormat,
+		LogLevel: int(logrus.InfoLevel),
+	}); err == nil {
+		a.log = log
 	}
 	for _, opt := range opts {
 		opt(a)
@@ -156,15 +164,15 @@ func (a *Authenticator) Apply(config *rest.Config) error {
 	if source == nil {
 		return nil
 	}
-	InstallTokenSource(config, source)
+	installTokenSource(config, source)
 	return nil
 }
 
-// InstallTokenSource clears config.ExecProvider and wraps config's transport
+// installTokenSource clears config.ExecProvider and wraps config's transport
 // so every request carries a bearer token from source. When source
 // implements transport.ResettableTokenSource, a 401 response discards the
 // cached token so the next request mints a fresh one.
-func InstallTokenSource(config *rest.Config, source oauth2.TokenSource) {
+func installTokenSource(config *rest.Config, source oauth2.TokenSource) {
 	config.ExecProvider = nil
 	if resettable, ok := source.(transport.ResettableTokenSource); ok {
 		config.Wrap(transport.ResettableTokenSourceWrapTransport(resettable))
@@ -183,10 +191,12 @@ func (a *Authenticator) isDisabled() bool {
 
 // tokenSource returns the shared token source for spec, setting one up when
 // none is cached. It returns (nil, nil) when the exec plugin should be used
-// instead. Successful setups and fallback decisions are cached; errors are
-// not, so a later call retries once credentials appear. A cached fallback
-// decision is only reused when spec.Command is itself on PATH, because
-// stanzas naming different commands share one cluster identity.
+// instead. Successful setups are cached until their source fails; fallback
+// decisions are cached for fallbackRetryInterval and then reconsidered;
+// errors are not cached, so a later call retries once credentials appear. A
+// cached fallback decision is only reused when spec.Command is itself on
+// PATH, because stanzas naming different commands share one cluster
+// identity. Each new fallback decision is logged.
 func (a *Authenticator) tokenSource(spec Spec) (oauth2.TokenSource, error) {
 	key := spec.cacheKey()
 	a.mu.Lock()
@@ -216,8 +226,8 @@ func (a *Authenticator) tokenSource(spec Spec) (oauth2.TokenSource, error) {
 	if retry {
 		entry.fallbackErr = setupErr
 		entry.fallbackAt = now
-		if a.onFallback != nil {
-			a.onFallback(spec, setupErr)
+		if a.log != nil {
+			a.log.Warn(ErrInProcessCloudAuthFallback(setupErr, spec.Provider, spec.Command))
 		}
 	}
 	return nil, nil

@@ -15,6 +15,7 @@ const (
 	ErrGCPCredentialsUnavailableCode     = "meshkit-11345"
 	ErrGCPServiceAccountKeyCode          = "meshkit-11346"
 	ErrUnsupportedCloudProviderCode      = "meshkit-11347"
+	ErrInProcessCloudAuthFallbackCode    = "meshkit-11348"
 )
 
 // errNoCredentialProvider is the cause reported when the AWS SDK returns a
@@ -42,6 +43,28 @@ func ErrInProcessCloudAuthUnavailable(err error, provider Provider, command stri
 			"For GKE, give the Meshery process Application Default Credentials: GOOGLE_APPLICATION_CREDENTIALS pointing at a service-account key, or Workload Identity",
 			"Alternatively install the exec credential plugin (the AWS CLI, aws-iam-authenticator, or gke-gcloud-auth-plugin) on the Meshery host's PATH",
 			"If the Meshery server cannot hold cloud credentials, deploy the Meshery Operator into the cluster instead",
+		},
+		nil)
+}
+
+// ErrInProcessCloudAuthFallback is logged by Authenticator.Apply when a
+// kubeconfig names a recognized cloud exec plugin, in-process token minting
+// could not be set up, and the plugin binary is on PATH, so the exec stanza
+// is left for client-go to run instead.
+func ErrInProcessCloudAuthFallback(err error, provider Provider, command string) error {
+	return errors.NewV2(ErrInProcessCloudAuthFallbackCode, errors.None,
+		[]string{"Falling back to the exec credential plugin for the managed Kubernetes cluster"},
+		[]string{
+			fmt.Sprintf("In-process token minting for %s could not be set up, so the exec credential plugin %q found on PATH will authenticate instead.", provider, command),
+			err.Error(),
+		},
+		[]string{
+			"The Meshery process has no usable cloud credentials for the cluster's account or project",
+			"The cloud credentials are misconfigured, for example a mistyped role ARN or an expired Application Default Credentials login",
+		},
+		[]string{
+			"No action is needed if the exec credential plugin is meant to authenticate",
+			"To mint tokens in process, fix the cloud credentials available to the Meshery process; setup is retried periodically",
 		},
 		nil)
 }

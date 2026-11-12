@@ -10,13 +10,13 @@
 // Helm operations (ApplyHelmChart).
 //
 // When the exec plugin is a known cloud plugin (aws eks get-token,
-// aws-iam-authenticator, gke-gcloud-auth-plugin, gcloud), the getter mints
-// the bearer token in process with the cloud SDK instead of forking the
-// binary, so Meshery works where the plugin is not installed; the token is
-// cached and refreshed per cluster identity, shared by every client in the
-// process. If cloud credentials are unavailable to
-// the process, the exec plugin is used when it is on PATH, and a descriptive
-// error is returned otherwise. Every other exec plugin is left to client-go.
+// aws-iam-authenticator, gke-gcloud-auth-plugin, gcloud config
+// config-helper), the getter mints the bearer token in process with the
+// cloud SDK instead of forking the binary, so Meshery works where the plugin
+// is not installed; the token is cached and refreshed per cluster identity,
+// shared by every client in the process. If cloud credentials are
+// unavailable to the process, the exec plugin is used (and the fallback is
+// logged) when it is on PATH, and a descriptive error is returned otherwise. Every other exec plugin is left to client-go.
 // Set MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true to turn in-process minting
 // off. See package utils/kubernetes/cloudauth for supported plugins and the
 // credential chains.

@@ -1,7 +1,6 @@
 package cloudauth
 
 import (
-	"strings"
 	"testing"
 
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -70,7 +69,7 @@ func TestRecognize(t *testing.T) {
 			wantOK: true,
 		},
 		{
-			name: "aws eks get-token static credentials and shared files from exec env",
+			name: "aws eks get-token ignores credentials and shared files in exec env",
 			exec: &clientcmdapi.ExecConfig{
 				Command: "aws",
 				Args:    []string{"eks", "get-token", "--cluster-name", "demo"},
@@ -82,10 +81,7 @@ func TestRecognize(t *testing.T) {
 					{Name: "AWS_SHARED_CREDENTIALS_FILE", Value: "/etc/aws/credentials"},
 				},
 			},
-			want: Spec{Provider: ProviderEKS, Command: "aws", EKS: EKSConfig{
-				ClusterID: "demo", AccessKeyID: "AKID", SecretAccessKey: "SECRET", SessionToken: "SESSION",
-				ConfigFile: "/etc/aws/config", CredentialsFile: "/etc/aws/credentials",
-			}},
+			want:   Spec{Provider: ProviderEKS, Command: "aws", EKS: EKSConfig{ClusterID: "demo"}},
 			wantOK: true,
 		},
 		{
@@ -162,10 +158,24 @@ func TestRecognize(t *testing.T) {
 		},
 		{
 			name: "gcloud.cmd on windows",
-			exec: &clientcmdapi.ExecConfig{Command: `C:\google-cloud-sdk\bin\gcloud.cmd`},
+			exec: &clientcmdapi.ExecConfig{
+				Command: `C:\google-cloud-sdk\bin\gcloud.cmd`,
+				Args:    []string{"config", "config-helper"},
+			},
 			want: Spec{Provider: ProviderGKE, Command: `C:\google-cloud-sdk\bin\gcloud.cmd`},
 			// gcloud ships as a .cmd script on Windows.
 			wantOK: true,
+		},
+		{
+			name: "gcloud auth print-identity-token is left to client-go",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "gcloud",
+				Args:    []string{"auth", "print-identity-token", "--audiences=https://iap.example.com"},
+			},
+		},
+		{
+			name: "gcloud without arguments is left to client-go",
+			exec: &clientcmdapi.ExecConfig{Command: "/usr/bin/gcloud"},
 		},
 		{
 			name: "aws without eks get-token",
@@ -220,9 +230,7 @@ func TestSpecCacheKeySeparatesIdentities(t *testing.T) {
 		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "eu-west-1"}},
 		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", Profile: "prod"}},
 		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", RoleARN: "arn:aws:iam::1:role/x"}},
-		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", AccessKeyID: "AKID"}},
-		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", SecretAccessKey: "rotated"}},
-		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", SessionToken: "rotated"}},
+		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", ExternalID: "ext"}},
 		{Provider: ProviderGKE},
 	}
 	for _, v := range variants {
@@ -235,11 +243,5 @@ func TestSpecCacheKeySeparatesIdentities(t *testing.T) {
 	sameIdentity.Command = "/usr/local/bin/aws"
 	if sameIdentity.cacheKey() != base.cacheKey() {
 		t.Fatal("cacheKey depends on the command path, want it to depend only on the cluster identity")
-	}
-
-	withSecret := base
-	withSecret.EKS.SecretAccessKey = "do-not-store"
-	if strings.Contains(withSecret.cacheKey(), "do-not-store") {
-		t.Fatal("cacheKey holds the secret access key in clear")
 	}
 }

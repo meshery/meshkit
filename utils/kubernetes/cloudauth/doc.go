@@ -21,8 +21,9 @@
 //     "--flag=value" forms) and "aws-iam-authenticator token" (flags
 //     -i/--cluster-id, -r/--role, -s/--session-name, -e/--external-id,
 //     --region).
-//   - Google Kubernetes Engine: "gke-gcloud-auth-plugin", or "gcloud" used as
-//     a credential plugin (for example "gcloud config config-helper").
+//   - Google Kubernetes Engine: "gke-gcloud-auth-plugin", and "gcloud config
+//     config-helper". Any other gcloud invocation (for example
+//     "gcloud auth print-identity-token") is left to client-go.
 //
 // # Amazon EKS
 //
@@ -38,9 +39,8 @@
 // AWS_WEB_IDENTITY_TOKEN_FILE), and the ECS and EC2 instance metadata
 // endpoints. When the stanza names a role (--role-arn or -r), the chain's
 // credentials assume that role through STS. From the exec stanza's own env
-// list, AWS_PROFILE, AWS_REGION, AWS_DEFAULT_REGION, AWS_CONFIG_FILE,
-// AWS_SHARED_CREDENTIALS_FILE and the static key triple (AWS_ACCESS_KEY_ID,
-// AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN) are honored. The region is taken
+// list, only AWS_PROFILE, AWS_REGION and AWS_DEFAULT_REGION are honored;
+// credentials embedded there are ignored. The region is taken
 // from --region, then the stanza's AWS_REGION and AWS_DEFAULT_REGION, then
 // the process environment, then the shared config profile.
 //
@@ -64,7 +64,8 @@
 // within a timeout. If that
 // fails and the plugin binary is on PATH, the Authenticator leaves the exec
 // stanza in place so client-go runs the plugin as before (the common case on
-// a workstation with the cloud CLI installed). If the binary is not on PATH
+// a workstation with the cloud CLI installed), and logs the setup failure as
+// a warning carrying ErrInProcessCloudAuthFallback. If the binary is not on PATH
 // either, Apply returns ErrInProcessCloudAuthUnavailable, which explains that
 // in-process minting needs cloud credentials in the Meshery process and that
 // a kubeconfig alone is not enough. A cached fallback decision is reused only

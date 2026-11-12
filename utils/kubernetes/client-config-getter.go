@@ -44,8 +44,8 @@ var _ clientcmd.ClientConfig = (*restConfigClientConfig)(nil)
 // in place. It is the only seam between this package and the cloud SDKs:
 // cloudauth.Authenticator implements it by replacing recognized cloud exec
 // plugins (aws eks get-token, aws-iam-authenticator, gke-gcloud-auth-plugin,
-// gcloud) with in-process token minting, and leaving every other exec
-// plugin to client-go's exec loader.
+// gcloud config config-helper) with in-process token minting, and leaving
+// every other exec plugin to client-go's exec loader.
 type restConfigAuthenticator interface {
 	Apply(config *rest.Config) error
 }
