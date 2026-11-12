@@ -113,7 +113,7 @@ locally.
 // models/events/events.go (excerpt)
 type Event struct {
     ID          ID                     `db:"id" json:"id"`
-    UserID      *UserID                `db:"user_id"      json:"userId,omitempty"`
+    Owner       *Owner                 `db:"owner"        json:"owner,omitempty" gorm:"index:idx_events_owner_idempotency_key,priority:1"`
     SystemID    SystemID               `db:"system_id"    json:"systemId"`
     OperationID OperationID            `db:"operation_id" json:"operationId"`
 
@@ -129,6 +129,21 @@ type Event struct {
     CreatedAt   CreatedAt              `db:"created_at" json:"createdAt"`
     UpdatedAt   UpdatedAt              `db:"updated_at" json:"updatedAt"`
     DeletedAt   *DeletedAt             `db:"deleted_at" json:"deletedAt,omitempty"`
+
+    // Optional, omitted when unset (see "Retries: idempotencyKey" and
+    // "Conditions, provenance and trace context").
+    // Each also carries matching db: and gorm:"column:" tags.
+    IdempotencyKey  *string           `json:"idempotencyKey,omitempty"`
+    CorrelationKey  *string           `json:"correlationKey,omitempty"`
+    OccurrenceCount *int              `json:"occurrenceCount,omitempty"`
+    FirstSeenAt     *time.Time        `json:"firstSeenAt,omitempty"`
+    LastSeenAt      *time.Time        `json:"lastSeenAt,omitempty"`
+    ResolvedAt      *time.Time        `json:"resolvedAt,omitempty"`
+    Source          *string           `json:"source,omitempty"`
+    Type            *string           `json:"type,omitempty"`
+    SpecVersion     *EventSpecVersion `json:"specversion,omitempty"`
+    TraceID         *string           `json:"traceId,omitempty"`
+    ParentID        *string           `json:"parentId,omitempty"`
 }
 
 type EventSeverity string // alert | critical | debug | emergency | error | informational | warning | success
@@ -140,8 +155,8 @@ Producers build events through a fluent builder defined in
 
 ```go
 event := events.
-    NewEvent().                                 // assigns OperationID, CreatedAt, Status=Unread
-    FromUser(userID).
+    NewEvent().                                 // assigns ID, OperationID, Status=Unread
+    FromOwner(userID).
     FromSystem(systemID).
     WithCategory("pattern").
     WithAction("deploy").
@@ -152,9 +167,144 @@ event := events.
     Build()
 ```
 
-`Event.ID` is generated automatically in the GORM `BeforeCreate` hook
-(see [`models/events/database.go`](../models/events/database.go)) so
-producers do not assign it manually.
+### Retries: `idempotencyKey`
+
+`Event.IdempotencyKey` carries the schemas v1beta3
+`EventPayload.idempotencyKey` (meshery/schemas v1.3.116 and later): an
+optional, client-chosen key of 1 to 255 characters that makes recording one
+event safe to retry. MeshKit carries the field: `Event` encodes, decodes,
+validates and persists it, and nothing more. The replay semantics are the
+schemas `createEvent` contract: a create carrying a key its authenticated
+caller already used records nothing and is answered 200 with the event the
+first create recorded (`Event-Disposition: replayed`), whatever the rest of
+the payload says.
+
+Meshery Server honours that contract (meshery/meshery#22958). Its client
+event handler (`POST /api/system/events`) sets `owner` from the authenticated
+user, copies the key onto the event it records (`ApplyClientEventFields`), and
+answers by what persisting the event did (`createEventStatus`):
+
+- A first create carrying a key records the event and answers 201
+  (`Event-Disposition: created`).
+- A retry carrying a key the same user already used records nothing and
+  answers 200 (`Event-Disposition: replayed`) with the event the key is bound
+  to. Keys are scoped per owner: the same key from another user is a new
+  create.
+- A create that counts an occurrence on an open condition, or resolves it,
+  answers 200 (`Event-Disposition: incremented` or `resolved`), and binds its
+  key to that condition's event, so a retry of it is also a replay.
+
+```go
+event := events.NewEvent().
+    FromOwner(userID).
+    WithCategory("perf").WithAction("run").
+    WithIdempotencyKey("mesheryctl/perf-run/" + runID). // names the occurrence
+    Build()
+```
+
+- Name the occurrence, for example a run id, so a client replaying a local
+  queue after a timeout never records a duplicate. A `correlationKey` names a
+  condition and spans many creates; an `idempotencyKey` makes one create safe
+  to retry.
+- `Build` copies the key into every event it builds. Set a new key before
+  building another occurrence from the same builder: under the
+  `createEvent` contract, a server that honours it answers that occurrence
+  as a replay of the first.
+- GORM `AutoMigrate` adds a nullable `idempotency_key` column and a
+  non-unique composite index `idx_events_owner_idempotency_key` on
+  `(owner, idempotency_key)`, so a server can look up an event by owner and
+  key. Meshery Server binds keys in its own `event_idempotency_bindings`
+  table instead, keyed on `(owner, idempotency_key)`, because the bound event
+  is not always the row the create inserted. The contract scopes keys to the
+  authenticated caller (organization and user), not to the client-settable
+  `owner` field, so a server that honours the contract sets `owner` from the
+  caller and applies the replay semantics; MeshKit does neither.
+- `Event.Validate()` rejects a key that is empty or longer than 255
+  characters with `ErrInvalidEvent`.
+
+### Conditions, provenance and trace context
+
+The schemas event construct (`schemas/constructs/v1beta3/event`,
+`docs/event-correlation-contract.md` in meshery/schemas, meshery/schemas#1334)
+adds optional fields that MeshKit's `Event` carries with the same JSON names
+and DB columns. All are pointers and omitted when unset, so an event that
+sets none of them serializes and persists exactly as before; GORM
+`AutoMigrate` adds them as nullable columns (`correlation_key`,
+`occurrence_count`, `first_seen_at`, `last_seen_at`, `resolved_at`, `source`,
+`type`, `specversion`, `trace_id`, `parent_id`).
+
+```go
+traceID, _ := events.NewTraceID()          // minted once by the client that starts the operation
+spanID, _ := events.NewSpanID()
+event := events.NewEvent().
+    WithOperationID(opID).                 // group every event of one operation (NewEvent mints a random one)
+    WithTraceContext(traceID, spanID).     // or WithTraceContextFrom(ctx) from an OpenTelemetry span
+    WithSource("meshery-server").          // which surface emitted it
+    WithType("io.meshery.connection.unreachable").WithSpecVersion(events.SpecVersion10).
+    WithCorrelationKey("meshery-server/k8s-connection/" + connID + "/unreachable").
+    WithLastSeenAt(time.Now()).
+    WithCategory("connection").WithAction("update").WithSeverity(events.Error).
+    Build()
+
+// Later, once, when the condition clears:
+resolved := events.NewEvent().Resolves(key, time.Now()).
+    WithCategory("connection").WithSeverity(events.Success).
+    WithDescription("Connection to cluster prod-1 restored").Build()
+```
+
+- The producer mints every id. `NewEvent` mints the event's `id` at
+  construction. Nothing in MeshKit mints `traceId`, `parentId` or a
+  correlation key at persist time, and it mints `id` there only as a fallback
+  for an event not built with `NewEvent` (see below): an id minted at persist
+  time never reaches the copy already broadcast.
+- `correlationKey` names the condition, qualified by source and component,
+  then subject and kind. Never use an error code alone.
+- The server, not MeshKit, applies the upsert-by-`correlationKey` semantics
+  of `createEvent` (replay, increment, resolve, `Event-Disposition`).
+- `Event.Validate()` checks these fields (and an `EventError` in
+  `metadata.error`, including one decoded from storage as a JSON object with
+  a `code` key) against the construct and returns `ErrInvalidEvent`. A legacy
+  `metadata.error` serialized with Go field names (`Code`, numeric
+  `Severity`) is left unchecked, so existing stored events still validate.
+
+### Error events: `metadata.error`
+
+`events.NewEventError(err, matched...)` turns a MeshKit error into the
+schemas `EventError` (`events.EventError` is an alias of the generated
+type). For an `errors.NewV3` error it carries the nested `probableCauses`
+plus the derived flat lists, and each `MatchCause(id)` /
+`MatchCauseWithConfidence(id, c)` must name one of its causes. For an
+`errors.New` / `NewV2` error it carries the flat lists alone (unpaired). It
+returns `ErrNotMeshkitError` for an error without a MeshKit code and
+`ErrInvalidEventError` when the result would break the contract.
+
+```go
+b, err := events.NewEvent().WithMetadata(meta).   // WithMetadata replaces the map: call it first
+    WithError(connErr, events.MatchCause("credentials-expired"))
+```
+
+`WithError` / `WithEventError` keep every other metadata key. Set
+`Details` on the `EventError` for instance values (never secrets,
+credentials, design contents or request bodies).
+
+`Event.ID` (uuid v4) is minted by `NewEvent` when the event is constructed,
+so the event a producer broadcasts carries the same ID as its stored row,
+even when it is broadcast before or instead of being persisted. The GORM
+`BeforeCreate` hook (see [`models/events/database.go`](../models/events/database.go))
+keeps a non-nil ID and assigns one only to an event constructed without the
+builder, as a fallback. Every `Build` returns a distinct `*Event` (its
+`Metadata` deep-copied and `CreatedAt` set to the build time) and then mints a
+fresh ID on the builder, so a reused builder yields distinct events with
+distinct IDs, each stamped with when it was built (not when the builder was
+created), and each persists as its own row. Mutating the builder after
+`Build` (for example calling `WithMetadata` or `WithEventError`) does not
+affect an event already built: set every field before calling `Build`.
+The `Metadata` copy is a true deep copy of every reference kind (maps,
+slices, arrays, pointers, interfaces and exported struct fields, recursively,
+preserving aliases and cycles), so an in-place write to a value the producer
+stored in metadata, such as a `[]string` or `map[string]string`, never
+reaches a built event. Unexported struct fields, channels and funcs are
+copied by value.
 
 The same struct flows over the wire (camelCase JSON), into the database
 (snake_case columns via `db:` tags), and into the GraphQL `Event` type
@@ -453,8 +603,9 @@ A correctly behaved subscriber/producer pair satisfies:
    asynchronously through goroutines; do not assume the message has
    been consumed by the time `Publish` returns.
 7. **Use `events.NewEvent().Build()` to construct events** — never
-   build the struct directly. The builder fills in `OperationID`,
-   `CreatedAt`, and `Status` with sensible defaults.
+   build the struct directly. The builder fills in `ID`, `OperationID`,
+   and `Status` with sensible defaults, and `Build` stamps `CreatedAt` with
+   the build time.
 
 ---
 
@@ -549,9 +700,16 @@ MeshKit:
   typed multi-listener channel (operator sync, etc.).
 - [`models/events/events.go`](../models/events/events.go) — generated
   `Event` struct and severity/status enums.
-- [`models/events/build.go`](../models/events/build.go) — `EventBuilder`.
+- [`models/events/build.go`](../models/events/build.go) — `EventBuilder`;
+  `NewEvent` mints `Event.ID`.
+- [`models/events/correlation.go`](../models/events/correlation.go) —
+  operation id, idempotency key, condition correlation, provenance and
+  trace-context setters;
+  `NewTraceID` / `NewSpanID`.
+- [`models/events/event_error.go`](../models/events/event_error.go) —
+  `NewEventError`, `WithError`, `MatchCause`, `Event.Validate`.
 - [`models/events/database.go`](../models/events/database.go) — GORM
-  hooks; assigns `Event.ID`.
+  hooks; assigns `Event.ID` only when it is nil.
 
 Meshery Server (linked):
 

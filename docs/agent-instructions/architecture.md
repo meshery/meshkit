@@ -12,7 +12,8 @@ Go toolchain: `go.mod` pins `go 1.26.4`; CI builds with Go 1.26 (see
 The structured error pipeline spans several packages:
 
 - `errors/` defines the shared MeshKit error types (`Error`, `ErrorV2`) and the
-  `New(...)` / `NewV2(...)` constructors used across the entire Meshery code base.
+  `New(...)` / `NewV2(...)` / `NewV3(...)` constructors used across the entire Meshery code base
+  (`NewV3` adds nested causes and remediations, see [errors.md](errors.md)).
 - Package-local `error.go` files define concrete errors for each package/component.
 - `logger/` enriches log output with MeshKit error metadata such as code, severity,
   cause, and remediation.

@@ -56,3 +56,25 @@ func TestUpdateSVGString_InvalidXML(t *testing.T) {
 		t.Error("expected error for invalid XML")
 	}
 }
+
+// Filtering xmlns out of a nested element's attributes keeps every other
+// attribute exactly once. (encoding/xml re-declares the element's namespace
+// from its Name.Space when encoding, so the output still carries xmlns.)
+func TestUpdateSVGString_NestedXmlnsKeepsOtherAttrs(t *testing.T) {
+	svg := `<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><g xmlns="http://www.w3.org/2000/svg" id="layer" fill="red" stroke="blue"><rect/></g></svg>`
+	result, err := UpdateSVGString(svg, 200, 200, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	start := strings.Index(result, "<g")
+	end := strings.Index(result[start:], ">")
+	g := result[start : start+end]
+	for _, want := range []string{`id="layer"`, `fill="red"`, `stroke="blue"`} {
+		if strings.Count(g, want) != 1 {
+			t.Errorf("nested element %q: want %s exactly once", g, want)
+		}
+	}
+	if strings.Count(g, "xmlns=") > 1 {
+		t.Errorf("nested element %q declares xmlns more than once", g)
+	}
+}

@@ -39,6 +39,22 @@ Registration code is intentionally permissive on input shape:
 Do not tighten these behaviors without coordinating with every downstream importer
 (Meshery Server model import, mesheryctl, generators).
 
+## Component CSV ingestion
+
+`ComponentCSVHelper.ParseComponentsSheet` returns CSV parsing and read failures,
+including failures after the file opens. Rows read before a failure can already
+be present in `Components`, so callers must check the returned error before
+using that data to update the registry. Successful completion includes every
+selected row, including the final row when filtering by model.
+
+## Model CSV ingestion
+
+`ModelCSVHelper.ParseModelsSheet` returns CSV parsing and read failures,
+including failures after the file opens. Rows read before a failure can already
+be present in `Models`, so callers must check the returned error before
+using that data to update the registry. Successful completion includes every
+selected row, including the final row when filtering by model.
+
 ## SVG mutation caveat
 
 Registration mutates asset references as part of ingestion: model and component SVG
