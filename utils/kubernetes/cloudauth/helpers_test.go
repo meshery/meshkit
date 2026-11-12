@@ -20,9 +20,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meshery/meshkit/logger"
 	"k8s.io/client-go/rest"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
+
+// withLookPath replaces exec.LookPath when deciding whether the exec plugin
+// binary is installed and can serve as a fallback.
+func withLookPath(lookPath func(file string) (string, error)) Option {
+	return func(a *Authenticator) { a.lookPath = lookPath }
+}
+
+// withDisabled disables in-process minting regardless of DisableEnvVar.
+func withDisabled(disabled bool) Option {
+	return func(a *Authenticator) { a.disabled = disabled }
+}
+
+// withLogger replaces the Authenticator's default MeshKit logger.
+func withLogger(log logger.Handler) Option {
+	return func(a *Authenticator) { a.log = log }
+}
 
 // fakeClock is a manually advanced clock. Deadlines created with
 // WithTimeout fire only when Advance moves past them, so timeout behavior is
