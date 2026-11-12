@@ -3,17 +3,13 @@ package cloudauth
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -36,6 +32,15 @@ func eksExecConfig() *clientcmdapi.ExecConfig {
 	}
 }
 
+func gkeExecConfig() *clientcmdapi.ExecConfig {
+	return &clientcmdapi.ExecConfig{
+		APIVersion:      "client.authentication.k8s.io/v1beta1",
+		Command:         "gke-gcloud-auth-plugin",
+		Args:            []string{"--use_application_default_credentials"},
+		InteractiveMode: clientcmdapi.NeverExecInteractiveMode,
+	}
+}
+
 func staticFactory(token string, calls *atomic.Int32) TokenSourceFactory {
 	return func(context.Context, Spec) (oauth2.TokenSource, error) {
 		calls.Add(1)
@@ -54,20 +59,53 @@ func notOnPath(string) (string, error) { return "", fmt.Errorf("executable file 
 
 func onPath(file string) (string, error) { return "/usr/local/bin/" + file, nil }
 
-func TestAuthenticatorInstallsBearerTransport(t *testing.T) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("Authorization"); got != "Bearer in-process-token" {
-			http.Error(w, "unexpected Authorization "+got, http.StatusUnauthorized)
+// authorizationRecorder is a TLS test server that records the Authorization
+// header of every request and answers 200 only to want.
+type authorizationRecorder struct {
+	*httptest.Server
+	seen atomic.Value
+	hits atomic.Int32
+}
+
+func newAuthorizationRecorder(t *testing.T, want string) *authorizationRecorder {
+	t.Helper()
+	recorder := &authorizationRecorder{}
+	recorder.seen.Store("")
+	recorder.Server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder.hits.Add(1)
+		got := r.Header.Get("Authorization")
+		recorder.seen.Store(got)
+		if got != "Bearer "+want {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		_, _ = io.WriteString(w, "ok")
 	}))
-	defer server.Close()
+	t.Cleanup(recorder.Close)
+	return recorder
+}
+
+func getStatus(t *testing.T, config *rest.Config) int {
+	t.Helper()
+	client, err := rest.HTTPClientFor(config)
+	if err != nil {
+		t.Fatalf("HTTPClientFor() error = %v", err)
+	}
+	resp, err := client.Get(config.Host)
+	if err != nil {
+		return 0
+	}
+	_ = resp.Body.Close()
+	return resp.StatusCode
+}
+
+func TestAuthenticatorInstallsBearerTransport(t *testing.T) {
+	server := newAuthorizationRecorder(t, "in-process-token")
 
 	var calls atomic.Int32
 	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("in-process-token", &calls)), WithLookPath(notOnPath))
 
-	config := &rest.Config{Host: server.URL, ExecProvider: eksExecConfig(), TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
+	config := redirectedConfig(server.Server, testEKSHost, eksExecConfig())
 	if err := auth.Apply(config); err != nil {
 		t.Fatalf("Apply() error = %v", err)
 	}
@@ -77,24 +115,12 @@ func TestAuthenticatorInstallsBearerTransport(t *testing.T) {
 	if config.BearerToken != "" || config.BearerTokenFile != "" {
 		t.Fatalf("Apply() set a static bearer token (%q, %q)", config.BearerToken, config.BearerTokenFile)
 	}
-
-	client, err := rest.HTTPClientFor(config)
-	if err != nil {
-		t.Fatalf("HTTPClientFor() error = %v", err)
-	}
-	resp, err := client.Get(server.URL)
-	if err != nil {
-		t.Fatalf("GET error = %v", err)
-	}
-	body, _ := io.ReadAll(resp.Body)
-	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET status = %d (%s), want 200", resp.StatusCode, body)
+	if got := getStatus(t, config); got != http.StatusOK {
+		t.Fatalf("GET status = %d (Authorization %q), want 200", got, server.seen.Load())
 	}
 
 	// A second rest.Config for the same cluster reuses the cached source.
-	second := &rest.Config{Host: server.URL, ExecProvider: eksExecConfig()}
-	if err := auth.Apply(second); err != nil {
+	if err := auth.Apply(eksConfig(eksExecConfig())); err != nil {
 		t.Fatalf("second Apply() error = %v", err)
 	}
 	if got := calls.Load(); got != 1 {
@@ -104,11 +130,27 @@ func TestAuthenticatorInstallsBearerTransport(t *testing.T) {
 	// A different cluster gets its own source.
 	other := eksExecConfig()
 	other.Args = []string{"eks", "get-token", "--cluster-name", "other", "--region", "us-west-2"}
-	if err := auth.Apply(&rest.Config{Host: server.URL, ExecProvider: other}); err != nil {
+	if err := auth.Apply(eksConfig(other)); err != nil {
 		t.Fatalf("Apply() for another cluster error = %v", err)
 	}
 	if got := calls.Load(); got != 2 {
 		t.Fatalf("factory calls = %d, want 2 after a second cluster", got)
+	}
+}
+
+func TestAuthenticatorBindsEKSRegionToEndpoint(t *testing.T) {
+	var got Spec
+	auth := NewAuthenticator(WithTokenSourceFactory(func(_ context.Context, spec Spec) (oauth2.TokenSource, error) {
+		got = spec
+		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "t"}), nil
+	}))
+	exec := eksExecConfig()
+	exec.Args = []string{"eks", "get-token", "--cluster-name", "demo"}
+	if err := auth.Apply(eksConfig(exec)); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if got.EKS.Region != "us-west-2" {
+		t.Fatalf("factory region = %q, want us-west-2 from the endpoint host", got.EKS.Region)
 	}
 }
 
@@ -119,16 +161,18 @@ func TestAuthenticatorLeavesUnrecognizedExecUntouched(t *testing.T) {
 	for _, exec := range []*clientcmdapi.ExecConfig{
 		{Command: "kubelogin", Args: []string{"get-token"}},
 		{Command: "/usr/local/bin/custom"},
+		{Command: "gke-gcloud-auth-plugin"},
+		{Command: "gcloud", Args: []string{"config", "config-helper"}},
 	} {
-		config := &rest.Config{Host: "https://cluster.example.com", ExecProvider: exec}
+		config := &rest.Config{Host: testGKEDNSHost, ExecProvider: exec}
 		if err := auth.Apply(config); err != nil {
 			t.Fatalf("Apply(%q) error = %v", exec.Command, err)
 		}
 		if config.ExecProvider != exec || config.WrapTransport != nil {
-			t.Fatalf("Apply(%q) modified an unrecognized exec stanza", exec.Command)
+			t.Fatalf("Apply(%q %v) modified an exec stanza it must leave to client-go", exec.Command, exec.Args)
 		}
 	}
-	if err := auth.Apply(&rest.Config{Host: "https://cluster.example.com"}); err != nil {
+	if err := auth.Apply(&rest.Config{Host: testEKSHost}); err != nil {
 		t.Fatalf("Apply() without exec error = %v", err)
 	}
 	if err := auth.Apply(nil); err != nil {
@@ -139,12 +183,200 @@ func TestAuthenticatorLeavesUnrecognizedExecUntouched(t *testing.T) {
 	}
 }
 
+func TestAuthenticatorPreservesClientGoCredentialPrecedence(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*rest.Config)
+	}{
+		{name: "bearer token", mutate: func(c *rest.Config) { c.BearerToken = "static" }},
+		{name: "bearer token file", mutate: func(c *rest.Config) { c.BearerTokenFile = "/var/run/token" }},
+		{name: "basic auth", mutate: func(c *rest.Config) { c.Username, c.Password = "admin", "secret" }},
+		{name: "client certificate data", mutate: func(c *rest.Config) { c.CertData, c.KeyData = []byte("cert"), []byte("key") }},
+		{name: "client certificate files", mutate: func(c *rest.Config) { c.CertFile, c.KeyFile = "/tls/crt", "/tls/key" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls atomic.Int32
+			// Neither credentials nor the plugin exist; intercepting would
+			// turn a working config into an error.
+			auth := NewAuthenticator(WithTokenSourceFactory(failingFactory(&calls)), WithLookPath(notOnPath))
+			exec := eksExecConfig()
+			config := eksConfig(exec)
+			tt.mutate(config)
+			if err := auth.Apply(config); err != nil {
+				t.Fatalf("Apply() error = %v, want the existing credentials to take precedence", err)
+			}
+			if config.ExecProvider != exec || config.WrapTransport != nil || calls.Load() != 0 {
+				t.Fatal("Apply() intercepted an exec stanza client-go would not run")
+			}
+		})
+	}
+
+	t.Run("a certificate without a key does not take precedence", func(t *testing.T) {
+		var calls atomic.Int32
+		auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("minted", &calls)))
+		config := eksConfig(eksExecConfig())
+		config.CertData = []byte("cert")
+		if err := auth.Apply(config); err != nil {
+			t.Fatalf("Apply() error = %v", err)
+		}
+		if config.ExecProvider != nil || calls.Load() != 1 {
+			t.Fatal("Apply() did not intercept although client-go would run the plugin")
+		}
+	})
+}
+
+func TestAuthenticatorRefusesUntrustedEndpoints(t *testing.T) {
+	proxy := func(*http.Request) (*url.URL, error) { return url.Parse("http://proxy.attacker.example:3128") }
+	tests := []struct {
+		name   string
+		config func() *rest.Config
+	}{
+		{name: "EKS stanza against an attacker host", config: func() *rest.Config {
+			return &rest.Config{Host: "https://attacker.example.com", ExecProvider: eksExecConfig()}
+		}},
+		{name: "EKS stanza against an attacker IP", config: func() *rest.Config {
+			return &rest.Config{Host: "https://203.0.113.7", ExecProvider: eksExecConfig(), TLSClientConfig: rest.TLSClientConfig{CAData: testCAData}}
+		}},
+		{name: "EKS stanza with TLS verification disabled", config: func() *rest.Config {
+			config := eksConfig(eksExecConfig())
+			config.Insecure = true
+			return config
+		}},
+		{name: "EKS stanza over http", config: func() *rest.Config {
+			return &rest.Config{Host: strings.Replace(testEKSHost, "https", "http", 1), ExecProvider: eksExecConfig()}
+		}},
+		{name: "EKS stanza through a kubeconfig proxy", config: func() *rest.Config {
+			config := eksConfig(eksExecConfig())
+			config.Proxy = proxy
+			return config
+		}},
+		{name: "EKS stanza whose region does not match the endpoint", config: func() *rest.Config {
+			exec := eksExecConfig()
+			exec.Args = []string{"--region", "eu-west-1", "eks", "get-token", "--cluster-name", "demo"}
+			return eksConfig(exec)
+		}},
+		{name: "GKE stanza against an attacker host", config: func() *rest.Config {
+			return &rest.Config{Host: "https://attacker.example.com", ExecProvider: gkeExecConfig(), TLSClientConfig: rest.TLSClientConfig{CAData: testCAData}}
+		}},
+		{name: "GKE stanza against an IP without a CA", config: func() *rest.Config {
+			return &rest.Config{Host: "https://34.118.10.20", ExecProvider: gkeExecConfig()}
+		}},
+		{name: "GKE stanza with TLS verification disabled", config: func() *rest.Config {
+			return &rest.Config{Host: testGKEDNSHost, ExecProvider: gkeExecConfig(), TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls atomic.Int32
+			factory := staticFactory("process-credential", &calls)
+
+			// Without the plugin: a clear error and nothing minted.
+			auth := NewAuthenticator(WithTokenSourceFactory(factory), WithLookPath(notOnPath))
+			config := tt.config()
+			exec := config.ExecProvider
+			err := auth.Apply(config)
+			if got := errors.GetCode(err); got != ErrUntrustedClusterEndpointCode {
+				t.Fatalf("Apply() error = %v, want code %q", err, ErrUntrustedClusterEndpointCode)
+			}
+			if config.ExecProvider != exec || config.WrapTransport != nil {
+				t.Fatal("Apply() modified the config of an untrusted endpoint")
+			}
+
+			// With the plugin: the plugin is used, logged once, nothing minted.
+			log, logs := bufferLogger(t)
+			auth = NewAuthenticator(WithTokenSourceFactory(factory), WithLookPath(onPath), WithLogger(log))
+			for i := 0; i < 2; i++ {
+				config = tt.config()
+				exec = config.ExecProvider
+				if err := auth.Apply(config); err != nil {
+					t.Fatalf("Apply() with the plugin on PATH error = %v", err)
+				}
+				if config.ExecProvider != exec || config.WrapTransport != nil {
+					t.Fatal("Apply() installed in-process minting for an untrusted endpoint")
+				}
+			}
+			if got := calls.Load(); got != 0 {
+				t.Fatalf("factory calls = %d, want 0: no token may be minted for an untrusted endpoint", got)
+			}
+			if lines := strings.Split(strings.TrimSpace(logs.String()), "\n"); len(lines) != 1 ||
+				!strings.Contains(lines[0], ErrUntrustedClusterEndpointFallbackCode) {
+				t.Fatalf("logs = %q, want one %s warning", logs.String(), ErrUntrustedClusterEndpointFallbackCode)
+			}
+		})
+	}
+}
+
+func TestAuthenticatorSendsNoCredentialsToAttackerHost(t *testing.T) {
+	attacker := newAuthorizationRecorder(t, "process-credential")
+	var calls atomic.Int32
+	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("process-credential", &calls)), WithLookPath(onPath))
+
+	// The attacker serves valid TLS for its own name and puts its CA in the
+	// kubeconfig; only the endpoint rules stand in the way.
+	for _, exec := range []*clientcmdapi.ExecConfig{eksExecConfig(), gkeExecConfig()} {
+		config := redirectedConfig(attacker.Server, "https://example.com", exec)
+		if err := auth.Apply(config); err != nil {
+			t.Fatalf("Apply() error = %v", err)
+		}
+		if config.ExecProvider == nil || config.WrapTransport != nil {
+			t.Fatalf("Apply() intercepted the %q stanza for an attacker host", exec.Command)
+		}
+		// Send a request with whatever Apply installed, minus the exec
+		// plugin (which would need the real binary).
+		config.ExecProvider = nil
+		_ = getStatus(t, config)
+		if got := attacker.seen.Load(); got != "" {
+			t.Fatalf("attacker received Authorization %q", got)
+		}
+	}
+	if attacker.hits.Load() == 0 {
+		t.Fatal("the attacker server saw no request")
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("factory calls = %d, want 0", got)
+	}
+}
+
+func TestAuthenticatorAcceptsGKEEndpointForms(t *testing.T) {
+	server := newAuthorizationRecorder(t, "adc-token")
+	var calls atomic.Int32
+	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("adc-token", &calls)), WithLookPath(notOnPath))
+
+	// An IP endpoint with the cluster CA, end to end.
+	ipConfig := &rest.Config{
+		Host:            server.URL,
+		ExecProvider:    gkeExecConfig(),
+		TLSClientConfig: rest.TLSClientConfig{CAData: redirectedConfig(server.Server, server.URL, nil).CAData},
+	}
+	if err := auth.Apply(ipConfig); err != nil {
+		t.Fatalf("Apply(IP endpoint) error = %v", err)
+	}
+	if got := getStatus(t, ipConfig); got != http.StatusOK {
+		t.Fatalf("GET status = %d, want 200", got)
+	}
+
+	// A DNS-based endpoint, end to end through the redirect.
+	dnsConfig := redirectedConfig(server.Server, testGKEDNSHost, gkeExecConfig())
+	if err := auth.Apply(dnsConfig); err != nil {
+		t.Fatalf("Apply(DNS endpoint) error = %v", err)
+	}
+	if dnsConfig.ExecProvider != nil || dnsConfig.WrapTransport == nil {
+		t.Fatal("Apply() did not intercept a GKE DNS-based endpoint")
+	}
+
+	// Connect Gateway.
+	gateway := &rest.Config{Host: "https://connectgateway.googleapis.com/v1/projects/1/locations/global/gkeMemberships/demo", ExecProvider: gkeExecConfig()}
+	if err := auth.Apply(gateway); err != nil || gateway.ExecProvider != nil {
+		t.Fatalf("Apply(Connect Gateway) = %v, ExecProvider %v; want interception", err, gateway.ExecProvider)
+	}
+}
+
 func TestAuthenticatorMissingCredentialsWithoutPluginFails(t *testing.T) {
 	var calls atomic.Int32
 	auth := NewAuthenticator(WithTokenSourceFactory(failingFactory(&calls)), WithLookPath(notOnPath))
 
-	config := &rest.Config{Host: "https://cluster.example.com", ExecProvider: eksExecConfig()}
-	err := auth.Apply(config)
+	err := auth.Apply(eksConfig(eksExecConfig()))
 	if err == nil {
 		t.Fatal("Apply() succeeded without credentials or plugin")
 	}
@@ -159,7 +391,7 @@ func TestAuthenticatorMissingCredentialsWithoutPluginFails(t *testing.T) {
 	}
 
 	// Errors are not cached: once credentials appear, setup is retried.
-	if err := auth.Apply(&rest.Config{ExecProvider: eksExecConfig()}); err == nil {
+	if err := auth.Apply(eksConfig(eksExecConfig())); err == nil {
 		t.Fatal("second Apply() unexpectedly succeeded")
 	}
 	if got := calls.Load(); got != 2 {
@@ -193,7 +425,7 @@ func TestAuthenticatorMissingCredentialsFallsBackToPluginOnPath(t *testing.T) {
 
 	for i := 0; i < 2; i++ {
 		exec := eksExecConfig()
-		config := &rest.Config{Host: "https://cluster.example.com", ExecProvider: exec}
+		config := eksConfig(exec)
 		if err := auth.Apply(config); err != nil {
 			t.Fatalf("Apply() error = %v", err)
 		}
@@ -238,7 +470,7 @@ func TestAuthenticatorDisabled(t *testing.T) {
 			auth := NewAuthenticator(append(tt.opts, WithTokenSourceFactory(staticFactory("unused", &calls)))...)
 
 			exec := eksExecConfig()
-			config := &rest.Config{ExecProvider: exec}
+			config := eksConfig(exec)
 			if err := auth.Apply(config); err != nil {
 				t.Fatalf("Apply() error = %v", err)
 			}
@@ -252,7 +484,7 @@ func TestAuthenticatorDisabled(t *testing.T) {
 		t.Setenv(DisableEnvVar, "false")
 		var calls atomic.Int32
 		auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("minted", &calls)))
-		config := &rest.Config{ExecProvider: eksExecConfig()}
+		config := eksConfig(eksExecConfig())
 		if err := auth.Apply(config); err != nil {
 			t.Fatalf("Apply() error = %v", err)
 		}
@@ -269,46 +501,40 @@ func TestDefaultTokenSourceFactoryRejectsUnknownProvider(t *testing.T) {
 	}
 }
 
-// fakeServiceAccountKey returns a syntactically valid service-account key
-// with a freshly generated RSA key. It is not registered anywhere.
-func fakeServiceAccountKey(t *testing.T, credentialType string) []byte {
-	t.Helper()
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("rsa.GenerateKey() error = %v", err)
-	}
-	der, err := x509.MarshalPKCS8PrivateKey(key)
-	if err != nil {
-		t.Fatalf("MarshalPKCS8PrivateKey() error = %v", err)
-	}
-	data, err := json.Marshal(map[string]string{
-		"type":           credentialType,
-		"project_id":     "meshkit-test",
-		"private_key_id": "0123456789abcdef",
-		"private_key":    string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})),
-		"client_email":   "meshkit-test@meshkit-test.iam.gserviceaccount.com",
-		"client_id":      "123456789",
-		"token_uri":      "https://oauth2.googleapis.com/token",
-	})
-	if err != nil {
-		t.Fatalf("json.Marshal() error = %v", err)
-	}
-	return data
-}
-
 func TestNewGKETokenSourceFromJSON(t *testing.T) {
-	// Building the source must not need the network; Token is never called.
-	source, err := NewGKETokenSourceFromJSON(context.Background(), fakeServiceAccountKey(t, "service_account"))
+	endpoint := useGoogleTokenEndpoint(t, http.StatusOK, validGoogleToken)
+
+	source, err := NewGKETokenSourceFromJSON(context.Background(), fakeServiceAccountKey(t, nil))
 	if err != nil {
 		t.Fatalf("NewGKETokenSourceFromJSON() error = %v", err)
 	}
-	if source == nil {
-		t.Fatal("NewGKETokenSourceFromJSON() returned a nil token source")
+	if got := endpoint.requests.Load(); got != 1 {
+		t.Fatalf("token requests at setup = %d, want 1 (a bad key must fail fast)", got)
 	}
+	token, err := source.Token()
+	if err != nil || token.AccessToken != "adc-token" {
+		t.Fatalf("Token() = (%v, %v), want the setup token", token, err)
+	}
+	if got := endpoint.requests.Load(); got != 1 {
+		t.Fatalf("token requests = %d, want 1 (the setup token must be reused)", got)
+	}
+	for _, scope := range gkeScopes {
+		if !contains(endpoint.requestedScopes(), scope) {
+			t.Fatalf("requested scopes = %v, want %s", endpoint.requestedScopes(), scope)
+		}
+	}
+}
+
+func TestNewGKETokenSourceFromJSONRejectsUnusableKeys(t *testing.T) {
+	endpoint := useGoogleTokenEndpoint(t, http.StatusOK, validGoogleToken)
 
 	for name, key := range map[string][]byte{
-		"malformed JSON":          []byte("{not json"),
-		"non service-account key": fakeServiceAccountKey(t, "authorized_user"),
+		"malformed JSON":                       []byte("{not json"),
+		"authorized_user key":                  fakeServiceAccountKey(t, map[string]string{"type": "authorized_user"}),
+		"external_account key":                 fakeServiceAccountKey(t, map[string]string{"type": "external_account"}),
+		"custom token_uri":                     fakeServiceAccountKey(t, map[string]string{"token_uri": "https://attacker.example.com/token"}),
+		"internal token_uri":                   fakeServiceAccountKey(t, map[string]string{"token_uri": "http://169.254.169.254/token"}),
+		"legacy accounts.google.com token_uri": fakeServiceAccountKey(t, map[string]string{"token_uri": "https://accounts.google.com/o/oauth2/token"}),
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := NewGKETokenSourceFromJSON(context.Background(), key)
@@ -317,72 +543,22 @@ func TestNewGKETokenSourceFromJSON(t *testing.T) {
 			}
 		})
 	}
-}
+	if got := endpoint.requests.Load(); got != 0 {
+		t.Fatalf("token requests = %d, want 0: a rejected key must never be used", got)
+	}
 
-func TestInstallTokenSourceWithGKESource(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("Authorization"); got != "Bearer gke-token" {
-			http.Error(w, "unexpected Authorization "+got, http.StatusUnauthorized)
-			return
+	t.Run("key rejected by Google fails at setup", func(t *testing.T) {
+		useGoogleTokenEndpoint(t, http.StatusBadRequest, `{"error":"invalid_grant","error_description":"Invalid JWT Signature."}`)
+		_, err := NewGKETokenSourceFromJSON(context.Background(), fakeServiceAccountKey(t, nil))
+		if got := errors.GetCode(err); got != ErrGCPServiceAccountKeyCode {
+			t.Fatalf("error code = %q, want %q (error: %v)", got, ErrGCPServiceAccountKeyCode, err)
 		}
-		_, _ = io.WriteString(w, "ok")
-	}))
-	defer server.Close()
-
-	config := &rest.Config{Host: server.URL, ExecProvider: &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin"}}
-	installTokenSource(config, oauth2.ReuseTokenSource(nil, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "gke-token"})))
-	if config.ExecProvider != nil {
-		t.Fatal("installTokenSource() left ExecProvider set")
-	}
-
-	client, err := rest.HTTPClientFor(config)
-	if err != nil {
-		t.Fatalf("HTTPClientFor() error = %v", err)
-	}
-	resp, err := client.Get(server.URL)
-	if err != nil {
-		t.Fatalf("GET error = %v", err)
-	}
-	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET status = %d, want 200", resp.StatusCode)
-	}
-}
-
-// useADCServiceAccount points Application Default Credentials at a
-// service-account key whose token endpoint is a local test server answering
-// with status and body, and returns how many token requests it received.
-func useADCServiceAccount(t *testing.T, status int, body string) *atomic.Int32 {
-	t.Helper()
-	var requests atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		requests.Add(1)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		_, _ = io.WriteString(w, body)
-	}))
-	t.Cleanup(server.Close)
-
-	var key map[string]string
-	if err := json.Unmarshal(fakeServiceAccountKey(t, "service_account"), &key); err != nil {
-		t.Fatalf("json.Unmarshal() error = %v", err)
-	}
-	key["token_uri"] = server.URL
-	data, err := json.Marshal(key)
-	if err != nil {
-		t.Fatalf("json.Marshal() error = %v", err)
-	}
-	path := filepath.Join(t.TempDir(), "adc.json")
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", path)
-	return &requests
+	})
 }
 
 func TestNewGKETokenSourceFetchesTokenAtSetup(t *testing.T) {
-	requests := useADCServiceAccount(t, http.StatusOK,
-		`{"access_token":"adc-token","token_type":"Bearer","expires_in":3600}`)
+	endpoint := useGoogleTokenEndpoint(t, http.StatusOK, validGoogleToken)
+	useADCFile(t, fakeServiceAccountKey(t, nil))
 
 	source, err := NewGKETokenSource(context.Background())
 	if err != nil {
@@ -395,13 +571,48 @@ func TestNewGKETokenSourceFetchesTokenAtSetup(t *testing.T) {
 	if token.AccessToken != "adc-token" {
 		t.Fatalf("AccessToken = %q, want %q", token.AccessToken, "adc-token")
 	}
-	if got := requests.Load(); got != 1 {
+	if got := endpoint.requests.Load(); got != 1 {
 		t.Fatalf("token endpoint requests = %d, want 1 (the setup token must be reused)", got)
+	}
+	for _, scope := range gkeScopes {
+		if !contains(endpoint.requestedScopes(), scope) {
+			t.Fatalf("requested scopes = %v, want %s", endpoint.requestedScopes(), scope)
+		}
 	}
 }
 
+func TestNewGKETokenSourceRejectsUnsupportedADCFiles(t *testing.T) {
+	endpoint := useGoogleTokenEndpoint(t, http.StatusOK, validGoogleToken)
+
+	for name, data := range map[string][]byte{
+		"service_account with a custom token_uri": fakeServiceAccountKey(t, map[string]string{"token_uri": "https://attacker.example.com/token"}),
+		"authorized_user with a custom token_uri": []byte(`{"type":"authorized_user","client_id":"id","client_secret":"s","refresh_token":"r","token_uri":"https://attacker.example.com/token"}`),
+		"external_account":                        []byte(`{"type":"external_account","audience":"//iam.googleapis.com/x","subject_token_type":"urn:ietf:params:oauth:token-type:jwt","token_url":"https://attacker.example.com/token","credential_source":{"file":"/tmp/token"}}`),
+		"impersonated_service_account":            []byte(`{"type":"impersonated_service_account","service_account_impersonation_url":"https://attacker.example.com/","source_credentials":{"type":"authorized_user","client_id":"id","client_secret":"s","refresh_token":"r"}}`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			useADCFile(t, data)
+			_, err := NewGKETokenSource(context.Background())
+			if got := errors.GetCode(err); got != ErrGCPCredentialsUnavailableCode {
+				t.Fatalf("error code = %q, want %q (error: %v)", got, ErrGCPCredentialsUnavailableCode, err)
+			}
+		})
+	}
+	if got := endpoint.requests.Load(); got != 0 {
+		t.Fatalf("token requests = %d, want 0: rejected credentials must never be used", got)
+	}
+
+	t.Run("authorized_user without token_uri is accepted", func(t *testing.T) {
+		useADCFile(t, []byte(`{"type":"authorized_user","client_id":"id","client_secret":"s","refresh_token":"r"}`))
+		if _, err := NewGKETokenSource(context.Background()); err != nil {
+			t.Fatalf("NewGKETokenSource() error = %v", err)
+		}
+	})
+}
+
 func TestNewGKETokenSourceRejectsUnusableCredentials(t *testing.T) {
-	useADCServiceAccount(t, http.StatusBadRequest, `{"error":"invalid_grant","error_description":"revoked"}`)
+	useGoogleTokenEndpoint(t, http.StatusBadRequest, `{"error":"invalid_grant","error_description":"revoked"}`)
+	useADCFile(t, fakeServiceAccountKey(t, nil))
 
 	_, err := NewGKETokenSource(context.Background())
 	if got := errors.GetCode(err); got != ErrGCPCredentialsUnavailableCode {
@@ -409,16 +620,34 @@ func TestNewGKETokenSourceRejectsUnusableCredentials(t *testing.T) {
 	}
 }
 
-func TestAuthenticatorFallsBackToGKEPluginWhenADCCannotMint(t *testing.T) {
-	useADCServiceAccount(t, http.StatusBadRequest, `{"error":"invalid_grant","error_description":"revoked"}`)
+func TestNewGKETokenSourceSetupTimeoutCancelsTheRequest(t *testing.T) {
+	endpoint := useGoogleTokenEndpoint(t, http.StatusOK, validGoogleToken)
+	cancelled := make(chan struct{})
+	endpoint.respond = func(r *http.Request) (*http.Response, error) {
+		<-r.Context().Done()
+		close(cancelled)
+		return nil, r.Context().Err()
+	}
+	useADCFile(t, fakeServiceAccountKey(t, nil))
 
-	auth := NewAuthenticator(WithLookPath(func(file string) (string, error) {
-		return "/usr/local/bin/" + file, nil
-	}))
-	config := &rest.Config{Host: "https://gke.example.com", ExecProvider: &clientcmdapi.ExecConfig{
-		APIVersion: "client.authentication.k8s.io/v1beta1",
-		Command:    "gke-gcloud-auth-plugin",
-	}}
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if _, err := NewGKETokenSource(ctx); err == nil {
+		t.Fatal("NewGKETokenSource() succeeded against a stalled token endpoint")
+	}
+	select {
+	case <-cancelled:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the stalled token request was not cancelled when setup timed out")
+	}
+}
+
+func TestAuthenticatorFallsBackToGKEPluginWhenADCCannotMint(t *testing.T) {
+	useGoogleTokenEndpoint(t, http.StatusBadRequest, `{"error":"invalid_grant","error_description":"revoked"}`)
+	useADCFile(t, fakeServiceAccountKey(t, nil))
+
+	auth := NewAuthenticator(WithLookPath(onPath))
+	config := &rest.Config{Host: testGKEDNSHost, ExecProvider: gkeExecConfig()}
 	if err := auth.Apply(config); err != nil {
 		t.Fatalf("Apply() error = %v", err)
 	}
@@ -451,48 +680,19 @@ func (failingSource) Token() (*oauth2.Token, error) {
 	return nil, fmt.Errorf("security token included in the request is expired")
 }
 
-// acceptingServer answers 200 only to the given bearer token and 401
-// otherwise.
-func acceptingServer(t *testing.T, token string) *httptest.Server {
-	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer "+token {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		_, _ = io.WriteString(w, "ok")
-	}))
-	t.Cleanup(server.Close)
-	return server
-}
-
-func getStatus(t *testing.T, client *http.Client, url string) int {
-	t.Helper()
-	resp, err := client.Get(url)
-	if err != nil {
-		return 0
-	}
-	_ = resp.Body.Close()
-	return resp.StatusCode
-}
-
 func TestAuthenticatorSetsUpAgainAfterUnauthorized(t *testing.T) {
-	server := acceptingServer(t, "fresh")
+	server := newAuthorizationRecorder(t, "fresh")
 	var calls atomic.Int32
 	auth := NewAuthenticator(WithTokenSourceFactory(sequenceFactory(&calls, "stale", "fresh")), WithLookPath(onPath))
 
-	config := &rest.Config{Host: server.URL, ExecProvider: eksExecConfig()}
+	config := redirectedConfig(server.Server, testEKSHost, eksExecConfig())
 	if err := auth.Apply(config); err != nil {
 		t.Fatalf("Apply() error = %v", err)
 	}
-	client, err := rest.HTTPClientFor(config)
-	if err != nil {
-		t.Fatalf("HTTPClientFor() error = %v", err)
-	}
-	if got := getStatus(t, client, server.URL); got != http.StatusUnauthorized {
+	if got := getStatus(t, config); got != http.StatusUnauthorized {
 		t.Fatalf("first GET status = %d, want 401 with the stale credentials", got)
 	}
-	if got := getStatus(t, client, server.URL); got != http.StatusOK {
+	if got := getStatus(t, config); got != http.StatusOK {
 		t.Fatalf("GET after 401 status = %d, want 200 from re-loaded credentials", got)
 	}
 	if got := calls.Load(); got != 2 {
@@ -500,36 +700,28 @@ func TestAuthenticatorSetsUpAgainAfterUnauthorized(t *testing.T) {
 	}
 
 	// Clients built later share the refreshed source.
-	second := &rest.Config{Host: server.URL, ExecProvider: eksExecConfig()}
+	second := redirectedConfig(server.Server, testEKSHost, eksExecConfig())
 	if err := auth.Apply(second); err != nil {
 		t.Fatalf("second Apply() error = %v", err)
 	}
-	secondClient, err := rest.HTTPClientFor(second)
-	if err != nil {
-		t.Fatalf("HTTPClientFor() error = %v", err)
-	}
-	if got := getStatus(t, secondClient, server.URL); got != http.StatusOK || calls.Load() != 2 {
+	if got := getStatus(t, second); got != http.StatusOK || calls.Load() != 2 {
 		t.Fatalf("second client status = %d, factory calls = %d; want 200 and 2", got, calls.Load())
 	}
 }
 
 func TestAuthenticatorSetsUpAgainAfterTokenFailure(t *testing.T) {
-	server := acceptingServer(t, "fresh")
+	server := newAuthorizationRecorder(t, "fresh")
 	var calls atomic.Int32
 	auth := NewAuthenticator(WithTokenSourceFactory(sequenceFactory(&calls, "", "fresh")), WithLookPath(onPath))
 
-	config := &rest.Config{Host: server.URL, ExecProvider: eksExecConfig()}
+	config := redirectedConfig(server.Server, testEKSHost, eksExecConfig())
 	if err := auth.Apply(config); err != nil {
 		t.Fatalf("Apply() error = %v", err)
 	}
-	client, err := rest.HTTPClientFor(config)
-	if err != nil {
-		t.Fatalf("HTTPClientFor() error = %v", err)
-	}
-	if got := getStatus(t, client, server.URL); got == http.StatusOK {
+	if got := getStatus(t, config); got == http.StatusOK {
 		t.Fatal("first GET succeeded although the token source failed")
 	}
-	if got := getStatus(t, client, server.URL); got != http.StatusOK {
+	if got := getStatus(t, config); got != http.StatusOK {
 		t.Fatalf("GET after a failed token status = %d, want 200 from re-loaded credentials", got)
 	}
 	if got := calls.Load(); got != 2 {
@@ -542,28 +734,65 @@ func TestAuthenticatorCachedFallbackRequiresOwnCommandOnPath(t *testing.T) {
 	auth := NewAuthenticator(
 		WithTokenSourceFactory(failingFactory(&calls)),
 		WithLookPath(func(file string) (string, error) {
-			if file == "gcloud" {
-				return "/usr/bin/gcloud", nil
+			if file == "aws" {
+				return "/usr/bin/aws", nil
 			}
 			return notOnPath(file)
 		}),
 	)
 
-	gcloud := &rest.Config{ExecProvider: &clientcmdapi.ExecConfig{Command: "gcloud", Args: []string{"config", "config-helper"}}}
-	if err := auth.Apply(gcloud); err != nil {
-		t.Fatalf("Apply(gcloud) error = %v", err)
+	// Both stanzas resolve to the same cluster identity.
+	cli := eksConfig(eksExecConfig())
+	if err := auth.Apply(cli); err != nil {
+		t.Fatalf("Apply(aws) error = %v", err)
 	}
-	if gcloud.ExecProvider == nil {
-		t.Fatal("Apply(gcloud) did not fall back to the installed gcloud")
+	if cli.ExecProvider == nil {
+		t.Fatal("Apply(aws) did not fall back to the installed aws CLI")
 	}
 
-	plugin := &rest.Config{ExecProvider: &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin"}}
-	err := auth.Apply(plugin)
+	authenticator := eksConfig(&clientcmdapi.ExecConfig{Command: "aws-iam-authenticator", Args: []string{"token", "-i", "demo", "--region", "us-west-2"}})
+	err := auth.Apply(authenticator)
 	if got := errors.GetCode(err); got != ErrInProcessCloudAuthUnavailableCode {
-		t.Fatalf("Apply(gke-gcloud-auth-plugin) error = %v, want code %q (its binary is not on PATH)", err, ErrInProcessCloudAuthUnavailableCode)
+		t.Fatalf("Apply(aws-iam-authenticator) error = %v, want code %q (its binary is not on PATH)", err, ErrInProcessCloudAuthUnavailableCode)
 	}
 	if !strings.Contains(err.Error(), "no credentials in chain") {
 		t.Fatalf("error %q does not carry the setup failure", err)
+	}
+}
+
+func TestAuthenticatorRetriesSetupWhenFallbackPluginDisappears(t *testing.T) {
+	var calls atomic.Int32
+	factory := func(context.Context, Spec) (oauth2.TokenSource, error) {
+		if calls.Add(1) == 1 {
+			return nil, fmt.Errorf("credentials not yet mounted")
+		}
+		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "minted"}), nil
+	}
+	var installed atomic.Bool
+	installed.Store(true)
+	auth := NewAuthenticator(WithTokenSourceFactory(factory), WithLookPath(func(file string) (string, error) {
+		if installed.Load() {
+			return onPath(file)
+		}
+		return notOnPath(file)
+	}))
+	auth.clock = newFakeClock()
+
+	if config := eksConfig(eksExecConfig()); auth.Apply(config) != nil || config.ExecProvider == nil {
+		t.Fatal("first Apply() did not fall back to the installed plugin")
+	}
+	// The plugin is removed and credentials appear, well inside the
+	// fallback retry interval: setup must run again rather than fail.
+	installed.Store(false)
+	config := eksConfig(eksExecConfig())
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() after the plugin disappeared error = %v", err)
+	}
+	if config.ExecProvider != nil {
+		t.Fatal("Apply() did not switch to in-process minting")
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("factory calls = %d, want 2", got)
 	}
 }
 
@@ -578,12 +807,12 @@ func TestAuthenticatorRetriesSetupAfterFallbackInterval(t *testing.T) {
 		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "minted"}), nil
 	}
 	auth := NewAuthenticator(WithTokenSourceFactory(factory), WithLookPath(onPath))
-	clock := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	auth.now = func() time.Time { return clock }
+	clock := newFakeClock()
+	auth.clock = clock
 
 	apply := func() *rest.Config {
 		t.Helper()
-		config := &rest.Config{ExecProvider: eksExecConfig()}
+		config := eksConfig(eksExecConfig())
 		if err := auth.Apply(config); err != nil {
 			t.Fatalf("Apply() error = %v", err)
 		}
@@ -593,15 +822,246 @@ func TestAuthenticatorRetriesSetupAfterFallbackInterval(t *testing.T) {
 	if apply().ExecProvider == nil {
 		t.Fatal("first Apply() did not fall back to the plugin")
 	}
-	clock = clock.Add(fallbackRetryInterval - time.Second)
+	clock.Advance(fallbackRetryInterval - time.Second)
 	if apply().ExecProvider == nil || calls.Load() != 1 {
 		t.Fatalf("Apply() within the retry interval re-ran setup (factory calls = %d)", calls.Load())
 	}
-	clock = clock.Add(time.Second)
+	clock.Advance(time.Second)
 	if apply().ExecProvider != nil {
 		t.Fatal("Apply() after the retry interval did not switch to in-process minting")
 	}
 	if got := calls.Load(); got != 2 {
 		t.Fatalf("factory calls = %d, want 2", got)
 	}
+}
+
+// blockingFactory blocks setup for cluster "demo" until release, then
+// returns result; any other cluster sets up at once. A setup whose deadline
+// passes records the cancellation and returns its cause.
+type blockingFactory struct {
+	calls     atomic.Int32
+	started   chan struct{}
+	release   chan struct{}
+	cancelled chan error
+	result    func() (oauth2.TokenSource, error)
+}
+
+func newBlockingFactory(result func() (oauth2.TokenSource, error)) *blockingFactory {
+	return &blockingFactory{
+		started:   make(chan struct{}, 16),
+		release:   make(chan struct{}),
+		cancelled: make(chan error, 16),
+		result:    result,
+	}
+}
+
+func (f *blockingFactory) factory(ctx context.Context, spec Spec) (oauth2.TokenSource, error) {
+	if spec.EKS.ClusterID != "demo" {
+		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "other"}), nil
+	}
+	f.calls.Add(1)
+	f.started <- struct{}{}
+	select {
+	case <-f.release:
+		return f.result()
+	case <-ctx.Done():
+		f.cancelled <- context.Cause(ctx)
+		return nil, context.Cause(ctx)
+	}
+}
+
+func setupWaiters(entry *authEntry) int {
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	if entry.setupFlight == nil {
+		return 0
+	}
+	return entry.setupFlight.waiters
+}
+
+func tokenWaiters(entry *authEntry) int {
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	if entry.tokenFlight == nil {
+		return 0
+	}
+	return entry.tokenFlight.waiters
+}
+
+func TestAuthenticatorSetupDoesNotHoldLocksAndSharesFailure(t *testing.T) {
+	f := newBlockingFactory(func() (oauth2.TokenSource, error) {
+		return nil, fmt.Errorf("STS throttled")
+	})
+	auth := NewAuthenticator(WithTokenSourceFactory(f.factory), WithLookPath(notOnPath))
+	auth.clock = newFakeClock()
+
+	const callers = 8
+	results := make(chan error, callers)
+	apply := func() { results <- auth.Apply(eksConfig(eksExecConfig())) }
+	go apply()
+	<-f.started
+
+	// While setup for "demo" is blocked: another cluster sets up, and the
+	// 401 path for "demo" takes the entry lock and returns.
+	other := eksExecConfig()
+	other.Args = []string{"eks", "get-token", "--cluster-name", "other"}
+	returnsPromptly(t, "Apply for another cluster", func() {
+		if err := auth.Apply(eksConfig(other)); err != nil {
+			t.Errorf("Apply(other) error = %v", err)
+		}
+	})
+	spec, _ := Recognize(eksExecConfig())
+	entry := auth.entry(spec)
+	returnsPromptly(t, "ResetTokenOlderThan", func() { entry.ResetTokenOlderThan(time.Now()) })
+
+	for i := 1; i < callers; i++ {
+		go apply()
+	}
+	eventually(t, "every other Apply to join the setup", func() bool { return setupWaiters(entry) == callers-1 })
+
+	close(f.release)
+	for i := 0; i < callers; i++ {
+		err := <-results
+		if errors.GetCode(err) != ErrInProcessCloudAuthUnavailableCode || !strings.Contains(err.Error(), "STS throttled") {
+			t.Fatalf("Apply() error = %v, want the shared setup failure", err)
+		}
+	}
+	if got := f.calls.Load(); got != 1 {
+		t.Fatalf("setup calls = %d, want 1 shared by every caller", got)
+	}
+}
+
+func TestAuthenticatorSetupTimeoutCancels(t *testing.T) {
+	f := newBlockingFactory(func() (oauth2.TokenSource, error) {
+		t.Error("setup was released, want it cancelled by the deadline")
+		return nil, nil
+	})
+	clock := newFakeClock()
+	auth := NewAuthenticator(WithTokenSourceFactory(f.factory), WithLookPath(notOnPath))
+	auth.clock = clock
+
+	result := make(chan error, 1)
+	go func() { result <- auth.Apply(eksConfig(eksExecConfig())) }()
+	<-f.started
+	clock.Advance(defaultSetupTimeout)
+
+	if cause := <-f.cancelled; !stderrors.Is(cause, context.DeadlineExceeded) {
+		t.Fatalf("setup context cause = %v, want context.DeadlineExceeded", cause)
+	}
+	err := <-result
+	if errors.GetCode(err) != ErrInProcessCloudAuthUnavailableCode || !strings.Contains(err.Error(), "gave up setting up credentials") {
+		t.Fatalf("Apply() error = %v, want ErrInProcessCloudAuthUnavailable carrying the setup timeout", err)
+	}
+}
+
+func TestAuthenticatorTokenAfterResetSharesOneBoundedSetup(t *testing.T) {
+	var fail atomic.Bool
+	f := newBlockingFactory(func() (oauth2.TokenSource, error) {
+		if fail.Load() {
+			return nil, fmt.Errorf("credentials revoked")
+		}
+		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "first"}), nil
+	})
+	clock := newFakeClock()
+	auth := NewAuthenticator(WithTokenSourceFactory(f.factory), WithLookPath(notOnPath))
+	auth.clock = clock
+
+	close(f.release)
+	spec, _ := Recognize(eksExecConfig())
+	source, err := auth.tokenSource(spec)
+	if err != nil || source == nil {
+		t.Fatalf("tokenSource() = (%v, %v), want a source", source, err)
+	}
+	<-f.started
+	entry := source.(*authEntry)
+
+	// A 401 discards the source; the next requests re-run setup together.
+	fail.Store(true)
+	entry.ResetTokenOlderThan(clock.Now().Add(time.Second))
+	f.release = make(chan struct{})
+
+	const callers = 8
+	results := make(chan error, callers)
+	for i := 0; i < callers; i++ {
+		go func() {
+			_, err := entry.Token()
+			results <- err
+		}()
+	}
+	<-f.started
+	eventually(t, "every other Token call to join", func() bool { return tokenWaiters(entry) == callers-1 })
+	returnsPromptly(t, "ResetTokenOlderThan during setup", func() { entry.ResetTokenOlderThan(clock.Now()) })
+
+	close(f.release)
+	for i := 0; i < callers; i++ {
+		if err := <-results; err == nil || !strings.Contains(err.Error(), "credentials revoked") {
+			t.Fatalf("Token() error = %v, want the shared setup failure", err)
+		}
+	}
+	if got := f.calls.Load(); got != 2 {
+		t.Fatalf("setup calls = %d, want 2 (one at Apply, one shared after the reset)", got)
+	}
+
+	// The re-setup after a reset is bounded too.
+	f.release = make(chan struct{})
+	result := make(chan error, 1)
+	go func() {
+		_, err := entry.Token()
+		result <- err
+	}()
+	<-f.started
+	clock.Advance(defaultSetupTimeout)
+	if cause := <-f.cancelled; !stderrors.Is(cause, context.DeadlineExceeded) {
+		t.Fatalf("setup context cause = %v, want context.DeadlineExceeded", cause)
+	}
+	if err := <-result; errors.GetCode(err) != ErrCloudAuthTimeoutCode {
+		t.Fatalf("Token() error = %v, want code %q", err, ErrCloudAuthTimeoutCode)
+	}
+}
+
+func TestAuthenticatorBoundsForeignTokenSources(t *testing.T) {
+	block := make(chan struct{})
+	defer close(block)
+	clock := newFakeClock()
+	auth := NewAuthenticator(WithTokenSourceFactory(func(context.Context, Spec) (oauth2.TokenSource, error) {
+		return stalledSource{block: block}, nil
+	}))
+	auth.clock = clock
+
+	spec, _ := Recognize(eksExecConfig())
+	source, err := auth.tokenSource(spec)
+	if err != nil {
+		t.Fatalf("tokenSource() error = %v", err)
+	}
+	timers := func() int {
+		clock.mu.Lock()
+		defer clock.mu.Unlock()
+		return len(clock.timers)
+	}
+	setupTimers := timers()
+	result := make(chan error, 1)
+	go func() {
+		_, err := source.Token()
+		result <- err
+	}()
+	entry := source.(*authEntry)
+	eventually(t, "the token call to start its deadline", func() bool { return timers() > setupTimers })
+	clock.Advance(defaultMintTimeout)
+	if err := <-result; errors.GetCode(err) != ErrCloudAuthTimeoutCode {
+		t.Fatalf("Token() error = %v, want code %q", err, ErrCloudAuthTimeoutCode)
+	}
+	entry.mu.Lock()
+	discarded := entry.source == nil
+	entry.mu.Unlock()
+	if !discarded {
+		t.Fatal("a timed-out source was kept; the next call must set up again")
+	}
+}
+
+// stalledSource never returns a token until block is closed.
+type stalledSource struct{ block chan struct{} }
+
+func (s stalledSource) Token() (*oauth2.Token, error) {
+	<-s.block
+	return nil, fmt.Errorf("released")
 }

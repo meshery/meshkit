@@ -69,20 +69,88 @@ func TestRecognize(t *testing.T) {
 			wantOK: true,
 		},
 		{
-			name: "aws eks get-token ignores credentials and shared files in exec env",
+			name: "aws eks get-token ignores unrelated exec env",
 			exec: &clientcmdapi.ExecConfig{
 				Command: "aws",
 				Args:    []string{"eks", "get-token", "--cluster-name", "demo"},
-				Env: []clientcmdapi.ExecEnvVar{
-					{Name: "AWS_ACCESS_KEY_ID", Value: "AKID"},
-					{Name: "AWS_SECRET_ACCESS_KEY", Value: "SECRET"},
-					{Name: "AWS_SESSION_TOKEN", Value: "SESSION"},
-					{Name: "AWS_CONFIG_FILE", Value: "/etc/aws/config"},
-					{Name: "AWS_SHARED_CREDENTIALS_FILE", Value: "/etc/aws/credentials"},
-				},
+				Env:     []clientcmdapi.ExecEnvVar{{Name: "AWS_STS_REGIONAL_ENDPOINTS", Value: "regional"}},
 			},
 			want:   Spec{Provider: ProviderEKS, Command: "aws", EKS: EKSConfig{ClusterID: "demo"}},
 			wantOK: true,
+		},
+		{
+			name: "aws eks get-token with static keys in exec env stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws",
+				Args:    []string{"eks", "get-token", "--cluster-name", "demo", "--region", "us-west-2"},
+				Env: []clientcmdapi.ExecEnvVar{
+					{Name: "AWS_ACCESS_KEY_ID", Value: "AKID"},
+					{Name: "AWS_SECRET_ACCESS_KEY", Value: "SECRET"},
+				},
+			},
+		},
+		{
+			name: "aws eks get-token with only a session token in exec env stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws",
+				Args:    []string{"eks", "get-token", "--cluster-name", "demo"},
+				Env:     []clientcmdapi.ExecEnvVar{{Name: "AWS_SESSION_TOKEN", Value: "SESSION"}},
+			},
+		},
+		{
+			name: "aws eks get-token with alternative shared config files stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws",
+				Args:    []string{"eks", "get-token", "--cluster-name", "demo"},
+				Env:     []clientcmdapi.ExecEnvVar{{Name: "AWS_SHARED_CREDENTIALS_FILE", Value: "/etc/aws/credentials"}},
+			},
+		},
+		{
+			name: "aws-iam-authenticator with a web identity token in exec env stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws-iam-authenticator",
+				Args:    []string{"token", "-i", "demo"},
+				Env: []clientcmdapi.ExecEnvVar{
+					{Name: "AWS_ROLE_ARN", Value: "arn:aws:iam::111122223333:role/eks"},
+					{Name: "AWS_WEB_IDENTITY_TOKEN_FILE", Value: "/var/run/token"},
+				},
+			},
+		},
+		{
+			name: "aws eks get-token with AWS_DEFAULT_PROFILE in exec env stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws",
+				Args:    []string{"eks", "get-token", "--cluster-name", "demo"},
+				Env:     []clientcmdapi.ExecEnvVar{{Name: "AWS_DEFAULT_PROFILE", Value: "prod"}},
+			},
+		},
+		{
+			name: "a flag value that is another known flag is malformed",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws",
+				Args:    []string{"eks", "get-token", "--region", "--cluster-name", "demo"},
+			},
+		},
+		{
+			name: "a flag value that is an unknown long option is malformed",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws",
+				Args:    []string{"eks", "get-token", "--cluster-name", "demo", "--region", "--output", "json"},
+			},
+		},
+		{
+			name: "a trailing flag without a value is malformed",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws",
+				Args:    []string{"eks", "get-token", "--cluster-name", "demo", "--region"},
+			},
+		},
+		{
+			name: "aws-iam-authenticator short flag value that is another short flag is malformed",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws-iam-authenticator",
+				Args:    []string{"token", "-r", "-i", "demo"},
+			},
 		},
 		{
 			name: "aws eks get-token for an Outposts local cluster signs the cluster ID",
@@ -136,35 +204,76 @@ func TestRecognize(t *testing.T) {
 			wantOK: true,
 		},
 		{
-			name:   "gke-gcloud-auth-plugin",
-			exec:   &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin"},
+			name:   "gke-gcloud-auth-plugin with application default credentials",
+			exec:   &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin", Args: []string{"--use_application_default_credentials"}},
 			want:   Spec{Provider: ProviderGKE, Command: "gke-gcloud-auth-plugin"},
 			wantOK: true,
 		},
 		{
-			name:   "absolute path to gke-gcloud-auth-plugin.exe",
-			exec:   &clientcmdapi.ExecConfig{Command: `C:\google-cloud-sdk\bin\gke-gcloud-auth-plugin.exe`},
+			name:   "gke-gcloud-auth-plugin with application default credentials set to true",
+			exec:   &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin", Args: []string{"--use_application_default_credentials=true"}},
+			want:   Spec{Provider: ProviderGKE, Command: "gke-gcloud-auth-plugin"},
+			wantOK: true,
+		},
+		{
+			name: "absolute path to gke-gcloud-auth-plugin.exe with application default credentials",
+			exec: &clientcmdapi.ExecConfig{
+				Command: `C:\google-cloud-sdk\bin\gke-gcloud-auth-plugin.exe`,
+				Args:    []string{"--use_application_default_credentials"},
+			},
 			want:   Spec{Provider: ProviderGKE, Command: `C:\google-cloud-sdk\bin\gke-gcloud-auth-plugin.exe`},
 			wantOK: true,
 		},
 		{
-			name: "gcloud config config-helper",
+			// Without the flag the plugin uses the gcloud CLI's active
+			// account, which ADC cannot reproduce.
+			name: "bare gke-gcloud-auth-plugin stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin"},
+		},
+		{
+			name: "gke-gcloud-auth-plugin with application default credentials set to false stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin", Args: []string{"--use_application_default_credentials=false"}},
+		},
+		{
+			name: "gke-gcloud-auth-plugin with a malformed flag value stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin", Args: []string{"--use_application_default_credentials=maybe"}},
+		},
+		{
+			name: "gke-gcloud-auth-plugin with another argument stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "gke-gcloud-auth-plugin",
+				Args:    []string{"--use_application_default_credentials", "--impersonate_service_account=sa@p.iam.gserviceaccount.com"},
+			},
+		},
+		{
+			name: "gke-gcloud-auth-plugin with exec env stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "gke-gcloud-auth-plugin",
+				Args:    []string{"--use_application_default_credentials"},
+				Env:     []clientcmdapi.ExecEnvVar{{Name: "GOOGLE_APPLICATION_CREDENTIALS", Value: "/keys/other.json"}},
+			},
+		},
+		{
+			// config-helper uses the gcloud CLI's active account.
+			name: "gcloud config config-helper stays on the plugin",
 			exec: &clientcmdapi.ExecConfig{
 				Command: "/opt/google-cloud-sdk/bin/gcloud",
 				Args:    []string{"config", "config-helper", "--format=json"},
 			},
-			want:   Spec{Provider: ProviderGKE, Command: "/opt/google-cloud-sdk/bin/gcloud"},
-			wantOK: true,
 		},
 		{
-			name: "gcloud.cmd on windows",
+			name: "gcloud config config-helper with --account stays on the plugin",
 			exec: &clientcmdapi.ExecConfig{
 				Command: `C:\google-cloud-sdk\bin\gcloud.cmd`,
-				Args:    []string{"config", "config-helper"},
+				Args:    []string{"config", "config-helper", "--account=ops@example.com"},
 			},
-			want: Spec{Provider: ProviderGKE, Command: `C:\google-cloud-sdk\bin\gcloud.cmd`},
-			// gcloud ships as a .cmd script on Windows.
-			wantOK: true,
+		},
+		{
+			name: "gcloud config config-helper with --configuration stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "gcloud",
+				Args:    []string{"--configuration", "prod", "config", "config-helper"},
+			},
 		},
 		{
 			name: "gcloud auth print-identity-token is left to client-go",
@@ -220,6 +329,20 @@ func TestRecognize(t *testing.T) {
 				t.Fatalf("Recognize() = %#v, want %#v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestRecognizeLeavesEveryAWSIdentityEnvOnThePlugin(t *testing.T) {
+	for _, name := range awsIdentityEnv {
+		for _, exec := range []*clientcmdapi.ExecConfig{
+			{Command: "aws", Args: []string{"eks", "get-token", "--cluster-name", "demo"}},
+			{Command: "aws-iam-authenticator", Args: []string{"token", "-i", "demo"}},
+		} {
+			exec.Env = []clientcmdapi.ExecEnvVar{{Name: name, Value: ""}}
+			if spec, ok := Recognize(exec); ok {
+				t.Fatalf("Recognize(%s with env %s) = %#v, want it left on the plugin", exec.Command, name, spec)
+			}
+		}
 	}
 }
 
