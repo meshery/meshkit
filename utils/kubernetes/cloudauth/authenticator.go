@@ -29,9 +29,7 @@ func DefaultTokenSourceFactory(ctx context.Context, spec Spec) (oauth2.TokenSour
 	case ProviderEKS:
 		return NewEKSTokenSource(ctx, spec.EKS)
 	case ProviderGKE:
-		// The Google credentials keep ctx for every later refresh, so they
-		// get one that setup timeouts cannot cancel.
-		return NewGKETokenSource(context.WithoutCancel(ctx))
+		return NewGKETokenSource(ctx)
 	default:
 		return nil, ErrUnsupportedCloudProvider(spec.Provider)
 	}

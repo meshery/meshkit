@@ -1,6 +1,7 @@
 package cloudauth
 
 import (
+	"strings"
 	"testing"
 
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -220,6 +221,8 @@ func TestSpecCacheKeySeparatesIdentities(t *testing.T) {
 		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", Profile: "prod"}},
 		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", RoleARN: "arn:aws:iam::1:role/x"}},
 		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", AccessKeyID: "AKID"}},
+		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", SecretAccessKey: "rotated"}},
+		{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2", SessionToken: "rotated"}},
 		{Provider: ProviderGKE},
 	}
 	for _, v := range variants {
@@ -232,5 +235,11 @@ func TestSpecCacheKeySeparatesIdentities(t *testing.T) {
 	sameIdentity.Command = "/usr/local/bin/aws"
 	if sameIdentity.cacheKey() != base.cacheKey() {
 		t.Fatal("cacheKey depends on the command path, want it to depend only on the cluster identity")
+	}
+
+	withSecret := base
+	withSecret.EKS.SecretAccessKey = "do-not-store"
+	if strings.Contains(withSecret.cacheKey(), "do-not-store") {
+		t.Fatal("cacheKey holds the secret access key in clear")
 	}
 }

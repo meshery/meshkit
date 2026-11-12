@@ -1,6 +1,8 @@
 package cloudauth
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -78,15 +80,18 @@ type EKSConfig struct {
 
 // cacheKey identifies the token source a Spec resolves to, so that every
 // rest.Config built for the same cluster identity shares one source and one
-// refresh schedule. Secrets are deliberately left out; the access key ID is
-// enough to tell static identities apart.
+// refresh schedule. Static secrets enter only as a SHA-256 fingerprint, so a
+// kubeconfig re-imported with rotated credentials under the same access key
+// ID gets a fresh source without the key holding the secrets in clear.
 func (s Spec) cacheKey() string {
 	switch s.Provider {
 	case ProviderEKS:
 		e := s.EKS
+		secrets := sha256.Sum256([]byte(e.SecretAccessKey + "\x00" + e.SessionToken))
 		return strings.Join([]string{
 			string(s.Provider), e.ClusterID, e.Region, e.Profile, e.RoleARN,
 			e.RoleSessionName, e.ExternalID, e.ConfigFile, e.CredentialsFile, e.AccessKeyID,
+			hex.EncodeToString(secrets[:]),
 		}, "\x00")
 	default:
 		// ADC is process-wide, so every GKE stanza shares one source.

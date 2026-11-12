@@ -52,10 +52,16 @@ type restConfigAuthenticator interface {
 
 var _ restConfigAuthenticator = (*cloudauth.Authenticator)(nil)
 
-// newRESTConfigAuthenticator returns the default authenticator. Each call
-// returns an independent one, with its own token source cache.
+// defaultAuthenticator is shared by every client this package builds, so
+// all of them reuse one token source per cluster identity, the way
+// client-go's exec loader shares one plugin token per cluster across a
+// process. Without it each New would repeat credential setup (an STS call
+// under IRSA or --role-arn, or an instance-metadata probe).
+var defaultAuthenticator = cloudauth.NewAuthenticator()
+
+// newRESTConfigAuthenticator returns the process-wide default authenticator.
 func newRESTConfigAuthenticator() restConfigAuthenticator {
-	return cloudauth.NewAuthenticator()
+	return defaultAuthenticator
 }
 
 // authenticatingClientConfig wraps a clientcmd.ClientConfig so that every
@@ -103,9 +109,8 @@ func (c *authenticatingClientConfig) ConfigAccess() clientcmd.ConfigAccess {
 // backed by clientConfig, preserving whatever authentication mechanism
 // clientConfig resolves to - including exec-based credential plugins - on
 // every call. Recognized cloud exec plugins are replaced with in-process
-// token minting (see restConfigAuthenticator); the getter owns one
-// authenticator, so all rest.Configs it returns share one token source per
-// cluster.
+// token minting (see restConfigAuthenticator) by the process-wide default
+// authenticator, so all rest.Configs share one token source per cluster.
 func newClientConfigRESTClientGetter(clientConfig clientcmd.ClientConfig) genericclioptions.RESTClientGetter {
 	return newAuthenticatingRESTClientGetter(clientConfig, newRESTConfigAuthenticator())
 }
