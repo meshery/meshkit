@@ -99,7 +99,8 @@
 // AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_ROLE_ARN,
 // AWS_ROLE_SESSION_NAME, AWS_WEB_IDENTITY_TOKEN_FILE, AWS_CONFIG_FILE,
 // AWS_SHARED_CREDENTIALS_FILE, AWS_CONTAINER_CREDENTIALS_FULL_URI,
-// AWS_CONTAINER_CREDENTIALS_RELATIVE_URI or AWS_DEFAULT_PROFILE) is not
+// AWS_CONTAINER_CREDENTIALS_RELATIVE_URI, AWS_EC2_METADATA_SERVICE_ENDPOINT,
+// AWS_DEFAULT_PROFILE, or HOME or USERPROFILE, which move ~/.aws) is not
 // intercepted at all, so its keys are never silently replaced by the
 // process identity. The region is taken from --region, then the stanza's
 // AWS_REGION and AWS_DEFAULT_REGION, then the endpoint host name.

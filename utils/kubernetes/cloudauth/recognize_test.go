@@ -346,6 +346,24 @@ func TestRecognizeLeavesEveryAWSIdentityEnvOnThePlugin(t *testing.T) {
 	}
 }
 
+func TestRecognizeLeavesHomeAndMetadataEndpointOverridesOnThePlugin(t *testing.T) {
+	for _, env := range []clientcmdapi.ExecEnvVar{
+		{Name: "HOME", Value: "/home/alice"},
+		{Name: "USERPROFILE", Value: `C:\Users\alice`},
+		{Name: "AWS_EC2_METADATA_SERVICE_ENDPOINT", Value: "http://169.254.170.23"},
+	} {
+		for _, exec := range []*clientcmdapi.ExecConfig{
+			{Command: "aws", Args: []string{"eks", "get-token", "--cluster-name", "demo"}},
+			{Command: "aws-iam-authenticator", Args: []string{"token", "-i", "demo"}},
+		} {
+			exec.Env = []clientcmdapi.ExecEnvVar{env}
+			if spec, ok := Recognize(exec); ok {
+				t.Fatalf("Recognize(%s with env %s=%s) = %#v, want it left on the plugin", exec.Command, env.Name, env.Value, spec)
+			}
+		}
+	}
+}
+
 func TestSpecCacheKeySeparatesIdentities(t *testing.T) {
 	base := Spec{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2"}}
 	variants := []Spec{
