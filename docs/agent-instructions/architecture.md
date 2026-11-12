@@ -47,6 +47,13 @@ Intentionally reusable across Meshery services and tools:
   transport helpers (see `tracing/README.md`).
 - `logger/`, `utils/`, `encoding/`, and `converter/` provide shared support code used by
   Meshery services and tools.
+- `utils/kubernetes/` builds Kubernetes and Helm clients from a kubeconfig through a
+  `RESTClientGetter` that keeps exec credential plugins working (client-go runs them).
+  Known cloud plugins (`aws eks get-token`, `aws-iam-authenticator`,
+  `gke-gcloud-auth-plugin`, `gcloud`) are instead replaced by in-process token minting
+  in `utils/kubernetes/cloudauth`, the only package that imports the AWS and Google
+  SDKs; its package doc covers the credential chains, the fallback to the plugin
+  binary, and `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH`.
 - `broker/` provides messaging abstractions with NATS and in-process channel backends;
   the event-streaming primitives shared with Meshery Server are documented in
   [../event-streaming.md](../event-streaming.md).
