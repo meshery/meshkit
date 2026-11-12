@@ -122,13 +122,15 @@
 // federation), impersonated_service_account and other types name further
 // endpoints that would receive the process's credentials, so they are
 // rejected with ErrGCPCredentialsUnavailable and the plugin is used when it
-// is installed. NewGKETokenSourceFromJSON accepts service-account key JSON
-// directly, under the same token_uri rule, so that a caller such as Meshery
-// Server can supply credentials stored with a cloud connection. Such a
-// source must be supplied through an Authenticator (by returning it from
-// the factory passed to WithTokenSourceFactory) so endpoint binding still
-// applies; it performs no endpoint checks of its own. Each refresh reloads the credentials, so a rewritten ADC file takes effect at
-// the next refresh.
+// is installed. Each refresh reloads Application Default Credentials, so a
+// rewritten ADC file takes effect at the next refresh.
+//
+// NewGKETokenSourceFromJSON accepts service-account key JSON directly,
+// under the same token_uri rule, so that a caller such as Meshery Server can
+// supply credentials stored with a cloud connection. Such a source must be
+// supplied through an Authenticator (by returning it from the factory passed
+// to WithTokenSourceFactory) so endpoint binding still applies; it performs
+// no endpoint checks of its own.
 //
 // # Concurrency and deadlines
 //
