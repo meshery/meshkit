@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/meshery/meshkit/utils/kubernetes/cloudauth"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
@@ -39,12 +40,82 @@ type restConfigClientConfig struct {
 var _ genericclioptions.RESTClientGetter = (*clientConfigRESTClientGetter)(nil)
 var _ clientcmd.ClientConfig = (*restConfigClientConfig)(nil)
 
+// restConfigAuthenticator rewrites a resolved *rest.Config's authentication
+// in place. It is the only seam between this package and the cloud SDKs:
+// cloudauth.Authenticator implements it by replacing recognized cloud exec
+// plugins (aws eks get-token, aws-iam-authenticator, gke-gcloud-auth-plugin,
+// gcloud) with in-process token minting, and leaving every other exec
+// plugin to client-go's exec loader.
+type restConfigAuthenticator interface {
+	Apply(config *rest.Config) error
+}
+
+var _ restConfigAuthenticator = (*cloudauth.Authenticator)(nil)
+
+// newRESTConfigAuthenticator returns the default authenticator. Each call
+// returns an independent one, with its own token source cache.
+func newRESTConfigAuthenticator() restConfigAuthenticator {
+	return cloudauth.NewAuthenticator()
+}
+
+// authenticatingClientConfig wraps a clientcmd.ClientConfig so that every
+// *rest.Config it resolves has in-process cloud authentication applied,
+// while RawConfig, Namespace and ConfigAccess delegate unchanged. Handing
+// this wrapper to Helm via ToRawKubeConfigLoader means Helm code paths that
+// resolve their own rest.Config get the same authentication as ours.
+type authenticatingClientConfig struct {
+	base clientcmd.ClientConfig
+	auth restConfigAuthenticator
+}
+
+var _ clientcmd.ClientConfig = (*authenticatingClientConfig)(nil)
+
+// ClientConfig resolves the wrapped loader and applies auth. Resolving an
+// exec stanza only records it in rest.Config.ExecProvider; the plugin runs
+// on the first request, so replacing it here is always early enough.
+func (c *authenticatingClientConfig) ClientConfig() (*rest.Config, error) {
+	config, err := c.base.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+	if err := c.auth.Apply(config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+// RawConfig delegates to the wrapped loader.
+func (c *authenticatingClientConfig) RawConfig() (clientcmdapi.Config, error) {
+	return c.base.RawConfig()
+}
+
+// Namespace delegates to the wrapped loader.
+func (c *authenticatingClientConfig) Namespace() (string, bool, error) {
+	return c.base.Namespace()
+}
+
+// ConfigAccess delegates to the wrapped loader.
+func (c *authenticatingClientConfig) ConfigAccess() clientcmd.ConfigAccess {
+	return c.base.ConfigAccess()
+}
+
 // newClientConfigRESTClientGetter returns a genericclioptions.RESTClientGetter
 // backed by clientConfig, preserving whatever authentication mechanism
 // clientConfig resolves to - including exec-based credential plugins - on
-// every call.
+// every call. Recognized cloud exec plugins are replaced with in-process
+// token minting (see restConfigAuthenticator); the getter owns one
+// authenticator, so all rest.Configs it returns share one token source per
+// cluster.
 func newClientConfigRESTClientGetter(clientConfig clientcmd.ClientConfig) genericclioptions.RESTClientGetter {
-	return &clientConfigRESTClientGetter{clientConfig: clientConfig}
+	return newAuthenticatingRESTClientGetter(clientConfig, newRESTConfigAuthenticator())
+}
+
+// newAuthenticatingRESTClientGetter is newClientConfigRESTClientGetter with
+// an explicit authenticator.
+func newAuthenticatingRESTClientGetter(clientConfig clientcmd.ClientConfig, auth restConfigAuthenticator) genericclioptions.RESTClientGetter {
+	return &clientConfigRESTClientGetter{
+		clientConfig: &authenticatingClientConfig{base: clientConfig, auth: auth},
+	}
 }
 
 // newRESTConfigRESTClientGetter returns a genericclioptions.RESTClientGetter
@@ -59,7 +130,8 @@ func newRESTConfigRESTClientGetter(config *rest.Config) genericclioptions.RESTCl
 }
 
 // ToRESTConfig resolves the underlying clientConfig into a *rest.Config,
-// applying meshkit's default QPS/Burst rate limits via configureRESTConfig.
+// with in-process cloud authentication applied, and meshkit's default
+// QPS/Burst rate limits via configureRESTConfig.
 func (g *clientConfigRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 	config, err := g.clientConfig.ClientConfig()
 	if err != nil {
@@ -101,7 +173,9 @@ func (g *clientConfigRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
 // callers (e.g. Helm) access to the raw kubeconfig loader so that they can
 // re-resolve credentials - including invoking exec-based credential plugins
 // for renewal - on their own schedule rather than only once, at getter
-// construction time.
+// construction time. The loader is wrapped so that its ClientConfig applies
+// the same in-process cloud authentication as ToRESTConfig; RawConfig,
+// Namespace and ConfigAccess are those of the original loader.
 func (g *clientConfigRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
 	return g.clientConfig
 }

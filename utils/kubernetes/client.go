@@ -14,9 +14,19 @@ import (
 // It delegates to detectKubeConfig, discarding the clientcmd.ClientConfig loader;
 // use detectKubeConfig directly when the loader must be retained (e.g. to keep
 // exec-based credential plugins working across requests).
+//
+// When the kubeconfig user's exec stanza is a recognized cloud credential
+// plugin (EKS or GKE), the returned config mints bearer tokens in process
+// instead of forking the plugin; see package cloudauth.
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	config, _, err = detectKubeConfig(configfile)
-	return config, err
+	if err != nil {
+		return nil, err
+	}
+	if err := newRESTConfigAuthenticator().Apply(config); err != nil {
+		return nil, err
+	}
+	return config, nil
 }
 
 // detectKubeConfig is the implementation behind DetectKubeConfig. In addition
