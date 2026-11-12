@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/meshery/meshkit/utils/kubernetes/cloudauth"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
@@ -178,4 +179,54 @@ func (c *restConfigClientConfig) Namespace() (string, bool, error) {
 // restConfigClientConfig for callers to read or persist changes to.
 func (c *restConfigClientConfig) ConfigAccess() clientcmd.ConfigAccess {
 	return nil
+}
+
+// cloudAuthClientConfig wraps a base clientcmd.ClientConfig whose AuthInfo has
+// been matched for in-process cloud token minting. It strips cloud exec and
+// legacy auth-provider plugins before delegating config resolution to client-go
+// and installs the refreshing bearer transport wrapper on the resulting
+// rest.Config.
+type cloudAuthClientConfig struct {
+	base        clientcmd.ClientConfig
+	tokenSource *cloudauth.RefreshingTokenSource
+}
+
+func newCloudAuthClientConfig(
+	base clientcmd.ClientConfig,
+	tokenSource *cloudauth.RefreshingTokenSource,
+) clientcmd.ClientConfig {
+	return &cloudAuthClientConfig{
+		base:        base,
+		tokenSource: tokenSource,
+	}
+}
+
+func (c *cloudAuthClientConfig) RawConfig() (clientcmdapi.Config, error) {
+	return c.base.RawConfig()
+}
+
+func (c *cloudAuthClientConfig) ClientConfig() (*rest.Config, error) {
+	restCfg, err := c.base.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+	// Clear exec / legacy auth-provider and static bearer fields on the resolved
+	// *rest.Config so client-go uses the in-process resetting bearer transport
+	// while RawConfig() continues to preserve the original kubeconfig intact.
+	restCfg.ExecProvider = nil
+	restCfg.AuthProvider = nil
+	restCfg.BearerToken = ""
+	restCfg.BearerTokenFile = ""
+	if c.tokenSource != nil {
+		restCfg.Wrap(c.tokenSource.WrapTransport)
+	}
+	return restCfg, nil
+}
+
+func (c *cloudAuthClientConfig) Namespace() (string, bool, error) {
+	return c.base.Namespace()
+}
+
+func (c *cloudAuthClientConfig) ConfigAccess() clientcmd.ConfigAccess {
+	return c.base.ConfigAccess()
 }

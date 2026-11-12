@@ -11,11 +11,27 @@
 package kubernetes
 
 import (
+	"github.com/meshery/meshkit/utils/kubernetes/cloudauth"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
+
+// ClientOption configures optional settings when constructing a Kubernetes Client.
+type ClientOption func(*clientOptions)
+
+type clientOptions struct {
+	authOpts []cloudauth.Option
+}
+
+// WithCloudCredentials attaches explicit AWS or GCP credentials (in-memory only)
+// for in-process EKS/GKE token minting instead of relying on host environment files.
+func WithCloudCredentials(creds cloudauth.Credentials) ClientOption {
+	return func(o *clientOptions) {
+		o.authOpts = append(o.authOpts, cloudauth.WithCredentials(creds))
+	}
+}
 
 // Client wraps the Kubernetes and dynamic clientsets for a single cluster,
 // along with the REST configuration and, when available, the
@@ -31,14 +47,29 @@ type Client struct {
 
 // New detects the kubeconfig for the target cluster (from the supplied
 // bytes, in-cluster config, $KUBECONFIG, or the default kubeconfig path),
-// builds the Kubernetes and dynamic clientsets, and returns the resulting
-// Client. When the kubeconfig is loaded from a clientcmd.ClientConfig
-// (i.e. not an in-cluster config), the loader is retained on the Client so
-// that consumers such as ApplyHelmChart can re-resolve credentials -
-// including exec-based credential plugins - on every request instead of
-// relying on a single, possibly stale, rest.Config.
+// builds the Kubernetes and dynamic clientsets using default in-process cloud
+// authentication settings, and returns the resulting Client. When the
+// kubeconfig is loaded from a clientcmd.ClientConfig (i.e. not an in-cluster
+// config), the loader is retained on the Client so that consumers such as
+// ApplyHelmChart can re-resolve credentials - including exec-based credential
+// plugins - on every request instead of relying on a single, possibly stale,
+// rest.Config.
 func New(kubeconfig []byte) (*Client, error) {
-	restConfig, kubeConfigLoader, err := detectKubeConfig(kubeconfig)
+	return NewWithOptions(kubeconfig)
+}
+
+// NewWithOptions creates a new Kubernetes client from kubeconfig bytes with
+// optional configuration overrides such as explicit cloud credentials for
+// in-process EKS and GKE authentication.
+func NewWithOptions(kubeconfig []byte, opts ...ClientOption) (*Client, error) {
+	var cfg clientOptions
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
+
+	restConfig, kubeConfigLoader, err := detectKubeConfig(kubeconfig, cfg.authOpts...)
 	if err != nil {
 		return nil, err
 	}
