@@ -33,6 +33,15 @@ const (
 // the string to keep all packages in sync.
 const RelationshipSchemaVersionV1Beta2 = "relationships.meshery.io/v1beta2"
 
+// ComponentSchemaVersionV1Beta3 is the schema version string the standalone
+// v1beta3 component construct (meshery/schemas
+// schemas/constructs/v1beta3/component) declares as its default, and that its
+// component templates - including the scaffold `mesheryctl model init`
+// writes - carry. It differs from v1beta3.ComponentSchemaVersion in
+// meshery/schemas, which names the v1beta2 components nested inside a v1beta3
+// design.
+const ComponentSchemaVersionV1Beta3 = "components.meshery.io/v1beta3"
+
 // Ref identifies which schema should be used to validate a document.
 type Ref struct {
 	SchemaVersion string       `json:"schemaVersion,omitempty" yaml:"schemaVersion,omitempty"`

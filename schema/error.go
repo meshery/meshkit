@@ -8,12 +8,12 @@ import (
 )
 
 var (
-	ErrInvalidRegistrationCode = "meshkit-11320"
-	ErrDetectSchemaVersionCode = "meshkit-11321"
-	ErrResolveSchemaCode       = "meshkit-11322"
-	ErrDecodeDocumentCode      = "meshkit-11323"
-	ErrCompileSchemaCode       = "meshkit-11324"
-	ErrValidateDocumentCode    = "meshkit-11325"
+	ErrInvalidRegistrationCode  = "meshkit-11320"
+	ErrDetectSchemaVersionCode  = "meshkit-11321"
+	ErrResolveSchemaCode        = "meshkit-11322"
+	ErrDecodeDocumentCode       = "meshkit-11323"
+	ErrCompileSchemaCode        = "meshkit-11324"
+	ErrValidateDocumentCode     = "meshkit-11325"
 	ErrDecodeTypedDocumentCode  = "meshkit-11326"
 	ErrUnmarshalSchemaAssetCode = "meshkit-11327"
 
