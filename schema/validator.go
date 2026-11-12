@@ -33,6 +33,12 @@ const (
 // the string to keep all packages in sync.
 const RelationshipSchemaVersionV1Beta2 = "relationships.meshery.io/v1beta2"
 
+// RelationshipSchemaVersionV1Beta3 is the schema version string for v1beta3
+// relationship definitions, the current authoring target published by
+// meshery/schemas. Use this constant instead of hard-coding the string to
+// keep all packages in sync.
+const RelationshipSchemaVersionV1Beta3 = "relationships.meshery.io/v1beta3"
+
 // Ref identifies which schema should be used to validate a document.
 type Ref struct {
 	SchemaVersion string       `json:"schemaVersion,omitempty" yaml:"schemaVersion,omitempty"`
