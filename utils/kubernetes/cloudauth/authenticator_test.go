@@ -1,6 +1,7 @@
 package cloudauth
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -19,6 +20,8 @@ import (
 	"time"
 
 	"github.com/meshery/meshkit/errors"
+	"github.com/meshery/meshkit/logger"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"k8s.io/client-go/rest"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -164,17 +167,28 @@ func TestAuthenticatorMissingCredentialsWithoutPluginFails(t *testing.T) {
 	}
 }
 
+// bufferLogger returns a MeshKit JSON logger writing to the returned buffer.
+func bufferLogger(t *testing.T) (logger.Handler, *bytes.Buffer) {
+	t.Helper()
+	var buf bytes.Buffer
+	log, err := logger.New("cloudauth-test", logger.Options{
+		Format:   logger.JsonLogFormat,
+		LogLevel: int(logrus.InfoLevel),
+		Output:   &buf,
+	})
+	if err != nil {
+		t.Fatalf("logger.New() error = %v", err)
+	}
+	return log, &buf
+}
+
 func TestAuthenticatorMissingCredentialsFallsBackToPluginOnPath(t *testing.T) {
-	var calls, observed atomic.Int32
+	var calls atomic.Int32
+	log, logs := bufferLogger(t)
 	auth := NewAuthenticator(
 		WithTokenSourceFactory(failingFactory(&calls)),
 		WithLookPath(onPath),
-		WithFallbackObserver(func(spec Spec, err error) {
-			observed.Add(1)
-			if spec.Provider != ProviderEKS || err == nil {
-				t.Errorf("fallback observer got (%v, %v)", spec.Provider, err)
-			}
-		}),
+		WithLogger(log),
 	)
 
 	for i := 0; i < 2; i++ {
@@ -190,8 +204,20 @@ func TestAuthenticatorMissingCredentialsFallsBackToPluginOnPath(t *testing.T) {
 	if got := calls.Load(); got != 1 {
 		t.Fatalf("factory calls = %d, want 1 (fallback decision must be cached)", got)
 	}
-	if got := observed.Load(); got != 1 {
-		t.Fatalf("fallback observer calls = %d, want 1", got)
+
+	lines := strings.Split(strings.TrimSpace(logs.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("logged %d entries, want 1 per fallback decision: %q", len(lines), logs.String())
+	}
+	var entry map[string]any
+	if err := json.Unmarshal([]byte(lines[0]), &entry); err != nil {
+		t.Fatalf("log entry %q is not JSON: %v", lines[0], err)
+	}
+	if entry["level"] != "warning" || entry["code"] != ErrInProcessCloudAuthFallbackCode {
+		t.Fatalf("log entry = %v, want a warning with code %q", entry, ErrInProcessCloudAuthFallbackCode)
+	}
+	if msg, _ := entry["msg"].(string); !strings.Contains(msg, "no credentials in chain") || !strings.Contains(msg, `"aws"`) {
+		t.Fatalf("log message %q does not carry the setup failure and plugin", msg)
 	}
 }
 
@@ -304,9 +330,9 @@ func TestInstallTokenSourceWithGKESource(t *testing.T) {
 	defer server.Close()
 
 	config := &rest.Config{Host: server.URL, ExecProvider: &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin"}}
-	InstallTokenSource(config, oauth2.ReuseTokenSource(nil, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "gke-token"})))
+	installTokenSource(config, oauth2.ReuseTokenSource(nil, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "gke-token"})))
 	if config.ExecProvider != nil {
-		t.Fatal("InstallTokenSource() left ExecProvider set")
+		t.Fatal("installTokenSource() left ExecProvider set")
 	}
 
 	client, err := rest.HTTPClientFor(config)

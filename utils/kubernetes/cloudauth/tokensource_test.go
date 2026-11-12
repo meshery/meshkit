@@ -262,19 +262,21 @@ func TestNewEKSTokenSourceMissingCredentials(t *testing.T) {
 
 func TestNewEKSTokenSourceMissingRegion(t *testing.T) {
 	isolateAWSEnvironment(t)
+	t.Setenv("AWS_ACCESS_KEY_ID", "AKID")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
 
-	_, err := NewEKSTokenSource(context.Background(), EKSConfig{ClusterID: "demo", AccessKeyID: "AKID", SecretAccessKey: "secret"})
+	_, err := NewEKSTokenSource(context.Background(), EKSConfig{ClusterID: "demo"})
 	if got := errors.GetCode(err); got != ErrEKSRegionUnresolvedCode {
 		t.Fatalf("error code = %q, want %q (error: %v)", got, ErrEKSRegionUnresolvedCode, err)
 	}
 }
 
-func TestNewEKSTokenSourceWithExecEnvStaticCredentials(t *testing.T) {
+func TestNewEKSTokenSourceWithProcessEnvCredentials(t *testing.T) {
 	isolateAWSEnvironment(t)
+	t.Setenv("AWS_ACCESS_KEY_ID", "AKIDPROCESS")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
 
-	source, err := NewEKSTokenSource(context.Background(), EKSConfig{
-		ClusterID: "demo", Region: "eu-central-1", AccessKeyID: "AKIDEXEC", SecretAccessKey: "secret",
-	})
+	source, err := NewEKSTokenSource(context.Background(), EKSConfig{ClusterID: "demo", Region: "eu-central-1"})
 	if err != nil {
 		t.Fatalf("NewEKSTokenSource() error = %v", err)
 	}
@@ -286,7 +288,7 @@ func TestNewEKSTokenSourceWithExecEnvStaticCredentials(t *testing.T) {
 	if presignedURL.Host != "sts.eu-central-1.amazonaws.com" {
 		t.Fatalf("presigned URL host = %q, want sts.eu-central-1.amazonaws.com", presignedURL.Host)
 	}
-	if got := presignedURL.Query().Get("X-Amz-Credential"); !strings.HasPrefix(got, "AKIDEXEC/") {
-		t.Fatalf("X-Amz-Credential = %q, want the exec env access key", got)
+	if got := presignedURL.Query().Get("X-Amz-Credential"); !strings.HasPrefix(got, "AKIDPROCESS/") {
+		t.Fatalf("X-Amz-Credential = %q, want the process env access key", got)
 	}
 }

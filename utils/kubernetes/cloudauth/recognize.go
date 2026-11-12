@@ -1,8 +1,6 @@
 package cloudauth
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"strings"
 
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -20,17 +18,12 @@ const (
 )
 
 // Exec stanza environment variables honored for EKS. Other entries in the
-// stanza's env list are ignored; the process environment supplies the rest
-// of the AWS default credential chain.
+// stanza's env list, including credentials, are ignored; credentials come
+// only from the Meshery process's AWS default credential chain.
 const (
-	envAWSProfile               = "AWS_PROFILE"
-	envAWSRegion                = "AWS_REGION"
-	envAWSDefaultRegion         = "AWS_DEFAULT_REGION"
-	envAWSConfigFile            = "AWS_CONFIG_FILE"
-	envAWSSharedCredentialsFile = "AWS_SHARED_CREDENTIALS_FILE"
-	envAWSAccessKeyID           = "AWS_ACCESS_KEY_ID"
-	envAWSSecretAccessKey       = "AWS_SECRET_ACCESS_KEY"
-	envAWSSessionToken          = "AWS_SESSION_TOKEN"
+	envAWSProfile       = "AWS_PROFILE"
+	envAWSRegion        = "AWS_REGION"
+	envAWSDefaultRegion = "AWS_DEFAULT_REGION"
 )
 
 // awsCLISessionName is the role session name "aws eks get-token" uses when it
@@ -67,31 +60,18 @@ type EKSConfig struct {
 	RoleSessionName string
 	// ExternalID is passed to STS AssumeRole when assuming RoleARN.
 	ExternalID string
-	// ConfigFile and CredentialsFile override the shared config file paths.
-	ConfigFile      string
-	CredentialsFile string
-	// AccessKeyID, SecretAccessKey and SessionToken are static credentials
-	// supplied in the exec stanza's env list. They replace the default
-	// credential chain when AccessKeyID and SecretAccessKey are both set.
-	AccessKeyID     string
-	SecretAccessKey string
-	SessionToken    string
 }
 
 // cacheKey identifies the token source a Spec resolves to, so that every
 // rest.Config built for the same cluster identity shares one source and one
-// refresh schedule. Static secrets enter only as a SHA-256 fingerprint, so a
-// kubeconfig re-imported with rotated credentials under the same access key
-// ID gets a fresh source without the key holding the secrets in clear.
+// refresh schedule.
 func (s Spec) cacheKey() string {
 	switch s.Provider {
 	case ProviderEKS:
 		e := s.EKS
-		secrets := sha256.Sum256([]byte(e.SecretAccessKey + "\x00" + e.SessionToken))
 		return strings.Join([]string{
 			string(s.Provider), e.ClusterID, e.Region, e.Profile, e.RoleARN,
-			e.RoleSessionName, e.ExternalID, e.ConfigFile, e.CredentialsFile, e.AccessKeyID,
-			hex.EncodeToString(secrets[:]),
+			e.RoleSessionName, e.ExternalID,
 		}, "\x00")
 	default:
 		// ADC is process-wide, so every GKE stanza shares one source.
@@ -102,8 +82,9 @@ func (s Spec) cacheKey() string {
 // Recognize reports whether exec invokes a supported cloud credential plugin
 // and, if so, returns its parsed settings. Anything it does not recognize,
 // including a recognized command whose arguments do not describe a token
-// request (for example "aws s3 ls", or "aws eks get-token" without a cluster
-// name), returns false so the caller leaves the stanza to client-go.
+// request (for example "aws s3 ls", "aws eks get-token" without a cluster
+// name, or "gcloud auth print-identity-token"), returns false so the caller
+// leaves the stanza to client-go.
 func Recognize(exec *clientcmdapi.ExecConfig) (Spec, bool) {
 	if exec == nil {
 		return Spec{}, false
@@ -124,7 +105,12 @@ func Recognize(exec *clientcmdapi.ExecConfig) (Spec, bool) {
 		}
 		applyAWSExecEnv(&cfg, exec.Env)
 		return Spec{Provider: ProviderEKS, Command: exec.Command, EKS: cfg}, true
-	case "gke-gcloud-auth-plugin", "gcloud":
+	case "gke-gcloud-auth-plugin":
+		return Spec{Provider: ProviderGKE, Command: exec.Command}, true
+	case "gcloud":
+		if !hasAdjacent(exec.Args, "config", "config-helper") {
+			return Spec{}, false
+		}
 		return Spec{Provider: ProviderGKE, Command: exec.Command}, true
 	default:
 		return Spec{}, false
@@ -228,11 +214,6 @@ func applyAWSExecEnv(cfg *EKSConfig, env []clientcmdapi.ExecEnvVar) {
 	if cfg.Profile == "" {
 		cfg.Profile = values[envAWSProfile]
 	}
-	cfg.ConfigFile = values[envAWSConfigFile]
-	cfg.CredentialsFile = values[envAWSSharedCredentialsFile]
-	cfg.AccessKeyID = values[envAWSAccessKeyID]
-	cfg.SecretAccessKey = values[envAWSSecretAccessKey]
-	cfg.SessionToken = values[envAWSSessionToken]
 }
 
 // parseFlags extracts the values of the flags named in names (flag spelling

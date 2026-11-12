@@ -158,14 +158,13 @@ func TestRESTClientGetterMintsEKSTokensInProcess(t *testing.T) {
 
 func TestNewMintsEKSTokensForDirectAndHelmPaths(t *testing.T) {
 	// New uses the package default authenticator, which with no AWS
-	// credentials and no aws binary would fail; give it static credentials
-	// in the exec stanza env so it mints in process without the network.
+	// credentials and no aws binary would fail; give the process static
+	// credentials so it mints in process without the network.
 	isolateAWSEnvironment(t)
+	t.Setenv("AWS_ACCESS_KEY_ID", "AKIDEXAMPLE")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
 	exec := eksExec("/nonexistent/bin/aws")
-	exec.Env = []clientcmdapi.ExecEnvVar{
-		{Name: "AWS_ACCESS_KEY_ID", Value: "AKIDEXAMPLE"},
-		{Name: "AWS_SECRET_ACCESS_KEY", Value: "secret"},
-	}
+	exec.Args = []string{"--region", "us-west-2", "eks", "get-token", "--cluster-name", "direct-and-helm"}
 
 	client, err := New(execKubeConfig(t, "https://cluster.example.com", exec))
 	if err != nil {
