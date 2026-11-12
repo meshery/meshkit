@@ -96,15 +96,16 @@ func ErrMintEKSToken(err error, clusterID string) error {
 }
 
 // ErrGCPCredentialsUnavailable is returned when Google Application Default
-// Credentials cannot be found for minting a GKE token.
+// Credentials cannot be found, or cannot produce a token, for minting a GKE
+// token.
 func ErrGCPCredentialsUnavailable(err error) error {
 	return errors.NewV2(ErrGCPCredentialsUnavailableCode, errors.Alert,
 		[]string{"Google Cloud credentials are not available for GKE token minting"},
 		[]string{
-			"Unable to find Google Application Default Credentials to mint a GKE token.",
+			"Unable to obtain a token from Google Application Default Credentials to mint a GKE token.",
 			err.Error(),
 		},
-		[]string{"GOOGLE_APPLICATION_CREDENTIALS is unset, no gcloud application-default credentials file exists, and no GCE or GKE metadata server is reachable"},
+		[]string{"GOOGLE_APPLICATION_CREDENTIALS is unset, no gcloud application-default credentials file exists, and no GCE or GKE metadata server is reachable", "The Application Default Credentials were found but token exchange failed, for example because the refresh token was revoked or expired"},
 		[]string{"Set GOOGLE_APPLICATION_CREDENTIALS to a service-account key file, run on GKE with Workload Identity, or run gcloud auth application-default login"},
 		nil)
 }

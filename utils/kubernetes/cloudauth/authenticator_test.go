@@ -11,6 +11,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -317,5 +319,86 @@ func TestInstallTokenSourceWithGKESource(t *testing.T) {
 	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET status = %d, want 200", resp.StatusCode)
+	}
+}
+
+// useADCServiceAccount points Application Default Credentials at a
+// service-account key whose token endpoint is a local test server answering
+// with status and body, and returns how many token requests it received.
+func useADCServiceAccount(t *testing.T, status int, body string) *atomic.Int32 {
+	t.Helper()
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = io.WriteString(w, body)
+	}))
+	t.Cleanup(server.Close)
+
+	var key map[string]string
+	if err := json.Unmarshal(fakeServiceAccountKey(t, "service_account"), &key); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	key["token_uri"] = server.URL
+	data, err := json.Marshal(key)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "adc.json")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", path)
+	return &requests
+}
+
+func TestNewGKETokenSourceFetchesTokenAtSetup(t *testing.T) {
+	requests := useADCServiceAccount(t, http.StatusOK,
+		`{"access_token":"adc-token","token_type":"Bearer","expires_in":3600}`)
+
+	source, err := NewGKETokenSource(context.Background())
+	if err != nil {
+		t.Fatalf("NewGKETokenSource() error = %v", err)
+	}
+	token, err := source.Token()
+	if err != nil {
+		t.Fatalf("Token() error = %v", err)
+	}
+	if token.AccessToken != "adc-token" {
+		t.Fatalf("AccessToken = %q, want %q", token.AccessToken, "adc-token")
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("token endpoint requests = %d, want 1 (the setup token must be reused)", got)
+	}
+}
+
+func TestNewGKETokenSourceRejectsUnusableCredentials(t *testing.T) {
+	useADCServiceAccount(t, http.StatusBadRequest, `{"error":"invalid_grant","error_description":"revoked"}`)
+
+	_, err := NewGKETokenSource(context.Background())
+	if got := errors.GetCode(err); got != ErrGCPCredentialsUnavailableCode {
+		t.Fatalf("error code = %q, want %q (error: %v)", got, ErrGCPCredentialsUnavailableCode, err)
+	}
+}
+
+func TestAuthenticatorFallsBackToGKEPluginWhenADCCannotMint(t *testing.T) {
+	useADCServiceAccount(t, http.StatusBadRequest, `{"error":"invalid_grant","error_description":"revoked"}`)
+
+	auth := NewAuthenticator(WithLookPath(func(file string) (string, error) {
+		return "/usr/local/bin/" + file, nil
+	}))
+	config := &rest.Config{Host: "https://gke.example.com", ExecProvider: &clientcmdapi.ExecConfig{
+		APIVersion: "client.authentication.k8s.io/v1beta1",
+		Command:    "gke-gcloud-auth-plugin",
+	}}
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if config.ExecProvider == nil || config.ExecProvider.Command != "gke-gcloud-auth-plugin" {
+		t.Fatalf("ExecProvider = %#v, want the plugin stanza left for client-go", config.ExecProvider)
+	}
+	if config.WrapTransport != nil {
+		t.Fatal("Apply() wrapped the transport although ADC could not mint a token")
 	}
 }

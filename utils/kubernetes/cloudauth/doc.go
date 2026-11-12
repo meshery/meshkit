@@ -60,7 +60,8 @@
 // # Missing credentials and fallback
 //
 // Credentials are checked when a token source is set up: AWS credentials are
-// retrieved once with a timeout, and Google ADC must be discoverable. If that
+// retrieved once with a timeout, and Google ADC must produce one access token
+// within a timeout. If that
 // fails and the plugin binary is on PATH, the Authenticator leaves the exec
 // stanza in place so client-go runs the plugin as before (the common case on
 // a workstation with the cloud CLI installed). If the binary is not on PATH
