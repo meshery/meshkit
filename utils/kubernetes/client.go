@@ -1,10 +1,14 @@
 package kubernetes
 
 import (
+	"context"
+	stderrors "errors"
 	"os"
 	"path/filepath"
 
+	meshkiterrors "github.com/meshery/meshkit/errors"
 	"github.com/meshery/meshkit/utils"
+	"github.com/meshery/meshkit/utils/kubernetes/cloudauth"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -26,7 +30,7 @@ func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 // DetectKubeConfig; callers that need to preserve authentication mechanisms
 // which must be re-resolved per request - such as exec-based credential
 // plugins - should retain the loader as well.
-func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.ClientConfig, err error) {
+func detectKubeConfig(configfile []byte, authOpts ...cloudauth.Option) (config *rest.Config, loader clientcmd.ClientConfig, err error) {
 	if len(configfile) > 0 {
 		var cfgFile []byte
 
@@ -35,9 +39,9 @@ func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.
 			return nil, nil, err
 		}
 
-		config, loader, err = loadClientConfigFromKubeconfig(cfgFile)
+		config, loader, err = loadClientConfigFromKubeconfig(cfgFile, authOpts...)
 		if err != nil {
-			return nil, nil, ErrRestConfigFromKubeConfig(err)
+			return nil, nil, wrapKubeConfigError(err)
 		}
 		return config, loader, nil
 	}
@@ -57,9 +61,9 @@ func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.
 		if err != nil {
 			return nil, nil, err
 		}
-		config, loader, err = loadClientConfigFromKubeconfig(cfgFile)
+		config, loader, err = loadClientConfigFromKubeconfig(cfgFile, authOpts...)
 		if err != nil {
-			return nil, nil, ErrRestConfigFromKubeConfig(err)
+			return nil, nil, wrapKubeConfigError(err)
 		}
 		return config, loader, nil
 	}
@@ -71,23 +75,48 @@ func detectKubeConfig(configfile []byte) (config *rest.Config, loader clientcmd.
 	if err != nil {
 		return nil, nil, err
 	}
-	if config, loader, err = loadClientConfigFromKubeconfig(cfgFile); err == nil {
+	if config, loader, err = loadClientConfigFromKubeconfig(cfgFile, authOpts...); err == nil {
 		return config, loader, nil
 	}
 
-	return nil, nil, ErrRestConfigFromKubeConfig(err)
+	return nil, nil, wrapKubeConfigError(err)
+}
+
+func wrapKubeConfigError(err error) error {
+	var meshErr *meshkiterrors.Error
+	var meshErrV2 *meshkiterrors.ErrorV2
+	if stderrors.As(err, &meshErr) || stderrors.As(err, &meshErrV2) {
+		return err
+	}
+	return ErrRestConfigFromKubeConfig(err)
 }
 
 // loadClientConfigFromKubeconfig parses the given kubeconfig bytes into a
-// clientcmd.ClientConfig loader and resolves it into a *rest.Config. Both
-// the resolved config and the loader are returned so that callers can retain
-// the loader for authentication mechanisms - e.g. exec-based credential
-// plugins - that require re-resolution on every request rather than a single
-// static rest.Config.
-func loadClientConfigFromKubeconfig(kubeconfig []byte) (*rest.Config, clientcmd.ClientConfig, error) {
+// clientcmd.ClientConfig loader and resolves it into a *rest.Config.
+// Recognized EKS/GKE auth configurations are handled in-process via cloudauth
+// while unknown exec plugins stay untouched on the client-go loader (#986).
+func loadClientConfigFromKubeconfig(kubeconfig []byte, authOpts ...cloudauth.Option) (*rest.Config, clientcmd.ClientConfig, error) {
 	loader, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	rawCfg, err := loader.RawConfig()
+	if err == nil {
+		if authInfo := activeAuthInfo(rawCfg); authInfo != nil {
+			tokenSource, _, matched, resolveErr := cloudauth.ResolveAuthInfo(context.Background(), authInfo, authOpts...)
+			if resolveErr != nil {
+				return nil, nil, resolveErr
+			}
+			if matched {
+				cloudLoader := newCloudAuthClientConfig(loader, tokenSource)
+				config, err := cloudLoader.ClientConfig()
+				if err != nil {
+					return nil, nil, err
+				}
+				return config, cloudLoader, nil
+			}
+		}
 	}
 
 	config, err := loader.ClientConfig()
@@ -96,6 +125,23 @@ func loadClientConfigFromKubeconfig(kubeconfig []byte) (*rest.Config, clientcmd.
 	}
 
 	return config, loader, nil
+}
+
+func activeAuthInfo(rawCfg clientcmdapi.Config) *clientcmdapi.AuthInfo {
+	ctxName := rawCfg.CurrentContext
+	if ctxName != "" {
+		if ctx, ok := rawCfg.Contexts[ctxName]; ok && ctx != nil && ctx.AuthInfo != "" {
+			return rawCfg.AuthInfos[ctx.AuthInfo]
+		}
+	}
+	if len(rawCfg.Contexts) == 1 {
+		for _, ctx := range rawCfg.Contexts {
+			if ctx != nil && ctx.AuthInfo != "" {
+				return rawCfg.AuthInfos[ctx.AuthInfo]
+			}
+		}
+	}
+	return nil
 }
 
 // ProcessConfig handles loading, validating, and optionally saving or returning a kubeconfig
