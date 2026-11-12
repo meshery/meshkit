@@ -34,7 +34,10 @@
 //     --region, --role-arn, --profile, in both "--flag value" and
 //     "--flag=value" forms) and "aws-iam-authenticator token" (flags
 //     -i/--cluster-id, -r/--role, -s/--session-name, -e/--external-id,
-//     --region). A flag whose value is missing or is itself a flag (as in
+//     --region). A stanza that passes --forward-session-name stays on the
+//     plugin: it forwards the caller's STS session name when assuming a
+//     role, which in-process minting cannot reproduce. A flag whose value
+//     is missing or is itself a flag (as in
 //     "--region --cluster-name demo") makes the stanza malformed, and it is
 //     left to the plugin.
 //   - Google Kubernetes Engine: "gke-gcloud-auth-plugin
@@ -56,11 +59,12 @@
 //
 //   - EKS: the host must be an EKS API endpoint,
 //     <id>.<cell>.<region>.eks.amazonaws.com, or .eks.amazonaws.com.cn in the
-//     China partition. When the stanza names no region, the endpoint's
-//     region is used; when it names a different one, the stanza is not
-//     intercepted. An EKS token is a presigned STS URL that anyone holding it
-//     can replay for 15 minutes against the named cluster or present to STS,
-//     which is why it must not reach any other host.
+//     China partition, or the IPv6 form <id>.<region>.api.aws, or
+//     .api.amazonwebservices.com.cn in China. When the stanza names no
+//     region, the endpoint's region is used; when it names a different one,
+//     the stanza is not intercepted. An EKS token is a presigned STS URL that
+//     anyone holding it can replay for 15 minutes against the named cluster
+//     or present to STS, which is why it must not reach any other host.
 //   - GKE: the host must be an IP address (public or private endpoint) with
 //     the cluster CA certificate in the kubeconfig, a DNS-based control plane
 //     endpoint under .gke.goog, or Connect Gateway

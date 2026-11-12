@@ -25,6 +25,19 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
+// TestMain clears ambient proxy variables before the tests run. The
+// transports under test dial httptest servers directly, and with a proxy
+// set client-go (Proxy nil) sends a plaintext CONNECT to the test server
+// instead of a TLS handshake. The proxy check in bindEndpoint rejects a
+// non-nil rest.Config.Proxy, so the variables are cleared here rather than
+// by setting a no-proxy function on the test configs.
+func TestMain(m *testing.M) {
+	for _, name := range []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"} {
+		_ = os.Unsetenv(name)
+	}
+	os.Exit(m.Run())
+}
+
 // withLookPath replaces exec.LookPath when deciding whether the exec plugin
 // binary is installed and can serve as a fallback.
 func withLookPath(lookPath func(file string) (string, error)) Option {

@@ -23,7 +23,9 @@ import (
 //     whose name is signed in, or present it to STS to learn the process's
 //     IAM identity. The server must be an EKS API endpoint,
 //     https://<id>.<cell>.<region>.eks.amazonaws.com (".amazonaws.com.cn" in
-//     the China partition), and when the endpoint names a region, the token
+//     the China partition), or the IPv6 form
+//     https://<id>.<region>.api.aws (".api.amazonwebservices.com.cn" in
+//     China), and when the endpoint names a region, the token
 //     is presigned for that region.
 //   - GKE tokens are Google OAuth2 access tokens for the cloud-platform
 //     scope, usable against every Google API the identity can reach. The
@@ -52,7 +54,10 @@ import (
 var (
 	// eksHostSuffixes are the EKS API endpoint domains per AWS partition:
 	// aws and aws-us-gov use amazonaws.com, aws-cn uses amazonaws.com.cn.
-	eksHostSuffixes = []string{".eks.amazonaws.com", ".eks.amazonaws.com.cn"}
+	// IPv6 clusters created after October 2024 use the api.aws form
+	// (<id>.<region>.api.aws, or .api.amazonwebservices.com.cn in China)
+	// instead of the eks.amazonaws.com form.
+	eksHostSuffixes = []string{".eks.amazonaws.com", ".eks.amazonaws.com.cn", ".api.aws", ".api.amazonwebservices.com.cn"}
 	// awsRegionPattern matches AWS region names such as us-west-2,
 	// us-gov-west-1 and cn-north-1.
 	awsRegionPattern = regexp.MustCompile(`^[a-z]{2}(-[a-z]+)+-[0-9]+$`)
