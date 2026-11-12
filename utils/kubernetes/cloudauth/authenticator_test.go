@@ -620,6 +620,58 @@ func TestNewGKETokenSourceRejectsUnusableCredentials(t *testing.T) {
 	}
 }
 
+// Google's JWT-bearer flow accepts a 200 with an empty access_token, so the
+// setup token must be checked the same way refreshes are: an empty bearer
+// must never reach the API server.
+func TestGKESetupRejectsEmptyAccessToken(t *testing.T) {
+	const emptyToken = `{"access_token":"","token_type":"Bearer","expires_in":3600}`
+
+	t.Run("application default credentials", func(t *testing.T) {
+		useGoogleTokenEndpoint(t, http.StatusOK, emptyToken)
+		useADCFile(t, fakeServiceAccountKey(t, nil))
+
+		_, err := setupGKETokenSource(context.Background())
+		if got := errors.GetCode(err); got != ErrGCPCredentialsUnavailableCode {
+			t.Fatalf("error code = %q, want %q (error: %v)", got, ErrGCPCredentialsUnavailableCode, err)
+		}
+		if !strings.Contains(errors.GetLDescription(err), errEmptyToken.Error()) {
+			t.Fatalf("error description = %q, want the empty-token cause", errors.GetLDescription(err))
+		}
+	})
+
+	t.Run("service-account key JSON", func(t *testing.T) {
+		useGoogleTokenEndpoint(t, http.StatusOK, emptyToken)
+
+		_, err := NewGKETokenSourceFromJSON(context.Background(), fakeServiceAccountKey(t, nil))
+		if got := errors.GetCode(err); got != ErrGCPServiceAccountKeyCode {
+			t.Fatalf("error code = %q, want %q (error: %v)", got, ErrGCPServiceAccountKeyCode, err)
+		}
+		if !strings.Contains(errors.GetLDescription(err), errEmptyToken.Error()) {
+			t.Fatalf("error description = %q, want the empty-token cause", errors.GetLDescription(err))
+		}
+	})
+}
+
+// A source supplied through WithTokenSourceFactory is held to the same
+// empty-token rule as the package's own sources.
+func TestAuthenticatorRejectsEmptyTokenFromFactorySource(t *testing.T) {
+	server := newAuthorizationRecorder(t, "never")
+	auth := NewAuthenticator(WithTokenSourceFactory(func(context.Context, Spec) (oauth2.TokenSource, error) {
+		return oauth2.StaticTokenSource(&oauth2.Token{TokenType: "Bearer"}), nil
+	}), withLookPath(onPath))
+
+	config := redirectedConfig(server.Server, testEKSHost, eksExecConfig())
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if got := getStatus(t, config); got != 0 {
+		t.Fatalf("GET status = %d, want the request to fail before reaching the server", got)
+	}
+	if got := server.hits.Load(); got != 0 {
+		t.Fatalf("API server requests = %d, want 0 (an empty bearer must not be sent)", got)
+	}
+}
+
 func TestNewGKETokenSourceSetupTimeoutCancelsTheRequest(t *testing.T) {
 	endpoint := useGoogleTokenEndpoint(t, http.StatusOK, validGoogleToken)
 	cancelled := make(chan struct{})

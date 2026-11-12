@@ -442,7 +442,8 @@ func (e *authEntry) token() (*oauth2.Token, error) {
 
 // boundedToken calls source.Token under the mint deadline. Sources built by
 // this package bound and coalesce their own mints and are called directly;
-// any other source runs in a goroutine that is abandoned at the deadline.
+// any other source runs in a goroutine that is abandoned at the deadline,
+// and an empty token from it is rejected as the package's own sources do.
 func (e *authEntry) boundedToken(source oauth2.TokenSource) (*oauth2.Token, error) {
 	if own, ok := source.(*cachingTokenSource); ok {
 		return own.Token()
@@ -450,7 +451,7 @@ func (e *authEntry) boundedToken(source oauth2.TokenSource) (*oauth2.Token, erro
 	ctx, cancel := e.auth.clock.WithTimeout(context.Background(), e.auth.mintTimeout)
 	defer cancel()
 	token, err := runBounded(ctx, func(context.Context) (*oauth2.Token, error) {
-		return source.Token()
+		return requireAccessToken(source.Token())
 	})
 	if err != nil && err == context.Cause(ctx) {
 		return nil, ErrCloudAuthTimeout(err, e.spec.Provider, "minting a token", e.auth.mintTimeout)
