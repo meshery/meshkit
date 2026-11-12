@@ -65,22 +65,6 @@ func WithTokenSourceFactory(factory func(ctx context.Context, spec Spec) (oauth2
 	return func(a *Authenticator) { a.factory = factory }
 }
 
-// withLookPath replaces exec.LookPath when deciding whether the exec plugin
-// binary is installed and can serve as a fallback.
-func withLookPath(lookPath func(file string) (string, error)) Option {
-	return func(a *Authenticator) { a.lookPath = lookPath }
-}
-
-// withDisabled disables in-process minting regardless of DisableEnvVar.
-func withDisabled(disabled bool) Option {
-	return func(a *Authenticator) { a.disabled = disabled }
-}
-
-// withLogger replaces the Authenticator's default MeshKit logger.
-func withLogger(log logger.Handler) Option {
-	return func(a *Authenticator) { a.log = log }
-}
-
 // Authenticator replaces recognized cloud exec stanzas in rest.Configs with
 // in-process token minting. It caches one token source per cluster
 // identity, so every rest.Config it touches for the same cluster shares one
