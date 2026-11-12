@@ -3,19 +3,23 @@ package cloudauth
 import (
 	stderrors "errors"
 	"fmt"
+	"time"
 
 	"github.com/meshery/meshkit/errors"
 )
 
 const (
-	ErrInProcessCloudAuthUnavailableCode = "meshkit-11341"
-	ErrAWSCredentialsUnavailableCode     = "meshkit-11342"
-	ErrEKSRegionUnresolvedCode           = "meshkit-11343"
-	ErrMintEKSTokenCode                  = "meshkit-11344"
-	ErrGCPCredentialsUnavailableCode     = "meshkit-11345"
-	ErrGCPServiceAccountKeyCode          = "meshkit-11346"
-	ErrUnsupportedCloudProviderCode      = "meshkit-11347"
-	ErrInProcessCloudAuthFallbackCode    = "meshkit-11348"
+	ErrInProcessCloudAuthUnavailableCode    = "meshkit-11341"
+	ErrAWSCredentialsUnavailableCode        = "meshkit-11342"
+	ErrEKSRegionUnresolvedCode              = "meshkit-11343"
+	ErrMintEKSTokenCode                     = "meshkit-11344"
+	ErrGCPCredentialsUnavailableCode        = "meshkit-11345"
+	ErrGCPServiceAccountKeyCode             = "meshkit-11346"
+	ErrUnsupportedCloudProviderCode         = "meshkit-11347"
+	ErrInProcessCloudAuthFallbackCode       = "meshkit-11348"
+	ErrUntrustedClusterEndpointCode         = "meshkit-11349"
+	ErrUntrustedClusterEndpointFallbackCode = "meshkit-11350"
+	ErrCloudAuthTimeoutCode                 = "meshkit-11351"
 )
 
 // errNoCredentialProvider is the cause reported when the AWS SDK returns a
@@ -65,6 +69,74 @@ func ErrInProcessCloudAuthFallback(err error, provider Provider, command string)
 		[]string{
 			"No action is needed if the exec credential plugin is meant to authenticate",
 			"To mint tokens in process, fix the cloud credentials available to the Meshery process; setup is retried periodically",
+		},
+		nil)
+}
+
+// ErrUntrustedClusterEndpoint is returned by Authenticator.Apply when a
+// kubeconfig names a recognized cloud exec plugin but its cluster endpoint
+// is not one the Meshery process's cloud credentials may be sent to, and the
+// plugin binary is not on PATH, so there is no way to authenticate to the
+// cluster.
+func ErrUntrustedClusterEndpoint(err error, provider Provider, host string, command string) error {
+	return errors.NewV2(ErrUntrustedClusterEndpointCode, errors.Alert,
+		[]string{"Refusing to send cloud credentials to an unrecognized cluster endpoint"},
+		[]string{
+			fmt.Sprintf("The kubeconfig authenticates to %s with the exec credential plugin %q, which is not installed on this host's PATH, and its server %q is not an endpoint the Meshery process's own cloud credentials may be sent to", provider, command, host),
+			err.Error(),
+		},
+		[]string{
+			"The kubeconfig server is not an EKS or GKE control plane endpoint, for example a proxy, a load balancer, or a host controlled by whoever wrote the kubeconfig",
+			"The kubeconfig disables TLS verification (insecure-skip-tls-verify), uses http, or routes the connection through proxy-url",
+			"For EKS, the exec stanza's --region differs from the region in the endpoint host name",
+			"For a GKE IP endpoint, the kubeconfig has no certificate-authority data",
+		},
+		[]string{
+			"Use the cluster endpoint written by aws eks update-kubeconfig or gcloud container clusters get-credentials, with TLS verification enabled",
+			"Alternatively install the exec credential plugin named in the kubeconfig on the Meshery host's PATH, so it authenticates instead",
+			"If the Meshery server cannot hold cloud credentials, deploy the Meshery Operator into the cluster instead",
+		},
+		nil)
+}
+
+// ErrUntrustedClusterEndpointFallback is logged by Authenticator.Apply when a
+// kubeconfig names a recognized cloud exec plugin, its cluster endpoint is
+// not one the Meshery process's cloud credentials may be sent to, and the
+// plugin binary is on PATH, so the exec stanza is left for client-go to run.
+func ErrUntrustedClusterEndpointFallback(err error, provider Provider, host string, command string) error {
+	return errors.NewV2(ErrUntrustedClusterEndpointFallbackCode, errors.None,
+		[]string{"Using the exec credential plugin for an unrecognized cluster endpoint"},
+		[]string{
+			fmt.Sprintf("The server %q is not an endpoint the Meshery process's own %s credentials may be sent to, so the exec credential plugin %q found on PATH will authenticate instead of in-process token minting", host, provider, command),
+			err.Error(),
+		},
+		[]string{
+			"The kubeconfig server is not an EKS or GKE control plane endpoint, or the kubeconfig disables TLS verification, uses http, or sets proxy-url",
+		},
+		[]string{
+			"No action is needed if the exec credential plugin is meant to authenticate",
+			"To mint tokens in process, point the kubeconfig at the cluster's own EKS or GKE endpoint with TLS verification enabled",
+		},
+		nil)
+}
+
+// ErrCloudAuthTimeout is returned when setting up in-process credentials or
+// minting a token did not finish within its deadline. The attempt is
+// abandoned and the next request starts a new one.
+func ErrCloudAuthTimeout(err error, provider Provider, operation string, timeout time.Duration) error {
+	return errors.NewV2(ErrCloudAuthTimeoutCode, errors.Alert,
+		[]string{"Timed out obtaining cloud credentials for the managed Kubernetes cluster"},
+		[]string{
+			fmt.Sprintf("In-process token minting for %s gave up %s after %s", provider, operation, timeout),
+			err.Error(),
+		},
+		[]string{
+			"The cloud provider's token or credentials endpoint (AWS STS, Google OAuth2, or an instance metadata server) is unreachable or not responding",
+			"A network proxy or firewall is blocking or stalling requests from the Meshery process to the cloud provider",
+		},
+		[]string{
+			"Verify that the Meshery host can reach the cloud provider's credential endpoints",
+			"Retry the request; every new request starts a fresh attempt",
 		},
 		nil)
 }
@@ -119,8 +191,8 @@ func ErrMintEKSToken(err error, clusterID string) error {
 }
 
 // ErrGCPCredentialsUnavailable is returned when Google Application Default
-// Credentials cannot be found, or cannot produce a token, for minting a GKE
-// token.
+// Credentials cannot be found, are of an unsupported kind, or cannot produce
+// a token, for minting a GKE token.
 func ErrGCPCredentialsUnavailable(err error) error {
 	return errors.NewV2(ErrGCPCredentialsUnavailableCode, errors.Alert,
 		[]string{"Google Cloud credentials are not available for GKE token minting"},
@@ -128,8 +200,17 @@ func ErrGCPCredentialsUnavailable(err error) error {
 			"Unable to obtain a token from Google Application Default Credentials to mint a GKE token",
 			err.Error(),
 		},
-		[]string{"GOOGLE_APPLICATION_CREDENTIALS is unset, no gcloud application-default credentials file exists, and no GCE or GKE metadata server is reachable", "The Application Default Credentials were found but token exchange failed, for example because the refresh token was revoked or expired"},
-		[]string{"Set GOOGLE_APPLICATION_CREDENTIALS to a service-account key file, run on GKE with Workload Identity, or run gcloud auth application-default login"},
+		[]string{
+			"GOOGLE_APPLICATION_CREDENTIALS is unset, no gcloud application-default credentials file exists, and no GCE or GKE metadata server is reachable",
+			"The Application Default Credentials were found but token exchange failed, for example because the refresh token was revoked or expired",
+			"The credentials file is not a service_account key or an authorized_user (gcloud application-default login) file; external_account, impersonated_service_account and other types are not supported in process",
+			"The credentials file names a token_uri other than https://oauth2.googleapis.com/token",
+			"On a metadata server, the host's access scopes do not include cloud-platform and userinfo.email",
+		},
+		[]string{
+			"Set GOOGLE_APPLICATION_CREDENTIALS to a service-account key file, run on GKE with Workload Identity, or run gcloud auth application-default login",
+			"On a Compute Engine host, enable the cloud-platform and userinfo.email access scopes",
+		},
 		nil)
 }
 
@@ -137,10 +218,14 @@ func ErrGCPCredentialsUnavailable(err error) error {
 // to NewGKETokenSourceFromJSON cannot be used.
 func ErrGCPServiceAccountKey(err error) error {
 	return errors.NewV2(ErrGCPServiceAccountKeyCode, errors.Alert,
-		[]string{"Invalid Google Cloud service-account key"},
+		[]string{"Unusable Google Cloud service-account key"},
 		[]string{err.Error()},
-		[]string{"The supplied JSON is malformed or is not a service_account key"},
-		[]string{"Supply the JSON key file downloaded for a Google Cloud service account"},
+		[]string{
+			"The supplied JSON is malformed or is not a service_account key",
+			"The key names a token_uri other than https://oauth2.googleapis.com/token",
+			"Google rejected the key, for example because it was deleted or disabled, or the token endpoint could not be reached",
+		},
+		[]string{"Supply a current JSON key file downloaded for a Google Cloud service account, unmodified"},
 		nil)
 }
 

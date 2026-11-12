@@ -50,10 +50,19 @@ Intentionally reusable across Meshery services and tools:
 - `utils/kubernetes/` builds Kubernetes and Helm clients from a kubeconfig through a
   `RESTClientGetter` that keeps exec credential plugins working (client-go runs them).
   Known cloud plugins (`aws eks get-token`, `aws-iam-authenticator`,
-  `gke-gcloud-auth-plugin`, `gcloud config config-helper`) are instead replaced by
-  in-process token minting in `utils/kubernetes/cloudauth`, the only package that
-  imports the AWS and Google SDKs; its package doc covers the credential chains, the
-  fallback to the plugin binary, and `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH`.
+  `gke-gcloud-auth-plugin --use_application_default_credentials`) are instead replaced
+  by in-process token minting in `utils/kubernetes/cloudauth`, the only package that
+  imports the AWS and Google SDKs. Interception is fenced on purpose, because a token
+  carries the Meshery process's own cloud identity and kubeconfigs often come from
+  someone else: it is skipped when the config already has a token, basic auth, or a
+  client certificate (client-go precedence), when the stanza selects its own identity
+  (static AWS keys in exec env, the gcloud CLI account, impersonation), and when the
+  server is not an endpoint of that cloud (EKS `*.eks.amazonaws.com[.cn]` with a
+  matching region; GKE IP with cluster CA, `*.gke.goog`, or Connect Gateway; always
+  https, TLS verified, no `proxy-url`). No lock is held across network I/O; setups and
+  mints are single-flight and deadline-bounded. The package doc covers the credential
+  chains, the endpoint rules and their residual risk, the fallback to the plugin
+  binary, and `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH`.
 - `broker/` provides messaging abstractions with NATS and in-process channel backends;
   the event-streaming primitives shared with Meshery Server are documented in
   [../event-streaming.md](../event-streaming.md).

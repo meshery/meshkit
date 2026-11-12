@@ -16,8 +16,15 @@ import (
 // exec-based credential plugins working across requests).
 //
 // When the kubeconfig user's exec stanza is a recognized cloud credential
-// plugin (EKS or GKE), the returned config mints bearer tokens in process
-// instead of forking the plugin; see package cloudauth.
+// plugin (EKS or GKE) and the cluster endpoint belongs to that cloud, the
+// returned config mints bearer tokens in process instead of forking the
+// plugin; see package cloudauth. Credential setup runs here, so when
+// in-process minting cannot be used (no cloud credentials, or an endpoint
+// the process's credentials may not be sent to) and the plugin binary is
+// not on PATH either, DetectKubeConfig fails at load time with
+// cloudauth.ErrInProcessCloudAuthUnavailable or
+// cloudauth.ErrUntrustedClusterEndpoint, instead of returning a config whose
+// first request would fail to run the missing plugin.
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
 	config, _, err = detectKubeConfig(configfile)
 	if err != nil {

@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,12 +16,35 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
+const (
+	// testEKSServer is a well-formed EKS API endpoint. Tests using it never
+	// send a request.
+	testEKSServer = "https://0123456789ABCDEF0123456789ABCDEF.gr7.us-west-2.eks.amazonaws.com"
+)
+
+// testCAData returns a valid PEM certificate to stand in for a cluster CA.
+func testCAData(t *testing.T) []byte {
+	t.Helper()
+	server := httptest.NewTLSServer(http.NotFoundHandler())
+	t.Cleanup(server.Close)
+	return serverCAData(server)
+}
+
+func serverCAData(server *httptest.Server) []byte {
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+}
+
 // execKubeConfig returns a kubeconfig whose user authenticates with exec.
-func execKubeConfig(t *testing.T, serverURL string, exec *clientcmdapi.ExecConfig) []byte {
+// The cluster trusts caData, or skips TLS verification when caData is nil.
+func execKubeConfig(t *testing.T, serverURL string, caData []byte, exec *clientcmdapi.ExecConfig) []byte {
 	t.Helper()
 
+	cluster := &clientcmdapi.Cluster{Server: serverURL, CertificateAuthorityData: caData}
+	if caData == nil {
+		cluster.InsecureSkipTLSVerify = true
+	}
 	config := clientcmdapi.NewConfig()
-	config.Clusters["test-cluster"] = &clientcmdapi.Cluster{Server: serverURL, InsecureSkipTLSVerify: true}
+	config.Clusters["test-cluster"] = cluster
 	config.AuthInfos["test-user"] = &clientcmdapi.AuthInfo{Exec: exec}
 	config.Contexts["test-context"] = &clientcmdapi.Context{Cluster: "test-cluster", AuthInfo: "test-user"}
 	config.CurrentContext = "test-context"
@@ -41,10 +65,19 @@ func eksExec(command string) *clientcmdapi.ExecConfig {
 	}
 }
 
+func gkeExec() *clientcmdapi.ExecConfig {
+	return &clientcmdapi.ExecConfig{
+		APIVersion:      "client.authentication.k8s.io/v1beta1",
+		Command:         "gke-gcloud-auth-plugin",
+		Args:            []string{"--use_application_default_credentials"},
+		InteractiveMode: clientcmdapi.NeverExecInteractiveMode,
+	}
+}
+
 func TestRESTClientGetterLeavesUnknownExecPluginsToClientGo(t *testing.T) {
 	for _, command := range []string{"kubelogin", "/usr/local/bin/custom"} {
 		t.Run(command, func(t *testing.T) {
-			kubeconfig := execKubeConfig(t, "https://cluster.example.com", &clientcmdapi.ExecConfig{
+			kubeconfig := execKubeConfig(t, "https://cluster.example.com", nil, &clientcmdapi.ExecConfig{
 				APIVersion:      "client.authentication.k8s.io/v1",
 				Command:         command,
 				InteractiveMode: clientcmdapi.NeverExecInteractiveMode,
@@ -77,7 +110,7 @@ func TestRESTClientGetterLeavesUnknownExecPluginsToClientGo(t *testing.T) {
 	}
 }
 
-func TestRESTClientGetterMintsEKSTokensInProcess(t *testing.T) {
+func TestRESTClientGetterMintsTokensInProcess(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
@@ -90,7 +123,8 @@ func TestRESTClientGetterMintsEKSTokensInProcess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, loader, err := detectKubeConfig(execKubeConfig(t, server.URL, eksExec("aws")))
+	// A GKE IP endpoint with its cluster CA, so the request goes end to end.
+	_, loader, err := detectKubeConfig(execKubeConfig(t, server.URL, serverCAData(server), gkeExec()))
 	if err != nil {
 		t.Fatalf("detectKubeConfig() error = %v", err)
 	}
@@ -110,7 +144,7 @@ func TestRESTClientGetterMintsEKSTokensInProcess(t *testing.T) {
 		t.Fatalf("ToRESTConfig() error = %v", err)
 	}
 	if config.ExecProvider != nil {
-		t.Fatal("ToRESTConfig() kept ExecProvider; client-go would fork the aws CLI")
+		t.Fatal("ToRESTConfig() kept ExecProvider; client-go would fork gke-gcloud-auth-plugin")
 	}
 	if config.BearerToken != "" {
 		t.Fatalf("ToRESTConfig() set a static BearerToken %q", config.BearerToken)
@@ -118,8 +152,8 @@ func TestRESTClientGetterMintsEKSTokensInProcess(t *testing.T) {
 	if config.QPS != 50 || config.Burst != 100 {
 		t.Fatalf("REST config rate limits = (%v, %d), want (50, 100)", config.QPS, config.Burst)
 	}
-	if gotSpec.Provider != cloudauth.ProviderEKS || gotSpec.EKS.ClusterID != "demo" || gotSpec.EKS.Region != "us-west-2" {
-		t.Fatalf("factory spec = %#v, want EKS cluster demo in us-west-2", gotSpec)
+	if gotSpec.Provider != cloudauth.ProviderGKE {
+		t.Fatalf("factory spec = %#v, want GKE", gotSpec)
 	}
 
 	discoveryClient, err := getter.ToDiscoveryClient()
@@ -147,12 +181,38 @@ func TestRESTClientGetterMintsEKSTokensInProcess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RawConfig() error = %v", err)
 	}
-	if user := rawConfig.AuthInfos["test-user"]; user == nil || user.Exec == nil || user.Exec.Command != "aws" {
+	if user := rawConfig.AuthInfos["test-user"]; user == nil || user.Exec == nil || user.Exec.Command != "gke-gcloud-auth-plugin" {
 		t.Fatal("RawConfig() lost the exec stanza")
 	}
 
 	if got := factoryCalls.Load(); got != 1 {
 		t.Fatalf("token source factory calls = %d, want 1 (the getter must share one source per cluster)", got)
+	}
+}
+
+func TestRESTClientGetterBindsEKSStanzaToEndpoint(t *testing.T) {
+	exec := eksExec("aws")
+	exec.Args = []string{"eks", "get-token", "--cluster-name", "demo"}
+	_, loader, err := detectKubeConfig(execKubeConfig(t, testEKSServer, testCAData(t), exec))
+	if err != nil {
+		t.Fatalf("detectKubeConfig() error = %v", err)
+	}
+
+	var gotSpec cloudauth.Spec
+	auth := cloudauth.NewAuthenticator(cloudauth.WithTokenSourceFactory(
+		func(_ context.Context, spec cloudauth.Spec) (oauth2.TokenSource, error) {
+			gotSpec = spec
+			return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "in-process-token"}), nil
+		}))
+	config, err := newAuthenticatingRESTClientGetter(loader, auth).ToRESTConfig()
+	if err != nil {
+		t.Fatalf("ToRESTConfig() error = %v", err)
+	}
+	if config.ExecProvider != nil {
+		t.Fatal("ToRESTConfig() kept the EKS exec stanza for an EKS endpoint")
+	}
+	if gotSpec.Provider != cloudauth.ProviderEKS || gotSpec.EKS.ClusterID != "demo" || gotSpec.EKS.Region != "us-west-2" {
+		t.Fatalf("factory spec = %#v, want EKS cluster demo in us-west-2 (region from the endpoint)", gotSpec)
 	}
 }
 
@@ -166,7 +226,7 @@ func TestNewMintsEKSTokensForDirectAndHelmPaths(t *testing.T) {
 	exec := eksExec("/nonexistent/bin/aws")
 	exec.Args = []string{"--region", "us-west-2", "eks", "get-token", "--cluster-name", "direct-and-helm"}
 
-	client, err := New(execKubeConfig(t, "https://cluster.example.com", exec))
+	client, err := New(execKubeConfig(t, testEKSServer, testCAData(t), exec))
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -186,7 +246,7 @@ func TestDetectKubeConfigCloudPluginWithoutCredentials(t *testing.T) {
 	isolateAWSEnvironment(t)
 	// An absolute path that does not exist, so the aws CLI cannot be found
 	// even on a workstation that has it installed.
-	kubeconfig := execKubeConfig(t, "https://cluster.example.com", eksExec("/nonexistent/bin/aws"))
+	kubeconfig := execKubeConfig(t, testEKSServer, testCAData(t), eksExec("/nonexistent/bin/aws"))
 
 	_, err := DetectKubeConfig(kubeconfig)
 	if err == nil {
@@ -201,10 +261,42 @@ func TestDetectKubeConfigCloudPluginWithoutCredentials(t *testing.T) {
 	}
 }
 
+func TestEveryPathRefusesUntrustedEndpoints(t *testing.T) {
+	// The process has AWS credentials; only the endpoint rules keep them
+	// from the kubeconfig's server.
+	isolateAWSEnvironment(t)
+	t.Setenv("AWS_ACCESS_KEY_ID", "AKIDEXAMPLE")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
+
+	for name, kubeconfig := range map[string][]byte{
+		"attacker host":               execKubeConfig(t, "https://attacker.example.com", testCAData(t), eksExec("/nonexistent/bin/aws")),
+		"TLS verification disabled":   execKubeConfig(t, testEKSServer, nil, eksExec("/nonexistent/bin/aws")),
+		"GKE stanza on attacker host": execKubeConfig(t, "https://attacker.example.com", testCAData(t), gkeExec()),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("PATH", t.TempDir())
+			if _, err := DetectKubeConfig(kubeconfig); errors.GetCode(err) != cloudauth.ErrUntrustedClusterEndpointCode {
+				t.Fatalf("DetectKubeConfig() error = %v, want code %q", err, cloudauth.ErrUntrustedClusterEndpointCode)
+			}
+			if _, err := New(kubeconfig); errors.GetCode(err) != cloudauth.ErrUntrustedClusterEndpointCode {
+				t.Fatalf("New() error = %v, want code %q", err, cloudauth.ErrUntrustedClusterEndpointCode)
+			}
+			_, loader, err := detectKubeConfig(kubeconfig)
+			if err != nil {
+				t.Fatalf("detectKubeConfig() error = %v", err)
+			}
+			helmLoader := newClientConfigRESTClientGetter(loader).ToRawKubeConfigLoader()
+			if _, err := helmLoader.ClientConfig(); errors.GetCode(err) != cloudauth.ErrUntrustedClusterEndpointCode {
+				t.Fatalf("Helm loader ClientConfig() error = %v, want code %q", err, cloudauth.ErrUntrustedClusterEndpointCode)
+			}
+		})
+	}
+}
+
 func TestDetectKubeConfigDisabledInProcessCloudAuth(t *testing.T) {
 	isolateAWSEnvironment(t)
 	t.Setenv(cloudauth.DisableEnvVar, "true")
-	kubeconfig := execKubeConfig(t, "https://cluster.example.com", eksExec("/nonexistent/bin/aws"))
+	kubeconfig := execKubeConfig(t, testEKSServer, testCAData(t), eksExec("/nonexistent/bin/aws"))
 
 	config, err := DetectKubeConfig(kubeconfig)
 	if err != nil {

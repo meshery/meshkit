@@ -3,6 +3,7 @@ package cloudauth
 import (
 	"context"
 	"encoding/base64"
+	stderrors "errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -17,35 +18,17 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// fakeClock is a manually advanced clock for cachingTokenSource.now.
-type fakeClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *fakeClock) Advance(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = c.now.Add(d)
-}
-
 func TestEKSTokenFormat(t *testing.T) {
 	const (
 		region    = "us-west-2"
 		clusterID = "demo-cluster"
 	)
-	clock := &fakeClock{now: time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)}
+	clock := newFakeClock()
 	source := newEKSTokenSource(aws.Config{
 		Region:      region,
 		Credentials: credentials.NewStaticCredentialsProvider("AKIDEXAMPLE", "secret", ""),
 	}, clusterID)
-	source.now = clock.Now
+	source.clock = clock
 
 	token, err := source.Token()
 	if err != nil {
@@ -122,12 +105,12 @@ func countingSource(clock *fakeClock, lifetime time.Duration, mints *atomic.Int3
 		n := mints.Add(1)
 		return &oauth2.Token{AccessToken: fmt.Sprintf("token-%d", n), Expiry: now.Add(lifetime)}, nil
 	})
-	source.now = clock.Now
+	source.clock = clock
 	return source
 }
 
 func TestCachingTokenSourceRefreshesBeforeExpiry(t *testing.T) {
-	clock := &fakeClock{now: time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)}
+	clock := newFakeClock()
 	var mints atomic.Int32
 	source := countingSource(clock, 15*time.Minute, &mints)
 
@@ -157,7 +140,7 @@ func TestCachingTokenSourceRefreshesBeforeExpiry(t *testing.T) {
 }
 
 func TestCachingTokenSourceConcurrentCallsShareOneMint(t *testing.T) {
-	clock := &fakeClock{now: time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)}
+	clock := newFakeClock()
 	var mints atomic.Int32
 	source := countingSource(clock, 15*time.Minute, &mints)
 
@@ -187,7 +170,7 @@ func TestCachingTokenSourceConcurrentCallsShareOneMint(t *testing.T) {
 }
 
 func TestCachingTokenSourceRetriesFailedMint(t *testing.T) {
-	clock := &fakeClock{now: time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)}
+	clock := newFakeClock()
 	var calls atomic.Int32
 	source := newCachingTokenSource(func(_ context.Context, now time.Time) (*oauth2.Token, error) {
 		if calls.Add(1) == 1 {
@@ -195,7 +178,7 @@ func TestCachingTokenSourceRetriesFailedMint(t *testing.T) {
 		}
 		return &oauth2.Token{AccessToken: "recovered", Expiry: now.Add(15 * time.Minute)}, nil
 	})
-	source.now = clock.Now
+	source.clock = clock
 
 	if _, err := source.Token(); err == nil {
 		t.Fatal("Token() succeeded, want the mint error")
@@ -209,8 +192,48 @@ func TestCachingTokenSourceRetriesFailedMint(t *testing.T) {
 	}
 }
 
+func TestCachingTokenSourceKeepsUnexpiredTokenWhenRefreshFails(t *testing.T) {
+	clock := newFakeClock()
+	var calls atomic.Int32
+	source := newCachingTokenSource(func(_ context.Context, now time.Time) (*oauth2.Token, error) {
+		if calls.Add(1) == 1 {
+			return &oauth2.Token{AccessToken: "first", Expiry: now.Add(15 * time.Minute)}, nil
+		}
+		return nil, fmt.Errorf("STS unavailable")
+	})
+	source.clock = clock
+
+	if _, err := source.Token(); err != nil {
+		t.Fatalf("Token() error = %v", err)
+	}
+	// Inside the refresh skew the token still works; a failed refresh must
+	// not fail the request.
+	clock.Advance(14*time.Minute + 30*time.Second)
+	token, err := source.Token()
+	if err != nil || token.AccessToken != "first" {
+		t.Fatalf("Token() inside the skew with a failing refresh = (%v, %v), want the cached token", token, err)
+	}
+	// Once the token has expired the failure surfaces.
+	clock.Advance(time.Minute)
+	if _, err := source.Token(); err == nil {
+		t.Fatal("Token() after expiry with a failing refresh succeeded")
+	}
+	if got := calls.Load(); got != 3 {
+		t.Fatalf("mint calls = %d, want 3 (each call past the skew retries the refresh)", got)
+	}
+}
+
+func TestCachingTokenSourceRejectsEmptyToken(t *testing.T) {
+	source := newCachingTokenSource(func(context.Context, time.Time) (*oauth2.Token, error) {
+		return &oauth2.Token{}, nil
+	})
+	if _, err := source.Token(); !stderrors.Is(err, errEmptyToken) {
+		t.Fatalf("Token() error = %v, want errEmptyToken", err)
+	}
+}
+
 func TestCachingTokenSourceResetTokenOlderThan(t *testing.T) {
-	clock := &fakeClock{now: time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)}
+	clock := newFakeClock()
 	var mints atomic.Int32
 	source := countingSource(clock, 15*time.Minute, &mints)
 
@@ -226,6 +249,150 @@ func TestCachingTokenSourceResetTokenOlderThan(t *testing.T) {
 	source.ResetTokenOlderThan(clock.Now().Add(time.Second))
 	if token, _ := source.Token(); token.AccessToken != "token-2" {
 		t.Fatalf("token after reset = %q, want token-2", token.AccessToken)
+	}
+}
+
+// blockingMint is a mint that signals started, then waits for release (and
+// returns result) or for its deadline (and records the cancellation).
+type blockingMint struct {
+	calls     atomic.Int32
+	started   chan struct{}
+	release   chan struct{}
+	cancelled chan error
+	result    func(now time.Time) (*oauth2.Token, error)
+}
+
+func newBlockingMint(result func(now time.Time) (*oauth2.Token, error)) *blockingMint {
+	return &blockingMint{
+		started:   make(chan struct{}, 16),
+		release:   make(chan struct{}),
+		cancelled: make(chan error, 16),
+		result:    result,
+	}
+}
+
+func (m *blockingMint) mint(ctx context.Context, now time.Time) (*oauth2.Token, error) {
+	m.calls.Add(1)
+	m.started <- struct{}{}
+	select {
+	case <-m.release:
+		return m.result(now)
+	case <-ctx.Done():
+		m.cancelled <- context.Cause(ctx)
+		return nil, context.Cause(ctx)
+	}
+}
+
+func waitersOf(source *cachingTokenSource) int {
+	source.mu.Lock()
+	defer source.mu.Unlock()
+	if source.inflight == nil {
+		return 0
+	}
+	return source.inflight.waiters
+}
+
+func TestCachingTokenSourceDoesNotHoldLockWhileMinting(t *testing.T) {
+	m := newBlockingMint(func(now time.Time) (*oauth2.Token, error) {
+		return &oauth2.Token{AccessToken: "minted", Expiry: now.Add(15 * time.Minute)}, nil
+	})
+	source := newCachingTokenSource(m.mint)
+	source.clock = newFakeClock()
+
+	results := make(chan error, 9)
+	go func() {
+		_, err := source.Token()
+		results <- err
+	}()
+	<-m.started
+
+	// The mint is blocked, yet the 401 reset path takes the lock and returns.
+	returnsPromptly(t, "ResetTokenOlderThan", func() { source.ResetTokenOlderThan(time.Now()) })
+
+	for i := 0; i < 8; i++ {
+		go func() {
+			_, err := source.Token()
+			results <- err
+		}()
+	}
+	eventually(t, "8 callers to join the in-flight mint", func() bool { return waitersOf(source) == 8 })
+
+	close(m.release)
+	for i := 0; i < 9; i++ {
+		if err := <-results; err != nil {
+			t.Fatalf("Token() error = %v", err)
+		}
+	}
+	if got := m.calls.Load(); got != 1 {
+		t.Fatalf("mint calls = %d, want 1 shared by all callers", got)
+	}
+}
+
+func TestCachingTokenSourceWaitersShareFailedMint(t *testing.T) {
+	m := newBlockingMint(func(time.Time) (*oauth2.Token, error) {
+		return nil, fmt.Errorf("STS throttled")
+	})
+	source := newCachingTokenSource(m.mint)
+	source.clock = newFakeClock()
+
+	const callers = 16
+	results := make(chan error, callers)
+	for i := 0; i < callers; i++ {
+		go func() {
+			_, err := source.Token()
+			results <- err
+		}()
+	}
+	<-m.started
+	eventually(t, "every other caller to join the failing mint", func() bool { return waitersOf(source) == callers-1 })
+
+	close(m.release)
+	for i := 0; i < callers; i++ {
+		if err := <-results; err == nil || !strings.Contains(err.Error(), "STS throttled") {
+			t.Fatalf("Token() error = %v, want the shared mint failure", err)
+		}
+	}
+	if got := m.calls.Load(); got != 1 {
+		t.Fatalf("mint calls = %d, want 1: waiters must share the failure, not retry it serially", got)
+	}
+
+	// The failure is not cached: the next call mints again.
+	go func() { _, _ = source.Token() }()
+	<-m.started
+	if got := m.calls.Load(); got != 2 {
+		t.Fatalf("mint calls after the shared failure = %d, want 2", got)
+	}
+}
+
+func TestCachingTokenSourceMintTimeoutCancels(t *testing.T) {
+	clock := newFakeClock()
+	m := newBlockingMint(func(time.Time) (*oauth2.Token, error) {
+		t.Error("the mint was released, want it cancelled by the deadline")
+		return nil, nil
+	})
+	source := newCachingTokenSource(m.mint)
+	source.clock = clock
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := source.Token()
+		result <- err
+	}()
+	<-m.started
+
+	clock.Advance(defaultMintTimeout - time.Second)
+	select {
+	case err := <-result:
+		t.Fatalf("Token() returned %v before the mint deadline", err)
+	default:
+	}
+	clock.Advance(time.Second)
+
+	if cause := <-m.cancelled; !stderrors.Is(cause, context.DeadlineExceeded) {
+		t.Fatalf("mint context cause = %v, want context.DeadlineExceeded", cause)
+	}
+	if err := <-result; !stderrors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Token() error = %v, want context.DeadlineExceeded", err)
 	}
 }
 
