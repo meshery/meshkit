@@ -100,8 +100,9 @@ func lockHelmRelease(c *Client, namespace, name string) func() {
 // InstallHelmChartOnce installs the chart unless its release is already there, and is safe to
 // call once per component of a model that shares one chart.
 //
-// ApplyHelmChart always installs, and Helm refuses a second install of the same release with
-// "cannot reuse a name that is still in use". This function looks at the release first, while
+// ApplyHelmChart with INSTALL either always installs, and Helm refuses a second install of the
+// same release with "cannot reuse a name that is still in use", or, with UpgradeIfInstalled,
+// upgrades the release when it is there. This function looks at the release first, while
 // holding a lock for the release (by its resolved name, so two chart URLs for one chart share it)
 // so that concurrent callers cannot both find it absent, and loads the chart once for both the
 // lookup and the install. The release name is cfg.ReleaseName,
@@ -118,7 +119,11 @@ func lockHelmRelease(c *Client, namespace, name string) func() {
 //   - failed, pending, uninstalling or uninstalled: an error that names the state. A fresh
 //     install cannot succeed over such a release, and replacing or rolling it back on the
 //     caller's behalf could hide a problem, so it is left for an operator to resolve.
-//   - the lookup itself failed: that error, since the install needs the same storage access.
+//   - the lookup itself failed: ErrHelmReleaseStorage (or ErrHelmClusterUnreachable when the
+//     cluster could not be reached at all), since the install needs the same access.
+//
+// Unlike ApplyHelmChart with UpgradeIfInstalled, it never recovers a pending release, even an
+// abandoned one: recovering ends in an upgrade, which this function never performs.
 //
 // The lock is in-process. With several server replicas, Helm's storage is the only protection,
 // and the loser gets Helm's own error.
@@ -132,13 +137,13 @@ func (c *Client) InstallHelmChartOnce(cfg ApplyHelmChartConfig, provided func() 
 	// The source lock is let go before the release lock is taken, so the two never nest.
 	helmChart, err := c.fetchChart(&cfg)
 	if err != nil {
-		return HelmInstalled, ErrApplyHelmChart(err)
+		return HelmInstalled, ErrHelmChartFetch(err)
 	}
 	if cfg.ReleaseName == "" {
 		cfg.ReleaseName = helmChart.Name()
 	}
 	if err = checkIfInstallable(helmChart); err != nil {
-		return HelmInstalled, ErrApplyHelmChart(err)
+		return HelmInstalled, err
 	}
 
 	unlock := lockHelmRelease(c, cfg.Namespace, cfg.ReleaseName)
@@ -146,12 +151,15 @@ func (c *Client) InstallHelmChartOnce(cfg ApplyHelmChartConfig, provided func() 
 
 	actionConfig, err := newHelmActionConfig(c, cfg, c.getRESTClientGetter())
 	if err != nil {
-		return HelmInstalled, ErrApplyHelmChart(err)
+		return HelmInstalled, ErrHelmReleaseStorage(cfg.ReleaseName, cfg.Namespace, err)
+	}
+	if err = actionConfig.KubeClient.IsReachable(); err != nil {
+		return HelmInstalled, ErrHelmClusterUnreachable(cfg.ReleaseName, cfg.Namespace, err)
 	}
 
 	existing, err := latestRelease(actionConfig, cfg.ReleaseName)
 	if err != nil {
-		return HelmInstalled, ErrApplyHelmChart(err)
+		return HelmInstalled, ErrHelmReleaseStorage(cfg.ReleaseName, cfg.Namespace, err)
 	}
 	switch {
 	case existing != nil && existing.Info.Status == release.StatusDeployed:
@@ -169,8 +177,8 @@ func (c *Client) InstallHelmChartOnce(cfg ApplyHelmChartConfig, provided func() 
 		return HelmProvidedElsewhere, nil
 	}
 
-	if err := generateAction(actionConfig, cfg)(helmChart); err != nil {
-		return HelmInstalled, ErrApplyHelmChart(err)
+	if err := runHelmAction(actionConfig, cfg, helmReleasePlan{action: INSTALL}, helmChart); err != nil {
+		return HelmInstalled, err
 	}
 	return HelmInstalled, nil
 }

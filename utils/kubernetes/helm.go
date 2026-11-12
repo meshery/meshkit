@@ -10,17 +10,17 @@ import (
 func ConvertHelmChartToK8sManifest(cfg ApplyHelmChartConfig) (manifest []byte, err error) {
 	setupDefaults(&cfg)
 	if err = setupChartVersion(&cfg); err != nil {
-		return nil, ErrApplyHelmChart(err)
+		return nil, ErrHelmChartFetch(err)
 	}
 
 	localPath, err := getHelmLocalPath(cfg)
 	if err != nil {
-		return nil, ErrApplyHelmChart(err)
+		return nil, ErrHelmChartFetch(err)
 	}
 
 	helmChart, err := loader.Load(localPath)
 	if err != nil {
-		return nil, ErrApplyHelmChart(err)
+		return nil, ErrHelmChartFetch(err)
 	}
 
 	return helm.DryRunHelmChart(helmChart, cfg.KubernetesVersion)

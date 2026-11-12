@@ -129,5 +129,6 @@ next use.
 - [naming-conventions](docs/agent-instructions/naming-conventions.md) - full identifier-naming contract and authority links.
 - [event-streaming](docs/event-streaming.md) - read when working on events, broadcasters, or the `Event`/`EventBuilder` types shared with Meshery Server.
 - [git-walkers](docs/git-walkers.md) - read before touching `utils/walker/`: the hybrid GitHub Trees crawl, its go-git fallbacks, and the ranked interesting-file API.
+- [helm-releases](docs/helm-releases.md) - read before touching `utils/kubernetes` Helm code or `models/controllers` errors: how release state decides install vs upgrade, recovery of abandoned pending releases, and the error classes.
 
 CLAUDE.md is a symlink to this file.
