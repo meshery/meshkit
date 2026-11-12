@@ -103,7 +103,7 @@ type Authenticator struct {
 
 // NewAuthenticator returns an Authenticator that mints with the Meshery
 // process's own cloud credentials, looks fallback plugins up with
-// exec.LookPath, and logs to standard output through a MeshKit logger.
+// exec.LookPath, and logs to standard error through a MeshKit logger.
 func NewAuthenticator(opts ...Option) *Authenticator {
 	a := &Authenticator{
 		factory:         defaultTokenSourceFactory,
@@ -118,6 +118,7 @@ func NewAuthenticator(opts ...Option) *Authenticator {
 	if log, err := logger.New("meshkit-cloudauth", logger.Options{
 		Format:   logger.TerminalLogFormat,
 		LogLevel: int(logrus.InfoLevel),
+		Output:   os.Stderr,
 	}); err == nil {
 		a.log = log
 	}

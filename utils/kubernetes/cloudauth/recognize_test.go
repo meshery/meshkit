@@ -153,6 +153,29 @@ func TestRecognize(t *testing.T) {
 			},
 		},
 		{
+			name: "aws-iam-authenticator with --forward-session-name stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws-iam-authenticator",
+				Args:    []string{"token", "-i", "demo", "-r", "arn:aws:iam::111122223333:role/eks", "--forward-session-name"},
+			},
+		},
+		{
+			name: "aws-iam-authenticator with --forward-session-name=true stays on the plugin",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws-iam-authenticator",
+				Args:    []string{"token", "-i", "demo", "--forward-session-name=true"},
+			},
+		},
+		{
+			name: "aws-iam-authenticator with --forward-session-name=false is still recognized",
+			exec: &clientcmdapi.ExecConfig{
+				Command: "aws-iam-authenticator",
+				Args:    []string{"token", "-i", "demo", "--forward-session-name=false"},
+			},
+			want:   Spec{Provider: ProviderEKS, Command: "aws-iam-authenticator", EKS: EKSConfig{ClusterID: "demo"}},
+			wantOK: true,
+		},
+		{
 			name: "aws eks get-token for an Outposts local cluster signs the cluster ID",
 			exec: &clientcmdapi.ExecConfig{
 				Command: "aws",

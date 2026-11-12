@@ -57,12 +57,16 @@ Intentionally reusable across Meshery services and tools:
   someone else: it is skipped when the config already has a token, basic auth, or a
   client certificate (client-go precedence), when the stanza selects its own identity
   (static AWS keys in exec env, the gcloud CLI account, impersonation), and when the
-  server is not an endpoint of that cloud (EKS `*.eks.amazonaws.com[.cn]` with a
-  matching region; GKE IP with cluster CA, `*.gke.goog`, or Connect Gateway; always
-  https, TLS verified, no `proxy-url`). No lock is held across network I/O; setups and
-  mints are single-flight and deadline-bounded. The package doc covers the credential
-  chains, the endpoint rules and their residual risk, the fallback to the plugin
-  binary, and `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH`.
+  server is not an endpoint of that cloud (EKS `*.eks.amazonaws.com[.cn]` or
+  the IPv6 form `*.api.aws` with a matching region; GKE IP with cluster CA,
+  `*.gke.goog`, or Connect Gateway; always https, TLS verified, no
+  `proxy-url`). A GKE IP endpoint with a CA from the kubeconfig cannot be
+  proven to be a GKE cluster, so deployments that accept kubeconfigs from
+  untrusted parties should disable in-process minting for them. No lock is
+  held across network I/O; setups and mints are single-flight and
+  deadline-bounded. The package doc covers the credential chains, the
+  endpoint rules and their residual risk, the fallback to the plugin binary,
+  and `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH`.
 - `broker/` provides messaging abstractions with NATS and in-process channel backends;
   the event-streaming primitives shared with Meshery Server are documented in
   [../event-streaming.md](../event-streaming.md).

@@ -259,9 +259,16 @@ func parseAWSCLI(args []string) (EKSConfig, bool) {
 }
 
 // parseAWSIAMAuthenticator parses the arguments of
-// "aws-iam-authenticator token".
+// "aws-iam-authenticator token". A stanza that passes --forward-session-name
+// stays on the plugin: the plugin forwards the caller's STS session name
+// when assuming a role, and in-process minting uses --session-name or a
+// fixed name instead, which would change the Kubernetes username when the
+// cluster maps {{SessionName}}.
 func parseAWSIAMAuthenticator(args []string) (EKSConfig, bool) {
 	if !containsArg(args, "token") {
+		return EKSConfig{}, false
+	}
+	if forwardSessionName(args) {
 		return EKSConfig{}, false
 	}
 
@@ -308,6 +315,23 @@ func applyAWSExecEnv(cfg *EKSConfig, env []clientcmdapi.ExecEnvVar) {
 	if cfg.Profile == "" {
 		cfg.Profile = values[envAWSProfile]
 	}
+}
+
+// forwardSessionName reports whether args set --forward-session-name to
+// true, bare or with an explicit true value. An explicit false leaves the
+// forwarding off, so it does not count; an unparseable value counts, so the
+// stanza stays on the plugin, which rejects it as it would have before.
+func forwardSessionName(args []string) bool {
+	for _, arg := range args {
+		if arg == "--forward-session-name" {
+			return true
+		}
+		if name, value, found := strings.Cut(arg, "="); found && name == "--forward-session-name" {
+			enabled, err := strconv.ParseBool(value)
+			return err != nil || enabled
+		}
+	}
+	return false
 }
 
 // parseFlags extracts the values of the flags named in names (flag spelling
