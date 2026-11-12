@@ -30,7 +30,8 @@ const (
 // awsIdentityEnv lists exec stanza environment variables that make the
 // plugin authenticate as an identity other than the Meshery process's own:
 // static keys, a role or web identity token, alternative shared config
-// files, a container credentials endpoint, or the AWS CLI's
+// files (directly, or by moving the home directory that holds ~/.aws), a
+// container or instance metadata credentials endpoint, or the AWS CLI's
 // AWS_DEFAULT_PROFILE. A stanza carrying any of them, whatever the value, is
 // left on the exec plugin, because minting in process would silently
 // replace that identity with the process's.
@@ -45,7 +46,10 @@ var awsIdentityEnv = []string{
 	"AWS_SHARED_CREDENTIALS_FILE",
 	"AWS_CONTAINER_CREDENTIALS_FULL_URI",
 	"AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+	"AWS_EC2_METADATA_SERVICE_ENDPOINT",
 	"AWS_DEFAULT_PROFILE",
+	"HOME",
+	"USERPROFILE",
 }
 
 // gkeADCFlag is the gke-gcloud-auth-plugin flag that makes the plugin use
