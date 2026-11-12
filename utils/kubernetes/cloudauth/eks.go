@@ -61,6 +61,7 @@ type eksConfig struct {
 	disableIMDS       bool
 	now               func() time.Time
 	expiryDelta       time.Duration
+	mintTimeout       time.Duration
 }
 
 func defaultEKSConfig() eksConfig {
@@ -68,6 +69,7 @@ func defaultEKSConfig() eksConfig {
 		loadDefaultConfig: config.LoadDefaultConfig,
 		now:               time.Now,
 		expiryDelta:       eksRefreshLeeway,
+		mintTimeout:       defaultMintTimeout,
 	}
 }
 
@@ -100,6 +102,11 @@ func newEKSTokenSource(ctx context.Context, match MatchedConfig, explicit *AWSCr
 	presignClient := sts.NewPresignClient(stsClient)
 
 	ts := NewRefreshingTokenSource(func(callCtx context.Context) (*oauth2.Token, error) {
+		if callCtx != nil {
+			if err := callCtx.Err(); err != nil {
+				return nil, classifyAWSError(err, false)
+			}
+		}
 		presigned, err := presignClient.PresignGetCallerIdentity(callCtx, &sts.GetCallerIdentityInput{}, func(po *sts.PresignOptions) {
 			po.ClientOptions = append(po.ClientOptions, func(o *sts.Options) {
 				o.APIOptions = append(o.APIOptions,
@@ -122,10 +129,13 @@ func newEKSTokenSource(ctx context.Context, match MatchedConfig, explicit *AWSCr
 	if cfg.now != nil {
 		ts.now = cfg.now
 	}
+	if cfg.mintTimeout > 0 {
+		ts.mintTimeout = cfg.mintTimeout
+	}
 
 	// Prime the cache immediately so signing issues surface synchronously.
 	if _, err := ts.TokenWithContext(ctx); err != nil {
-		return nil, err
+		return nil, classifyAWSError(err, false)
 	}
 	return ts, nil
 }
@@ -143,8 +153,14 @@ func loadAWSConfig(ctx context.Context, match MatchedConfig, explicit *AWSCreden
 	}
 
 	profile := match.Profile
-	if explicit != nil && explicit.Profile != "" {
-		profile = explicit.Profile
+	if explicit != nil {
+		if explicit.Profile != "" {
+			profile = explicit.Profile
+		} else if explicit.AccessKeyID != "" {
+			// Kubeconfig profiles belong to the author's workstation; do not require
+			// a matching host profile when explicit static keys were supplied.
+			profile = ""
+		}
 	}
 	if profile != "" {
 		opts = append(opts, config.WithSharedConfigProfile(profile))
@@ -157,18 +173,12 @@ func loadAWSConfig(ctx context.Context, match MatchedConfig, explicit *AWSCreden
 		opts = append(opts, config.WithSharedCredentialsFiles([]string{credFile}))
 	}
 
-	// Static credentials passed explicitly or via kubeconfig exec.Env stay
-	// strictly scoped in memory (never written to process-wide env).
+	// Static credentials passed explicitly via WithCredentials stay strictly scoped
+	// in memory (never written to process-wide env). Static AWS keys in kubeconfig
+	// exec.env are deliberately ignored and not promoted into in-process credentials.
 	if explicit != nil && explicit.AccessKeyID != "" {
 		opts = append(opts, config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(explicit.AccessKeyID, explicit.SecretAccessKey, explicit.SessionToken),
-		))
-	} else if ak, sk := match.Env["AWS_ACCESS_KEY_ID"], match.Env["AWS_SECRET_ACCESS_KEY"]; ak != "" || sk != "" {
-		if ak == "" || sk == "" {
-			return aws.Config{}, errors.New("incomplete static AWS credentials in kubeconfig exec.env")
-		}
-		opts = append(opts, config.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(ak, sk, match.Env["AWS_SESSION_TOKEN"]),
 		))
 	}
 
@@ -267,9 +277,14 @@ func classifyAWSError(err error, credentialPhase bool) error {
 
 func isSSOMFAError(err error) bool {
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "sso") ||
+	return strings.Contains(msg, "sso session") ||
+		strings.Contains(msg, "sso token") ||
+		strings.Contains(msg, "ssooidc") ||
+		strings.Contains(msg, "sso provider") ||
+		strings.Contains(msg, "sso login") ||
 		strings.Contains(msg, "single sign-on") ||
-		strings.Contains(msg, "mfa") ||
+		strings.Contains(msg, "mfa ") ||
+		strings.Contains(msg, "mfa_serial") ||
 		strings.Contains(msg, "multi-factor")
 }
 

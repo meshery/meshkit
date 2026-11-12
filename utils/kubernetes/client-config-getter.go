@@ -210,13 +210,16 @@ func (c *cloudAuthClientConfig) ClientConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Clear exec / legacy auth-provider and static bearer fields on the resolved
-	// *rest.Config so client-go uses the in-process resetting bearer transport
-	// while RawConfig() continues to preserve the original kubeconfig intact.
+	// Preserve client-go's static bearer-token precedence when a kubeconfig
+	// supplies both a static token/tokenFile and a cloud exec/auth-provider stanza.
+	if restCfg.BearerToken != "" || restCfg.BearerTokenFile != "" {
+		return restCfg, nil
+	}
+	// Clear exec / legacy auth-provider fields on the resolved *rest.Config so
+	// client-go uses the in-process resetting bearer transport while RawConfig()
+	// continues to preserve the original kubeconfig intact.
 	restCfg.ExecProvider = nil
 	restCfg.AuthProvider = nil
-	restCfg.BearerToken = ""
-	restCfg.BearerTokenFile = ""
 	if c.tokenSource != nil {
 		restCfg.Wrap(c.tokenSource.WrapTransport)
 	}

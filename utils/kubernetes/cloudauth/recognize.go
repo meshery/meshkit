@@ -54,7 +54,7 @@ func (m MatchedConfig) GoString() string {
 // When matched == false and err == nil, callers must fall back to the existing
 // client-go kubeconfig loader (#986 behavior).
 func MatchAuthInfo(authInfo *clientcmdapi.AuthInfo) (MatchedConfig, bool, error) {
-	if authInfo == nil {
+	if authInfo == nil || strings.TrimSpace(authInfo.Token) != "" || strings.TrimSpace(authInfo.TokenFile) != "" {
 		return MatchedConfig{}, false, nil
 	}
 
@@ -303,6 +303,7 @@ var gcloudValueFlags = map[string]bool{
 
 func matchGCloudExec(cmdName string, args []string, env map[string]string) (MatchedConfig, bool, error) {
 	positionals := make([]string, 0, 3)
+	var hasAccountOrConfig bool
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if !strings.HasPrefix(arg, "-") {
@@ -317,18 +318,27 @@ func matchGCloudExec(cmdName string, args []string, env map[string]string) (Matc
 				Env:      env,
 			}, true, ErrUnsupportedCloudAuthFlow("service-account impersonation in gcloud exec config is not supported in v1")
 		}
+		if name == "--account" || name == "--configuration" {
+			hasAccountOrConfig = true
+		}
 		if !hasEq && gcloudValueFlags[name] && i+1 < len(args) {
 			i++
 		}
 	}
 
-	isTokenHelper := len(positionals) == 0 ||
-		(len(positionals) >= 2 && positionals[0] == "config" && positionals[1] == "config-helper") ||
+	isTokenHelper := (len(positionals) >= 2 && positionals[0] == "config" && positionals[1] == "config-helper") ||
 		(len(positionals) >= 2 && positionals[0] == "auth" && (positionals[1] == "print-access-token" || positionals[1] == "application-default")) ||
 		(len(positionals) >= 2 && positionals[0] == "container" && positionals[1] == "clusters")
 
 	if !isTokenHelper {
 		return MatchedConfig{}, false, nil
+	}
+	if hasAccountOrConfig || env["CLOUDSDK_CORE_ACCOUNT"] != "" || env["CLOUDSDK_ACTIVE_CONFIG_NAME"] != "" {
+		return MatchedConfig{
+			Provider: ProviderGKE,
+			Command:  cmdName,
+			Env:      env,
+		}, true, ErrUnsupportedCloudAuthFlow("gcloud account and named-configuration selection is not supported in-process in v1")
 	}
 
 	return MatchedConfig{

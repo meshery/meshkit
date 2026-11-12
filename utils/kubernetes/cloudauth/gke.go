@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+
+	meshkiterrors "github.com/meshery/meshkit/errors"
 )
 
 // Use a leeway strictly smaller than oauth2.ReuseTokenSource's internal 10s
@@ -20,6 +23,7 @@ const gkeRefreshLeeway = 5 * time.Second
 
 var defaultGKEScopes = []string{
 	"https://www.googleapis.com/auth/cloud-platform",
+	"https://www.googleapis.com/auth/userinfo.email",
 }
 
 // GCPCredentials supplies explicit Google Cloud credentials for in-process GKE
@@ -46,6 +50,13 @@ type gkeConfig struct {
 	readCredentialsFile    func(path string) ([]byte, error)
 	now                    func() time.Time
 	expiryDelta            time.Duration
+	mintTimeout            time.Duration
+}
+
+type gkeMintResult struct {
+	creds *google.Credentials
+	tok   *oauth2.Token
+	err   error
 }
 
 func defaultGKEConfig() gkeConfig {
@@ -57,20 +68,33 @@ func defaultGKEConfig() gkeConfig {
 		readCredentialsFile: os.ReadFile,
 		now:                 time.Now,
 		expiryDelta:         gkeRefreshLeeway,
+		mintTimeout:         defaultMintTimeout,
 	}
 }
 
-func newGKETokenSource(_ context.Context, match MatchedConfig, explicit *GCPCredentials, cfg gkeConfig) (*RefreshingTokenSource, error) {
+func newGKETokenSource(ctx context.Context, match MatchedConfig, explicit *GCPCredentials, cfg gkeConfig) (*RefreshingTokenSource, error) {
+	if ctx != nil && ctx.Err() != nil {
+		return nil, ErrGKETokenMint(ctx.Err())
+	}
+
 	scopes := defaultGKEScopes
 	if explicit != nil && len(explicit.Scopes) > 0 {
 		scopes = explicit.Scopes
 	}
 
+	mintTimeout := cfg.mintTimeout
+	if mintTimeout <= 0 {
+		mintTimeout = defaultMintTimeout
+	}
+
 	// golang.org/x/oauth2/google retains the resolution context for the lifetime
-	// of the returned TokenSource; use context.Background() so short-lived
-	// setup contexts never cancel subsequent token refreshes.
+	// of the returned TokenSource; bind a bounded HTTP client rather than a
+	// short-lived setup context so HTTP token exchanges time out cleanly without
+	// canceling subsequent refreshes.
 	resolve := func() (*google.Credentials, error) {
-		gCreds, err := resolveGCPCredentials(context.Background(), match, explicit, scopes, cfg)
+		httpClient := &http.Client{Timeout: mintTimeout}
+		resolveCtx := context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)
+		gCreds, err := resolveGCPCredentials(resolveCtx, match, explicit, scopes, cfg)
 		if err != nil {
 			return nil, ErrGCPCredentials(err)
 		}
@@ -87,28 +111,57 @@ func newGKETokenSource(_ context.Context, match MatchedConfig, explicit *GCPCred
 		return nil, err
 	}
 
-	ts := NewRefreshingTokenSource(func(_ context.Context) (*oauth2.Token, error) {
-		if currentCreds == nil {
-			var resolveErr error
-			currentCreds, resolveErr = resolve()
-			if resolveErr != nil {
-				return nil, resolveErr
+	ts := NewRefreshingTokenSource(func(callCtx context.Context) (*oauth2.Token, error) {
+		if callCtx == nil {
+			callCtx = context.Background()
+		}
+		if err := callCtx.Err(); err != nil {
+			return nil, ErrGKETokenMint(err)
+		}
+
+		credsSnapshot := currentCreds
+		ch := make(chan gkeMintResult, 1)
+		go func(creds *google.Credentials) {
+			if creds == nil {
+				var resolveErr error
+				creds, resolveErr = resolve()
+				if resolveErr != nil {
+					ch <- gkeMintResult{err: resolveErr}
+					return
+				}
 			}
+			tok, tokErr := creds.TokenSource.Token()
+			ch <- gkeMintResult{creds: creds, tok: tok, err: tokErr}
+		}(credsSnapshot)
+
+		select {
+		case <-callCtx.Done():
+			return nil, ErrGKETokenMint(callCtx.Err())
+		case res := <-ch:
+			if res.err != nil {
+				var errV2 *meshkiterrors.ErrorV2
+				if errors.As(res.err, &errV2) {
+					return nil, res.err
+				}
+				return nil, ErrGKETokenMint(res.err)
+			}
+			if res.creds != nil {
+				currentCreds = res.creds
+			}
+			if res.tok == nil || res.tok.AccessToken == "" {
+				return nil, ErrGKETokenMint(errEmptyToken)
+			}
+			return res.tok, nil
 		}
-		tok, tokErr := currentCreds.TokenSource.Token()
-		if tokErr != nil {
-			return nil, ErrGKETokenMint(tokErr)
-		}
-		if tok == nil || tok.AccessToken == "" {
-			return nil, ErrGKETokenMint(errEmptyToken)
-		}
-		return tok, nil
 	}, cfg.expiryDelta)
 	ts.onReset = func() {
 		currentCreds = nil
 	}
 	if cfg.now != nil {
 		ts.now = cfg.now
+	}
+	if cfg.mintTimeout > 0 {
+		ts.mintTimeout = cfg.mintTimeout
 	}
 	return ts, nil
 }

@@ -273,6 +273,63 @@ func TestMatchAuthInfo(t *testing.T) {
 			wantMatched: false,
 		},
 		{
+			name: "bare gcloud with no arguments left unmatched",
+			authInfo: &clientcmdapi.AuthInfo{
+				Exec: &clientcmdapi.ExecConfig{
+					Command: "gcloud",
+				},
+			},
+			wantMatched: false,
+		},
+		{
+			name: "gcloud with flags only left unmatched",
+			authInfo: &clientcmdapi.AuthInfo{
+				Exec: &clientcmdapi.ExecConfig{
+					Command: "gcloud",
+					Args:    []string{"--format=json", "--project", "p1"},
+				},
+			},
+			wantMatched: false,
+		},
+		{
+			name: "gcloud auth application-default print-access-token recognized",
+			authInfo: &clientcmdapi.AuthInfo{
+				Exec: &clientcmdapi.ExecConfig{
+					Command: "gcloud",
+					Args:    []string{"auth", "application-default", "print-access-token"},
+				},
+			},
+			wantMatched: true,
+			check: func(t *testing.T, m MatchedConfig) {
+				t.Helper()
+				if m.Provider != ProviderGKE || m.Command != "gcloud" {
+					t.Fatalf("got Provider=%q Command=%q", m.Provider, m.Command)
+				}
+			},
+		},
+		{
+			name: "gcloud auth print-access-token with --account rejected for exec fallback",
+			authInfo: &clientcmdapi.AuthInfo{
+				Exec: &clientcmdapi.ExecConfig{
+					Command: "gcloud",
+					Args:    []string{"auth", "print-access-token", "--account", "alice@example.com"},
+				},
+			},
+			wantMatched: true,
+			wantCode:    ErrUnsupportedCloudAuthFlowCode,
+		},
+		{
+			name: "static bearer token preserves client-go precedence over exec",
+			authInfo: &clientcmdapi.AuthInfo{
+				Token: "static-bearer-token",
+				Exec: &clientcmdapi.ExecConfig{
+					Command: "aws",
+					Args:    []string{"eks", "get-token", "--cluster-name", "prod-eks"},
+				},
+			},
+			wantMatched: false,
+		},
+		{
 			name: "legacy gcp auth-provider recognized",
 			authInfo: &clientcmdapi.AuthInfo{
 				AuthProvider: &clientcmdapi.AuthProviderConfig{

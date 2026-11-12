@@ -40,6 +40,8 @@ func isolateAWSEnv(t *testing.T) {
 		"AWS_REGION",
 		"AWS_DEFAULT_REGION",
 		"AWS_STS_REGIONAL_ENDPOINTS",
+		"AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+		"AWS_CONTAINER_CREDENTIALS_FULL_URI",
 		DisableEnvVar,
 	} {
 		t.Setenv(key, "")
@@ -421,5 +423,166 @@ func TestEKSFallbackOnPathAndDisableEnvVar(t *testing.T) {
 	)
 	if ok || err != nil {
 		t.Fatalf("expected disabled in-process auth (matched=false, err=nil), got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestEKSExecEnvStaticKeysNotPromoted(t *testing.T) {
+	execOnlyAuth := &clientcmdapi.AuthInfo{
+		Exec: &clientcmdapi.ExecConfig{
+			Command: "aws",
+			Args:    []string{"eks", "get-token", "--cluster-name", "exec-env-keys", "--region", "us-east-1"},
+			Env: []clientcmdapi.ExecEnvVar{
+				{Name: "AWS_ACCESS_KEY_ID", Value: "AKIAEXECENVONLY12345"},
+				{Name: "AWS_SECRET_ACCESS_KEY", Value: "exec-env-secret-must-not-be-used"},
+				{Name: "AWS_SESSION_TOKEN", Value: "exec-env-session-token"},
+			},
+		},
+	}
+
+	// Without ambient or explicit credentials, static keys in kubeconfig exec.env
+	// must NOT be lifted into in-process credentials.
+	t.Run("exec env static keys ignored when ambient chain empty", func(t *testing.T) {
+		isolateAWSEnv(t)
+		_, _, ok, err := ResolveAuthInfo(
+			context.Background(),
+			execOnlyAuth,
+			withDisableIMDS(),
+			withLookPath(notFoundLookPath),
+		)
+		if !ok || err == nil {
+			t.Fatalf("expected error without ambient or explicit creds, got ok=%v err=%v", ok, err)
+		}
+		if got := errors.GetCode(err); got != ErrAWSCredentialsCode {
+			t.Fatalf("error code = %q, want %q (err=%v)", got, ErrAWSCredentialsCode, err)
+		}
+		for _, secret := range []string{"AKIAEXECENVONLY12345", "exec-env-secret-must-not-be-used", "exec-env-session-token"} {
+			if strings.Contains(err.Error(), secret) {
+				t.Fatalf("error leaked secret %q: %v", secret, err)
+			}
+		}
+	})
+
+	// Ambient process AWS credentials continue to work cleanly and take effect
+	// even when kubeconfig exec.env carries unrelated static keys.
+	t.Run("ambient process credentials used instead of exec env static keys", func(t *testing.T) {
+		isolateAWSEnv(t)
+		t.Setenv("AWS_ACCESS_KEY_ID", "AKIAAMBIENTPROCESS12")
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "ambient-process-secret-key")
+
+		ts, _, ok, err := ResolveAuthInfo(
+			context.Background(),
+			execOnlyAuth,
+			withDisableIMDS(),
+			withLookPath(notFoundLookPath),
+		)
+		if err != nil || !ok {
+			t.Fatalf("ResolveAuthInfo ok=%v err=%v", ok, err)
+		}
+		tok, err := ts.Token()
+		if err != nil {
+			t.Fatalf("Token() error: %v", err)
+		}
+		parsed := decodeEKSToken(t, tok.AccessToken)
+		cred := parsed.Query().Get("X-Amz-Credential")
+		if !strings.HasPrefix(cred, "AKIAAMBIENTPROCESS12/") {
+			t.Fatalf("X-Amz-Credential = %q, expected ambient key prefix instead of exec.env key", cred)
+		}
+	})
+}
+
+func TestEKSExplicitStaticKeysIgnoreKubeconfigProfileAndSSO(t *testing.T) {
+	isolateAWSEnv(t)
+
+	foundOnPath := func(cmd string) (string, error) {
+		return "/usr/local/bin/" + cmd, nil
+	}
+
+	// Explicit static keys must succeed even when kubeconfig exec carries
+	// --profile naming a workstation profile absent from this host.
+	authWithProfile := &clientcmdapi.AuthInfo{
+		Exec: &clientcmdapi.ExecConfig{
+			Command: "aws",
+			Args:    []string{"eks", "get-token", "--cluster-name", "profile-cluster", "--region", "us-west-2", "--profile", "missing-workstation-profile"},
+		},
+	}
+	ts, _, ok, err := ResolveAuthInfo(
+		context.Background(),
+		authWithProfile,
+		WithCredentials(Credentials{
+			AWS: &AWSCredentials{
+				AccessKeyID:     "AKIAEXPLICITKEY12345",
+				SecretAccessKey: "explicit-secret-key",
+			},
+		}),
+		withDisableIMDS(),
+		withLookPath(foundOnPath),
+	)
+	if err != nil || !ok {
+		t.Fatalf("ResolveAuthInfo ok=%v err=%v", ok, err)
+	}
+	tok, err := ts.Token()
+	if err != nil {
+		t.Fatalf("Token() error: %v", err)
+	}
+	parsed := decodeEKSToken(t, tok.AccessToken)
+	if !strings.HasPrefix(parsed.Query().Get("X-Amz-Credential"), "AKIAEXPLICITKEY12345/") {
+		t.Fatalf("expected explicit key in X-Amz-Credential, got %q", parsed.Query().Get("X-Amz-Credential"))
+	}
+
+	// Explicit credentials + --sso must NOT silently fall back to host CLI on PATH.
+	ssoAuth := eksExecAuthInfo("sso-explicit", "us-east-1")
+	ssoAuth.Exec.Args = append(ssoAuth.Exec.Args, "--sso")
+	_, _, ok, err = ResolveAuthInfo(
+		context.Background(),
+		ssoAuth,
+		WithCredentials(Credentials{
+			AWS: &AWSCredentials{
+				AccessKeyID:     "AKIAEXPLICITKEY12345",
+				SecretAccessKey: "explicit-secret-key",
+			},
+		}),
+		withDisableIMDS(),
+		withLookPath(foundOnPath),
+	)
+	if !ok || errors.GetCode(err) != ErrUnsupportedCloudAuthFlowCode {
+		t.Fatalf("expected explicit + --sso to fail without exec fallback, got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestEKSErrorClassificationAndMintTimeout(t *testing.T) {
+	isolateAWSEnv(t)
+
+	// "associated" contains "sso" as a substring and must NOT trigger SSO classification.
+	assocErr := classifyAWSError(fmt.Errorf("failed to retrieve credentials: no role associated with instance"), true)
+	if got := errors.GetCode(assocErr); got != ErrAWSCredentialsCode {
+		t.Fatalf("associated error code = %q, want %q", got, ErrAWSCredentialsCode)
+	}
+
+	ts, _, ok, err := ResolveAuthInfo(
+		context.Background(),
+		eksExecAuthInfo("timeout-cluster", "us-east-1"),
+		WithCredentials(Credentials{
+			AWS: &AWSCredentials{
+				AccessKeyID:     "AKIAEXPLICITKEY12345",
+				SecretAccessKey: "explicit-secret-key",
+			},
+		}),
+		withDisableIMDS(),
+	)
+	if err != nil || !ok {
+		t.Fatalf("ResolveAuthInfo ok=%v err=%v", ok, err)
+	}
+
+	ts.Invalidate()
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := ts.TokenWithContext(cancelCtx); errors.GetCode(err) != ErrEKSTokenMintCode {
+		t.Fatalf("canceled context code = %q, want %q (err=%v)", errors.GetCode(err), ErrEKSTokenMintCode, err)
+	}
+
+	// Next call recovers cleanly once valid context is used.
+	tok, err := ts.Token()
+	if err != nil || tok.AccessToken == "" {
+		t.Fatalf("expected recovery after canceled call, got tok=%v err=%v", tok, err)
 	}
 }

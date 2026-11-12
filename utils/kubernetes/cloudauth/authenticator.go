@@ -94,7 +94,9 @@ func ResolveAuthInfo(ctx context.Context, authInfo *clientcmdapi.AuthInfo, optFn
 		return nil, match, false, nil
 	}
 	if err != nil {
-		if shouldFallbackToExec(authInfo, opts, err, false) {
+		hasExplicit := (match.Provider == ProviderEKS && opts.credentials.AWS != nil) ||
+			(match.Provider == ProviderGKE && opts.credentials.GCP != nil)
+		if shouldFallbackToExec(authInfo, opts, err, hasExplicit) {
 			return nil, MatchedConfig{}, false, nil
 		}
 		return nil, match, true, err

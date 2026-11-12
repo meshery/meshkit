@@ -1,16 +1,20 @@
 package kubernetes
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -40,6 +44,8 @@ func isolateIntegrationEnv(t *testing.T) {
 		"AWS_SHARED_CREDENTIALS_FILE",
 		"AWS_WEB_IDENTITY_TOKEN_FILE",
 		"AWS_ROLE_ARN",
+		"AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+		"AWS_CONTAINER_CREDENTIALS_FULL_URI",
 		"GOOGLE_APPLICATION_CREDENTIALS",
 	} {
 		t.Setenv(k, "")
@@ -194,6 +200,86 @@ users:
 	if parsed.Host != "sts.us-west-2.amazonaws.com" || parsed.Query().Get("Action") != "GetCallerIdentity" {
 		t.Fatalf("unexpected decoded EKS URL: %s", string(rawURL))
 	}
+	assertEKSSigV4ClusterBinding(t, parsed, "us-west-2", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "prod-eks")
+}
+
+// assertEKSSigV4ClusterBinding independently computes the AWS SigV4 signature
+// for the decoded presigned GetCallerIdentity URL and verifies that it matches
+// the embedded signature only when x-k8s-aws-id equals clusterName.
+func assertEKSSigV4ClusterBinding(t *testing.T, parsed *url.URL, region, secretKey, clusterName string) {
+	t.Helper()
+	gotSig := parsed.Query().Get("X-Amz-Signature")
+	if gotSig == "" {
+		t.Fatal("presigned STS URL missing X-Amz-Signature")
+	}
+	if !strings.Contains(parsed.Query().Get("X-Amz-SignedHeaders"), "x-k8s-aws-id") {
+		t.Fatalf("X-Amz-SignedHeaders = %q, missing x-k8s-aws-id", parsed.Query().Get("X-Amz-SignedHeaders"))
+	}
+
+	sign := func(cluster string) string {
+		q := parsed.Query()
+		q.Del("X-Amz-Signature")
+		keys := make([]string, 0, len(q))
+		for k := range q {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		parts := make([]string, 0, len(keys))
+		for _, k := range keys {
+			vals := append([]string(nil), q[k]...)
+			sort.Strings(vals)
+			for _, v := range vals {
+				parts = append(parts, awsQueryEscape(k)+"="+awsQueryEscape(v))
+			}
+		}
+		canonicalQuery := strings.Join(parts, "&")
+		canonicalHeaders := fmt.Sprintf("host:%s\nx-k8s-aws-id:%s\n", parsed.Host, cluster)
+		payloadHash := sha256Hex(nil)
+		canonicalReq := strings.Join([]string{
+			http.MethodGet,
+			"/",
+			canonicalQuery,
+			canonicalHeaders,
+			"host;x-k8s-aws-id",
+			payloadHash,
+		}, "\n")
+		amzDate := parsed.Query().Get("X-Amz-Date")
+		dateStamp := amzDate[:8]
+		scope := fmt.Sprintf("%s/%s/sts/aws4_request", dateStamp, region)
+		stringToSign := strings.Join([]string{
+			"AWS4-HMAC-SHA256",
+			amzDate,
+			scope,
+			sha256Hex([]byte(canonicalReq)),
+		}, "\n")
+		kDate := hmacSHA256([]byte("AWS4"+secretKey), dateStamp)
+		kRegion := hmacSHA256(kDate, region)
+		kService := hmacSHA256(kRegion, "sts")
+		kSigning := hmacSHA256(kService, "aws4_request")
+		return hex.EncodeToString(hmacSHA256(kSigning, stringToSign))
+	}
+
+	if expectedSig := sign(clusterName); gotSig != expectedSig {
+		t.Fatalf("X-Amz-Signature = %q did not match expected SigV4 signature %q for cluster %q", gotSig, expectedSig, clusterName)
+	}
+	if wrongSig := sign("different-eks-cluster"); gotSig == wrongSig {
+		t.Fatal("SigV4 signature unexpectedly matched wrong cluster name")
+	}
+}
+
+func awsQueryEscape(s string) string {
+	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
+}
+
+func sha256Hex(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}
+
+func hmacSHA256(key []byte, data string) []byte {
+	mac := hmac.New(sha256.New, key)
+	_, _ = mac.Write([]byte(data))
+	return mac.Sum(nil)
 }
 
 func TestNewWithOptionsGKEExecAndLegacyIntegration(t *testing.T) {
@@ -557,4 +643,66 @@ users:
 			t.Fatalf("error code = %q, want %q (err=%v)", code, cloudauth.ErrEKSRegionUnresolvedCode, err)
 		}
 	})
+}
+
+func TestNewWithOptionsPreservesStaticBearerTokenPrecedence(t *testing.T) {
+	isolateIntegrationEnv(t)
+
+	srv, authHeaders, mu := startMockKubeAPIServer(t)
+	defer srv.Close()
+
+	caB64 := base64.StdEncoding.EncodeToString(pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: srv.Certificate().Raw,
+	}))
+
+	// Both static bearer token and EKS exec plugin are present; client-go gives
+	// precedence to the static bearer token.
+	kubeconfig := []byte(fmt.Sprintf(`apiVersion: v1
+kind: Config
+clusters:
+- name: mixed-cluster
+  cluster:
+    certificate-authority-data: %s
+    server: %s
+contexts:
+- name: mixed-context
+  context:
+    cluster: mixed-cluster
+    user: mixed-user
+current-context: mixed-context
+users:
+- name: mixed-user
+  user:
+    token: static-bearer-override
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      command: /nonexistent/bin/aws
+      args:
+      - eks
+      - get-token
+      - --cluster-name
+      - prod-eks
+      - --region
+      - us-west-2
+`, caB64, srv.URL))
+
+	client, err := NewWithOptions(kubeconfig, WithCloudCredentials(cloudauth.Credentials{
+		AWS: &cloudauth.AWSCredentials{
+			AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+			SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		},
+	}))
+	if err != nil {
+		t.Fatalf("NewWithOptions() error: %v", err)
+	}
+	if _, err := client.KubeClient.Discovery().ServerVersion(); err != nil {
+		t.Fatalf("ServerVersion() error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(*authHeaders) == 0 || (*authHeaders)[0] != "Bearer static-bearer-override" {
+		t.Fatalf("Authorization headers = %v, want [Bearer static-bearer-override]", *authHeaders)
+	}
 }

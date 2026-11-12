@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -395,4 +396,101 @@ func TestGKEFallbackOnPathAndDisableEnvVar(t *testing.T) {
 	if !ok || errors.GetCode(err) != ErrGCPCredentialsCode {
 		t.Fatalf("expected ErrGCPCredentials for invalid explicit JSON, got ok=%v err=%v", ok, err)
 	}
+}
+
+func TestGKEDefaultScopesIncludeUserinfoEmail(t *testing.T) {
+	isolateGCPEnv(t)
+
+	var seenScopes []string
+	cfg := defaultGKEConfig()
+	cfg.findDefaultCredentials = func(_ context.Context, scopes ...string) (*google.Credentials, error) {
+		seenScopes = append([]string(nil), scopes...)
+		return &google.Credentials{
+			TokenSource: oauth2.StaticTokenSource(&oauth2.Token{
+				AccessToken: "scope-check-token",
+				TokenType:   "Bearer",
+			}),
+		}, nil
+	}
+
+	if _, err := newGKETokenSource(context.Background(), MatchedConfig{
+		Provider: ProviderGKE,
+		Command:  "gke-gcloud-auth-plugin",
+	}, nil, cfg); err != nil {
+		t.Fatalf("newGKETokenSource error: %v", err)
+	}
+
+	want := []string{
+		"https://www.googleapis.com/auth/cloud-platform",
+		"https://www.googleapis.com/auth/userinfo.email",
+	}
+	if !reflect.DeepEqual(seenScopes, want) {
+		t.Fatalf("default GKE scopes = %v, want %v", seenScopes, want)
+	}
+}
+
+func TestGKEMintTimeoutAndCancellation(t *testing.T) {
+	isolateGCPEnv(t)
+
+	unblock := make(chan struct{})
+	defer close(unblock)
+	var failSlow atomic.Bool
+	failSlow.Store(true)
+
+	ts, _, ok, err := ResolveAuthInfo(
+		context.Background(),
+		&clientcmdapi.AuthInfo{
+			Exec: &clientcmdapi.ExecConfig{Command: "gke-gcloud-auth-plugin"},
+		},
+		withMintTimeout(25*time.Millisecond),
+		withGKEFindDefaultCredentials(func(_ context.Context, _ ...string) (*google.Credentials, error) {
+			return &google.Credentials{
+				TokenSource: oauth2.TokenSource(&funcTokenSource{fn: func() (*oauth2.Token, error) {
+					if failSlow.Load() {
+						<-unblock
+						return nil, fmt.Errorf("should have timed out")
+					}
+					return &oauth2.Token{
+						AccessToken: "gke-recovered-token",
+						TokenType:   "Bearer",
+						Expiry:      time.Now().Add(5 * time.Minute),
+					}, nil
+				}}),
+			}, nil
+		}),
+	)
+	if err != nil || !ok {
+		t.Fatalf("ResolveAuthInfo ok=%v err=%v", ok, err)
+	}
+
+	_, err = ts.Token()
+	if err == nil {
+		t.Fatal("expected timeout error from hanging GKE TokenSource")
+	}
+	if got := errors.GetCode(err); got != ErrGKETokenMintCode {
+		t.Fatalf("timeout error code = %q, want %q (err=%v)", got, ErrGKETokenMintCode, err)
+	}
+
+	// Canceled caller context aborts immediately as well.
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = ts.TokenWithContext(cancelCtx)
+	if err == nil || errors.GetCode(err) != ErrGKETokenMintCode {
+		t.Fatalf("canceled context code = %q, want %q (err=%v)", errors.GetCode(err), ErrGKETokenMintCode, err)
+	}
+
+	// Next call recovers cleanly without getting wedged.
+	failSlow.Store(false)
+	tok, err := ts.Token()
+	if err != nil || tok.AccessToken != "gke-recovered-token" {
+		t.Fatalf("expected recovered token, got tok=%v err=%v", tok, err)
+	}
+}
+
+type funcTokenSource struct {
+	fn func() (*oauth2.Token, error)
+}
+
+func (f *funcTokenSource) Token() (*oauth2.Token, error) {
+	return f.fn()
 }

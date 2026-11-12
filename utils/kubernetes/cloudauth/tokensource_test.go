@@ -2,6 +2,7 @@ package cloudauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -269,5 +270,149 @@ func TestSecretRedaction(t *testing.T) {
 		if strings.Contains(formatted, secret) {
 			t.Fatalf("formatted output leaked secret %q: %s", secret, formatted)
 		}
+	}
+}
+
+func TestRefreshingTokenSourceMintTimeoutAndRecovery(t *testing.T) {
+	var attempts atomic.Int32
+	blockFirst := make(chan struct{})
+	defer close(blockFirst)
+
+	ts := NewRefreshingTokenSource(func(ctx context.Context) (*oauth2.Token, error) {
+		n := attempts.Add(1)
+		if n == 1 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-blockFirst:
+				return &oauth2.Token{AccessToken: "late"}, nil
+			}
+		}
+		return &oauth2.Token{
+			AccessToken: fmt.Sprintf("recovered-%d", n),
+			TokenType:   "Bearer",
+			Expiry:      time.Now().Add(5 * time.Minute),
+		}, nil
+	}, time.Minute)
+	ts.mintTimeout = 20 * time.Millisecond
+
+	start := time.Now()
+	_, err := ts.Token()
+	elapsed := time.Since(start)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context.DeadlineExceeded, got %v", err)
+	}
+	if elapsed > time.Second {
+		t.Fatalf("Token() waited too long for timeout: %v", elapsed)
+	}
+
+	// Next call must not stay wedged and recovers cleanly.
+	tok, err := ts.Token()
+	if err != nil {
+		t.Fatalf("recovery Token() error: %v", err)
+	}
+	if tok.AccessToken != "recovered-2" {
+		t.Fatalf("AccessToken = %q, want recovered-2", tok.AccessToken)
+	}
+}
+
+func TestRefreshingTokenSourceSucceedsWithinTimeoutAndCoalesces(t *testing.T) {
+	var calls atomic.Int32
+	entered := make(chan struct{})
+	release := make(chan struct{})
+
+	ts := NewRefreshingTokenSource(func(ctx context.Context) (*oauth2.Token, error) {
+		n := calls.Add(1)
+		close(entered)
+		select {
+		case <-release:
+			return &oauth2.Token{
+				AccessToken: fmt.Sprintf("coalesced-%d", n),
+				TokenType:   "Bearer",
+				Expiry:      time.Now().Add(5 * time.Minute),
+			}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}, time.Minute)
+	ts.mintTimeout = time.Second
+
+	const workers = 8
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			defer wg.Done()
+			tok, err := ts.Token()
+			if err != nil {
+				errs <- err
+				return
+			}
+			if tok.AccessToken != "coalesced-1" {
+				errs <- fmt.Errorf("got token %q, want coalesced-1", tok.AccessToken)
+			}
+		}()
+	}
+
+	<-entered
+	close(release)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("mint calls = %d, want 1", calls.Load())
+	}
+}
+
+func TestRefreshingTokenSourceProactiveRefreshFailurePreservesOnlyUnexpiredToken(t *testing.T) {
+	base := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
+	now := base
+	var failMint atomic.Bool
+
+	ts := NewRefreshingTokenSource(func(ctx context.Context) (*oauth2.Token, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if failMint.Load() {
+			return nil, errors.New("transient mint outage")
+		}
+		return &oauth2.Token{
+			AccessToken: "initial-valid",
+			TokenType:   "Bearer",
+			Expiry:      now.Add(15 * time.Minute),
+		}, nil
+	}, 2*time.Minute)
+	ts.now = func() time.Time { return now }
+
+	if _, err := ts.Token(); err != nil {
+		t.Fatalf("initial Token() error: %v", err)
+	}
+
+	// Inside the 2m proactive refresh window (still before actual Expiry), a
+	// failed refresh keeps serving the unexpired cached token.
+	now = base.Add(14 * time.Minute)
+	failMint.Store(true)
+	tok, err := ts.Token()
+	if err != nil {
+		t.Fatalf("expected unexpired fallback inside refresh window, got err=%v", err)
+	}
+	if tok.AccessToken != "initial-valid" {
+		t.Fatalf("AccessToken = %q, want initial-valid", tok.AccessToken)
+	}
+
+	// Caller-initiated cancellation must still surface an error immediately.
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := ts.TokenWithContext(cancelCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+
+	// Once real Expiry is reached, an expired token must NEVER be returned.
+	now = base.Add(15 * time.Minute)
+	if _, err := ts.Token(); err == nil {
+		t.Fatal("expected error once cached token reached actual Expiry")
 	}
 }

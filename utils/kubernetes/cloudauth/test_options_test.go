@@ -44,3 +44,10 @@ func withGKEFindDefaultCredentials(fn func(context.Context, ...string) (*google.
 		o.gke.findDefaultCredentials = fn
 	}
 }
+
+func withMintTimeout(d time.Duration) Option {
+	return func(o *options) {
+		o.eks.mintTimeout = d
+		o.gke.mintTimeout = d
+	}
+}

@@ -10,7 +10,10 @@ import (
 	"k8s.io/client-go/transport"
 )
 
-const defaultExpiryDelta = 2 * time.Minute
+const (
+	defaultExpiryDelta = 2 * time.Minute
+	defaultMintTimeout = 30 * time.Second
+)
 
 // MintFunc produces a fresh OAuth2 bearer token.
 type MintFunc func(ctx context.Context) (*oauth2.Token, error)
@@ -28,6 +31,7 @@ type RefreshingTokenSource struct {
 	mint        MintFunc
 	onReset     func()
 	expiryDelta time.Duration
+	mintTimeout time.Duration
 	now         func() time.Time
 	cached      *oauth2.Token
 	mintedAt    time.Time
@@ -48,20 +52,25 @@ func NewRefreshingTokenSource(mint MintFunc, expiryDelta time.Duration) *Refresh
 	return &RefreshingTokenSource{
 		mint:        mint,
 		expiryDelta: expiryDelta,
+		mintTimeout: defaultMintTimeout,
 		now:         time.Now,
 	}
 }
 
 // Token returns a cached token when still valid beyond expiryDelta, or mints a
-// fresh token using a bounded background context.
+// fresh token using a context bounded by mintTimeout.
 func (s *RefreshingTokenSource) Token() (*oauth2.Token, error) {
 	return s.TokenWithContext(context.Background())
 }
 
 // TokenWithContext returns a cached token when valid beyond expiryDelta, or
-// calls mint with ctx under the mutex so concurrent callers coalesce onto a
-// single refresh.
+// calls mint with a deadline-bounded context under the mutex so concurrent
+// callers coalesce onto a single refresh.
 func (s *RefreshingTokenSource) TokenWithContext(ctx context.Context) (*oauth2.Token, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -69,12 +78,25 @@ func (s *RefreshingTokenSource) TokenWithContext(ctx context.Context) (*oauth2.T
 		return cloneToken(s.cached), nil
 	}
 
+	mintCtx := ctx
+	var cancel context.CancelFunc
+	if s.mintTimeout > 0 {
+		mintCtx, cancel = context.WithTimeout(ctx, s.mintTimeout)
+		defer cancel()
+	}
+
 	now := s.now()
-	tok, err := s.mint(ctx)
+	tok, err := s.mint(mintCtx)
 	if err != nil {
+		if ctx.Err() == nil && s.isUnexpiredLocked(s.cached, now) {
+			return cloneToken(s.cached), nil
+		}
 		return nil, err
 	}
 	if tok == nil || tok.AccessToken == "" {
+		if ctx.Err() == nil && s.isUnexpiredLocked(s.cached, now) {
+			return cloneToken(s.cached), nil
+		}
 		return nil, errEmptyToken
 	}
 	s.cached = cloneToken(tok)
@@ -126,6 +148,16 @@ func (s *RefreshingTokenSource) isValidLocked(t *oauth2.Token) bool {
 		return true
 	}
 	return s.now().Add(s.expiryDelta).Before(t.Expiry)
+}
+
+func (s *RefreshingTokenSource) isUnexpiredLocked(t *oauth2.Token, now time.Time) bool {
+	if t == nil || t.AccessToken == "" {
+		return false
+	}
+	if t.Expiry.IsZero() {
+		return true
+	}
+	return now.Before(t.Expiry)
 }
 
 func cloneToken(t *oauth2.Token) *oauth2.Token {
