@@ -317,10 +317,12 @@ func applyAWSExecEnv(cfg *EKSConfig, env []clientcmdapi.ExecEnvVar) {
 	}
 }
 
-// forwardSessionName reports whether args set --forward-session-name to
-// true, bare or with an explicit true value. An explicit false leaves the
-// forwarding off, so it does not count; an unparseable value counts, so the
-// stanza stays on the plugin, which rejects it as it would have before.
+// forwardSessionName reports whether args enable --forward-session-name:
+// bare, or with a true or unparseable value. The plugin's boolean flag is
+// last-occurrence-wins, so every occurrence is scanned: an explicit false
+// only leaves forwarding off when no later occurrence enables the flag. An
+// unparseable value counts, so the stanza stays on the plugin, which
+// rejects it as it would have before.
 func forwardSessionName(args []string) bool {
 	for _, arg := range args {
 		if arg == "--forward-session-name" {
@@ -328,7 +330,9 @@ func forwardSessionName(args []string) bool {
 		}
 		if name, value, found := strings.Cut(arg, "="); found && name == "--forward-session-name" {
 			enabled, err := strconv.ParseBool(value)
-			return err != nil || enabled
+			if err != nil || enabled {
+				return true
+			}
 		}
 	}
 	return false
