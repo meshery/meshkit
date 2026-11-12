@@ -55,6 +55,14 @@ be present in `Models`, so callers must check the returned error before
 using that data to update the registry. Successful completion includes every
 selected row, including the final row when filtering by model.
 
+## Relationship CSV ingestion
+
+`RelationshipCSVHelper.ParseRelationshipsSheet` returns CSV parsing and read failures,
+including failures after the file opens. Rows read before a failure can already
+be present in `Relationships`, so callers must check the returned error before
+using that data to update the registry. Successful completion includes every
+selected row, including the final row when filtering by model.
+
 ## SVG mutation caveat
 
 Registration mutates asset references as part of ingestion: model and component SVG
