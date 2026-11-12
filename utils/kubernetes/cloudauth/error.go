@@ -30,8 +30,8 @@ func ErrInProcessCloudAuthUnavailable(err error, provider Provider, command stri
 	return errors.NewV2(ErrInProcessCloudAuthUnavailableCode, errors.Alert,
 		[]string{"Unable to authenticate to the managed Kubernetes cluster"},
 		[]string{
-			fmt.Sprintf("The kubeconfig authenticates to %s with the exec credential plugin %q, which is not installed on this host's PATH.", provider, command),
-			"In-process token minting requires cloud credentials in the Meshery process; a kubeconfig alone is not enough.",
+			fmt.Sprintf("The kubeconfig authenticates to %s with the exec credential plugin %q, which is not installed on this host's PATH", provider, command),
+			"In-process token minting requires cloud credentials in the Meshery process; a kubeconfig alone is not enough",
 			err.Error(),
 		},
 		[]string{
@@ -55,7 +55,7 @@ func ErrInProcessCloudAuthFallback(err error, provider Provider, command string)
 	return errors.NewV2(ErrInProcessCloudAuthFallbackCode, errors.None,
 		[]string{"Falling back to the exec credential plugin for the managed Kubernetes cluster"},
 		[]string{
-			fmt.Sprintf("In-process token minting for %s could not be set up, so the exec credential plugin %q found on PATH will authenticate instead.", provider, command),
+			fmt.Sprintf("In-process token minting for %s could not be set up, so the exec credential plugin %q found on PATH will authenticate instead", provider, command),
 			err.Error(),
 		},
 		[]string{
@@ -76,7 +76,7 @@ func ErrAWSCredentialsUnavailable(err error, clusterID string) error {
 	return errors.NewV2(ErrAWSCredentialsUnavailableCode, errors.Alert,
 		[]string{"AWS credentials are not available for EKS token minting"},
 		[]string{
-			fmt.Sprintf("Unable to resolve AWS credentials to mint a token for EKS cluster %q.", clusterID),
+			fmt.Sprintf("Unable to resolve AWS credentials to mint a token for EKS cluster %q", clusterID),
 			err.Error(),
 		},
 		[]string{
@@ -97,7 +97,7 @@ func ErrAWSCredentialsUnavailable(err error, clusterID string) error {
 func ErrEKSRegionUnresolved(clusterID string) error {
 	return errors.NewV2(ErrEKSRegionUnresolvedCode, errors.Alert,
 		[]string{"AWS region is not configured for EKS token minting"},
-		[]string{fmt.Sprintf("No AWS region is configured for EKS cluster %q.", clusterID)},
+		[]string{fmt.Sprintf("No AWS region is configured for EKS cluster %q", clusterID)},
 		[]string{"The exec stanza has no --region flag, no AWS_REGION or AWS_DEFAULT_REGION env entry, and the process environment and shared config name no region either"},
 		[]string{"Add --region to the exec stanza arguments, or set AWS_REGION for the Meshery process"},
 		nil)
@@ -110,7 +110,7 @@ func ErrMintEKSToken(err error, clusterID string) error {
 	return errors.NewV2(ErrMintEKSTokenCode, errors.Alert,
 		[]string{"Unable to mint EKS bearer token"},
 		[]string{
-			fmt.Sprintf("Presigning the STS GetCallerIdentity request for EKS cluster %q failed.", clusterID),
+			fmt.Sprintf("Presigning the STS GetCallerIdentity request for EKS cluster %q failed", clusterID),
 			err.Error(),
 		},
 		[]string{"The AWS credentials expired and could not be refreshed"},
@@ -125,7 +125,7 @@ func ErrGCPCredentialsUnavailable(err error) error {
 	return errors.NewV2(ErrGCPCredentialsUnavailableCode, errors.Alert,
 		[]string{"Google Cloud credentials are not available for GKE token minting"},
 		[]string{
-			"Unable to obtain a token from Google Application Default Credentials to mint a GKE token.",
+			"Unable to obtain a token from Google Application Default Credentials to mint a GKE token",
 			err.Error(),
 		},
 		[]string{"GOOGLE_APPLICATION_CREDENTIALS is unset, no gcloud application-default credentials file exists, and no GCE or GKE metadata server is reachable", "The Application Default Credentials were found but token exchange failed, for example because the refresh token was revoked or expired"},
@@ -149,7 +149,7 @@ func ErrGCPServiceAccountKey(err error) error {
 func ErrUnsupportedCloudProvider(provider Provider) error {
 	return errors.NewV2(ErrUnsupportedCloudProviderCode, errors.Alert,
 		[]string{"Unsupported cloud provider for in-process token minting"},
-		[]string{fmt.Sprintf("In-process token minting does not support provider %q.", provider)},
+		[]string{fmt.Sprintf("In-process token minting does not support provider %q", provider)},
 		[]string{"The credential plugin specification was constructed with an unknown provider"},
 		[]string{"Use a Spec returned by Recognize"},
 		nil)
