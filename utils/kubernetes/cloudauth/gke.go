@@ -131,8 +131,10 @@ func mintGoogleToken(ctx context.Context, load googleCredentialsLoader) (*oauth2
 			return nil, err
 		}
 		// Each load builds a new token source with no cached token, so
-		// this is always a fresh exchange.
-		return creds.TokenSource.Token()
+		// this is always a fresh exchange. The JWT-bearer grant accepts a
+		// response without an access token, so check it here, where both
+		// setup and refresh pass.
+		return requireAccessToken(creds.TokenSource.Token())
 	})
 }
 

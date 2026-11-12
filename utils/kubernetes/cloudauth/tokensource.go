@@ -25,6 +25,19 @@ const (
 // producing an access token.
 var errEmptyToken = errors.New("the credential source returned an empty access token")
 
+// requireAccessToken passes through a failed mint and turns a successful
+// one without an access token into errEmptyToken, so that an empty bearer
+// is never cached or sent. Every path that obtains a token applies it.
+func requireAccessToken(token *oauth2.Token, err error) (*oauth2.Token, error) {
+	if err != nil {
+		return nil, err
+	}
+	if token == nil || token.AccessToken == "" {
+		return nil, errEmptyToken
+	}
+	return token, nil
+}
+
 // mintFunc produces a fresh token. now is the token source's clock, so that
 // the token's expiry is computed on the same clock that later checks it.
 // ctx carries the mint deadline; a mintFunc must return once ctx ends, so a
@@ -114,14 +127,7 @@ func (s *cachingTokenSource) Token() (*oauth2.Token, error) {
 func (s *cachingTokenSource) mintBounded(now time.Time) (*oauth2.Token, error) {
 	ctx, cancel := s.clock.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
-	token, err := s.mint(ctx, now)
-	if err != nil {
-		return nil, err
-	}
-	if token == nil || token.AccessToken == "" {
-		return nil, errEmptyToken
-	}
-	return token, nil
+	return requireAccessToken(s.mint(ctx, now))
 }
 
 // ResetTokenOlderThan discards the cached token if it was minted before t.
