@@ -91,6 +91,8 @@ type containerAPI struct {
 	// getStatus answers every clusters.get call with that status.
 	projectStatus map[string]int
 	getStatus     int
+	// missingZones is reported on every clusters.list response.
+	missingZones []string
 	// entered and cancelled are used by the blocking handler.
 	entered   chan struct{}
 	cancelled chan struct{}
@@ -154,7 +156,7 @@ func (a *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		a.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(gkeListResponse{Clusters: clusters})
+		_ = json.NewEncoder(w).Encode(gkeListResponse{Clusters: clusters, MissingZones: a.missingZones})
 		return
 	}
 	a.mu.Lock()
@@ -260,35 +262,52 @@ func TestParseGKEClusterName(t *testing.T) {
 	}
 }
 
-func TestCertificateDERSetAcceptsPEMAndBase64(t *testing.T) {
+func TestCertificateSetsAcceptOnlyPEMAndAPIBase64OfPEM(t *testing.T) {
 	pemBytes := testCertPEM(t)
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
 		t.Fatal("pem.Decode returned nil")
 	}
-	forms := [][]byte{
-		pemBytes,
-		[]byte(b64PEM(pemBytes)),
-		block.Bytes,
-	}
-	var sets []map[string]struct{}
-	for _, form := range forms {
-		set, err := certificateDERSet(form)
-		if err != nil {
-			t.Fatalf("certificateDERSet() error = %v", err)
-		}
-		sets = append(sets, set)
-	}
-	for i := 1; i < len(sets); i++ {
-		if !derSetsEqual(sets[0], sets[i]) {
-			t.Fatalf("form %d did not match PEM", i)
-		}
-	}
-	other, err := certificateDERSet(testCertPEM(t))
+	kubeconfig, err := pemCertificateSet(pemBytes)
 	if err != nil {
-		t.Fatalf("certificateDERSet(other) error = %v", err)
+		t.Fatalf("pemCertificateSet(PEM) error = %v", err)
 	}
-	if derSetsEqual(sets[0], other) {
+	api, err := apiCertificateSet(b64PEM(pemBytes))
+	if err != nil {
+		t.Fatalf("apiCertificateSet(base64 of PEM) error = %v", err)
+	}
+	if !derSetsEqual(kubeconfig, api) {
+		t.Fatal("the kubeconfig PEM and the API base64 of the same PEM did not compare equal")
+	}
+
+	for name, form := range map[string][]byte{
+		"DER":           block.Bytes,
+		"base64 of PEM": []byte(b64PEM(pemBytes)),
+		"base64 of DER": []byte(base64.StdEncoding.EncodeToString(block.Bytes)),
+	} {
+		if _, err := pemCertificateSet(form); err == nil {
+			t.Fatalf("pemCertificateSet accepted a kubeconfig CA given as %s", name)
+		}
+	}
+	padded := append([]byte(nil), pemBytes...)
+	for len(padded)%3 == 0 {
+		padded = append(padded, '\n')
+	}
+	for name, form := range map[string]string{
+		"PEM":                    string(pemBytes),
+		"base64 of DER":          base64.StdEncoding.EncodeToString(block.Bytes),
+		"unpadded base64 of PEM": base64.RawStdEncoding.EncodeToString(padded),
+	} {
+		if _, err := apiCertificateSet(form); err == nil {
+			t.Fatalf("apiCertificateSet accepted clusterCaCertificate given as %s", name)
+		}
+	}
+
+	other, err := pemCertificateSet(testCertPEM(t))
+	if err != nil {
+		t.Fatalf("pemCertificateSet(other) error = %v", err)
+	}
+	if derSetsEqual(kubeconfig, other) {
 		t.Fatal("two different certificates compared equal")
 	}
 }
@@ -312,7 +331,7 @@ func TestClusterMatchRequiresIPAndCAOnEveryEndpointField(t *testing.T) {
 	ca := testCertPEM(t)
 	other := testCertPEM(t)
 	wantIP := net.ParseIP("10.0.0.5")
-	wantCA, err := certificateDERSet(ca)
+	wantCA, err := pemCertificateSet(ca)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -365,6 +384,7 @@ func TestGKEGetMatchInstallsTokenAndWarns(t *testing.T) {
 		Project: "my-project", Location: "us-central1", Name: "demo",
 		Cluster: clusterFor(ip, ca),
 	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
 	log, logs := bufferLogger(t)
 	var calls atomic.Int32
 	auth := NewAuthenticator(
@@ -467,6 +487,7 @@ func TestGKEListMatchAfterWrongName(t *testing.T) {
 	api := startContainerAPI(t, []servedCluster{{
 		Project: "my-project", Location: "us-central1", Name: "demo", Cluster: cluster,
 	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
 	auth := NewAuthenticator(
 		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
 		withLookPath(notOnPath),
@@ -534,6 +555,7 @@ func TestGKEIPMismatchIsRefused(t *testing.T) {
 		Project: "my-project", Location: "us-central1", Name: "real",
 		Cluster: clusterFor(realIP, realCA),
 	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
 
 	t.Run("attacker IP and CA, including a gke_ name for the real cluster", func(t *testing.T) {
 		attacker := newAuthorizationRecorder(t, "adc-token")
@@ -612,6 +634,7 @@ func TestGKEIPMismatchIsRefused(t *testing.T) {
 func TestGKELookupFailureUsesRefusedEndpointPath(t *testing.T) {
 	ca := testCertPEM(t)
 	const ip = "34.118.10.40"
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
 	tests := []struct {
 		name   string
 		reason string
@@ -630,7 +653,6 @@ func TestGKELookupFailureUsesRefusedEndpointPath(t *testing.T) {
 			name:   "no matching cluster",
 			reason: "no cluster matched",
 			api: func(t *testing.T) (string, func() int) {
-				t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
 				cluster := clusterFor("198.51.100.10", ca)
 				api := startContainerAPI(t, []servedCluster{{
 					Project: "my-project", Location: "us-central1", Name: "other", Cluster: cluster,
@@ -642,7 +664,6 @@ func TestGKELookupFailureUsesRefusedEndpointPath(t *testing.T) {
 			name:   "server error",
 			reason: "HTTP 503",
 			api: func(t *testing.T) (string, func() int) {
-				t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
 				api := startContainerAPI(t, nil)
 				api.status = http.StatusServiceUnavailable
 				return api.URL, func() int { return len(api.authorizations()) }
@@ -718,6 +739,7 @@ func TestGKELookupReportsEachUnansweredProject(t *testing.T) {
 		name          string
 		projectStatus map[string]int
 		getStatus     int
+		missingZones  []string
 		want          []string
 		notWant       []string
 		lists         []string
@@ -746,14 +768,26 @@ func TestGKELookupReportsEachUnansweredProject(t *testing.T) {
 			notWant:   []string{"permission denied"},
 			lists:     []string{"cluster-project", "adc-project"},
 		},
+		{
+			name:         "a list with missing zones is a failed lookup, not a no-match",
+			missingZones: []string{"us-central1-a", "us-central1-b"},
+			want: []string{
+				"could not list zones us-central1-a, us-central1-b for project cluster-project",
+				"could not list zones us-central1-a, us-central1-b for project adc-project",
+			},
+			notWant: []string{"no cluster matched"},
+			lists:   []string{"cluster-project", "adc-project"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("GOOGLE_CLOUD_PROJECT", "adc-project")
+			t.Setenv("GOOGLE_CLOUD_PROJECT", "cluster-project")
+			t.Setenv("GOOGLE_PROJECT", "adc-project")
 			api := &containerAPI{
 				clusters:      []servedCluster{unrelated},
 				projectStatus: tt.projectStatus,
 				getStatus:     tt.getStatus,
+				missingZones:  tt.missingZones,
 			}
 			api.Server = httptest.NewServer(api)
 			t.Cleanup(api.Close)
@@ -782,6 +816,151 @@ func TestGKELookupReportsEachUnansweredProject(t *testing.T) {
 			}
 			if config.WrapTransport != nil {
 				t.Fatal("Apply() installed a token after a failed lookup")
+			}
+		})
+	}
+}
+
+func TestGKEPartialListStillAcceptsAMatch(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.46"
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	api := &containerAPI{
+		clusters:     []servedCluster{{Project: "my-project", Location: "us-central1", Name: "demo", Cluster: clusterFor(ip, ca)}},
+		missingZones: []string{"us-central1-a"},
+	}
+	api.Server = httptest.NewServer(api)
+	t.Cleanup(api.Close)
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
+	config := gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if config.ExecProvider != nil || config.WrapTransport == nil {
+		t.Fatal("a match in a partial list did not install the token source")
+	}
+}
+
+func TestGKEUntrustedHintProjectIsNeverQueried(t *testing.T) {
+	attacker := newAuthorizationRecorder(t, "adc-token")
+	attackerCA := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: attacker.Certificate().Raw})
+	attackerIP := urlHostIP(t, attacker.URL)
+	const hint = "gke_attacker-project_us-central1_evil"
+
+	tests := []struct {
+		name    string
+		trusted string
+		want    string
+		lists   []string
+	}{
+		{name: "a trusted project is searched instead", trusted: "meshery-project", want: "no cluster matched", lists: []string{"meshery-project"}},
+		{name: "no trusted project makes no API call", want: "no trusted project to search"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.trusted != "" {
+				t.Setenv("GOOGLE_CLOUD_PROJECT", tt.trusted)
+			}
+			// The attacker's project really has a cluster with the kubeconfig
+			// IP and CA, so a single request for it would install a token.
+			api := startContainerAPI(t, []servedCluster{{
+				Project: "attacker-project", Location: "us-central1", Name: "evil",
+				Cluster: clusterFor(attackerIP, attackerCA),
+			}})
+			auth := NewAuthenticator(
+				WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+				withLookPath(notOnPath),
+				withContainerAPIBase(api.URL),
+			)
+			config := gkeIPConfig(attacker.URL, attackerCA, gkeExecConfig())
+			err := auth.ApplyWithClusterHint(config, hint, hint)
+			if errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+				t.Fatalf("Apply() error = %v, want code %s", err, ErrUntrustedClusterEndpointCode)
+			}
+			if !strings.Contains(err.Error(), tt.want) ||
+				!strings.Contains(err.Error(), "names project attacker-project, which is not the ADC project") {
+				t.Fatalf("Apply() error = %v, want %q and the untrusted hint project", err, tt.want)
+			}
+			for _, path := range api.getPaths() {
+				if strings.Contains(path, "attacker-project") {
+					t.Fatalf("clusters.get was called for the untrusted project: %s", path)
+				}
+			}
+			if got := api.listProjects(); strings.Join(got, ",") != strings.Join(tt.lists, ",") {
+				t.Fatalf("list projects = %v, want %v", got, tt.lists)
+			}
+			if tt.trusted == "" && len(api.authorizations()) != 0 {
+				t.Fatalf("container API requests = %d, want none without a trusted project", len(api.authorizations()))
+			}
+			if config.WrapTransport != nil || config.ExecProvider == nil {
+				t.Fatal("Apply() installed a token for the attacker endpoint")
+			}
+			if attacker.hits.Load() != 0 {
+				t.Fatalf("attacker received %d requests", attacker.hits.Load())
+			}
+		})
+	}
+}
+
+func TestGKERefusalIsReusedForFiveMinutes(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.47"
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	for _, on := range []bool{false, true} {
+		look, name := notOnPath, "plugin not on PATH"
+		if on {
+			look, name = onPath, "plugin on PATH"
+		}
+		t.Run(name, func(t *testing.T) {
+			api := startContainerAPI(t, []servedCluster{{
+				Project: "my-project", Location: "us-central1", Name: "other",
+				Cluster: clusterFor("198.51.100.30", ca),
+			}})
+			clock := newFakeClock()
+			var calls atomic.Int32
+			auth := NewAuthenticator(
+				WithTokenSourceFactory(staticFactory("adc-token", &calls)),
+				withLookPath(look),
+				withContainerAPIBase(api.URL),
+				withLogger(discardLogger(t)),
+			)
+			auth.clock = clock
+			apply := func(when string) {
+				t.Helper()
+				config := gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+				err := auth.Apply(config)
+				if on && err != nil {
+					t.Fatalf("%s: Apply() with the plugin on PATH error = %v", when, err)
+				}
+				if !on && (errors.GetCode(err) != ErrUntrustedClusterEndpointCode || !strings.Contains(err.Error(), "no cluster matched")) {
+					t.Fatalf("%s: Apply() error = %v, want %s with the lookup cause", when, err, ErrUntrustedClusterEndpointCode)
+				}
+				if config.ExecProvider == nil || config.WrapTransport != nil {
+					t.Fatalf("%s: Apply() installed a token for a refused endpoint", when)
+				}
+			}
+
+			apply("first Apply")
+			requests := len(api.authorizations())
+			if calls.Load() != 1 || requests == 0 {
+				t.Fatalf("first Apply: factory calls = %d, API requests = %d, want 1 and some", calls.Load(), requests)
+			}
+
+			clock.Advance(gkeRejectionRetryInterval - time.Second)
+			apply("Apply within the window")
+			if calls.Load() != 1 || len(api.authorizations()) != requests {
+				t.Fatalf("Apply within the window: factory calls = %d, API requests = %d, want 1 and %d", calls.Load(), len(api.authorizations()), requests)
+			}
+
+			clock.Advance(time.Second)
+			apply("Apply after the window")
+			if calls.Load() != 2 || len(api.authorizations()) <= requests {
+				t.Fatalf("Apply after the window: factory calls = %d, API requests = %d, want 2 and more than %d", calls.Load(), len(api.authorizations()), requests)
 			}
 		})
 	}

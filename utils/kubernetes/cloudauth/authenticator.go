@@ -28,6 +28,11 @@ const (
 	// transient setup failure does not disable in-process minting for the
 	// process lifetime.
 	fallbackRetryInterval = 5 * time.Minute
+	// gkeRejectionRetryInterval is how long a GKE IP endpoint the Container
+	// API did not confirm stays refused for the same IP and CA, so repeated
+	// Apply calls and client builds take the refused-endpoint path without
+	// rebuilding credentials or calling the API again.
+	gkeRejectionRetryInterval = 5 * time.Minute
 	// defaultSetupTimeout bounds one token source setup (credential
 	// discovery plus the up-front credential check), whether it runs in
 	// Apply or again after a 401 or a failed token.
@@ -87,7 +92,8 @@ func WithTokenSourceFactory(factory func(ctx context.Context, spec Spec) (oauth2
 // carrying ErrUntrustedClusterEndpointFallback when the cluster endpoint may
 // not receive in-process tokens (once per provider and endpoint). A GKE IP
 // endpoint that the Container API confirms is logged once per setup as
-// ErrInProcessGKEIPMinting.
+// ErrInProcessGKEIPMinting. One the API does not confirm stays refused for
+// gkeRejectionRetryInterval before it is looked up again.
 type Authenticator struct {
 	factory      tokenSourceFactory
 	lookPath     func(string) (string, error)
@@ -167,7 +173,9 @@ func (a *Authenticator) Apply(config *rest.Config) error {
 // ApplyWithClusterHint is Apply with the kubeconfig current context name
 // and that context's cluster name. utils/kubernetes passes both from the
 // kubeconfig loader. They are only a hint for the GKE Container API get
-// call; an empty hint lists clusters in the ADC and environment projects.
+// call, and only when the project they name is the ADC project,
+// GOOGLE_CLOUD_PROJECT or GOOGLE_PROJECT. Clusters are always listed in those
+// projects only.
 func (a *Authenticator) ApplyWithClusterHint(config *rest.Config, contextName, clusterName string) error {
 	return a.apply(config, clusterHint{contextName: contextName, clusterName: clusterName})
 }
@@ -270,8 +278,10 @@ func (a *Authenticator) entry(spec Spec) *authEntry {
 // tokenSource returns the shared token source for spec, setting one up when
 // none is cached. It returns (nil, nil) when the exec plugin should be used
 // instead. Successful setups are cached until their source fails; fallback
-// decisions are cached for fallbackRetryInterval; errors are not cached, so
-// a later call retries once credentials appear. A cached fallback decision
+// decisions are cached for fallbackRetryInterval; a GKE IP endpoint the
+// Container API refused is cached by acquire for gkeRejectionRetryInterval;
+// other errors are not cached, so a later call retries once credentials
+// appear. A cached fallback decision
 // is only reused while spec.Command is itself on PATH, both because stanzas
 // naming different commands share one cluster identity and because a
 // plugin removed since the decision can no longer be fallen back to. Each
@@ -298,7 +308,7 @@ func (a *Authenticator) tokenSource(spec Spec) (oauth2.TokenSource, error) {
 			return entry, nil
 		}
 		// A failed GKE API check is an untrusted endpoint, not a credential
-		// failure, and it is not cached: the next Apply tries the API again.
+		// failure, so it is not recorded as a fallback decision.
 		var rejected *gkeEndpointRejected
 		if stderrors.As(err, &rejected) {
 			return nil, rejected
@@ -342,6 +352,11 @@ type authEntry struct {
 	fallbackErr     error
 	fallbackAt      time.Time
 	fallbackAttempt uint64
+	// rejected is the Container API refusal of this GKE IP endpoint, made
+	// at rejectedAt; nil when there is none. acquire returns it without a
+	// new setup for gkeRejectionRetryInterval.
+	rejected   *gkeEndpointRejected
+	rejectedAt time.Time
 }
 
 // setupResult is the outcome of one setup flight.
@@ -356,13 +371,20 @@ var _ transport.ResettableTokenSource = (*authEntry)(nil)
 // acquire returns the entry's source, setting it up first when there is
 // none. Concurrent callers share one setup attempt, run without the entry
 // lock and bounded by the setup timeout; its failure is returned to all of
-// them and is not cached, so the next call starts a new attempt.
+// them. A failure is not cached, so the next call starts a new attempt,
+// except that a Container API refusal of a GKE IP endpoint is returned
+// again until gkeRejectionRetryInterval has passed.
 func (e *authEntry) acquire() (setupResult, error) {
 	e.mu.Lock()
 	if e.source != nil {
 		result := setupResult{source: e.source, generation: e.generation}
 		e.mu.Unlock()
 		return result, nil
+	}
+	if e.rejected != nil && e.auth.clock.Now().Sub(e.rejectedAt) < gkeRejectionRetryInterval {
+		rejected := e.rejected
+		e.mu.Unlock()
+		return setupResult{}, rejected
 	}
 	if f := e.setupFlight; f != nil {
 		f.waiters++
@@ -379,12 +401,17 @@ func (e *authEntry) acquire() (setupResult, error) {
 
 	e.mu.Lock()
 	e.setupFlight = nil
-	if err == nil {
+	var rejected *gkeEndpointRejected
+	switch {
+	case err == nil:
 		e.generation++
 		e.source = source
 		e.setupAt = e.auth.clock.Now()
 		e.fallbackErr = nil
+		e.rejected = nil
 		result.source, result.generation = source, e.generation
+	case stderrors.As(err, &rejected):
+		e.rejected, e.rejectedAt = rejected, e.auth.clock.Now()
 	}
 	e.mu.Unlock()
 
