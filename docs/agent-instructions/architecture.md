@@ -80,17 +80,18 @@ Intentionally reusable across Meshery services and tools:
   read or parsed as PEM or no project is trusted; the lookup stops and
   refuses when a request cannot be made, the API is unreachable or times
   out, a response body cannot be read, or a 200 response is not valid JSON;
-  otherwise it refuses when no get or list call
-  (whatever 401, 403 or 5xx answers the others gave) returns a cluster
-  matching the IP and CA. A refused endpoint uses the exec plugin when it is
-  on PATH and returns `ErrUntrustedClusterEndpoint` otherwise. A confirmed IP endpoint logs `ErrInProcessGKEIPMinting` once
-  per setup. The first token is minted when the kubeconfig is loaded or the
-  client is built, then reused until near expiry or a 401; it is cached per
-  cluster identity, and per verified endpoint for GKE IP.
-  `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true` disables minting for the
-  process. The same name on a kubeconfig user's exec env disables it for
-  every context that uses that user (`SetInProcessCloudAuthForContext` writes
-  it on the context's AuthInfo, so contexts sharing a user switch together). No lock is held across
+  otherwise it refuses when no get or list call (whatever 401, 403 or 5xx
+  answers the others gave) returns a cluster matching the IP and CA. A
+  refused endpoint uses the exec plugin when it is on PATH and returns
+  `ErrUntrustedClusterEndpoint` otherwise. A confirmed IP endpoint logs
+  `ErrInProcessGKEIPMinting` once per setup. The first token is minted when
+  the kubeconfig is loaded or the client is built, then reused until near
+  expiry or a 401; it is cached per cluster identity, and per verified
+  endpoint for GKE IP. `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true` disables
+  minting for the process. The same name on a kubeconfig user's exec env
+  disables it for every context that uses that user
+  (`SetInProcessCloudAuthForContext` writes it on the context's AuthInfo, so
+  contexts sharing a user switch together). No lock is held across
   network I/O; setups and mints are single-flight and deadline-bounded. The
   package doc covers the credential chains, the endpoint rules, the API
   lookup, the fallback to the plugin binary, and both disable switches.
