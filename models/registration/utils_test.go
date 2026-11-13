@@ -1,6 +1,7 @@
 package registration
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/meshery/meshkit/models/meshmodel/entity"
@@ -81,7 +82,17 @@ func TestGetEntityV1Beta3RelationshipKeepsFields(t *testing.T) {
 		"type": "non-binding",
 		"subType": "network",
 		"status": "enabled",
-		"metadata": {"description": "sample relationship"},
+		"metadata": {
+			"description": "sample relationship",
+			"lineColor": "#custom",
+			"styles": {"curveStyle": "bezier", "lineColor": "#fff"}
+		},
+		"selectors": [{
+			"allow": {
+				"from": [{"kind": "Deployment", "matchStrategyMatrix": [["kind"]]}],
+				"to": [{"kind": "Service"}]
+			}
+		}],
 		"model": {"name": "kubernetes", "model": {"version": "v1.0.0"}}
 	}`)
 
@@ -94,6 +105,24 @@ func TestGetEntityV1Beta3RelationshipKeepsFields(t *testing.T) {
 	assert.EqualValues(t, "v1.0.0", converted.Version)
 	assert.EqualValues(t, "network", converted.SubType)
 	assert.Equal(t, "kubernetes", converted.Model.Name)
+
+	raw, err := json.Marshal(converted)
+	require.NoError(t, err)
+	var roundTripped map[string]any
+	require.NoError(t, json.Unmarshal(raw, &roundTripped))
+
+	meta, _ := roundTripped["metadata"].(map[string]any)
+	assert.Equal(t, "#custom", meta["lineColor"])
+	styles, _ := meta["styles"].(map[string]any)
+	assert.Equal(t, "bezier", styles["curve-style"])
+	assert.Equal(t, "#fff", styles["line-color"])
+
+	selectors, _ := roundTripped["selectors"].([]any)
+	require.Len(t, selectors, 1)
+	allow, _ := selectors[0].(map[string]any)["allow"].(map[string]any)
+	from, _ := allow["from"].([]any)
+	require.Len(t, from, 1)
+	assert.Equal(t, []any{[]any{"kind"}}, from[0].(map[string]any)["match_strategy_matrix"])
 }
 
 func TestFindLostFieldsReportsDroppedFields(t *testing.T) {
