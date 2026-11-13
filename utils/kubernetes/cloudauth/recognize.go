@@ -141,8 +141,9 @@ func (s Spec) cacheKey() string {
 // "gcloud config config-helper" uses the gcloud CLI's active account.
 //
 // An exec env entry named DisableEnvVar (MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH)
-// with a true value is the per-context opt-out: Recognize returns false and
-// the stanza stays on the plugin. A false or unparseable value is ignored,
+// with a true value is the opt-out for the kubeconfig user that owns this
+// stanza, and so for every context that uses that user: Recognize returns
+// false and the stanza stays on the plugin. A false or unparseable value is ignored,
 // and so is the entry when deciding whether any other env var selects a
 // different identity. It is not an AWS identity variable and it is not a
 // GKE env entry that by itself keeps the stanza on the plugin.

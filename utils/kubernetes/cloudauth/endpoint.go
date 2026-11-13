@@ -46,12 +46,14 @@ import (
 // addresses, and https://www.gstatic.com/ipranges/cloud.json lists every
 // Google Cloud customer prefix, so a VM in any customer project would match.
 // That file also changes often, and a private control plane uses an address
-// the customer chooses, often from an RFC1918 range. The kubeconfig is
-// trusted to name the cluster (the gke_<project>_<location>_<cluster> context
-// or cluster name is only a hint for container.clusters.get). The IP and the
-// CA must both match a cluster the process credentials can see through
-// container.clusters.get or container.clusters.list. If they do not, or the
-// API cannot be reached, the endpoint is refused.
+// the customer chooses, often from an RFC1918 range. The kubeconfig does not
+// choose the project: only the Application Default Credentials project and
+// GOOGLE_CLOUD_PROJECT and GOOGLE_PROJECT are searched, and the
+// gke_<project>_<location>_<cluster> context or cluster name is only a hint
+// for container.clusters.get inside them. The IP and the CA must both match
+// a cluster in one of those projects through container.clusters.get or
+// container.clusters.list. If they do not, or the API cannot be reached, the
+// endpoint is refused.
 
 var (
 	// eksHostSuffixes are the EKS API endpoint domains per AWS partition:
@@ -76,7 +78,8 @@ var (
 
 // clusterHint carries the kubeconfig context name and that context's
 // cluster name. Both are optional. They are not authenticated; they only
-// choose the first container.clusters.get URL for a GKE IP endpoint.
+// choose the container.clusters.get URL for a GKE IP endpoint, and only when
+// the project they name is already trusted.
 type clusterHint struct {
 	contextName string
 	clusterName string

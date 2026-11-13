@@ -22,14 +22,9 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-const (
-	// defaultGKEContainerAPI is the GKE Container API origin. Tests replace
-	// Authenticator.containerAPIBase with a local server.
-	defaultGKEContainerAPI = "https://container.googleapis.com"
-	// gkeListPageCap bounds container.clusters.list pagination so a repeated
-	// page token cannot loop for the rest of the setup deadline.
-	gkeListPageCap = 20
-)
+// defaultGKEContainerAPI is the GKE Container API origin. Tests replace
+// Authenticator.containerAPIBase with a local server.
+const defaultGKEContainerAPI = "https://container.googleapis.com"
 
 // gkeNoMatchCause is the cause used when the API answered but no cluster had
 // both the kubeconfig IP and the kubeconfig CA.
@@ -54,7 +49,8 @@ var gkeLocationPattern = regexp.MustCompile(`^[a-z]+(?:-[a-z]+)*[0-9]+(?:-[a-z])
 var gkeClusterNamePattern = regexp.MustCompile(`^[a-z](?:[a-z0-9-]{0,38}[a-z0-9])?$`)
 
 // gkeNamedCluster is a project, location and cluster parsed from a
-// kubeconfig context or cluster name. It is only a hint.
+// kubeconfig context or cluster name. It is only a hint, and it is used only
+// when its project is trusted.
 type gkeNamedCluster struct {
 	Project  string
 	Location string
@@ -89,9 +85,12 @@ type gkeCluster struct {
 	} `json:"controlPlaneEndpointsConfig"`
 }
 
+// gkeListResponse is a container.clusters.list response. The method is not
+// paginated. MissingZones names zones the API could not reach, so a list
+// that has them is partial.
 type gkeListResponse struct {
-	Clusters      []gkeCluster `json:"clusters"`
-	NextPageToken string       `json:"nextPageToken"`
+	Clusters     []gkeCluster `json:"clusters"`
+	MissingZones []string     `json:"missingZones"`
 }
 
 // adcProjectID returns the project id from Application Default Credentials.
@@ -109,8 +108,8 @@ func defaultADCProjectID(ctx context.Context) string {
 // parseGKEClusterName parses a kubeconfig context or cluster name of the
 // form gke_<project>_<location>_<cluster>. The cluster part is everything
 // after the third underscore, so a hyphenated cluster name stays intact.
-// The name is a hint for container.clusters.get; a parse failure only means
-// the lookup starts at container.clusters.list.
+// The name is a hint for container.clusters.get in a trusted project; a
+// parse failure only means the lookup starts at container.clusters.list.
 func parseGKEClusterName(name string) (gkeNamedCluster, bool) {
 	rest, ok := strings.CutPrefix(name, "gke_")
 	if !ok || rest == "" {
@@ -129,64 +128,49 @@ func parseGKEClusterName(name string) (gkeNamedCluster, bool) {
 	return named, true
 }
 
-// gkeNamesFromHint returns the name to pass to container.clusters.get, if
-// either hint parses, and every distinct parsed name. The context name wins
-// over the cluster name when both parse.
-func gkeNamesFromHint(contextName, clusterName string) (get *gkeNamedCluster, parsed []gkeNamedCluster) {
-	var first *gkeNamedCluster
-	add := func(name string) {
+// gkeHintedCluster returns the first of contextName and clusterName that
+// parses as gke_<project>_<location>_<cluster> with a trusted project, for
+// container.clusters.get. When no such name exists, untrusted is the project
+// of the first name that parses; that project is never queried.
+func gkeHintedCluster(contextName, clusterName string, trusted []string) (get *gkeNamedCluster, untrusted string) {
+	for _, name := range []string{contextName, clusterName} {
 		named, ok := parseGKEClusterName(name)
 		if !ok {
-			return
+			continue
 		}
-		for _, existing := range parsed {
-			if existing == named {
-				if first == nil {
-					copyNamed := named
-					first = &copyNamed
-				}
-				return
-			}
+		if slices.Contains(trusted, named.Project) {
+			return &named, ""
 		}
-		parsed = append(parsed, named)
-		if first == nil {
-			copyNamed := named
-			first = &copyNamed
+		if untrusted == "" {
+			untrusted = named.Project
 		}
 	}
-	add(contextName)
-	add(clusterName)
-	return first, parsed
+	return nil, untrusted
 }
 
 func validGKEProject(project string) bool {
 	return gkeProjectIDPattern.MatchString(project) || gkeProjectNumberPattern.MatchString(project)
 }
 
-// gkeProjectIDs returns the projects to pass to container.clusters.list, in
-// order, without duplicates: projects parsed from the name hint, the ADC
-// project, then GOOGLE_CLOUD_PROJECT and GOOGLE_PROJECT.
-func (a *Authenticator) gkeProjectIDs(ctx context.Context, parsed []gkeNamedCluster) []string {
+// gkeTrustedProjects returns the projects the lookup may search, in order,
+// without duplicates: the ADC project, then GOOGLE_CLOUD_PROJECT and
+// GOOGLE_PROJECT. The operator of the Meshery process chooses them; the
+// kubeconfig cannot add one.
+func (a *Authenticator) gkeTrustedProjects(ctx context.Context) []string {
 	var projects []string
-	add := func(project string) {
+	for _, project := range []string{adcProjectID(ctx), a.getenv("GOOGLE_CLOUD_PROJECT"), a.getenv("GOOGLE_PROJECT")} {
 		project = strings.TrimSpace(project)
-		if !validGKEProject(project) {
-			return
+		if validGKEProject(project) && !slices.Contains(projects, project) {
+			projects = append(projects, project)
 		}
-		for _, existing := range projects {
-			if existing == project {
-				return
-			}
-		}
-		projects = append(projects, project)
 	}
-	for _, named := range parsed {
-		add(named.Project)
-	}
-	add(adcProjectID(ctx))
-	add(a.getenv("GOOGLE_CLOUD_PROJECT"))
-	add(a.getenv("GOOGLE_PROJECT"))
 	return projects
+}
+
+// gkeUntrustedHintCause explains that the kubeconfig named a project outside
+// the trusted set, so a refusal does not look like a missing cluster.
+func gkeUntrustedHintCause(project string) string {
+	return "the kubeconfig names project " + project + ", which is not the ADC project, GOOGLE_CLOUD_PROJECT or GOOGLE_PROJECT, so it was not searched"
 }
 
 func (g *gkeIPEndpoint) caBytes() ([]byte, error) {
@@ -214,19 +198,27 @@ func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.To
 	if err != nil {
 		return gkeClusterIdentity{}, err
 	}
-	wantCA, err := certificateDERSet(caBytes)
+	wantCA, err := pemCertificateSet(caBytes)
 	if err != nil {
-		return gkeClusterIdentity{}, fmt.Errorf("GKE API lookup failed: the kubeconfig CA certificate cannot be parsed")
+		return gkeClusterIdentity{}, fmt.Errorf("GKE API lookup failed: the kubeconfig CA certificate cannot be parsed as PEM")
 	}
 	wantIP := net.ParseIP(check.Host)
 	if wantIP == nil {
 		return gkeClusterIdentity{}, fmt.Errorf("GKE API lookup failed: %q is not an IP address", check.Host)
 	}
 
-	client := gkeAPIClient(source)
-	get, parsed := gkeNamesFromHint(check.ContextName, check.ClusterName)
-	var outcome gkeLookup
+	trusted := a.gkeTrustedProjects(ctx)
+	get, untrusted := gkeHintedCluster(check.ContextName, check.ClusterName, trusted)
+	if len(trusted) == 0 {
+		cause := "GKE API lookup failed: no trusted project to search; set GOOGLE_CLOUD_PROJECT or use Application Default Credentials that name a project"
+		if untrusted != "" {
+			cause += "; " + gkeUntrustedHintCause(untrusted)
+		}
+		return gkeClusterIdentity{}, errors.New(cause)
+	}
 
+	client := gkeAPIClient(source)
+	outcome := gkeLookup{untrusted: untrusted}
 	if get != nil {
 		var cluster gkeCluster
 		status, err := a.gkeGET(ctx, client, clusterGetPath(*get), &cluster)
@@ -239,11 +231,7 @@ func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.To
 		outcome.note(get.Project, status)
 	}
 
-	projects := a.gkeProjectIDs(ctx, parsed)
-	if get == nil && len(projects) == 0 {
-		return gkeClusterIdentity{}, fmt.Errorf("GKE API lookup failed: no project to search; name the cluster gke_<project>_<location>_<cluster> or set GOOGLE_CLOUD_PROJECT")
-	}
-	for _, project := range projects {
+	for _, project := range trusted {
 		clusters, err := a.listGKEClusters(ctx, client, project, &outcome)
 		if err != nil {
 			return gkeClusterIdentity{}, err
@@ -276,10 +264,13 @@ func shortClusterName(name string) string {
 
 // gkeLookup records the Container API answers a lookup saw, per project. A
 // 200 answers only for its own project: it hides an earlier 403 from the
-// same project, but not a denial or error from another project.
+// same project, but not a denial or error from another project. A partial
+// list (missingZones) is never a complete answer.
 type gkeLookup struct {
-	answered map[string]bool
-	refused  []gkeRefusal
+	answered  map[string]bool
+	refused   []gkeRefusal
+	partial   []string
+	untrusted string
 }
 
 type gkeRefusal struct {
@@ -300,6 +291,10 @@ func (l *gkeLookup) note(project string, status int) {
 	}
 }
 
+func (l *gkeLookup) notePartial(project string, missingZones []string) {
+	l.partial = append(l.partial, "the GKE API could not list zones "+strings.Join(missingZones, ", ")+" for project "+project)
+}
+
 func (l *gkeLookup) err() error {
 	var denied, failed []string
 	for _, refusal := range l.refused {
@@ -318,7 +313,7 @@ func (l *gkeLookup) err() error {
 		}
 	}
 	var causes []string
-	if len(l.answered) > 0 || (len(denied) == 0 && len(failed) == 0) {
+	if len(l.answered) > 0 {
 		causes = append(causes, gkeNoMatchCause)
 	}
 	if len(denied) > 0 {
@@ -326,6 +321,13 @@ func (l *gkeLookup) err() error {
 			" (requires container.clusters.get or container.clusters.list)")
 	}
 	causes = append(causes, failed...)
+	causes = append(causes, l.partial...)
+	if len(causes) == 0 {
+		causes = append(causes, gkeNoMatchCause)
+	}
+	if l.untrusted != "" {
+		causes = append(causes, gkeUntrustedHintCause(l.untrusted))
+	}
 	return errors.New("GKE API lookup failed: " + strings.Join(causes, "; "))
 }
 
@@ -335,12 +337,8 @@ func clusterGetPath(named gkeNamedCluster) string {
 		"/clusters/" + url.PathEscape(named.Cluster)
 }
 
-func clusterListPath(project, pageToken string) string {
-	path := "/v1/projects/" + url.PathEscape(project) + "/locations/-/clusters"
-	if pageToken == "" {
-		return path
-	}
-	return path + "?pageToken=" + url.QueryEscape(pageToken)
+func clusterListPath(project string) string {
+	return "/v1/projects/" + url.PathEscape(project) + "/locations/-/clusters"
 }
 
 func (a *Authenticator) containerAPIURL(pathAndQuery string) string {
@@ -394,38 +392,33 @@ func (a *Authenticator) gkeGET(ctx context.Context, client *http.Client, path st
 	return resp.StatusCode, nil
 }
 
+// listGKEClusters returns the clusters container.clusters.list reports for
+// project in every location. A list with missingZones is recorded as
+// partial, so a lookup that finds no match in it is not reported as a
+// definitive no-match.
 func (a *Authenticator) listGKEClusters(ctx context.Context, client *http.Client, project string, outcome *gkeLookup) ([]gkeCluster, error) {
-	var all []gkeCluster
-	page := ""
-	seen := map[string]struct{}{}
-	for pages := 0; pages < gkeListPageCap; pages++ {
-		if _, dup := seen[page]; dup && pages > 0 {
-			break
-		}
-		seen[page] = struct{}{}
-		var body gkeListResponse
-		status, err := a.gkeGET(ctx, client, clusterListPath(project, page), &body)
-		if err != nil {
-			return nil, err
-		}
-		outcome.note(project, status)
-		if status != http.StatusOK {
-			return all, nil
-		}
-		all = append(all, body.Clusters...)
-		if body.NextPageToken == "" {
-			return all, nil
-		}
-		page = body.NextPageToken
+	var body gkeListResponse
+	status, err := a.gkeGET(ctx, client, clusterListPath(project), &body)
+	if err != nil {
+		return nil, err
 	}
-	return all, nil
+	if status != http.StatusOK {
+		outcome.note(project, status)
+		return nil, nil
+	}
+	if len(body.MissingZones) > 0 {
+		outcome.notePartial(project, body.MissingZones)
+	} else {
+		outcome.note(project, status)
+	}
+	return body.Clusters, nil
 }
 
 func clusterMatches(cluster gkeCluster, wantIP net.IP, wantCA map[string]struct{}) bool {
 	if !clusterHasIP(cluster, wantIP) {
 		return false
 	}
-	gotCA, err := certificateDERSet([]byte(cluster.MasterAuth.ClusterCaCertificate))
+	gotCA, err := apiCertificateSet(cluster.MasterAuth.ClusterCaCertificate)
 	if err != nil {
 		return false
 	}
@@ -461,59 +454,10 @@ func parseEndpointIP(raw string) net.IP {
 	return net.ParseIP(raw)
 }
 
-// certificateDERSet parses data as PEM, as base64 of PEM or DER, or as a
-// single DER certificate, and returns the set of certificate DER encodings.
-// PEM and base64 forms of the same certificates compare equal.
-func certificateDERSet(data []byte) (map[string]struct{}, error) {
-	ders, err := certificateDERs(data)
-	if err != nil {
-		return nil, err
-	}
-	set := make(map[string]struct{}, len(ders))
-	for _, der := range ders {
-		set[string(der)] = struct{}{}
-	}
-	return set, nil
-}
-
-func derSetsEqual(a, b map[string]struct{}) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for der := range a {
-		if _, ok := b[der]; !ok {
-			return false
-		}
-	}
-	return true
-}
-
-func certificateDERs(data []byte) ([][]byte, error) {
-	data = bytes.TrimSpace(data)
-	if len(data) == 0 {
-		return nil, fmt.Errorf("empty certificate")
-	}
-	if bytes.Contains(data, []byte("-----BEGIN")) {
-		return pemCertificateDERs(data)
-	}
-	compact := stripCertSpace(data)
-	decoded, err := base64.StdEncoding.DecodeString(string(compact))
-	if err != nil {
-		decoded, err = base64.RawStdEncoding.DecodeString(string(compact))
-	}
-	if err == nil && len(decoded) > 0 {
-		if bytes.Contains(decoded, []byte("-----BEGIN")) {
-			return pemCertificateDERs(decoded)
-		}
-		if ders, derErr := derCertificates(decoded); derErr == nil {
-			return ders, nil
-		}
-	}
-	return derCertificates(data)
-}
-
-func pemCertificateDERs(data []byte) ([][]byte, error) {
-	var ders [][]byte
+// pemCertificateSet parses the kubeconfig CA, which client-go accepts only
+// as PEM, and returns the set of its certificate DER encodings.
+func pemCertificateSet(data []byte) (map[string]struct{}, error) {
+	set := map[string]struct{}{}
 	rest := data
 	for {
 		var block *pem.Block
@@ -528,29 +472,32 @@ func pemCertificateDERs(data []byte) ([][]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		ders = append(ders, cert.Raw)
+		set[string(cert.Raw)] = struct{}{}
 	}
-	if len(ders) == 0 {
-		return nil, fmt.Errorf("no certificates")
+	if len(set) == 0 {
+		return nil, fmt.Errorf("no PEM certificates")
 	}
-	return ders, nil
+	return set, nil
 }
 
-func derCertificates(data []byte) ([][]byte, error) {
-	cert, err := x509.ParseCertificate(data)
+// apiCertificateSet parses masterAuth.clusterCaCertificate, which the
+// Container API returns as standard base64 of PEM.
+func apiCertificateSet(value string) (map[string]struct{}, error) {
+	decoded, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
 		return nil, err
 	}
-	return [][]byte{cert.Raw}, nil
+	return pemCertificateSet(decoded)
 }
 
-func stripCertSpace(data []byte) []byte {
-	return bytes.Map(func(r rune) rune {
-		switch r {
-		case ' ', '\n', '\r', '\t':
-			return -1
-		default:
-			return r
+func derSetsEqual(a, b map[string]struct{}) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for der := range a {
+		if _, ok := b[der]; !ok {
+			return false
 		}
-	}, data)
+	}
+	return true
 }

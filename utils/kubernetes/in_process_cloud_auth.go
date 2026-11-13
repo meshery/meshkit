@@ -8,9 +8,12 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// SetInProcessCloudAuthForContext sets the per-context opt-out for in-process
-// cloud token minting. mesheryctl and Meshery Server use it to turn minting
-// off for one kubeconfig context while every other context keeps using it.
+// SetInProcessCloudAuthForContext sets the opt-out for in-process cloud token
+// minting on contextName's user. mesheryctl and Meshery Server use it to turn
+// minting off for a kubeconfig context. The marker is stored on the
+// context's user (AuthInfo) entry, not on the context, so every context that
+// shares that user switches together; contexts with other users are not
+// affected.
 //
 // enabled false writes cloudauth.DisableEnvVar (MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH)
 // with the value "true" on the context user's exec stanza, so the
@@ -34,8 +37,10 @@ func SetInProcessCloudAuthForContext(config *clientcmdapi.Config, contextName st
 }
 
 // InProcessCloudAuthEnabledForContext reports whether in-process cloud token
-// minting is enabled for contextName. It is the read side of
-// SetInProcessCloudAuthForContext for mesheryctl and Meshery Server.
+// minting is enabled for contextName's user. It is the read side of
+// SetInProcessCloudAuthForContext for mesheryctl and Meshery Server. It reads
+// the marker on the context's user (AuthInfo) entry, so every context that
+// shares that user reports the same value.
 //
 // It returns false when config is nil, the context is missing, or the
 // context's user is missing, and when the user's exec stanza sets

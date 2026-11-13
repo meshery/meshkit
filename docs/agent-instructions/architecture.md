@@ -61,10 +61,14 @@ Intentionally reusable across Meshery services and tools:
   the IPv6 form `*.api.aws` with a matching region; GKE `*.gke.goog` or
   Connect Gateway; always https, TLS verified, no `proxy-url`). A GKE IP
   endpoint is accepted only when `container.clusters.get` or
-  `container.clusters.list` shows that same IP and the kubeconfig CA on a
-  cluster the process credentials can see. The kubeconfig is trusted to name
-  that cluster; the `gke_<project>_<location>_<cluster>` context or cluster
-  name is only a hint for the get call. There is no static GKE IP list:
+  `container.clusters.list` shows that same IP and the kubeconfig CA (PEM) on
+  a cluster in a trusted project. Trusted projects are only the ADC project
+  and the process's `GOOGLE_CLOUD_PROJECT` / `GOOGLE_PROJECT`; the kubeconfig
+  cannot add one. The `gke_<project>_<location>_<cluster>` context or cluster
+  name is only a hint for the get call, used when its project is trusted and
+  never queried otherwise. A list with `missingZones` and no match is a
+  failed lookup, and a refusal is reused for five minutes per IP and CA.
+  There is no static GKE IP list:
   Google's published cloud ranges cover every customer prefix, they change
   often, and private control planes use customer addresses. If the API is
   unreachable, returns 401 or 403, or finds no match, the exec plugin is
@@ -74,8 +78,9 @@ Intentionally reusable across Meshery services and tools:
   client is built, then reused until near expiry or a 401; it is cached per
   cluster identity, and per verified endpoint for GKE IP.
   `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true` disables minting for the
-  process. The same name on one context's exec env disables it for that
-  context (`SetInProcessCloudAuthForContext`). No lock is held across
+  process. The same name on a kubeconfig user's exec env disables it for
+  every context that uses that user (`SetInProcessCloudAuthForContext` writes
+  it on the context's AuthInfo, so contexts sharing a user switch together). No lock is held across
   network I/O; setups and mints are single-flight and deadline-bounded. The
   package doc covers the credential chains, the endpoint rules, the API
   lookup, the fallback to the plugin binary, and both disable switches.

@@ -16,9 +16,10 @@
 //
 //   - In-process minting is enabled for the process (see DisableEnvVar) and
 //     this exec stanza does not itself set that variable to a true value.
-//     The stanza entry is the per-context opt-out used by mesheryctl and
-//     Meshery Server (utils/kubernetes.SetInProcessCloudAuthForContext). A
-//     false value does not disable minting.
+//     The stanza entry is the opt-out used by mesheryctl and Meshery Server
+//     (utils/kubernetes.SetInProcessCloudAuthForContext). It lives on the
+//     kubeconfig user's exec stanza, so every context that shares that user
+//     is opted out together. A false value does not disable minting.
 //   - The rest.Config carries no credentials client-go prefers over an exec
 //     plugin: no bearer token or token file, no basic-auth username, and no
 //     client certificate with key. Such configs are left exactly as
@@ -46,7 +47,7 @@
 //     left to the plugin.
 //   - Google Kubernetes Engine: "gke-gcloud-auth-plugin
 //     --use_application_default_credentials" with no other argument and no
-//     env entries other than the per-context opt-out. Without that flag the
+//     env entries other than the opt-out. Without that flag the
 //     plugin uses the gcloud CLI's active account, which Application Default
 //     Credentials cannot reproduce, so a bare gke-gcloud-auth-plugin stanza,
 //     one with any other flag (for example --impersonate_service_account),
@@ -77,43 +78,54 @@
 //
 // # GKE IP endpoints
 //
-// The kubeconfig is trusted to name the cluster it points at, and it is not
-// trusted to point the process's Google token at an arbitrary server. Google
-// does not publish a list of GKE API server addresses. The published cloud
-// ranges at https://www.gstatic.com/ipranges/cloud.json cover every Google
-// Cloud customer prefix, so any VM in a customer project would match, the
-// file changes often, and a private control plane uses an address the
-// customer chooses, often from an RFC1918 range. This package keeps no
-// static IP list.
+// The kubeconfig is not trusted to point the process's Google token at an
+// arbitrary server, and it is not trusted to choose the project the cluster
+// is looked up in. Google does not publish a list of GKE API server
+// addresses. The published cloud ranges at
+// https://www.gstatic.com/ipranges/cloud.json cover every Google Cloud
+// customer prefix, so any VM in a customer project would match, the file
+// changes often, and a private control plane uses an address the customer
+// chooses, often from an RFC1918 range. This package keeps no static IP
+// list.
 //
 // For an IP endpoint, after the process's Google token source is built and
 // before any byte is sent to the kubeconfig server, the Authenticator asks
-// the GKE Container API whether a cluster those credentials can see has that
-// IP and that CA. The kubeconfig context or cluster name
-// gke_<project>_<location>_<cluster> is only a hint: it selects
-// container.clusters.get. If the name is missing, does not have that form,
-// returns 404, or names a cluster that does not match, the lookup calls
-// container.clusters.list (locations/-) for the project from the hint, the
-// Application Default Credentials project, and GOOGLE_CLOUD_PROJECT or
-// GOOGLE_PROJECT. There is no organization walk. The IP (compared with
-// net.IP.Equal, port and brackets stripped) must appear as endpoint,
+// the GKE Container API whether a cluster in a trusted project has that IP
+// and that CA. The trusted projects are only the Application Default
+// Credentials project and the GOOGLE_CLOUD_PROJECT and GOOGLE_PROJECT values
+// of the Meshery process. Anyone can grant the process identity access to a
+// project they own, so a project the kubeconfig names is not trusted for
+// that reason. The kubeconfig context or cluster name
+// gke_<project>_<location>_<cluster> is only a hint: when its project is
+// trusted it selects container.clusters.get, and when it is not, that
+// project is never queried. The lookup then calls container.clusters.list
+// (locations/-, not paginated) for each trusted project. There is no
+// organization walk, and with no trusted project the endpoint is refused
+// without calling the API. The IP (compared with net.IP.Equal, port and
+// brackets stripped) must appear as endpoint,
 // privateClusterConfig.publicEndpoint, privateClusterConfig.privateEndpoint,
 // or either address under controlPlaneEndpointsConfig.ipEndpointsConfig, and
-// masterAuth.clusterCaCertificate must be the same set of certificates as
-// the kubeconfig CA (PEM or base64 of PEM, compared as parsed DER). An IP
-// match without a CA match, or a CA match without an IP match, is a refusal.
+// masterAuth.clusterCaCertificate (standard base64 of PEM) must hold the
+// same set of certificates as the kubeconfig CA (PEM, as client-go reads
+// it), compared as parsed DER. An IP match without a CA match, or a CA match
+// without an IP match, is a refusal.
 //
 // If the API cannot be reached, times out, returns 401 or 403, returns 5xx,
-// or returns no matching cluster, the endpoint is refused. When the plugin
+// lists clusters with missingZones, or returns no matching cluster, the
+// endpoint is refused. A list with missingZones is reported as a failed
+// lookup naming those zones, not as a definitive no-match. When the plugin
 // binary is on PATH the plugin authenticates as before and the decision is
 // logged once as a warning carrying ErrUntrustedClusterEndpointFallback;
 // otherwise Apply returns ErrUntrustedClusterEndpoint. The wrapped cause
 // says why and names the project (for example permission denied for a
 // project, which needs container.clusters.get or container.clusters.list).
-// An answer from one project does not hide a denial or error from another,
-// so a 403 on the hinted project is reported even when the ADC project
-// answered without a match. A match is logged once per setup as a warning
-// carrying ErrInProcessGKEIPMinting. The lookup runs inside the bounded
+// An answer from one trusted project does not hide a denial or error from
+// another, so a 403 on GOOGLE_CLOUD_PROJECT is reported even when the ADC
+// project answered without a match. A refusal is reused for five minutes for the
+// same IP and CA, so repeated Apply calls and client builds take the
+// refused-endpoint path without rebuilding credentials or calling the API.
+// A match is logged once per setup as a warning carrying
+// ErrInProcessGKEIPMinting. The lookup runs inside the bounded
 // single-flight setup. No lock is held across the HTTP call, and the request
 // is cancelled when the setup deadline passes. A 401 that discards the token
 // source runs the lookup again on the next setup. DNS endpoints and Connect
@@ -220,9 +232,12 @@
 // Setting MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true in the process
 // environment (any value accepted by strconv.ParseBool) disables in-process
 // minting for every kubeconfig and leaves every exec stanza untouched. The
-// same name as an env entry on one user's exec stanza disables it for that
-// context only. utils/kubernetes.SetInProcessCloudAuthForContext adds and
-// removes that entry; InProcessCloudAuthEnabledForContext reports it.
+// same name as an env entry on one user's exec stanza disables it for every
+// context that uses that user. The entry is stored on the user (AuthInfo),
+// not on the context, so contexts that share a user switch together.
+// utils/kubernetes.SetInProcessCloudAuthForContext adds and removes that
+// entry for a context's user; InProcessCloudAuthEnabledForContext reports
+// it.
 // A false value on the stanza does not disable minting, and Recognize does
 // not treat the entry as an AWS identity variable or as a GKE env entry
 // that selects a different account.
