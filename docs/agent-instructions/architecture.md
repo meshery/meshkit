@@ -58,15 +58,27 @@ Intentionally reusable across Meshery services and tools:
   client certificate (client-go precedence), when the stanza selects its own identity
   (static AWS keys in exec env, the gcloud CLI account, impersonation), and when the
   server is not an endpoint of that cloud (EKS `*.eks.amazonaws.com[.cn]` or
-  the IPv6 form `*.api.aws` with a matching region; GKE IP with cluster CA,
-  `*.gke.goog`, or Connect Gateway; always https, TLS verified, no
-  `proxy-url`). A GKE IP endpoint with a CA from the kubeconfig cannot be
-  proven to be a GKE cluster, so deployments that accept kubeconfigs from
-  untrusted parties should disable in-process minting for them. No lock is
-  held across network I/O; setups and mints are single-flight and
-  deadline-bounded. The package doc covers the credential chains, the
-  endpoint rules and their residual risk, the fallback to the plugin binary,
-  and `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH`.
+  the IPv6 form `*.api.aws` with a matching region; GKE `*.gke.goog` or
+  Connect Gateway; always https, TLS verified, no `proxy-url`). A GKE IP
+  endpoint is accepted only when `container.clusters.get` or
+  `container.clusters.list` shows that same IP and the kubeconfig CA on a
+  cluster the process credentials can see. The kubeconfig is trusted to name
+  that cluster; the `gke_<project>_<location>_<cluster>` context or cluster
+  name is only a hint for the get call. There is no static GKE IP list:
+  Google's published cloud ranges cover every customer prefix, they change
+  often, and private control planes use customer addresses. If the API is
+  unreachable, returns 401 or 403, or finds no match, the exec plugin is
+  used when it is on PATH and `ErrUntrustedClusterEndpoint` is returned
+  otherwise. A confirmed IP endpoint logs `ErrInProcessGKEIPMinting` once
+  per setup. The first token is minted when the kubeconfig is loaded or the
+  client is built, then reused until near expiry or a 401; it is cached per
+  cluster identity, and per verified endpoint for GKE IP.
+  `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true` disables minting for the
+  process. The same name on one context's exec env disables it for that
+  context (`SetInProcessCloudAuthForContext`). No lock is held across
+  network I/O; setups and mints are single-flight and deadline-bounded. The
+  package doc covers the credential chains, the endpoint rules, the API
+  lookup, the fallback to the plugin binary, and both disable switches.
 - `broker/` provides messaging abstractions with NATS and in-process channel backends;
   the event-streaming primitives shared with Meshery Server are documented in
   [../event-streaming.md](../event-streaming.md).

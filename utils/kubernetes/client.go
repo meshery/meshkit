@@ -18,7 +18,9 @@ import (
 // When the kubeconfig user's exec stanza is a recognized cloud credential
 // plugin (EKS or GKE) and the cluster endpoint belongs to that cloud, the
 // returned config mints bearer tokens in process instead of forking the
-// plugin; see package cloudauth. Credential setup runs here, so when
+// plugin; see package cloudauth. A GKE IP endpoint is accepted only after
+// the GKE API confirms the IP and CA. The current context and cluster names
+// are passed as the lookup hint. Credential setup runs here, so when
 // in-process minting cannot be used (no cloud credentials, or an endpoint
 // the process's credentials may not be sent to) and the plugin binary is
 // not on PATH either, DetectKubeConfig fails at load time with
@@ -26,11 +28,12 @@ import (
 // cloudauth.ErrUntrustedClusterEndpoint, instead of returning a config whose
 // first request would fail to run the missing plugin.
 func DetectKubeConfig(configfile []byte) (config *rest.Config, err error) {
-	config, _, err = detectKubeConfig(configfile)
+	var loader clientcmd.ClientConfig
+	config, loader, err = detectKubeConfig(configfile)
 	if err != nil {
 		return nil, err
 	}
-	if err := newRESTConfigAuthenticator().Apply(config); err != nil {
+	if err := applyCloudAuth(newRESTConfigAuthenticator(), loader, config); err != nil {
 		return nil, err
 	}
 	return config, nil
