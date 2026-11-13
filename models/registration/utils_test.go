@@ -115,6 +115,49 @@ func TestFindLostFieldsReportsDroppedFields(t *testing.T) {
 	assert.Empty(t, findLostFields(dst, dst))
 }
 
+func TestFindLostFieldsDetectsChangedExplicitFalse(t *testing.T) {
+	t.Parallel()
+
+	src := map[string]any{"enabled": false, "count": float64(0), "flag": false}
+
+	changed := map[string]any{"enabled": true, "count": float64(2)}
+	assert.Equal(t, []string{"count", "enabled"}, findLostFields(src, changed))
+
+	unchanged := map[string]any{"enabled": false, "count": float64(0)}
+	assert.Empty(t, findLostFields(src, unchanged))
+}
+
+func TestRenameKeysMapsV1Beta3Names(t *testing.T) {
+	t.Parallel()
+
+	src := map[string]any{
+		"metadata": map[string]any{"styles": map[string]any{
+			"curveStyle": "bezier",
+			"lineColor":  "#fff",
+			"zIndex":     float64(2),
+		}},
+		"selectors": []any{map[string]any{"matchStrategyMatrix": []any{"a"}}},
+	}
+
+	assert.Equal(t, map[string]any{
+		"metadata": map[string]any{"styles": map[string]any{
+			"curve-style": "bezier",
+			"line-color":  "#fff",
+			"z-index":     float64(2),
+		}},
+		"selectors": []any{map[string]any{"match_strategy_matrix": []any{"a"}}},
+	}, renameKeys(src))
+}
+
+func TestV1Beta3KeyRenamesCoverEveryDifferingKey(t *testing.T) {
+	t.Parallel()
+
+	assert.Len(t, v1beta3KeyRenames, 23)
+	for from, to := range v1beta3KeyRenames {
+		assert.NotEqual(t, from, to)
+	}
+}
+
 // TestGetEntityAcceptsEveryComponentSchemaVersion pins the component schema
 // versions registration accepts. components.meshery.io/v1beta3 is the string
 // the v1beta3 component construct and its templates (the `mesheryctl model
