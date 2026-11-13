@@ -1,6 +1,7 @@
 package cloudauth
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -81,12 +82,13 @@ func clusterFor(ip string, caPEM []byte) gkeCluster {
 // never forwards them.
 type containerAPI struct {
 	*httptest.Server
-	mu       sync.Mutex
-	gets     []string
-	lists    []string
-	auth     []string
-	status   int
-	clusters []servedCluster
+	mu          sync.Mutex
+	gets        []string
+	lists       []string
+	listQueries []string
+	auth        []string
+	status      int
+	clusters    []servedCluster
 	// projectStatus answers every call for a project with that status.
 	// getStatus and listStatus answer every clusters.get or clusters.list
 	// call with that status.
@@ -153,6 +155,7 @@ func (a *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		project := projectFromListPath(r.URL.Path)
 		a.mu.Lock()
 		a.lists = append(a.lists, project)
+		a.listQueries = append(a.listQueries, r.URL.RawQuery)
 		var clusters []gkeCluster
 		for _, cluster := range a.clusters {
 			if cluster.Project == project {
@@ -210,6 +213,12 @@ func (a *containerAPI) authorizations() []string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return append([]string(nil), a.auth...)
+}
+
+func (a *containerAPI) listQueryStrings() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]string(nil), a.listQueries...)
 }
 
 func gkeIPConfig(host string, ca []byte, exec *clientcmdapi.ExecConfig) *rest.Config {
@@ -1257,6 +1266,96 @@ func TestGKECAFileIsReadAtVerification(t *testing.T) {
 	}
 	if config.ExecProvider != nil {
 		t.Fatal("CA file match did not install the token source")
+	}
+}
+
+func TestGKESwappedCAFileIsReverified(t *testing.T) {
+	ca1 := testCertPEM(t)
+	ca2 := testCertPEM(t)
+	path := t.TempDir() + "/ca.crt"
+	if err := os.WriteFile(path, ca1, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	const ip = "34.118.10.71"
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "demo",
+		Cluster: clusterFor(ip, ca1),
+	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
+	caFileConfig := func() *rest.Config {
+		return &rest.Config{
+			Host:            "https://" + ip,
+			ExecProvider:    gkeExecConfig(),
+			TLSClientConfig: rest.TLSClientConfig{CAFile: path},
+		}
+	}
+	config := caFileConfig()
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if config.ExecProvider != nil {
+		t.Fatal("CA file match did not install the token source")
+	}
+	if !bytes.Equal(config.CAData, ca1) || config.CAFile != "" {
+		t.Fatal("Apply() did not pin the verified CA snapshot into the config")
+	}
+	requests := len(api.authorizations())
+
+	if err := os.WriteFile(path, ca2, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	swapped := caFileConfig()
+	err := auth.Apply(swapped)
+	if errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+		t.Fatalf("Apply() after swapping the CA file error = %v, want %s", err, ErrUntrustedClusterEndpointCode)
+	}
+	if swapped.ExecProvider == nil || swapped.WrapTransport != nil {
+		t.Fatal("Apply() installed a token for the swapped CA file")
+	}
+	if len(api.authorizations()) <= requests {
+		t.Fatal("Apply() after swapping the CA file made no fresh Container API call; the verified entry was reused")
+	}
+}
+
+func TestGKEClusterListRequestsOnlyVerificationFields(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.72"
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "demo",
+		Cluster: clusterFor(ip, ca),
+	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
+	config := gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	queries := api.listQueryStrings()
+	if len(queries) == 0 {
+		t.Fatal("no clusters.list call was made")
+	}
+	for _, raw := range queries {
+		fields, err := url.ParseQuery(raw)
+		if err != nil {
+			t.Fatalf("list query %q did not parse: %v", raw, err)
+		}
+		mask := fields.Get("fields")
+		for _, want := range []string{"masterAuth(clusterCaCertificate)", "missingZones", "endpoint"} {
+			if !strings.Contains(mask, want) {
+				t.Fatalf("list fields mask %q is missing %q", mask, want)
+			}
+		}
 	}
 }
 

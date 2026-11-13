@@ -212,6 +212,22 @@ func (g *gkeIPEndpoint) caBytes() ([]byte, error) {
 	return data, nil
 }
 
+// snapshotGKECAFile reads the CA file of a GKE IP endpoint whose CA came
+// from a file, so the cache key, verification and TLS can all use the same
+// bytes. It reports false when the endpoint has no CA file, the CA is
+// already in memory, or the file cannot be read; in the last case the
+// caller leaves the spec alone and verification reports the failure.
+func snapshotGKECAFile(spec Spec) ([]byte, bool) {
+	if spec.gkeIP == nil || spec.gkeIP.CAFile == "" || len(spec.gkeIP.CA) > 0 {
+		return nil, false
+	}
+	data, err := spec.gkeIP.caBytes()
+	if err != nil {
+		return nil, false
+	}
+	return data, true
+}
+
 // verifyGKEIPEndpoint reports the cluster whose control plane IP and CA
 // certificate match check. hints are the gke_ names seen for check's IP and
 // CA; each one in a trusted project gets a container.clusters.get call, most
@@ -374,8 +390,15 @@ func clusterGetPath(named gkeNamedCluster) string {
 		"/clusters/" + url.PathEscape(named.Cluster)
 }
 
+// gkeClusterFields is the partial-response mask for container.clusters.list:
+// only the fields verifyGKEIPEndpoint compares, plus missingZones. Without
+// it a project with many clusters can return more than the 4 MiB gkeGET
+// reads, and a truncated document fails verification even when the matching
+// cluster is in the response.
+const gkeClusterFields = "clusters(name,location,endpoint,masterAuth(clusterCaCertificate),privateClusterConfig(publicEndpoint,privateEndpoint),controlPlaneEndpointsConfig(ipEndpointsConfig(publicEndpoint,privateEndpoint))),missingZones"
+
 func clusterListPath(project string) string {
-	return "/v1/projects/" + url.PathEscape(project) + "/locations/-/clusters"
+	return "/v1/projects/" + url.PathEscape(project) + "/locations/-/clusters?fields=" + url.QueryEscape(gkeClusterFields)
 }
 
 func (a *Authenticator) containerAPIURL(pathAndQuery string) string {
