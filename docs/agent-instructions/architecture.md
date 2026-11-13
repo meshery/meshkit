@@ -71,9 +71,10 @@ Intentionally reusable across Meshery services and tools:
   There is no static GKE IP list:
   Google's published cloud ranges cover every customer prefix, they change
   often, and private control planes use customer addresses. If the API is
-  unreachable, returns 401 or 403, or finds no match, the exec plugin is
-  used when it is on PATH and `ErrUntrustedClusterEndpoint` is returned
-  otherwise. A confirmed IP endpoint logs `ErrInProcessGKEIPMinting` once
+  unreachable or times out, or no get or list call (whatever 401, 403 or
+  5xx answers the others gave) returns a cluster matching the IP and CA,
+  the exec plugin is used when it is on PATH and
+  `ErrUntrustedClusterEndpoint` is returned otherwise. A confirmed IP endpoint logs `ErrInProcessGKEIPMinting` once
   per setup. The first token is minted when the kubeconfig is loaded or the
   client is built, then reused until near expiry or a 401; it is cached per
   cluster identity, and per verified endpoint for GKE IP.
