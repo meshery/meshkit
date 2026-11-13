@@ -128,16 +128,23 @@ func parseGKEClusterName(name string) (gkeNamedCluster, bool) {
 	return named, true
 }
 
-// gkeHintedCluster returns the first of contextName and clusterName that
-// parses as gke_<project>_<location>_<cluster> with a trusted project, for
-// container.clusters.get. When no such name exists, untrusted is the project
-// of the first name that parses; that project is never queried.
-func gkeHintedCluster(contextName, clusterName string, trusted []string) (get *gkeNamedCluster, untrusted string) {
-	for _, name := range []string{contextName, clusterName} {
+// gkeEndpointHints returns the distinct gke_<project>_<location>_<cluster>
+// names among check's context and cluster names, appended to hints in order.
+func gkeEndpointHints(hints []gkeNamedCluster, check *gkeIPEndpoint) []gkeNamedCluster {
+	for _, name := range []string{check.ContextName, check.ClusterName} {
 		named, ok := parseGKEClusterName(name)
-		if !ok {
-			continue
+		if ok && !slices.Contains(hints, named) {
+			hints = append(hints, named)
 		}
+	}
+	return hints
+}
+
+// gkeHintedCluster returns the first hint with a trusted project, for
+// container.clusters.get. When no hint has one, untrusted is the project of
+// the first hint; that project is never queried.
+func gkeHintedCluster(hints []gkeNamedCluster, trusted []string) (get *gkeNamedCluster, untrusted string) {
+	for _, named := range hints {
 		if slices.Contains(trusted, named.Project) {
 			return &named, ""
 		}
@@ -191,9 +198,10 @@ func (g *gkeIPEndpoint) caBytes() ([]byte, error) {
 }
 
 // verifyGKEIPEndpoint reports the cluster whose control plane IP and CA
-// certificate match check. It sends the token from source to the Container
+// certificate match check. hints are the gke_ names seen for check's IP and
+// CA; the first one in a trusted project selects container.clusters.get. It sends the token from source to the Container
 // API only. It does not contact check.Host.
-func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.TokenSource, check *gkeIPEndpoint) (gkeClusterIdentity, error) {
+func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.TokenSource, check *gkeIPEndpoint, hints []gkeNamedCluster) (gkeClusterIdentity, error) {
 	caBytes, err := check.caBytes()
 	if err != nil {
 		return gkeClusterIdentity{}, err
@@ -208,7 +216,7 @@ func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.To
 	}
 
 	trusted := a.gkeTrustedProjects(ctx)
-	get, untrusted := gkeHintedCluster(check.ContextName, check.ClusterName, trusted)
+	get, untrusted := gkeHintedCluster(hints, trusted)
 	if len(trusted) == 0 {
 		cause := "GKE API lookup failed: no trusted project to search; set GOOGLE_CLOUD_PROJECT or use Application Default Credentials that name a project"
 		if untrusted != "" {
