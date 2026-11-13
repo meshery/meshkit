@@ -136,7 +136,11 @@ func TestRenameKeysMapsV1Beta3Names(t *testing.T) {
 			"lineColor":  "#fff",
 			"zIndex":     float64(2),
 		}},
-		"selectors": []any{map[string]any{"matchStrategyMatrix": []any{"a"}}},
+		"selectors": []any{map[string]any{
+			"allow": map[string]any{
+				"from": []any{map[string]any{"matchStrategyMatrix": []any{"a"}}},
+			},
+		}},
 	}
 
 	assert.Equal(t, map[string]any{
@@ -145,17 +149,45 @@ func TestRenameKeysMapsV1Beta3Names(t *testing.T) {
 			"line-color":  "#fff",
 			"z-index":     float64(2),
 		}},
-		"selectors": []any{map[string]any{"match_strategy_matrix": []any{"a"}}},
+		"selectors": []any{map[string]any{
+			"allow": map[string]any{
+				"from": []any{map[string]any{"match_strategy_matrix": []any{"a"}}},
+			},
+		}},
+	}, renameKeys(src))
+}
+
+func TestRenameKeysLeavesFreeFormMapsUntouched(t *testing.T) {
+	t.Parallel()
+
+	src := map[string]any{
+		"capabilities": []any{map[string]any{
+			"metadata": map[string]any{"lineColor": "app-data", "zIndex": float64(1)},
+		}},
+		"metadata": map[string]any{
+			"styles": map[string]any{"lineColor": "#fff", "line-color": "#000"},
+		},
+	}
+
+	assert.Equal(t, map[string]any{
+		"capabilities": []any{map[string]any{
+			"metadata": map[string]any{"lineColor": "app-data", "zIndex": float64(1)},
+		}},
+		"metadata": map[string]any{
+			"styles": map[string]any{"lineColor": "#fff", "line-color": "#000"},
+		},
 	}, renameKeys(src))
 }
 
 func TestV1Beta3KeyRenamesCoverEveryDifferingKey(t *testing.T) {
 	t.Parallel()
 
-	assert.Len(t, v1beta3KeyRenames, 23)
-	for from, to := range v1beta3KeyRenames {
+	// 22 style keys under metadata.styles plus matchStrategyMatrix.
+	assert.Len(t, v1beta3StyleKeyRenames, 22)
+	for from, to := range v1beta3StyleKeyRenames {
 		assert.NotEqual(t, from, to)
 	}
+	assert.NotEqual(t, v1beta3MatrixKey, v1alpha3MatrixKey)
 }
 
 // TestGetEntityAcceptsEveryComponentSchemaVersion pins the component schema

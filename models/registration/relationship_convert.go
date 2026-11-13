@@ -11,11 +11,9 @@ import (
 	relationshipv1beta3 "github.com/meshery/schemas/models/v1beta3/relationship"
 )
 
-// v1beta3KeyRenames lists wire-format keys that v1beta3 spells differently
-// from the stored v1alpha3 type: v1beta3 uses camelCase, v1alpha3 uses
-// kebab-case for the edge styles, and snake_case for the match strategy
-// matrix.
-var v1beta3KeyRenames = map[string]string{
+// v1beta3StyleKeyRenames lists the metadata.styles keys that v1beta3 spells
+// in camelCase and v1alpha3 spells in kebab-case.
+var v1beta3StyleKeyRenames = map[string]string{
 	"arrowScale":          "arrow-scale",
 	"curveStyle":          "curve-style",
 	"edgeAnimation":       "edge-animation",
@@ -27,7 +25,6 @@ var v1beta3KeyRenames = map[string]string{
 	"lineColor":           "line-color",
 	"lineOpacity":         "line-opacity",
 	"lineStyle":           "line-style",
-	"matchStrategyMatrix": "match_strategy_matrix",
 	"midTargetArrowColor": "mid-target-arrow-color",
 	"midTargetArrowFill":  "mid-target-arrow-fill",
 	"midTargetArrowShape": "mid-target-arrow-shape",
@@ -40,6 +37,13 @@ var v1beta3KeyRenames = map[string]string{
 	"textTransform":       "text-transform",
 	"zIndex":              "z-index",
 }
+
+const (
+	v1beta3MatrixKey  = "matchStrategyMatrix"
+	v1alpha3MatrixKey = "match_strategy_matrix"
+	stylesPath        = "metadata.styles"
+	selectorsPath     = "selectors"
+)
 
 // convertRelationshipV1Beta3 converts a v1beta3 relationship definition into
 // the v1alpha3 type the registry stores. It never drops data silently: after
@@ -94,28 +98,56 @@ func convertRelationshipV1Beta3(in *relationshipv1beta3.RelationshipDefinition) 
 	return &out, nil
 }
 
-// renameKeys returns a copy of v with every key in v1beta3KeyRenames renamed
-// to its v1alpha3 spelling.
+// renameKeys returns a copy of v with the v1beta3 keys that v1alpha3 spells
+// differently renamed. Renaming is limited to the schema-defined places
+// (metadata.styles and selectors); free-form maps such as capability
+// metadata are left untouched.
 func renameKeys(v any) any {
+	return renameAt(v, "")
+}
+
+func renameAt(v any, path string) any {
 	switch t := v.(type) {
 	case map[string]any:
 		out := make(map[string]any, len(t))
 		for k, val := range t {
-			if renamed, ok := v1beta3KeyRenames[k]; ok {
-				k = renamed
+			key := k
+			if renamed, ok := renamedKey(path, k); ok {
+				// Never overwrite a key the document already has.
+				if _, clash := t[renamed]; !clash {
+					key = renamed
+				}
 			}
-			out[k] = renameKeys(val)
+			out[key] = renameAt(val, joinPath(path, k))
 		}
 		return out
 	case []any:
 		out := make([]any, len(t))
 		for i, val := range t {
-			out[i] = renameKeys(val)
+			out[i] = renameAt(val, path)
 		}
 		return out
 	default:
 		return v
 	}
+}
+
+func renamedKey(path, key string) (string, bool) {
+	if path == stylesPath {
+		renamed, ok := v1beta3StyleKeyRenames[key]
+		return renamed, ok
+	}
+	if (path == selectorsPath || strings.HasPrefix(path, selectorsPath+".")) && key == v1beta3MatrixKey {
+		return v1alpha3MatrixKey, true
+	}
+	return "", false
+}
+
+func joinPath(path, key string) string {
+	if path == "" {
+		return key
+	}
+	return path + "." + key
 }
 
 // findLostFields returns the paths of populated fields in src that are
