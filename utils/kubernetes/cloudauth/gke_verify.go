@@ -132,15 +132,19 @@ func parseGKEClusterName(name string) (gkeNamedCluster, bool) {
 // container.clusters.get calls in one setup.
 const gkeMaxHints = 4
 
-// gkeEndpointHints appends the distinct gke_<project>_<location>_<cluster>
-// names among check's context and cluster names to hints, oldest first, and
-// keeps only the gkeMaxHints most recent.
+// gkeEndpointHints moves the gke_<project>_<location>_<cluster> names among
+// check's cluster and context names to the newest end of hints, which is
+// distinct and oldest first, and keeps only the gkeMaxHints most recent. A
+// name seen again becomes the newest; the context name is newest when both
+// parse.
 func gkeEndpointHints(hints []gkeNamedCluster, check *gkeIPEndpoint) []gkeNamedCluster {
-	for _, name := range []string{check.ContextName, check.ClusterName} {
+	for _, name := range []string{check.ClusterName, check.ContextName} {
 		named, ok := parseGKEClusterName(name)
-		if ok && !slices.Contains(hints, named) {
-			hints = append(hints, named)
+		if !ok {
+			continue
 		}
+		hints = slices.DeleteFunc(hints, func(hint gkeNamedCluster) bool { return hint == named })
+		hints = append(hints, named)
 	}
 	if len(hints) > gkeMaxHints {
 		hints = slices.Delete(hints, 0, len(hints)-gkeMaxHints)
@@ -248,7 +252,7 @@ func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.To
 		if status == http.StatusOK && clusterMatches(cluster, wantIP, wantCA) {
 			return identityFrom(get.Project, get.Location, get.Cluster, cluster), nil
 		}
-		outcome.note(get.Project, status)
+		outcome.noteGet(get.Project, status)
 	}
 
 	for _, project := range trusted {
@@ -283,14 +287,18 @@ func shortClusterName(name string) string {
 }
 
 // gkeLookup records the Container API answers a lookup saw, per project. A
-// 200 answers only for its own project: it hides an earlier 403 from the
-// same project, but not a denial or error from another project. A partial
-// list (missingZones) is never a complete answer.
+// complete clusters.list 200 answers for its own project: it hides a get 403
+// from the same project, but not a denial or error from another project. A
+// get 200 answers for one cluster only, and a partial list (missingZones) is
+// never a complete answer, so neither hides a refusal.
 type gkeLookup struct {
-	answered  map[string]bool
-	refused   []gkeRefusal
-	partial   []string
-	untrusted string
+	answered map[string]bool
+	// getMismatch is set when a clusters.get returned a cluster that did not
+	// match.
+	getMismatch bool
+	refused     []gkeRefusal
+	partial     []string
+	untrusted   string
 }
 
 type gkeRefusal struct {
@@ -309,6 +317,15 @@ func (l *gkeLookup) note(project string, status int) {
 	default:
 		l.refused = append(l.refused, gkeRefusal{project: project, status: status})
 	}
+}
+
+// noteGet records a clusters.get answer for one cluster in project.
+func (l *gkeLookup) noteGet(project string, status int) {
+	if status == http.StatusOK {
+		l.getMismatch = true
+		return
+	}
+	l.note(project, status)
 }
 
 func (l *gkeLookup) notePartial(project string, missingZones []string) {
@@ -333,7 +350,7 @@ func (l *gkeLookup) err() error {
 		}
 	}
 	var causes []string
-	if len(l.answered) > 0 {
+	if len(l.answered) > 0 || l.getMismatch {
 		causes = append(causes, gkeNoMatchCause)
 	}
 	if len(denied) > 0 {

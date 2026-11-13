@@ -744,7 +744,9 @@ func TestGKELookupReportsEachUnansweredProject(t *testing.T) {
 		name          string
 		projectStatus map[string]int
 		getStatus     int
+		listStatus    int
 		missingZones  []string
+		hinted        *servedCluster
 		want          []string
 		notWant       []string
 		lists         []string
@@ -774,6 +776,19 @@ func TestGKELookupReportsEachUnansweredProject(t *testing.T) {
 			lists:     []string{"cluster-project", "adc-project"},
 		},
 		{
+			name: "a get answered for another cluster does not hide the project's list denial",
+			hinted: &servedCluster{
+				Project: "cluster-project", Location: "us-central1", Name: "demo",
+				Cluster: clusterFor("198.51.100.21", ca),
+			},
+			listStatus: http.StatusForbidden,
+			want: []string{
+				"no cluster matched",
+				"permission denied for project cluster-project",
+			},
+			lists: []string{"cluster-project", "adc-project"},
+		},
+		{
 			name:         "a list with missing zones is a failed lookup, not a no-match",
 			missingZones: []string{"us-central1-a", "us-central1-b"},
 			want: []string{
@@ -788,10 +803,15 @@ func TestGKELookupReportsEachUnansweredProject(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("GOOGLE_CLOUD_PROJECT", "cluster-project")
 			t.Setenv("GOOGLE_PROJECT", "adc-project")
+			served := []servedCluster{unrelated}
+			if tt.hinted != nil {
+				served = append(served, *tt.hinted)
+			}
 			api := &containerAPI{
-				clusters:      []servedCluster{unrelated},
+				clusters:      served,
 				projectStatus: tt.projectStatus,
 				getStatus:     tt.getStatus,
+				listStatus:    tt.listStatus,
 				missingZones:  tt.missingZones,
 			}
 			api.Server = httptest.NewServer(api)
@@ -1011,8 +1031,9 @@ func TestGKEWrongEarlierHintDoesNotHideALaterOne(t *testing.T) {
 		t.Fatal("Apply() after the window did not install the token source")
 	}
 	gets := api.getPaths()
-	if len(gets) != 2 || !strings.HasSuffix(gets[0], "/clusters/wrong") || !strings.HasSuffix(gets[1], "/clusters/demo") {
-		t.Fatalf("get paths = %v, want wrong in the first setup, then demo (the most recent name) first", gets)
+	if len(gets) != 3 || !strings.HasSuffix(gets[0], "/clusters/wrong") ||
+		!strings.HasSuffix(gets[1], "/clusters/wrong") || !strings.HasSuffix(gets[2], "/clusters/demo") {
+		t.Fatalf("get paths = %v, want wrong in the first setup, then wrong (seen again, so newest) and demo", gets)
 	}
 }
 
@@ -1020,7 +1041,7 @@ func TestGKEHintsAreCappedPerEndpoint(t *testing.T) {
 	ca := testCertPEM(t)
 	const ip = "34.118.10.49"
 	auth, api, clock := getOnlyAuthenticator(t, ip, ca)
-	names := []string{"wrong1", "wrong2", "wrong3", "wrong4", "wrong5", "wrong6"}
+	names := []string{"wrong1", "wrong2", "wrong3", "wrong4", "wrong1", "wrong5", "wrong6"}
 	for _, name := range names {
 		err := auth.ApplyWithClusterHint(gkeIPConfig("https://"+ip, ca, gkeExecConfig()), "gke_my-project_us-central1_"+name, "")
 		if errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
@@ -1039,8 +1060,8 @@ func TestGKEHintsAreCappedPerEndpoint(t *testing.T) {
 	for _, path := range gets {
 		got = append(got, path[strings.LastIndex(path, "/")+1:])
 	}
-	if want := []string{"wrong6", "wrong5", "wrong4", "wrong3"}; strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Fatalf("get calls in one setup = %v, want the %d most recent names, newest first: %v", got, gkeMaxHints, want)
+	if want := []string{"wrong6", "wrong5", "wrong1", "wrong4"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("get calls in one setup = %v, want the %d most recently seen names, newest first, with wrong1 kept because it was seen again: %v", got, gkeMaxHints, want)
 	}
 }
 
