@@ -92,8 +92,9 @@ type gkeIPEndpoint struct {
 	// Host is the server IP, canonicalized with net.IP.String, without a port.
 	Host string
 	// CA is the kubeconfig certificate-authority-data, already decoded.
-	// It is empty when the kubeconfig names a file instead; CAFile is read
-	// at verification time.
+	// It is empty when the kubeconfig names a file instead; Apply snapshots
+	// CAFile into CA before verification, so the cache key, verification
+	// and TLS all use the same bytes.
 	CA []byte
 	// CAFile is the kubeconfig certificate-authority path when CA is empty.
 	CAFile string

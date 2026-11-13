@@ -195,6 +195,17 @@ func (a *Authenticator) apply(config *rest.Config, hint clusterHint) error {
 		return a.refuseEndpoint(spec, config.Host, err)
 	}
 
+	// Snapshot a GKE IP endpoint's CA file now, so verification, the cache
+	// key and TLS all use the same bytes: a file swapped after verification
+	// must not reuse the verified entry or reach TLS unverified. When the
+	// file cannot be read, leave the spec alone and let verification report
+	// the failure as before.
+	pinnedCA, ok := snapshotGKECAFile(spec)
+	if ok {
+		spec.gkeIP.CA = pinnedCA
+		spec.gkeIP.CAFile = ""
+	}
+
 	source, err := a.tokenSource(spec)
 	if err != nil {
 		var rejected *gkeEndpointRejected
@@ -205,6 +216,12 @@ func (a *Authenticator) apply(config *rest.Config, hint clusterHint) error {
 	}
 	if source == nil {
 		return nil
+	}
+	if pinnedCA != nil {
+		// Pin the verified snapshot into the config so TLS uses exactly
+		// the bytes verification checked, even if the file changes later.
+		config.CAData = pinnedCA
+		config.CAFile = ""
 	}
 	installTokenSource(config, source)
 	return nil
