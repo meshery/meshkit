@@ -128,8 +128,13 @@ func parseGKEClusterName(name string) (gkeNamedCluster, bool) {
 	return named, true
 }
 
-// gkeEndpointHints returns the distinct gke_<project>_<location>_<cluster>
-// names among check's context and cluster names, appended to hints in order.
+// gkeMaxHints bounds the gke_ names kept for one GKE IP endpoint, and so the
+// container.clusters.get calls in one setup.
+const gkeMaxHints = 4
+
+// gkeEndpointHints appends the distinct gke_<project>_<location>_<cluster>
+// names among check's context and cluster names to hints, oldest first, and
+// keeps only the gkeMaxHints most recent.
 func gkeEndpointHints(hints []gkeNamedCluster, check *gkeIPEndpoint) []gkeNamedCluster {
 	for _, name := range []string{check.ContextName, check.ClusterName} {
 		named, ok := parseGKEClusterName(name)
@@ -137,22 +142,28 @@ func gkeEndpointHints(hints []gkeNamedCluster, check *gkeIPEndpoint) []gkeNamedC
 			hints = append(hints, named)
 		}
 	}
+	if len(hints) > gkeMaxHints {
+		hints = slices.Delete(hints, 0, len(hints)-gkeMaxHints)
+	}
 	return hints
 }
 
-// gkeHintedCluster returns the first hint with a trusted project, for
-// container.clusters.get. When no hint has one, untrusted is the project of
-// the first hint; that project is never queried.
-func gkeHintedCluster(hints []gkeNamedCluster, trusted []string) (get *gkeNamedCluster, untrusted string) {
-	for _, named := range hints {
+// gkeHintedClusters returns the hints with a trusted project, most recent
+// first, for container.clusters.get. When no hint has one, untrusted is the
+// project of the most recent hint; that project is never queried.
+func gkeHintedClusters(hints []gkeNamedCluster, trusted []string) (gets []gkeNamedCluster, untrusted string) {
+	for i := len(hints) - 1; i >= 0; i-- {
+		named := hints[i]
 		if slices.Contains(trusted, named.Project) {
-			return &named, ""
-		}
-		if untrusted == "" {
+			gets = append(gets, named)
+		} else if untrusted == "" {
 			untrusted = named.Project
 		}
 	}
-	return nil, untrusted
+	if len(gets) > 0 {
+		untrusted = ""
+	}
+	return gets, untrusted
 }
 
 func validGKEProject(project string) bool {
@@ -199,8 +210,9 @@ func (g *gkeIPEndpoint) caBytes() ([]byte, error) {
 
 // verifyGKEIPEndpoint reports the cluster whose control plane IP and CA
 // certificate match check. hints are the gke_ names seen for check's IP and
-// CA; the first one in a trusted project selects container.clusters.get. It sends the token from source to the Container
-// API only. It does not contact check.Host.
+// CA; each one in a trusted project gets a container.clusters.get call, most
+// recent first, before the trusted projects are listed. It sends the token
+// from source to the Container API only. It does not contact check.Host.
 func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.TokenSource, check *gkeIPEndpoint, hints []gkeNamedCluster) (gkeClusterIdentity, error) {
 	caBytes, err := check.caBytes()
 	if err != nil {
@@ -216,7 +228,7 @@ func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.To
 	}
 
 	trusted := a.gkeTrustedProjects(ctx)
-	get, untrusted := gkeHintedCluster(hints, trusted)
+	gets, untrusted := gkeHintedClusters(hints, trusted)
 	if len(trusted) == 0 {
 		cause := "GKE API lookup failed: no trusted project to search; set GOOGLE_CLOUD_PROJECT or use Application Default Credentials that name a project"
 		if untrusted != "" {
@@ -227,9 +239,9 @@ func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.To
 
 	client := gkeAPIClient(source)
 	outcome := gkeLookup{untrusted: untrusted}
-	if get != nil {
+	for _, get := range gets {
 		var cluster gkeCluster
-		status, err := a.gkeGET(ctx, client, clusterGetPath(*get), &cluster)
+		status, err := a.gkeGET(ctx, client, clusterGetPath(get), &cluster)
 		if err != nil {
 			return gkeClusterIdentity{}, err
 		}
