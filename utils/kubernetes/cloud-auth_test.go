@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync/atomic"
 	"testing"
 
@@ -172,6 +173,10 @@ func TestRESTClientGetterMintsTokensInProcess(t *testing.T) {
 		var dialer net.Dialer
 		return dialer.DialContext(ctx, network, server.Listener.Addr().String())
 	}
+	// Connect directly even when HTTPS_PROXY is set in the developer's
+	// environment. Otherwise client-go would dial the proxy through the Dial
+	// above and send its CONNECT request to the TLS test server.
+	config.Proxy = func(*http.Request) (*url.URL, error) { return nil, nil }
 	client, err := rest.HTTPClientFor(config)
 	if err != nil {
 		t.Fatalf("HTTPClientFor() error = %v", err)
