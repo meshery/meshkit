@@ -87,6 +87,10 @@ type containerAPI struct {
 	auth     []string
 	status   int
 	clusters []servedCluster
+	// projectStatus answers every call for a project with that status.
+	// getStatus answers every clusters.get call with that status.
+	projectStatus map[string]int
+	getStatus     int
 	// entered and cancelled are used by the blocking handler.
 	entered   chan struct{}
 	cancelled chan struct{}
@@ -119,15 +123,23 @@ func (a *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.cancelled <- struct{}{}
 		return
 	}
-	if a.status != 0 {
+	isList := strings.Contains(r.URL.Path, "/locations/-/clusters")
+	status := a.status
+	if override, ok := a.projectStatus[projectFromListPath(r.URL.Path)]; ok {
+		status = override
+	}
+	if !isList && a.getStatus != 0 {
+		status = a.getStatus
+	}
+	if status != 0 {
 		a.mu.Lock()
-		if strings.Contains(r.URL.Path, "/locations/-/clusters") {
-			a.lists = append(a.lists, r.URL.Path)
+		if isList {
+			a.lists = append(a.lists, projectFromListPath(r.URL.Path))
 		} else {
 			a.gets = append(a.gets, r.URL.Path)
 		}
 		a.mu.Unlock()
-		w.WriteHeader(a.status)
+		w.WriteHeader(status)
 		return
 	}
 	if strings.Contains(r.URL.Path, "/locations/-/clusters") {
@@ -203,53 +215,46 @@ func gkeIPConfig(host string, ca []byte, exec *clientcmdapi.ExecConfig) *rest.Co
 
 func TestParseGKEClusterName(t *testing.T) {
 	tests := []struct {
-		name     string
+		input    string
 		project  string
 		location string
 		cluster  string
 		ok       bool
 	}{
-		{name: "gke_my-project_us-central1_demo", project: "my-project", location: "us-central1", cluster: "demo", ok: true},
-		{name: "gke_my-project_us-central1-a_demo", project: "my-project", location: "us-central1-a", cluster: "demo", ok: true},
-		{name: "gke_my-project_europe-west1_my-cluster", project: "my-project", location: "europe-west1", cluster: "my-cluster", ok: true},
-		{name: "gke_my-project_northamerica-northeast1_my-cluster-1", project: "my-project", location: "northamerica-northeast1", cluster: "my-cluster-1", ok: true},
-		{name: "gke_my-project_us-east1_a", project: "my-project", location: "us-east1", cluster: "a", ok: true},
-		{name: "gke_my-project_asia-southeast2_prod", project: "my-project", location: "asia-southeast2", cluster: "prod", ok: true},
-		{name: "gke_abcdef_us-west1-c_demo", project: "abcdef", location: "us-west1-c", cluster: "demo", ok: true},
-		{name: "short project", project: ""},
-		{name: "gke_proj_us-central1_demo"},
-		{name: "gke_my-project_us-central1"},
-		{name: "gke_my-project_not-a-location_demo"},
-		{name: "gke_MY-PROJECT_us-central1_demo"},
-		{name: "gke_my-project_US-CENTRAL1_demo"},
-		{name: "gke_my-project_us-central1-ab_demo"},
-		{name: "gke_my-project_us-central1_my_cluster"},
-		{name: "gke_my-project_us-central1_"},
-		{name: "not-gke_my-project_us-central1_demo"},
-		{name: "gke_my-project-_us-central1_demo"},
-		{name: ""},
+		{input: "gke_my-project_us-central1_demo", project: "my-project", location: "us-central1", cluster: "demo", ok: true},
+		{input: "gke_my-project_us-central1-a_demo", project: "my-project", location: "us-central1-a", cluster: "demo", ok: true},
+		{input: "gke_my-project_europe-west1_my-cluster", project: "my-project", location: "europe-west1", cluster: "my-cluster", ok: true},
+		{input: "gke_my-project_europe-west10_demo", project: "my-project", location: "europe-west10", cluster: "demo", ok: true},
+		{input: "gke_my-project_europe-west12-b_demo", project: "my-project", location: "europe-west12-b", cluster: "demo", ok: true},
+		{input: "gke_my-project_northamerica-northeast1_my-cluster-1", project: "my-project", location: "northamerica-northeast1", cluster: "my-cluster-1", ok: true},
+		{input: "gke_my-project_us-east1_a", project: "my-project", location: "us-east1", cluster: "a", ok: true},
+		{input: "gke_my-project_asia-southeast2_prod", project: "my-project", location: "asia-southeast2", cluster: "prod", ok: true},
+		{input: "gke_abcdef_us-west1-c_demo", project: "abcdef", location: "us-west1-c", cluster: "demo", ok: true},
+		{input: "gke_ab_us-central1_demo"},
+		{input: "gke_proj_us-central1_demo"},
+		{input: "gke_my-project_us-central1"},
+		{input: "gke_my-project_not-a-location_demo"},
+		{input: "gke_MY-PROJECT_us-central1_demo"},
+		{input: "gke_my-project_US-CENTRAL1_demo"},
+		{input: "gke_my-project_us-central1-ab_demo"},
+		{input: "gke_my-project_europe-west10-ab_demo"},
+		{input: "gke_my-project_us-central1_my_cluster"},
+		{input: "gke_my-project_us-central1_"},
+		{input: "not-gke_my-project_us-central1_demo"},
+		{input: "gke_my-project-_us-central1_demo"},
+		{input: ""},
 	}
-	// The first row of malformed names is the "short project" case, whose
-	// name field was left as a label. Fill the input name explicitly below
-	// for the rows that used the name as the input.
 	for _, tt := range tests {
-		input := tt.name
-		if tt.ok {
-			// input is the gke_ string stored in name
-		}
-		t.Run(input, func(t *testing.T) {
-			if input == "short project" {
-				input = "gke_ab_us-central1_demo"
-			}
-			got, ok := parseGKEClusterName(input)
+		t.Run(tt.input, func(t *testing.T) {
+			got, ok := parseGKEClusterName(tt.input)
 			if ok != tt.ok {
-				t.Fatalf("parseGKEClusterName(%q) ok = %v, want %v (%+v)", input, ok, tt.ok, got)
+				t.Fatalf("parseGKEClusterName(%q) ok = %v, want %v (%+v)", tt.input, ok, tt.ok, got)
 			}
 			if !tt.ok {
 				return
 			}
 			if got.Project != tt.project || got.Location != tt.location || got.Cluster != tt.cluster {
-				t.Fatalf("parseGKEClusterName(%q) = %+v, want %s/%s/%s", input, got, tt.project, tt.location, tt.cluster)
+				t.Fatalf("parseGKEClusterName(%q) = %+v, want %s/%s/%s", tt.input, got, tt.project, tt.location, tt.cluster)
 			}
 		})
 	}
@@ -697,6 +702,86 @@ func TestGKELookupFailureUsesRefusedEndpointPath(t *testing.T) {
 			}
 			if !strings.Contains(logs.String(), ErrUntrustedClusterEndpointFallbackCode) || !strings.Contains(logs.String(), tt.reason) {
 				t.Fatalf("logs = %q, want %s and %q", logs.String(), ErrUntrustedClusterEndpointFallbackCode, tt.reason)
+			}
+		})
+	}
+}
+
+func TestGKELookupReportsEachUnansweredProject(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.45"
+	unrelated := servedCluster{
+		Project: "adc-project", Location: "us-central1", Name: "unrelated",
+		Cluster: clusterFor("198.51.100.20", ca),
+	}
+	tests := []struct {
+		name          string
+		projectStatus map[string]int
+		getStatus     int
+		want          []string
+		notWant       []string
+		lists         []string
+	}{
+		{
+			name:          "a denial on the hinted project is not hidden by another project's answer",
+			projectStatus: map[string]int{"cluster-project": http.StatusForbidden},
+			want: []string{
+				"permission denied for project cluster-project",
+				"container.clusters.get or container.clusters.list",
+				"no cluster matched",
+			},
+			lists: []string{"cluster-project", "adc-project"},
+		},
+		{
+			name:          "an error on the hinted project is not hidden by another project's answer",
+			projectStatus: map[string]int{"cluster-project": http.StatusServiceUnavailable},
+			want:          []string{"HTTP 503 for project cluster-project", "no cluster matched"},
+			notWant:       []string{"permission denied"},
+			lists:         []string{"cluster-project", "adc-project"},
+		},
+		{
+			name:      "a get denial is answered by a list of the same project",
+			getStatus: http.StatusForbidden,
+			want:      []string{"no cluster matched"},
+			notWant:   []string{"permission denied"},
+			lists:     []string{"cluster-project", "adc-project"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GOOGLE_CLOUD_PROJECT", "adc-project")
+			api := &containerAPI{
+				clusters:      []servedCluster{unrelated},
+				projectStatus: tt.projectStatus,
+				getStatus:     tt.getStatus,
+			}
+			api.Server = httptest.NewServer(api)
+			t.Cleanup(api.Close)
+			auth := NewAuthenticator(
+				WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+				withLookPath(notOnPath),
+				withContainerAPIBase(api.URL),
+			)
+			config := gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+			err := auth.ApplyWithClusterHint(config, "gke_cluster-project_us-central1_demo", "")
+			if errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+				t.Fatalf("Apply() error = %v, want code %s", err, ErrUntrustedClusterEndpointCode)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("Apply() error = %v, want it to contain %q", err, want)
+				}
+			}
+			for _, notWant := range tt.notWant {
+				if strings.Contains(err.Error(), notWant) {
+					t.Fatalf("Apply() error = %v, want it not to contain %q", err, notWant)
+				}
+			}
+			if got := api.listProjects(); strings.Join(got, ",") != strings.Join(tt.lists, ",") {
+				t.Fatalf("list projects = %v, want %v", got, tt.lists)
+			}
+			if config.WrapTransport != nil {
+				t.Fatal("Apply() installed a token after a failed lookup")
 			}
 		})
 	}

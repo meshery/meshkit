@@ -108,8 +108,11 @@
 // binary is on PATH the plugin authenticates as before and the decision is
 // logged once as a warning carrying ErrUntrustedClusterEndpointFallback;
 // otherwise Apply returns ErrUntrustedClusterEndpoint. The wrapped cause
-// says why (for example permission denied, which needs container.clusters.get
-// or container.clusters.list). A match is logged once per setup as a warning
+// says why and names the project (for example permission denied for a
+// project, which needs container.clusters.get or container.clusters.list).
+// An answer from one project does not hide a denial or error from another,
+// so a 403 on the hinted project is reported even when the ADC project
+// answered without a match. A match is logged once per setup as a warning
 // carrying ErrInProcessGKEIPMinting. The lookup runs inside the bounded
 // single-flight setup. No lock is held across the HTTP call, and the request
 // is cancelled when the setup deadline passes. A 401 that discards the token
