@@ -365,8 +365,9 @@ type authEntry struct {
 	// new setup for gkeRejectionRetryInterval.
 	rejected   *gkeEndpointRejected
 	rejectedAt time.Time
-	// gkeHints are the distinct gke_ names every caller passed for this GKE
-	// IP endpoint, in the order first seen. Each setup verifies with a copy.
+	// gkeHints are the gkeMaxHints most recent distinct gke_ names callers
+	// passed for this GKE IP endpoint, oldest first. Each setup verifies
+	// with a copy.
 	gkeHints []gkeNamedCluster
 }
 

@@ -964,6 +964,86 @@ func TestGKELaterTrustedHintIsUsedForTheSameEndpoint(t *testing.T) {
 	}
 }
 
+// getOnlyAuthenticator returns an Authenticator on a fake clock whose
+// Container API serves the cluster at ip and ca to clusters.get but answers
+// every clusters.list with 403, so only a gke_ name can verify the endpoint.
+func getOnlyAuthenticator(t *testing.T, ip string, ca []byte) (*Authenticator, *containerAPI, *fakeClock) {
+	t.Helper()
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	api := &containerAPI{
+		clusters:   []servedCluster{{Project: "my-project", Location: "us-central1", Name: "demo", Cluster: clusterFor(ip, ca)}},
+		listStatus: http.StatusForbidden,
+	}
+	api.Server = httptest.NewServer(api)
+	t.Cleanup(api.Close)
+	clock := newFakeClock()
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
+	auth.clock = clock
+	return auth, api, clock
+}
+
+func TestGKEWrongEarlierHintDoesNotHideALaterOne(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.48"
+	auth, api, clock := getOnlyAuthenticator(t, ip, ca)
+	apply := func(hint string) error {
+		return auth.ApplyWithClusterHint(gkeIPConfig("https://"+ip, ca, gkeExecConfig()), hint, "")
+	}
+
+	if err := apply("gke_my-project_us-central1_wrong"); errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+		t.Fatalf("Apply(wrong name) error = %v, want %s", err, ErrUntrustedClusterEndpointCode)
+	}
+	if err := apply("gke_my-project_us-central1_demo"); errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+		t.Fatalf("Apply(right name) within the refusal window error = %v, want the cached refusal", err)
+	}
+
+	clock.Advance(gkeRejectionRetryInterval)
+	config := gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+	if err := auth.ApplyWithClusterHint(config, "gke_my-project_us-central1_wrong", ""); err != nil {
+		t.Fatalf("Apply() after the window error = %v, want the later right name to verify the endpoint", err)
+	}
+	if config.ExecProvider != nil || config.WrapTransport == nil {
+		t.Fatal("Apply() after the window did not install the token source")
+	}
+	gets := api.getPaths()
+	if len(gets) != 2 || !strings.HasSuffix(gets[0], "/clusters/wrong") || !strings.HasSuffix(gets[1], "/clusters/demo") {
+		t.Fatalf("get paths = %v, want wrong in the first setup, then demo (the most recent name) first", gets)
+	}
+}
+
+func TestGKEHintsAreCappedPerEndpoint(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.49"
+	auth, api, clock := getOnlyAuthenticator(t, ip, ca)
+	names := []string{"wrong1", "wrong2", "wrong3", "wrong4", "wrong5", "wrong6"}
+	for _, name := range names {
+		err := auth.ApplyWithClusterHint(gkeIPConfig("https://"+ip, ca, gkeExecConfig()), "gke_my-project_us-central1_"+name, "")
+		if errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+			t.Fatalf("Apply(%s) error = %v, want %s", name, err, ErrUntrustedClusterEndpointCode)
+		}
+	}
+	before := len(api.getPaths())
+
+	clock.Advance(gkeRejectionRetryInterval)
+	err := auth.ApplyWithClusterHint(gkeIPConfig("https://"+ip, ca, gkeExecConfig()), "prod", "")
+	if errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+		t.Fatalf("Apply() after the window error = %v, want %s", err, ErrUntrustedClusterEndpointCode)
+	}
+	gets := api.getPaths()[before:]
+	var got []string
+	for _, path := range gets {
+		got = append(got, path[strings.LastIndex(path, "/")+1:])
+	}
+	if want := []string{"wrong6", "wrong5", "wrong4", "wrong3"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("get calls in one setup = %v, want the %d most recent names, newest first: %v", got, gkeMaxHints, want)
+	}
+}
+
 func TestGKERefusalIsReusedForFiveMinutes(t *testing.T) {
 	ca := testCertPEM(t)
 	const ip = "34.118.10.47"

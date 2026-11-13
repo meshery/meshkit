@@ -98,11 +98,12 @@
 // that reason. The kubeconfig context or cluster name
 // gke_<project>_<location>_<cluster> is only a hint: when its project is
 // trusted it selects container.clusters.get, and when it is not, that
-// project is never queried. Every such name seen for the same IP and CA is
-// kept, and the first one in a trusted project is used, so a name from a
-// later kubeconfig takes effect from the next lookup even when an earlier
-// kubeconfig for that endpoint had none. The lookup then calls
-// container.clusters.list
+// project is never queried. The four most recent distinct names seen for
+// the same IP and CA are kept, and each one in a trusted project gets a
+// container.clusters.get call, most recent first, within the setup
+// deadline. A name from a later kubeconfig therefore takes effect from the
+// next lookup, even when an earlier kubeconfig for that endpoint had none or
+// named the wrong cluster. The lookup then calls container.clusters.list
 // (locations/-, not paginated) for each trusted project. There is no
 // organization walk, and with no trusted project the endpoint is refused
 // without calling the API. The IP (compared with net.IP.Equal, port and

@@ -66,8 +66,10 @@ Intentionally reusable across Meshery services and tools:
   and the process's `GOOGLE_CLOUD_PROJECT` / `GOOGLE_PROJECT`; the kubeconfig
   cannot add one. The `gke_<project>_<location>_<cluster>` context or cluster
   name is only a hint for the get call, used when its project is trusted and
-  never queried otherwise; every such name seen for the same IP and CA is
-  kept, so a later kubeconfig's name is used from the next lookup. A list
+  never queried otherwise; the four most recent distinct names seen for the
+  same IP and CA are kept and each trusted one is tried with a get call,
+  newest first, so a later kubeconfig's name is used from the next lookup
+  even after an earlier wrong one. A list
   with `missingZones` and no match is a failed lookup. A refused endpoint is
   not looked up again for about five minutes per IP and CA, with or without
   the plugin on PATH, so an IAM, project or hint fix takes effect after that
