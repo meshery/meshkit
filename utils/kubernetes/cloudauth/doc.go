@@ -110,9 +110,11 @@
 // it), compared as parsed DER. An IP match without a CA match, or a CA match
 // without an IP match, is a refusal.
 //
-// If the API cannot be reached, times out, returns 401 or 403, returns 5xx,
-// lists clusters with missingZones, or returns no matching cluster, the
-// endpoint is refused. A list with missingZones is reported as a failed
+// The endpoint is refused when the API cannot be reached or times out, which
+// stops the lookup, or when no get or list call returns a cluster matching
+// both the IP and the CA. A 401, 403 or 5xx from one call does not refuse
+// the endpoint by itself, and a match in a list that has missingZones is
+// accepted. A list with missingZones and no match is reported as a failed
 // lookup naming those zones, not as a definitive no-match. When the plugin
 // binary is on PATH the plugin authenticates as before and the decision is
 // logged once as a warning carrying ErrUntrustedClusterEndpointFallback;
