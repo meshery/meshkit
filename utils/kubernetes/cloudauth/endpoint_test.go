@@ -1,6 +1,7 @@
 package cloudauth
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -49,7 +50,7 @@ func TestBindEndpointEKS(t *testing.T) {
 				config.Proxy = func(*http.Request) (*url.URL, error) { return url.Parse("http://proxy.example.com:3128") }
 			}
 			spec := Spec{Provider: ProviderEKS, Command: "aws", EKS: EKSConfig{ClusterID: "demo", Region: tt.region}}
-			got, err := bindEndpoint(config, spec)
+			got, err := bindEndpoint(config, spec, clusterHint{})
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 					t.Fatalf("bindEndpoint() error = %v, want one containing %q", err, tt.wantErr)
@@ -97,7 +98,7 @@ func TestBindEndpointGKE(t *testing.T) {
 			config := &rest.Config{Host: tt.host, TLSClientConfig: rest.TLSClientConfig{
 				CAData: tt.caData, CAFile: tt.caFile, Insecure: tt.insecure,
 			}}
-			_, err := bindEndpoint(config, Spec{Provider: ProviderGKE, Command: "gke-gcloud-auth-plugin"})
+			got, err := bindEndpoint(config, Spec{Provider: ProviderGKE, Command: "gke-gcloud-auth-plugin"}, clusterHint{})
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 					t.Fatalf("bindEndpoint() error = %v, want one containing %q", err, tt.wantErr)
@@ -107,6 +108,37 @@ func TestBindEndpointGKE(t *testing.T) {
 			if err != nil {
 				t.Fatalf("bindEndpoint() error = %v", err)
 			}
+			parsed, parseErr := url.Parse(tt.host)
+			ipEndpoint := parseErr == nil && net.ParseIP(parsed.Hostname()) != nil
+			if ipEndpoint && got.gkeIP == nil {
+				t.Fatal("bindEndpoint() did not mark the IP endpoint for GKE API verification")
+			}
+			if !ipEndpoint && got.gkeIP != nil {
+				t.Fatal("bindEndpoint() marked a named GKE endpoint for API verification")
+			}
 		})
+	}
+}
+
+func TestBindEndpointGKEIPCarriesNameHint(t *testing.T) {
+	config := &rest.Config{Host: "https://[2600:1900:4000::1]:443", TLSClientConfig: rest.TLSClientConfig{CAData: testCAData}}
+	got, err := bindEndpoint(config, Spec{Provider: ProviderGKE, Command: "gke-gcloud-auth-plugin"}, clusterHint{
+		contextName: "gke_my-project_us-central1_demo",
+		clusterName: "other",
+	})
+	if err != nil {
+		t.Fatalf("bindEndpoint() error = %v", err)
+	}
+	if got.gkeIP == nil {
+		t.Fatal("gkeIP is nil")
+	}
+	if got.gkeIP.Host != net.ParseIP("2600:1900:4000::1").String() {
+		t.Fatalf("host = %q, want the canonical IP", got.gkeIP.Host)
+	}
+	if string(got.gkeIP.CA) != string(testCAData) || got.gkeIP.CAFile != "" {
+		t.Fatalf("CA = %q file %q, want the kubeconfig CA data", got.gkeIP.CA, got.gkeIP.CAFile)
+	}
+	if got.gkeIP.ContextName != "gke_my-project_us-central1_demo" || got.gkeIP.ClusterName != "other" {
+		t.Fatalf("hint = (%q, %q)", got.gkeIP.ContextName, got.gkeIP.ClusterName)
 	}
 }

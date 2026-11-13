@@ -401,6 +401,42 @@ func TestRecognizeLeavesHomeAndMetadataEndpointOverridesOnThePlugin(t *testing.T
 	}
 }
 
+func TestRecognizeIgnoresTheInProcessOptOutMarker(t *testing.T) {
+	gke := &clientcmdapi.ExecConfig{
+		Command: "gke-gcloud-auth-plugin",
+		Args:    []string{"--use_application_default_credentials"},
+	}
+	aws := &clientcmdapi.ExecConfig{
+		Command: "aws",
+		Args:    []string{"eks", "get-token", "--cluster-name", "demo"},
+	}
+	for _, exec := range []*clientcmdapi.ExecConfig{gke, aws} {
+		exec.Env = []clientcmdapi.ExecEnvVar{{Name: DisableEnvVar, Value: "false"}}
+		if _, ok := Recognize(exec); !ok {
+			t.Fatalf("Recognize(%s) rejected a false %s value", exec.Command, DisableEnvVar)
+		}
+		exec.Env = []clientcmdapi.ExecEnvVar{{Name: DisableEnvVar, Value: "true"}}
+		if _, ok := Recognize(exec); ok {
+			t.Fatalf("Recognize(%s) intercepted a true %s value", exec.Command, DisableEnvVar)
+		}
+	}
+
+	gke.Env = []clientcmdapi.ExecEnvVar{
+		{Name: DisableEnvVar, Value: "false"},
+		{Name: "GOOGLE_APPLICATION_CREDENTIALS", Value: "/keys/other.json"},
+	}
+	if _, ok := Recognize(gke); ok {
+		t.Fatal("Recognize treated the opt-out marker as the only env entry and ignored GOOGLE_APPLICATION_CREDENTIALS")
+	}
+	aws.Env = []clientcmdapi.ExecEnvVar{
+		{Name: DisableEnvVar, Value: "false"},
+		{Name: "AWS_ACCESS_KEY_ID", Value: "AKID"},
+	}
+	if _, ok := Recognize(aws); ok {
+		t.Fatal("Recognize ignored AWS_ACCESS_KEY_ID because the opt-out marker was also set")
+	}
+}
+
 func TestSpecCacheKeySeparatesIdentities(t *testing.T) {
 	base := Spec{Provider: ProviderEKS, EKS: EKSConfig{ClusterID: "demo", Region: "us-west-2"}}
 	variants := []Spec{

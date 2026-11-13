@@ -14,16 +14,24 @@
 // --use_application_default_credentials) and the cluster endpoint belongs
 // to that cloud, the getter mints the bearer token in process with the
 // cloud SDK instead of forking the binary, so Meshery works where the plugin
-// is not installed; the token is cached and refreshed per cluster identity,
-// shared by every client in the process. If cloud credentials are
-// unavailable to the process, or the endpoint is not one the process's
-// credentials may be sent to, the exec plugin is used (and the fallback is
-// logged) when it is on PATH, and a descriptive error is returned otherwise.
+// is not installed. The first token is minted when the kubeconfig is loaded
+// or the client is built. Later requests reuse the cached token and mint
+// again only near expiry or after the API server answers 401. One source is
+// cached per cluster identity and shared by every client in the process.
+// A GKE IP endpoint is cached per verified endpoint: the IP and the CA must
+// match a cluster the process credentials can see through the GKE API
+// (container.clusters.get or container.clusters.list). No static IP list is
+// used. If cloud credentials are unavailable, or the endpoint is not one the
+// process's credentials may be sent to (including a GKE IP the API does not
+// confirm), the exec plugin is used (and the fallback is logged) when it is
+// on PATH, and a descriptive error is returned otherwise.
 // Every other exec plugin, and any config that already carries a token,
 // basic auth, or a client certificate, is left to client-go.
 // Set MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true to turn in-process minting
-// off. See package utils/kubernetes/cloudauth for supported plugins and the
-// credential chains.
+// off for the whole process. SetInProcessCloudAuthForContext does the same
+// for one kubeconfig context, which is the switch mesheryctl and Meshery
+// Server use. See package utils/kubernetes/cloudauth for supported plugins
+// and the credential chains.
 package kubernetes
 
 import (

@@ -1,0 +1,1017 @@
+package cloudauth
+
+import (
+	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
+	"io"
+	"math/big"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/meshery/meshkit/errors"
+	"github.com/meshery/meshkit/logger"
+	"k8s.io/client-go/rest"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+)
+
+func testCertPEM(t *testing.T) []byte {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "cluster-ca"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
+	if err != nil {
+		t.Fatalf("CreateCertificate() error = %v", err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
+
+func b64PEM(pemBytes []byte) string {
+	return base64.StdEncoding.EncodeToString(pemBytes)
+}
+
+func urlHostIP(t *testing.T, rawURL string) string {
+	t.Helper()
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse %q: %v", rawURL, err)
+	}
+	ip := net.ParseIP(parsed.Hostname())
+	if ip == nil {
+		t.Fatalf("host %q is not an IP", parsed.Hostname())
+	}
+	return ip.String()
+}
+
+func clusterFor(ip string, caPEM []byte) gkeCluster {
+	var cluster gkeCluster
+	cluster.Name = "demo"
+	cluster.Location = "us-central1"
+	cluster.Endpoint = ip
+	cluster.MasterAuth.ClusterCaCertificate = b64PEM(caPEM)
+	return cluster
+}
+
+// containerAPI is a fake GKE Container API. It records every request and
+// never forwards them.
+type containerAPI struct {
+	*httptest.Server
+	mu       sync.Mutex
+	gets     []string
+	lists    []string
+	auth     []string
+	status   int
+	clusters []servedCluster
+	// entered and cancelled are used by the blocking handler.
+	entered   chan struct{}
+	cancelled chan struct{}
+	block     bool
+}
+
+type servedCluster struct {
+	Project  string
+	Location string
+	Name     string
+	Cluster  gkeCluster
+}
+
+func startContainerAPI(t *testing.T, clusters []servedCluster) *containerAPI {
+	t.Helper()
+	api := &containerAPI{clusters: clusters}
+	api.Server = httptest.NewServer(api)
+	t.Cleanup(api.Close)
+	return api
+}
+
+func (a *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	a.mu.Lock()
+	a.auth = append(a.auth, r.Header.Get("Authorization"))
+	block := a.block
+	a.mu.Unlock()
+	if block {
+		a.entered <- struct{}{}
+		<-r.Context().Done()
+		a.cancelled <- struct{}{}
+		return
+	}
+	if a.status != 0 {
+		a.mu.Lock()
+		if strings.Contains(r.URL.Path, "/locations/-/clusters") {
+			a.lists = append(a.lists, r.URL.Path)
+		} else {
+			a.gets = append(a.gets, r.URL.Path)
+		}
+		a.mu.Unlock()
+		w.WriteHeader(a.status)
+		return
+	}
+	if strings.Contains(r.URL.Path, "/locations/-/clusters") {
+		project := projectFromListPath(r.URL.Path)
+		a.mu.Lock()
+		a.lists = append(a.lists, project)
+		var clusters []gkeCluster
+		for _, cluster := range a.clusters {
+			if cluster.Project == project {
+				clusters = append(clusters, cluster.Cluster)
+			}
+		}
+		a.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(gkeListResponse{Clusters: clusters})
+		return
+	}
+	a.mu.Lock()
+	a.gets = append(a.gets, r.URL.Path)
+	var found *gkeCluster
+	for i := range a.clusters {
+		cluster := &a.clusters[i]
+		if r.URL.Path == clusterGetPath(gkeNamedCluster{Project: cluster.Project, Location: cluster.Location, Cluster: cluster.Name}) {
+			found = &cluster.Cluster
+			break
+		}
+	}
+	a.mu.Unlock()
+	if found == nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(found)
+}
+
+func projectFromListPath(path string) string {
+	const prefix = "/v1/projects/"
+	rest := strings.TrimPrefix(path, prefix)
+	project, _, _ := strings.Cut(rest, "/")
+	decoded, err := url.PathUnescape(project)
+	if err != nil {
+		return project
+	}
+	return decoded
+}
+
+func (a *containerAPI) getPaths() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]string(nil), a.gets...)
+}
+
+func (a *containerAPI) listProjects() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]string(nil), a.lists...)
+}
+
+func (a *containerAPI) authorizations() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]string(nil), a.auth...)
+}
+
+func gkeIPConfig(host string, ca []byte, exec *clientcmdapi.ExecConfig) *rest.Config {
+	return &rest.Config{
+		Host:            host,
+		ExecProvider:    exec,
+		TLSClientConfig: rest.TLSClientConfig{CAData: ca},
+	}
+}
+
+func TestParseGKEClusterName(t *testing.T) {
+	tests := []struct {
+		name     string
+		project  string
+		location string
+		cluster  string
+		ok       bool
+	}{
+		{name: "gke_my-project_us-central1_demo", project: "my-project", location: "us-central1", cluster: "demo", ok: true},
+		{name: "gke_my-project_us-central1-a_demo", project: "my-project", location: "us-central1-a", cluster: "demo", ok: true},
+		{name: "gke_my-project_europe-west1_my-cluster", project: "my-project", location: "europe-west1", cluster: "my-cluster", ok: true},
+		{name: "gke_my-project_northamerica-northeast1_my-cluster-1", project: "my-project", location: "northamerica-northeast1", cluster: "my-cluster-1", ok: true},
+		{name: "gke_my-project_us-east1_a", project: "my-project", location: "us-east1", cluster: "a", ok: true},
+		{name: "gke_my-project_asia-southeast2_prod", project: "my-project", location: "asia-southeast2", cluster: "prod", ok: true},
+		{name: "gke_abcdef_us-west1-c_demo", project: "abcdef", location: "us-west1-c", cluster: "demo", ok: true},
+		{name: "short project", project: ""},
+		{name: "gke_proj_us-central1_demo"},
+		{name: "gke_my-project_us-central1"},
+		{name: "gke_my-project_not-a-location_demo"},
+		{name: "gke_MY-PROJECT_us-central1_demo"},
+		{name: "gke_my-project_US-CENTRAL1_demo"},
+		{name: "gke_my-project_us-central1-ab_demo"},
+		{name: "gke_my-project_us-central1_my_cluster"},
+		{name: "gke_my-project_us-central1_"},
+		{name: "not-gke_my-project_us-central1_demo"},
+		{name: "gke_my-project-_us-central1_demo"},
+		{name: ""},
+	}
+	// The first row of malformed names is the "short project" case, whose
+	// name field was left as a label. Fill the input name explicitly below
+	// for the rows that used the name as the input.
+	for _, tt := range tests {
+		input := tt.name
+		if tt.ok {
+			// input is the gke_ string stored in name
+		}
+		t.Run(input, func(t *testing.T) {
+			if input == "short project" {
+				input = "gke_ab_us-central1_demo"
+			}
+			got, ok := parseGKEClusterName(input)
+			if ok != tt.ok {
+				t.Fatalf("parseGKEClusterName(%q) ok = %v, want %v (%+v)", input, ok, tt.ok, got)
+			}
+			if !tt.ok {
+				return
+			}
+			if got.Project != tt.project || got.Location != tt.location || got.Cluster != tt.cluster {
+				t.Fatalf("parseGKEClusterName(%q) = %+v, want %s/%s/%s", input, got, tt.project, tt.location, tt.cluster)
+			}
+		})
+	}
+}
+
+func TestCertificateDERSetAcceptsPEMAndBase64(t *testing.T) {
+	pemBytes := testCertPEM(t)
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		t.Fatal("pem.Decode returned nil")
+	}
+	forms := [][]byte{
+		pemBytes,
+		[]byte(b64PEM(pemBytes)),
+		block.Bytes,
+	}
+	var sets []map[string]struct{}
+	for _, form := range forms {
+		set, err := certificateDERSet(form)
+		if err != nil {
+			t.Fatalf("certificateDERSet() error = %v", err)
+		}
+		sets = append(sets, set)
+	}
+	for i := 1; i < len(sets); i++ {
+		if !derSetsEqual(sets[0], sets[i]) {
+			t.Fatalf("form %d did not match PEM", i)
+		}
+	}
+	other, err := certificateDERSet(testCertPEM(t))
+	if err != nil {
+		t.Fatalf("certificateDERSet(other) error = %v", err)
+	}
+	if derSetsEqual(sets[0], other) {
+		t.Fatal("two different certificates compared equal")
+	}
+}
+
+func TestParseEndpointIP(t *testing.T) {
+	want := net.ParseIP("2600:1900:4000::1")
+	for _, raw := range []string{"2600:1900:4000::1", "[2600:1900:4000::1]", "[2600:1900:4000::1]:443", "2600:1900:4000:0:0:0:0:1"} {
+		if got := parseEndpointIP(raw); !want.Equal(got) {
+			t.Fatalf("parseEndpointIP(%q) = %v, want %v", raw, got, want)
+		}
+	}
+	if got := parseEndpointIP("34.118.10.20:443"); !got.Equal(net.ParseIP("34.118.10.20")) {
+		t.Fatalf("parseEndpointIP(v4 with port) = %v", got)
+	}
+	if parseEndpointIP("demo.gke.goog") != nil || parseEndpointIP("") != nil {
+		t.Fatal("parseEndpointIP accepted a non-IP")
+	}
+}
+
+func TestClusterMatchRequiresIPAndCAOnEveryEndpointField(t *testing.T) {
+	ca := testCertPEM(t)
+	other := testCertPEM(t)
+	wantIP := net.ParseIP("10.0.0.5")
+	wantCA, err := certificateDERSet(ca)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := []func(*gkeCluster){
+		func(c *gkeCluster) { c.Endpoint = "10.0.0.5" },
+		func(c *gkeCluster) { c.PrivateClusterConfig.PublicEndpoint = "10.0.0.5" },
+		func(c *gkeCluster) { c.PrivateClusterConfig.PrivateEndpoint = "10.0.0.5" },
+		func(c *gkeCluster) { c.ControlPlaneEndpointsConfig.IPEndpointsConfig.PublicEndpoint = "10.0.0.5" },
+		func(c *gkeCluster) {
+			c.ControlPlaneEndpointsConfig.IPEndpointsConfig.PrivateEndpoint = "[10.0.0.5]:443"
+		},
+	}
+	for i, set := range fields {
+		cluster := gkeCluster{}
+		cluster.MasterAuth.ClusterCaCertificate = b64PEM(ca)
+		set(&cluster)
+		if !clusterMatches(cluster, wantIP, wantCA) {
+			t.Fatalf("field %d did not match", i)
+		}
+		cluster.MasterAuth.ClusterCaCertificate = b64PEM(other)
+		if clusterMatches(cluster, wantIP, wantCA) {
+			t.Fatalf("field %d matched a different CA", i)
+		}
+	}
+	cluster := clusterFor("10.0.0.6", ca)
+	if clusterMatches(cluster, wantIP, wantCA) {
+		t.Fatal("CA match with a different IP was accepted")
+	}
+}
+
+func TestGKEIPCacheKeySeparatesEndpoints(t *testing.T) {
+	base := Spec{Provider: ProviderGKE, gkeIP: &gkeIPEndpoint{Host: "1.2.3.4", CA: []byte("ca")}}
+	otherIP := Spec{Provider: ProviderGKE, gkeIP: &gkeIPEndpoint{Host: "1.2.3.5", CA: []byte("ca")}}
+	otherCA := Spec{Provider: ProviderGKE, gkeIP: &gkeIPEndpoint{Host: "1.2.3.4", CA: []byte("other")}}
+	dns := Spec{Provider: ProviderGKE}
+	if base.cacheKey() == otherIP.cacheKey() || base.cacheKey() == otherCA.cacheKey() || base.cacheKey() == dns.cacheKey() {
+		t.Fatal("GKE IP cache keys collided")
+	}
+	same := Spec{Provider: ProviderGKE, gkeIP: &gkeIPEndpoint{Host: "1.2.3.4", CA: []byte("ca"), ContextName: "other"}}
+	if same.cacheKey() != base.cacheKey() {
+		t.Fatal("context name changed the cache key")
+	}
+}
+
+func TestGKEGetMatchInstallsTokenAndWarns(t *testing.T) {
+	server := newAuthorizationRecorder(t, "adc-token")
+	ca := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	ip := urlHostIP(t, server.URL)
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "demo",
+		Cluster: clusterFor(ip, ca),
+	}})
+	log, logs := bufferLogger(t)
+	var calls atomic.Int32
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", &calls)),
+		withLookPath(notOnPath),
+		withLogger(log),
+		withContainerAPIBase(api.URL),
+	)
+	config := gkeIPConfig(server.URL, ca, gkeExecConfig())
+	if err := auth.ApplyWithClusterHint(config, "gke_my-project_us-central1_demo", "ignored"); err != nil {
+		t.Fatalf("ApplyWithClusterHint() error = %v", err)
+	}
+	if config.ExecProvider != nil || config.WrapTransport == nil {
+		t.Fatal("Apply() did not install the token source")
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("factory calls = %d, want 1", calls.Load())
+	}
+	if got := api.listProjects(); len(got) != 0 {
+		t.Fatalf("list calls = %v, want none after a get match", got)
+	}
+	if got := api.getPaths(); len(got) != 1 || !strings.Contains(got[0], "/projects/my-project/locations/us-central1/clusters/demo") {
+		t.Fatalf("get paths = %v", got)
+	}
+	if authz := api.authorizations(); len(authz) != 1 || authz[0] != "Bearer adc-token" {
+		t.Fatalf("container API Authorization = %v", authz)
+	}
+	if server.hits.Load() != 0 {
+		t.Fatal("the kubeconfig server was contacted before verification finished")
+	}
+	if got := getStatus(t, config); got != http.StatusOK {
+		t.Fatalf("GET status = %d, want 200", got)
+	}
+	if !strings.Contains(logs.String(), ErrInProcessGKEIPMintingCode) ||
+		!strings.Contains(logs.String(), "In-process GKE token minting is active for IP endpoint "+ip) ||
+		!strings.Contains(logs.String(), "cluster my-project/us-central1/demo") {
+		t.Fatalf("logs = %q, want one %s warning", logs.String(), ErrInProcessGKEIPMintingCode)
+	}
+
+	// A second Apply reuses the setup: no second lookup and no second warning.
+	again := gkeIPConfig(server.URL, ca, gkeExecConfig())
+	if err := auth.ApplyWithClusterHint(again, "gke_my-project_us-central1_demo", ""); err != nil {
+		t.Fatalf("second Apply() error = %v", err)
+	}
+	if again.ExecProvider != nil {
+		t.Fatal("second Apply() did not install the cached source")
+	}
+	if calls.Load() != 1 || len(api.getPaths()) != 1 {
+		t.Fatalf("factory calls = %d, get calls = %d, want both still 1", calls.Load(), len(api.getPaths()))
+	}
+	if lines := strings.Split(strings.TrimSpace(logs.String()), "\n"); len(lines) != 1 {
+		t.Fatalf("logged %d lines, want 1 per setup: %s", len(lines), logs.String())
+	}
+}
+
+func TestGKEListMatchWithoutNameHint(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.20"
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "env-project", Location: "europe-west1", Name: "prod",
+		Cluster: func() gkeCluster {
+			cluster := clusterFor(ip, ca)
+			cluster.Name = "prod"
+			cluster.Location = "europe-west1"
+			cluster.Endpoint = ""
+			cluster.PrivateClusterConfig.PrivateEndpoint = ip
+			return cluster
+		}(),
+	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "env-project")
+	log, logs := bufferLogger(t)
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withLogger(log),
+		withContainerAPIBase(api.URL),
+	)
+	config := gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if config.ExecProvider != nil {
+		t.Fatal("list match did not install the token source")
+	}
+	if len(api.getPaths()) != 0 {
+		t.Fatalf("get paths = %v, want none without a gke_ name", api.getPaths())
+	}
+	if got := api.listProjects(); len(got) != 1 || got[0] != "env-project" {
+		t.Fatalf("list projects = %v", got)
+	}
+	if !strings.Contains(logs.String(), "cluster env-project/europe-west1/prod") {
+		t.Fatalf("logs = %q, want the listed cluster", logs.String())
+	}
+}
+
+func TestGKEListMatchAfterWrongName(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.21"
+	cluster := clusterFor(ip, ca)
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "demo", Cluster: cluster,
+	}})
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
+	config := gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+	if err := auth.ApplyWithClusterHint(config, "gke_my-project_us-central1_missing", "also-wrong"); err != nil {
+		t.Fatalf("ApplyWithClusterHint() error = %v", err)
+	}
+	if config.ExecProvider != nil {
+		t.Fatal("list fallback did not install the token source")
+	}
+	if len(api.getPaths()) != 1 || len(api.listProjects()) != 1 {
+		t.Fatalf("gets = %v lists = %v, want one get and one list", api.getPaths(), api.listProjects())
+	}
+}
+
+func TestGKEListUsesADCProject(t *testing.T) {
+	adcProjectID = defaultADCProjectID
+	t.Cleanup(func() { adcProjectID = func(context.Context) string { return "" } })
+	useADCFile(t, fakeServiceAccountKey(t, map[string]string{"project_id": "adc-project1"}))
+
+	ca := testCertPEM(t)
+	const ip = "34.118.10.22"
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "adc-project1", Location: "us-central1", Name: "demo",
+		Cluster: clusterFor(ip, ca),
+	}})
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
+	config := gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if got := api.listProjects(); len(got) != 1 || got[0] != "adc-project1" {
+		t.Fatalf("list projects = %v, want the ADC project once", got)
+	}
+
+	// The same project from the environment is not listed twice.
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "adc-project1")
+	t.Setenv("GOOGLE_PROJECT", "adc-project1")
+	other := gkeIPConfig("https://34.118.10.23", ca, gkeExecConfig())
+	_ = auth.Apply(other)
+	adcLists := 0
+	for _, project := range api.listProjects() {
+		if project == "adc-project1" {
+			adcLists++
+		}
+	}
+	if adcLists != 2 {
+		t.Fatalf("adc-project1 lists = %d, want 2 (one per setup, not one per duplicate source): %v", adcLists, api.listProjects())
+	}
+}
+
+func TestGKEIPMismatchIsRefused(t *testing.T) {
+	realCA := testCertPEM(t)
+	attackerCA := testCertPEM(t)
+	const realIP = "34.118.10.30"
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "real",
+		Cluster: clusterFor(realIP, realCA),
+	}})
+
+	t.Run("attacker IP and CA, including a gke_ name for the real cluster", func(t *testing.T) {
+		attacker := newAuthorizationRecorder(t, "adc-token")
+		var calls atomic.Int32
+		auth := NewAuthenticator(
+			WithTokenSourceFactory(staticFactory("adc-token", &calls)),
+			withLookPath(notOnPath),
+			withContainerAPIBase(api.URL),
+		)
+		config := gkeIPConfig(attacker.URL, attackerCA, gkeExecConfig())
+		err := auth.ApplyWithClusterHint(config, "gke_my-project_us-central1_real", "gke_my-project_us-central1_real")
+		if got := errors.GetCode(err); got != ErrUntrustedClusterEndpointCode {
+			t.Fatalf("Apply() error = %v, want code %q", err, ErrUntrustedClusterEndpointCode)
+		}
+		if !strings.Contains(err.Error(), "no cluster matched") {
+			t.Fatalf("error = %v, want the no-match cause", err)
+		}
+		if config.ExecProvider == nil || config.WrapTransport != nil || config.BearerToken != "" {
+			t.Fatal("Apply() installed a token for the attacker endpoint")
+		}
+		if attacker.hits.Load() != 0 {
+			t.Fatalf("attacker received %d requests during Apply", attacker.hits.Load())
+		}
+		config.ExecProvider = nil
+		_ = getStatus(t, config)
+		if got := attacker.seen.Load(); got != "" {
+			t.Fatalf("attacker Authorization = %q", got)
+		}
+		if calls.Load() != 1 {
+			t.Fatalf("factory calls = %d, want 1 (the Google token is built, then not sent to the attacker)", calls.Load())
+		}
+		for _, header := range api.authorizations() {
+			if header != "Bearer adc-token" {
+				t.Fatalf("container API Authorization = %q", header)
+			}
+		}
+	})
+
+	t.Run("IP matches and CA differs", func(t *testing.T) {
+		auth := NewAuthenticator(
+			WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+			withLookPath(notOnPath),
+			withContainerAPIBase(api.URL),
+		)
+		before := len(api.authorizations())
+		config := gkeIPConfig("https://"+realIP, attackerCA, gkeExecConfig())
+		err := auth.ApplyWithClusterHint(config, "gke_my-project_us-central1_real", "")
+		if errors.GetCode(err) != ErrUntrustedClusterEndpointCode || !strings.Contains(err.Error(), "no cluster matched") {
+			t.Fatalf("Apply() error = %v", err)
+		}
+		if config.WrapTransport != nil {
+			t.Fatal("token installed despite a CA mismatch")
+		}
+		if len(api.authorizations()) == before {
+			t.Fatal("the Container API was not consulted")
+		}
+	})
+
+	t.Run("CA matches and IP differs", func(t *testing.T) {
+		auth := NewAuthenticator(
+			WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+			withLookPath(notOnPath),
+			withContainerAPIBase(api.URL),
+		)
+		config := gkeIPConfig("https://203.0.113.10", realCA, gkeExecConfig())
+		err := auth.ApplyWithClusterHint(config, "gke_my-project_us-central1_real", "")
+		if errors.GetCode(err) != ErrUntrustedClusterEndpointCode || !strings.Contains(err.Error(), "no cluster matched") {
+			t.Fatalf("Apply() error = %v", err)
+		}
+		if config.WrapTransport != nil {
+			t.Fatal("token installed despite an IP mismatch")
+		}
+	})
+}
+
+func TestGKELookupFailureUsesRefusedEndpointPath(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.40"
+	tests := []struct {
+		name   string
+		reason string
+		api    func(t *testing.T) (base string, hits func() int)
+	}{
+		{
+			name:   "permission denied",
+			reason: "permission denied",
+			api: func(t *testing.T) (string, func() int) {
+				api := startContainerAPI(t, nil)
+				api.status = http.StatusForbidden
+				return api.URL, func() int { return len(api.authorizations()) }
+			},
+		},
+		{
+			name:   "no matching cluster",
+			reason: "no cluster matched",
+			api: func(t *testing.T) (string, func() int) {
+				t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+				cluster := clusterFor("198.51.100.10", ca)
+				api := startContainerAPI(t, []servedCluster{{
+					Project: "my-project", Location: "us-central1", Name: "other", Cluster: cluster,
+				}})
+				return api.URL, func() int { return len(api.authorizations()) }
+			},
+		},
+		{
+			name:   "server error",
+			reason: "HTTP 503",
+			api: func(t *testing.T) (string, func() int) {
+				t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+				api := startContainerAPI(t, nil)
+				api.status = http.StatusServiceUnavailable
+				return api.URL, func() int { return len(api.authorizations()) }
+			},
+		},
+		{
+			name:   "connection refused",
+			reason: "GKE API lookup failed",
+			api: func(t *testing.T) (string, func() int) {
+				listener, err := net.Listen("tcp", "127.0.0.1:0")
+				if err != nil {
+					t.Fatal(err)
+				}
+				addr := listener.Addr().String()
+				if err := listener.Close(); err != nil {
+					t.Fatal(err)
+				}
+				return "http://" + addr, func() int { return 0 }
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base, _ := tt.api(t)
+			newConfig := func() *rest.Config {
+				return gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+			}
+			auth := NewAuthenticator(
+				WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+				withLookPath(notOnPath),
+				withContainerAPIBase(base),
+			)
+			config := newConfig()
+			exec := config.ExecProvider
+			err := auth.ApplyWithClusterHint(config, "gke_my-project_us-central1_demo", "")
+			if errors.GetCode(err) != ErrUntrustedClusterEndpointCode || !strings.Contains(err.Error(), tt.reason) {
+				t.Fatalf("Apply() error = %v, want code %s containing %q", err, ErrUntrustedClusterEndpointCode, tt.reason)
+			}
+			if config.ExecProvider != exec || config.WrapTransport != nil {
+				t.Fatal("Apply() modified the config of a refused endpoint")
+			}
+
+			log, logs := bufferLogger(t)
+			auth = NewAuthenticator(
+				WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+				withLookPath(onPath),
+				withLogger(log),
+				withContainerAPIBase(base),
+			)
+			config = newConfig()
+			exec = config.ExecProvider
+			if err := auth.ApplyWithClusterHint(config, "gke_my-project_us-central1_demo", ""); err != nil {
+				t.Fatalf("Apply() with the plugin on PATH error = %v", err)
+			}
+			if config.ExecProvider != exec || config.WrapTransport != nil {
+				t.Fatal("Apply() installed in-process minting after a failed lookup")
+			}
+			if !strings.Contains(logs.String(), ErrUntrustedClusterEndpointFallbackCode) || !strings.Contains(logs.String(), tt.reason) {
+				t.Fatalf("logs = %q, want %s and %q", logs.String(), ErrUntrustedClusterEndpointFallbackCode, tt.reason)
+			}
+		})
+	}
+}
+
+func TestGKELookupDeadlineCancelsTheRequest(t *testing.T) {
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	api := &containerAPI{
+		entered:   make(chan struct{}),
+		cancelled: make(chan struct{}),
+		block:     true,
+	}
+	api.Server = httptest.NewServer(api)
+	t.Cleanup(api.Close)
+
+	for _, on := range []bool{false, true} {
+		look := notOnPath
+		if on {
+			look = onPath
+		}
+		clock := newFakeClock()
+		auth := NewAuthenticator(
+			WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+			withLookPath(look),
+			withContainerAPIBase(api.URL),
+			withLogger(discardLogger(t)),
+		)
+		auth.clock = clock
+		config := gkeIPConfig("https://34.118.10.50", testCertPEM(t), gkeExecConfig())
+		result := make(chan error, 1)
+		go func() { result <- auth.Apply(config) }()
+		select {
+		case <-api.entered:
+		case <-time.After(10 * time.Second):
+			t.Fatal("the lookup request did not start")
+		}
+		clock.Advance(defaultSetupTimeout)
+		select {
+		case <-api.cancelled:
+		case <-time.After(10 * time.Second):
+			t.Fatal("the lookup request context was not cancelled")
+		}
+		err := <-result
+		if on {
+			if err != nil {
+				t.Fatalf("Apply() with the plugin on PATH error = %v", err)
+			}
+			if config.ExecProvider == nil || config.WrapTransport != nil {
+				t.Fatal("timed-out lookup installed a token")
+			}
+			continue
+		}
+		if errors.GetCode(err) != ErrUntrustedClusterEndpointCode || !strings.Contains(err.Error(), "timed out") {
+			t.Fatalf("Apply() error = %v, want %s and timed out", err, ErrUntrustedClusterEndpointCode)
+		}
+	}
+}
+
+func TestGKENamedEndpointsDoNotCallTheContainerAPI(t *testing.T) {
+	api := startContainerAPI(t, nil)
+	var calls atomic.Int32
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", &calls)),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+	)
+	dns := &rest.Config{Host: testGKEDNSHost, ExecProvider: gkeExecConfig()}
+	if err := auth.Apply(dns); err != nil || dns.ExecProvider != nil {
+		t.Fatalf("Apply(DNS) = %v, exec %v", err, dns.ExecProvider)
+	}
+	gateway := &rest.Config{
+		Host:         "https://us-central1-connectgateway.googleapis.com/v1/projects/1/locations/us-central1/gkeMemberships/demo",
+		ExecProvider: gkeExecConfig(),
+	}
+	if err := auth.Apply(gateway); err != nil || gateway.ExecProvider != nil {
+		t.Fatalf("Apply(Connect Gateway) = %v, exec %v", err, gateway.ExecProvider)
+	}
+	if len(api.authorizations()) != 0 {
+		t.Fatalf("container API calls = %d, want 0", len(api.authorizations()))
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("factory calls = %d, want 1 shared source", calls.Load())
+	}
+}
+
+func TestGKEAPIRedirectIsNotFollowed(t *testing.T) {
+	attacker := newAuthorizationRecorder(t, "adc-token")
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, attacker.URL, http.StatusFound)
+	}))
+	t.Cleanup(api.Close)
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+	)
+	config := gkeIPConfig("https://34.118.10.60", testCertPEM(t), gkeExecConfig())
+	err := auth.Apply(config)
+	if errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if attacker.hits.Load() != 0 {
+		t.Fatalf("redirect target received %d requests", attacker.hits.Load())
+	}
+	if config.WrapTransport != nil {
+		t.Fatal("token installed after a redirect")
+	}
+}
+
+func TestGKECAFileIsReadAtVerification(t *testing.T) {
+	ca := testCertPEM(t)
+	path := t.TempDir() + "/ca.crt"
+	if err := os.WriteFile(path, ca, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	const ip = "34.118.10.70"
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "demo",
+		Cluster: clusterFor(ip, ca),
+	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
+	config := &rest.Config{
+		Host:            "https://" + ip,
+		ExecProvider:    gkeExecConfig(),
+		TLSClientConfig: rest.TLSClientConfig{CAFile: path},
+	}
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if config.ExecProvider != nil {
+		t.Fatal("CA file match did not install the token source")
+	}
+}
+
+func TestGKEUnparseableCADoesNotCallTheAPI(t *testing.T) {
+	api := startContainerAPI(t, nil)
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+	)
+	config := gkeIPConfig("https://34.118.10.80", []byte("not a certificate"), gkeExecConfig())
+	err := auth.Apply(config)
+	if errors.GetCode(err) != ErrUntrustedClusterEndpointCode || !strings.Contains(err.Error(), "cannot be parsed") {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if len(api.authorizations()) != 0 {
+		t.Fatal("the Container API was called with an unparseable CA")
+	}
+}
+
+func TestGKEIPEndpointsAreVerifiedSeparately(t *testing.T) {
+	ca := testCertPEM(t)
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "demo",
+		Cluster: clusterFor("34.118.10.90", ca),
+	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
+	first := gkeIPConfig("https://34.118.10.90", ca, gkeExecConfig())
+	if err := auth.Apply(first); err != nil || first.ExecProvider != nil {
+		t.Fatalf("first Apply() = %v, exec %v", err, first.ExecProvider)
+	}
+	lists := len(api.listProjects())
+	second := gkeIPConfig("https://203.0.113.50", ca, gkeExecConfig())
+	err := auth.Apply(second)
+	if errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+		t.Fatalf("second Apply() error = %v, want a refusal", err)
+	}
+	if second.WrapTransport != nil {
+		t.Fatal("second endpoint reused the first endpoint's verification")
+	}
+	if len(api.listProjects()) <= lists {
+		t.Fatal("second endpoint did not call the Container API")
+	}
+}
+
+func TestGKE401ResetsAndReverifies(t *testing.T) {
+	server := newAuthorizationRecorder(t, "fresh")
+	ca := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	ip := urlHostIP(t, server.URL)
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "demo",
+		Cluster: clusterFor(ip, ca),
+	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	log, logs := bufferLogger(t)
+	var calls atomic.Int32
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(sequenceFactory(&calls, "stale", "fresh")),
+		withLookPath(notOnPath),
+		withLogger(log),
+		withContainerAPIBase(api.URL),
+	)
+	config := gkeIPConfig(server.URL, ca, gkeExecConfig())
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if got := getStatus(t, config); got != http.StatusUnauthorized {
+		t.Fatalf("first GET status = %d, want 401", got)
+	}
+	if len(api.listProjects()) != 1 {
+		t.Fatalf("list calls after the rejected token = %d, want 1", len(api.listProjects()))
+	}
+	if got := getStatus(t, config); got != http.StatusOK {
+		t.Fatalf("GET after 401 status = %d, want 200", got)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("factory calls = %d, want 2", calls.Load())
+	}
+	if len(api.listProjects()) != 2 {
+		t.Fatalf("list calls = %d, want 2 (setup after 401 re-verifies)", len(api.listProjects()))
+	}
+	if lines := strings.Split(strings.TrimSpace(logs.String()), "\n"); len(lines) != 2 {
+		t.Fatalf("logged %d lines, want one warning per setup: %s", len(lines), logs.String())
+	}
+}
+
+func TestInProcessGKEIPWarningIsWrittenToStderr(t *testing.T) {
+	ca := testCertPEM(t)
+	const ip = "34.118.10.99"
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "demo",
+		Cluster: clusterFor(ip, ca),
+	}})
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := os.Stderr
+	os.Stderr = write
+	t.Cleanup(func() { os.Stderr = orig })
+
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+	)
+	config := gkeIPConfig("https://"+ip, ca, gkeExecConfig())
+	if err := auth.Apply(config); err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if err := write.Close(); err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "In-process GKE token minting is active for IP endpoint "+ip) {
+		t.Fatalf("stderr = %q, want the GKE IP warning", body)
+	}
+}
+
+func TestPerContextExecOptOut(t *testing.T) {
+	var calls atomic.Int32
+	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("minted", &calls)), withLookPath(notOnPath))
+
+	disabled := gkeExecConfig()
+	disabled.Env = []clientcmdapi.ExecEnvVar{{Name: DisableEnvVar, Value: "true"}}
+	disabledConfig := &rest.Config{Host: testGKEDNSHost, ExecProvider: disabled}
+	if err := auth.Apply(disabledConfig); err != nil {
+		t.Fatalf("Apply(disabled) error = %v", err)
+	}
+	if disabledConfig.ExecProvider != disabled || disabledConfig.WrapTransport != nil || calls.Load() != 0 {
+		t.Fatal("a true opt-out was intercepted")
+	}
+
+	enabled := gkeExecConfig()
+	enabledConfig := &rest.Config{Host: testGKEDNSHost, ExecProvider: enabled}
+	if err := auth.Apply(enabledConfig); err != nil {
+		t.Fatalf("Apply(enabled) error = %v", err)
+	}
+	if enabledConfig.ExecProvider != nil || calls.Load() != 1 {
+		t.Fatal("another context in the same process was not intercepted")
+	}
+
+	falsy := gkeExecConfig()
+	falsy.Env = []clientcmdapi.ExecEnvVar{{Name: DisableEnvVar, Value: "false"}}
+	falsyConfig := &rest.Config{Host: testGKEDNSHost, ExecProvider: falsy}
+	if err := auth.Apply(falsyConfig); err != nil {
+		t.Fatalf("Apply(false) error = %v", err)
+	}
+	if falsyConfig.ExecProvider != nil {
+		t.Fatal("a false opt-out blocked interception")
+	}
+
+	numeric := gkeExecConfig()
+	numeric.Env = []clientcmdapi.ExecEnvVar{{Name: DisableEnvVar, Value: "1"}}
+	numericConfig := &rest.Config{Host: testGKEDNSHost, ExecProvider: numeric}
+	if err := auth.Apply(numericConfig); err != nil {
+		t.Fatalf("Apply(1) error = %v", err)
+	}
+	if numericConfig.ExecProvider != numeric {
+		t.Fatal("ParseBool true value \"1\" was intercepted")
+	}
+}
+
+func discardLogger(t *testing.T) logger.Handler {
+	t.Helper()
+	log, _ := bufferLogger(t)
+	return log
+}

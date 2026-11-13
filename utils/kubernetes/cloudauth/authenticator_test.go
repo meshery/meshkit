@@ -340,14 +340,25 @@ func TestAuthenticatorSendsNoCredentialsToAttackerHost(t *testing.T) {
 
 func TestAuthenticatorAcceptsGKEEndpointForms(t *testing.T) {
 	server := newAuthorizationRecorder(t, "adc-token")
+	ca := redirectedConfig(server.Server, server.URL, nil).CAData
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	api := startContainerAPI(t, []servedCluster{{
+		Project: "my-project", Location: "us-central1", Name: "demo",
+		Cluster: clusterFor(urlHostIP(t, server.URL), ca),
+	}})
 	var calls atomic.Int32
-	auth := NewAuthenticator(WithTokenSourceFactory(staticFactory("adc-token", &calls)), withLookPath(notOnPath))
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", &calls)),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
 
-	// An IP endpoint with the cluster CA, end to end.
+	// An IP endpoint whose CA the Container API confirms, end to end.
 	ipConfig := &rest.Config{
 		Host:            server.URL,
 		ExecProvider:    gkeExecConfig(),
-		TLSClientConfig: rest.TLSClientConfig{CAData: redirectedConfig(server.Server, server.URL, nil).CAData},
+		TLSClientConfig: rest.TLSClientConfig{CAData: ca},
 	}
 	if err := auth.Apply(ipConfig); err != nil {
 		t.Fatalf("Apply(IP endpoint) error = %v", err)

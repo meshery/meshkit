@@ -20,6 +20,8 @@ func TestErrorMessagesHaveNoDoubledPeriods(t *testing.T) {
 		"ErrGCPCredentialsUnavailable":     ErrGCPCredentialsUnavailable(cause),
 		"ErrGCPServiceAccountKey":          ErrGCPServiceAccountKey(cause),
 		"ErrUnsupportedCloudProvider":      ErrUnsupportedCloudProvider("azure"),
+		"ErrInProcessGKEIPMinting":         ErrInProcessGKEIPMinting("34.118.10.20", "my-project", "us-central1", "demo"),
+		"ErrUntrustedClusterEndpoint":      ErrUntrustedClusterEndpoint(cause, ProviderGKE, "https://34.118.10.20", "gke-gcloud-auth-plugin"),
 		// Nested: the unavailable error wrapping the region error, as Apply
 		// produces when an EKS stanza has no resolvable region.
 		"ErrInProcessCloudAuthUnavailable(ErrEKSRegionUnresolved)": ErrInProcessCloudAuthUnavailable(ErrEKSRegionUnresolved("prod"), ProviderEKS, "aws"),

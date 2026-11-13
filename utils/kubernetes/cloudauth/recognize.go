@@ -1,6 +1,8 @@
 package cloudauth
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strconv"
 	"strings"
 
@@ -73,6 +75,10 @@ type Spec struct {
 	// EKS holds the parsed EKS settings. It is the zero value unless
 	// Provider is ProviderEKS.
 	EKS EKSConfig
+	// gkeIP is set by bindEndpoint when the server is a GKE IP endpoint.
+	// It is nil for DNS endpoints and Connect Gateway, which are not
+	// looked up. Recognize never sets it.
+	gkeIP *gkeIPEndpoint
 }
 
 // EKSConfig is everything needed to mint EKS tokens for one cluster.
@@ -97,7 +103,11 @@ type EKSConfig struct {
 
 // cacheKey identifies the token source a Spec resolves to, so that every
 // rest.Config built for the same cluster identity shares one source and one
-// refresh schedule.
+// refresh schedule. GKE DNS endpoints and Connect Gateway share one
+// process-wide source, because they all use the process's Application
+// Default Credentials. A GKE IP endpoint includes the host and CA in the
+// key, so that endpoint is verified on its own setup and a 401 re-verifies
+// it rather than reusing another cluster's setup.
 func (s Spec) cacheKey() string {
 	switch s.Provider {
 	case ProviderEKS:
@@ -106,8 +116,15 @@ func (s Spec) cacheKey() string {
 			string(s.Provider), e.ClusterID, e.Region, e.Profile, e.RoleARN,
 			e.RoleSessionName, e.ExternalID,
 		}, "\x00")
+	case ProviderGKE:
+		if s.gkeIP == nil {
+			return string(s.Provider)
+		}
+		sum := sha256.Sum256(s.gkeIP.CA)
+		return strings.Join([]string{
+			string(s.Provider), "ip", s.gkeIP.Host, hex.EncodeToString(sum[:]), s.gkeIP.CAFile,
+		}, "\x00")
 	default:
-		// ADC is process-wide, so every GKE stanza shares one source.
 		return string(s.Provider)
 	}
 }
@@ -123,34 +140,42 @@ func (s Spec) cacheKey() string {
 // Application Default Credentials; and every gcloud stanza, because
 // "gcloud config config-helper" uses the gcloud CLI's active account.
 //
+// An exec env entry named DisableEnvVar (MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH)
+// with a true value is the per-context opt-out: Recognize returns false and
+// the stanza stays on the plugin. A false or unparseable value is ignored,
+// and so is the entry when deciding whether any other env var selects a
+// different identity. It is not an AWS identity variable and it is not a
+// GKE env entry that by itself keeps the stanza on the plugin.
+//
 // Recognize looks only at the exec stanza. Whether the cluster endpoint may
 // receive the process's credentials is decided separately by the
 // Authenticator.
 func Recognize(exec *clientcmdapi.ExecConfig) (Spec, bool) {
-	if exec == nil {
+	if exec == nil || execDisablesInProcessCloudAuth(exec) {
 		return Spec{}, false
 	}
+	env := execEnvWithout(exec.Env, DisableEnvVar)
 
 	switch commandBase(exec.Command) {
 	case "aws":
-		if hasAnyEnv(exec.Env, awsIdentityEnv) {
+		if hasAnyEnv(env, awsIdentityEnv) {
 			return Spec{}, false
 		}
 		cfg, ok := parseAWSCLI(exec.Args)
 		if !ok {
 			return Spec{}, false
 		}
-		applyAWSExecEnv(&cfg, exec.Env)
+		applyAWSExecEnv(&cfg, env)
 		return Spec{Provider: ProviderEKS, Command: exec.Command, EKS: cfg}, true
 	case "aws-iam-authenticator":
-		if hasAnyEnv(exec.Env, awsIdentityEnv) {
+		if hasAnyEnv(env, awsIdentityEnv) {
 			return Spec{}, false
 		}
 		cfg, ok := parseAWSIAMAuthenticator(exec.Args)
 		if !ok {
 			return Spec{}, false
 		}
-		applyAWSExecEnv(&cfg, exec.Env)
+		applyAWSExecEnv(&cfg, env)
 		return Spec{Provider: ProviderEKS, Command: exec.Command, EKS: cfg}, true
 	case "gke-gcloud-auth-plugin":
 		if !selectsApplicationDefaultCredentials(exec) {
@@ -162,17 +187,50 @@ func Recognize(exec *clientcmdapi.ExecConfig) (Spec, bool) {
 	}
 }
 
+// execDisablesInProcessCloudAuth reports whether the exec stanza opts this
+// context out of in-process minting. Only a value strconv.ParseBool accepts
+// as true counts. A false value does not.
+func execDisablesInProcessCloudAuth(exec *clientcmdapi.ExecConfig) bool {
+	for _, e := range exec.Env {
+		if e.Name != DisableEnvVar {
+			continue
+		}
+		disabled, err := strconv.ParseBool(e.Value)
+		if err == nil && disabled {
+			return true
+		}
+	}
+	return false
+}
+
+// execEnvWithout returns env without entries named name. The marker is
+// removed before identity checks so a false value is not mistaken for an
+// env entry that selects a different account.
+func execEnvWithout(env []clientcmdapi.ExecEnvVar, name string) []clientcmdapi.ExecEnvVar {
+	if len(env) == 0 {
+		return env
+	}
+	filtered := make([]clientcmdapi.ExecEnvVar, 0, len(env))
+	for _, e := range env {
+		if e.Name != name {
+			filtered = append(filtered, e)
+		}
+	}
+	return filtered
+}
+
 // selectsApplicationDefaultCredentials reports whether a
 // gke-gcloud-auth-plugin stanza authenticates with exactly the Application
 // Default Credentials the Meshery process uses: gkeADCFlag is set (bare or
 // with a true value), no other argument is present, and the stanza sets no
-// environment variables. Any other argument (for example
-// --impersonate_service_account or --use_edge_cloud) or env entry (for
-// example GOOGLE_APPLICATION_CREDENTIALS, CLOUDSDK_CONFIG or HOME, which
-// move the ADC file the plugin reads) could select a different identity, so
-// such stanzas stay on the plugin.
+// environment variables. DisableEnvVar is not such a variable: a false
+// value is ignored here (a true value is rejected by Recognize before this
+// runs). Any other argument (for example --impersonate_service_account or
+// --use_edge_cloud) or env entry (for example GOOGLE_APPLICATION_CREDENTIALS,
+// CLOUDSDK_CONFIG or HOME, which move the ADC file the plugin reads) could
+// select a different identity, so such stanzas stay on the plugin.
 func selectsApplicationDefaultCredentials(exec *clientcmdapi.ExecConfig) bool {
-	if len(exec.Env) > 0 || len(exec.Args) == 0 {
+	if len(execEnvWithout(exec.Env, DisableEnvVar)) > 0 || len(exec.Args) == 0 {
 		return false
 	}
 	useADC := false

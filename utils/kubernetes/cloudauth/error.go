@@ -20,6 +20,7 @@ const (
 	ErrUntrustedClusterEndpointCode         = "meshkit-11349"
 	ErrUntrustedClusterEndpointFallbackCode = "meshkit-11350"
 	ErrCloudAuthTimeoutCode                 = "meshkit-11351"
+	ErrInProcessGKEIPMintingCode            = "meshkit-11352"
 )
 
 // errNoCredentialProvider is the cause reported when the AWS SDK returns a
@@ -89,11 +90,13 @@ func ErrUntrustedClusterEndpoint(err error, provider Provider, host string, comm
 			"The kubeconfig server is not an EKS or GKE control plane endpoint, for example a proxy, a load balancer, or a host controlled by whoever wrote the kubeconfig",
 			"The kubeconfig disables TLS verification (insecure-skip-tls-verify), uses http, or routes the connection through proxy-url",
 			"For EKS, the exec stanza's --region differs from the region in the endpoint host name",
-			"For a GKE IP endpoint, the kubeconfig has no certificate-authority data",
+			"For a GKE IP endpoint, the kubeconfig has no certificate-authority data, or the GKE API did not confirm that this IP and CA certificate belong to a cluster these credentials can see",
 		},
 		[]string{
 			"Use the cluster endpoint written by aws eks update-kubeconfig or gcloud container clusters get-credentials, with TLS verification enabled",
+			"For a GKE IP endpoint, grant the Meshery process container.clusters.get or container.clusters.list on the cluster project",
 			"Alternatively install the exec credential plugin named in the kubeconfig on the Meshery host's PATH, so it authenticates instead",
+			"To keep the exec plugin for one context, disable in-process cloud auth for that context",
 			"If the Meshery server cannot hold cloud credentials, deploy the Meshery Operator into the cluster instead",
 		},
 		nil)
@@ -112,10 +115,12 @@ func ErrUntrustedClusterEndpointFallback(err error, provider Provider, host stri
 		},
 		[]string{
 			"The kubeconfig server is not an EKS or GKE control plane endpoint, or the kubeconfig disables TLS verification, uses http, or sets proxy-url",
+			"For a GKE IP endpoint, the GKE API was unreachable, denied container.clusters.get and container.clusters.list, or returned no cluster with this IP and CA certificate",
 		},
 		[]string{
 			"No action is needed if the exec credential plugin is meant to authenticate",
 			"To mint tokens in process, point the kubeconfig at the cluster's own EKS or GKE endpoint with TLS verification enabled",
+			"For a GKE IP endpoint, grant the Meshery process container.clusters.get or container.clusters.list on the cluster project",
 		},
 		nil)
 }
@@ -226,6 +231,25 @@ func ErrGCPServiceAccountKey(err error) error {
 			"Google rejected the key, for example because it was deleted or disabled, or the token endpoint could not be reached",
 		},
 		[]string{"Supply a current JSON key file downloaded for a Google Cloud service account, unmodified"},
+		nil)
+}
+
+// ErrInProcessGKEIPMinting is logged by Authenticator when in-process
+// minting is applied to a GKE IP endpoint that the Container API confirmed.
+// It is logged once per setup, including the setup that follows a 401.
+func ErrInProcessGKEIPMinting(ip, project, location, name string) error {
+	return errors.NewV2(ErrInProcessGKEIPMintingCode, errors.None,
+		[]string{"In-process GKE token minting is active for an IP endpoint"},
+		[]string{
+			fmt.Sprintf("In-process GKE token minting is active for IP endpoint %s (cluster %s/%s/%s, verified with the GKE API). The kubeconfig is trusted to name this cluster; set MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true or disable in-process cloud auth for this context to use the exec plugin instead.", ip, project, location, name),
+		},
+		[]string{
+			"The kubeconfig names a GKE control plane by IP address, and the GKE API confirmed that IP and CA certificate belong to a cluster the Meshery process can see",
+		},
+		[]string{
+			"No action is needed if this cluster should use in-process token minting",
+			"To use the exec plugin for this context instead, disable in-process cloud auth for that kubeconfig context, or set MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true for the whole process",
+		},
 		nil)
 }
 

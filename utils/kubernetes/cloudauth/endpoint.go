@@ -29,27 +29,29 @@ import (
 //     is presigned for that region.
 //   - GKE tokens are Google OAuth2 access tokens for the cloud-platform
 //     scope, usable against every Google API the identity can reach. The
-//     server must be a GKE control plane endpoint: an IP address (public or
-//     private endpoint) with the cluster CA certificate in the kubeconfig, a
-//     DNS-based endpoint under ".gke.goog", or Connect Gateway
-//     (connectgateway.googleapis.com or <region>-connectgateway.googleapis.com).
+//     server must be a GKE control plane endpoint: a DNS-based endpoint
+//     under ".gke.goog", Connect Gateway (connectgateway.googleapis.com or
+//     <region>-connectgateway.googleapis.com), or an IP address (public or
+//     private) with the cluster CA certificate in the kubeconfig. An IP
+//     endpoint is only marked here. The Authenticator confirms the IP and
+//     the CA against the GKE Container API before it installs a token, and
+//     it sends nothing to the kubeconfig IP until that check succeeds.
 //
 // For both, the scheme must be https, TLS verification must be on
 // (insecure-skip-tls-verify unset), and the kubeconfig must not set
 // proxy-url: with a proxy and a CA certificate both chosen by the kubeconfig
 // author, the proxy could terminate TLS for a genuine EKS or GKE host name.
 //
-// Residual risk: an IP address cannot be proven to belong to a GKE cluster
-// offline. A kubeconfig author who supplies their own IP address and their
-// own CA certificate passes the check, so requiring TLS verification only
-// protects against attackers on the network path, not against the
-// kubeconfig author. The kubeconfig's cluster name
-// (gke_<project>_<location>_<cluster>) is chosen by the same author and so
-// proves nothing either. Closing this gap needs a GKE API lookup of the
-// cluster's endpoint with the process's credentials, which this package
-// deliberately does not make; callers that accept kubeconfigs from
-// untrusted parties for GKE IP endpoints should disable in-process minting
-// (DisableEnvVar) or use the Meshery Operator.
+// There is no static GKE IP list. Google does not publish the control plane
+// addresses, and https://www.gstatic.com/ipranges/cloud.json lists every
+// Google Cloud customer prefix, so a VM in any customer project would match.
+// That file also changes often, and a private control plane uses an address
+// the customer chooses, often from an RFC1918 range. The kubeconfig is
+// trusted to name the cluster (the gke_<project>_<location>_<cluster> context
+// or cluster name is only a hint for container.clusters.get). The IP and the
+// CA must both match a cluster the process credentials can see through
+// container.clusters.get or container.clusters.list. If they do not, or the
+// API cannot be reached, the endpoint is refused.
 
 var (
 	// eksHostSuffixes are the EKS API endpoint domains per AWS partition:
@@ -72,11 +74,39 @@ var (
 	connectGatewayPattern = regexp.MustCompile(`^([a-z0-9-]+-)?connectgateway\.googleapis\.com$`)
 )
 
+// clusterHint carries the kubeconfig context name and that context's
+// cluster name. Both are optional. They are not authenticated; they only
+// choose the first container.clusters.get URL for a GKE IP endpoint.
+type clusterHint struct {
+	contextName string
+	clusterName string
+}
+
+// gkeIPEndpoint is a GKE control plane addressed by IP. bindEndpoint records
+// it; the Authenticator verifies it inside setup, after the Google token
+// source exists and before installTokenSource.
+type gkeIPEndpoint struct {
+	// Host is the server IP, canonicalized with net.IP.String, without a port.
+	Host string
+	// CA is the kubeconfig certificate-authority-data, already decoded.
+	// It is empty when the kubeconfig names a file instead; CAFile is read
+	// at verification time.
+	CA []byte
+	// CAFile is the kubeconfig certificate-authority path when CA is empty.
+	CAFile string
+	// ContextName and ClusterName are the kubeconfig hint, either of which
+	// may be empty.
+	ContextName string
+	ClusterName string
+}
+
 // bindEndpoint checks that config's server may receive tokens minted for
 // spec and returns spec bound to it: for EKS, a Region left empty by the
-// exec stanza is taken from the endpoint host name. It returns a plain
-// error describing the first rule the endpoint breaks.
-func bindEndpoint(config *rest.Config, spec Spec) (Spec, error) {
+// exec stanza is taken from the endpoint host name; for a GKE IP, spec is
+// marked for Container API verification. It returns a plain error describing
+// the first rule the endpoint breaks. It does not contact the server or the
+// GKE API.
+func bindEndpoint(config *rest.Config, spec Spec, hint clusterHint) (Spec, error) {
 	server, err := url.Parse(config.Host)
 	if err != nil {
 		return spec, fmt.Errorf("the server URL %q cannot be parsed: %w", config.Host, err)
@@ -109,7 +139,7 @@ func bindEndpoint(config *rest.Config, spec Spec) (Spec, error) {
 		}
 		return spec, nil
 	case ProviderGKE:
-		return spec, checkGKEEndpoint(host, config)
+		return bindGKEEndpoint(host, config, spec, hint)
 	default:
 		return spec, fmt.Errorf("no endpoint rules exist for provider %q", spec.Provider)
 	}
@@ -142,20 +172,33 @@ func eksEndpointRegion(host string) (string, error) {
 	return "", notEKS
 }
 
-// checkGKEEndpoint returns an error unless host is a GKE control plane
-// endpoint form.
-func checkGKEEndpoint(host string, config *rest.Config) error {
-	if net.ParseIP(host) != nil {
+// bindGKEEndpoint accepts a DNS endpoint or Connect Gateway as-is, and marks
+// an IP endpoint for API verification when the kubeconfig has a CA. The CA
+// file is not read here, so a path that exists only at verification time is
+// still accepted by the form check.
+func bindGKEEndpoint(host string, config *rest.Config, spec Spec, hint clusterHint) (Spec, error) {
+	if ip := net.ParseIP(host); ip != nil {
 		if len(config.CAData) == 0 && config.CAFile == "" {
-			return fmt.Errorf("the GKE IP endpoint %q has no certificate-authority in the kubeconfig", host)
+			return spec, fmt.Errorf("the GKE IP endpoint %q has no certificate-authority in the kubeconfig", host)
 		}
-		return nil
+		marked := &gkeIPEndpoint{
+			Host:        ip.String(),
+			ContextName: hint.contextName,
+			ClusterName: hint.clusterName,
+		}
+		if len(config.CAData) > 0 {
+			marked.CA = append([]byte(nil), config.CAData...)
+		} else {
+			marked.CAFile = config.CAFile
+		}
+		spec.gkeIP = marked
+		return spec, nil
 	}
 	if strings.HasSuffix(host, gkeDNSEndpointSuffix) && len(host) > len(gkeDNSEndpointSuffix) {
-		return nil
+		return spec, nil
 	}
 	if connectGatewayPattern.MatchString(host) {
-		return nil
+		return spec, nil
 	}
-	return fmt.Errorf("%q is not a GKE control plane endpoint (an IP address, a *.gke.goog DNS endpoint, or Connect Gateway)", host)
+	return spec, fmt.Errorf("%q is not a GKE control plane endpoint (an IP address, a *.gke.goog DNS endpoint, or Connect Gateway)", host)
 }

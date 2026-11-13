@@ -32,9 +32,15 @@ import (
 // non-nil rest.Config.Proxy, so the variables are cleared here rather than
 // by setting a no-proxy function on the test configs.
 func TestMain(m *testing.M) {
-	for _, name := range []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"} {
+	for _, name := range []string{
+		"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy",
+		"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "GOOGLE_PROJECT",
+		"GCE_METADATA_HOST",
+	} {
 		_ = os.Unsetenv(name)
 	}
+	// Lookup must not read a developer ADC file or probe the metadata server.
+	adcProjectID = func(context.Context) string { return "" }
 	os.Exit(m.Run())
 }
 
@@ -52,6 +58,12 @@ func withDisabled(disabled bool) Option {
 // withLogger replaces the Authenticator's default MeshKit logger.
 func withLogger(log logger.Handler) Option {
 	return func(a *Authenticator) { a.log = log }
+}
+
+// withContainerAPIBase points GKE IP verification at base instead of
+// https://container.googleapis.com. base is an origin with no trailing slash.
+func withContainerAPIBase(base string) Option {
+	return func(a *Authenticator) { a.containerAPIBase = strings.TrimRight(base, "/") }
 }
 
 // fakeClock is a manually advanced clock. Deadlines created with

@@ -2,6 +2,8 @@ package cloudauth
 
 import (
 	"context"
+	stderrors "errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -83,7 +85,9 @@ func WithTokenSourceFactory(factory func(ctx context.Context, spec Spec) (oauth2
 // carrying ErrInProcessCloudAuthFallback when in-process setup failed (at
 // most once per cluster identity per fallbackRetryInterval), and one
 // carrying ErrUntrustedClusterEndpointFallback when the cluster endpoint may
-// not receive in-process tokens (once per provider and endpoint).
+// not receive in-process tokens (once per provider and endpoint). A GKE IP
+// endpoint that the Container API confirms is logged once per setup as
+// ErrInProcessGKEIPMinting.
 type Authenticator struct {
 	factory      tokenSourceFactory
 	lookPath     func(string) (string, error)
@@ -93,6 +97,10 @@ type Authenticator struct {
 	mintTimeout  time.Duration
 	disabled     bool
 	log          logger.Handler
+	// containerAPIBase is the GKE Container API origin, with no trailing
+	// slash. It defaults to https://container.googleapis.com. Tests point
+	// it at an httptest server; it is not part of the exported configuration.
+	containerAPIBase string
 
 	mu      sync.Mutex
 	entries map[string]*authEntry
@@ -106,14 +114,15 @@ type Authenticator struct {
 // exec.LookPath, and logs to standard error through a MeshKit logger.
 func NewAuthenticator(opts ...Option) *Authenticator {
 	a := &Authenticator{
-		factory:         defaultTokenSourceFactory,
-		lookPath:        exec.LookPath,
-		getenv:          os.Getenv,
-		clock:           realClock{},
-		setupTimeout:    defaultSetupTimeout,
-		mintTimeout:     defaultMintTimeout,
-		entries:         make(map[string]*authEntry),
-		warnedEndpoints: make(map[string]struct{}),
+		factory:          defaultTokenSourceFactory,
+		lookPath:         exec.LookPath,
+		getenv:           os.Getenv,
+		clock:            realClock{},
+		setupTimeout:     defaultSetupTimeout,
+		mintTimeout:      defaultMintTimeout,
+		containerAPIBase: defaultGKEContainerAPI,
+		entries:          make(map[string]*authEntry),
+		warnedEndpoints:  make(map[string]struct{}),
 	}
 	if log, err := logger.New("meshkit-cloudauth", logger.Options{
 		Format:   logger.TerminalLogFormat,
@@ -134,16 +143,36 @@ func NewAuthenticator(opts ...Option) *Authenticator {
 // so client-go never forks the plugin, and the transport is wrapped to
 // inject the token on every request. No static BearerToken is set.
 //
+// A GKE IP endpoint is verified against the Container API inside that
+// setup, after the Google token source is built and before the token is
+// installed. Apply has no kubeconfig context name; use ApplyWithClusterHint
+// when the loader knows the current context. Without a hint the lookup
+// lists clusters in the ADC project and GOOGLE_CLOUD_PROJECT or
+// GOOGLE_PROJECT.
+//
 // config is left unchanged when it has no ExecProvider, the plugin is not
-// recognized, minting is disabled, config already carries credentials that
-// client-go prefers over an exec plugin (a bearer token or token file,
-// basic auth, or a client certificate and key), or in-process minting
-// cannot be used (credentials are unavailable, or the endpoint is not one
-// the process's credentials may be sent to) but the plugin binary is on
-// PATH. When in-process minting cannot be used and the binary is not on
-// PATH either, Apply returns ErrInProcessCloudAuthUnavailable or
+// recognized, minting is disabled (the process environment or a true
+// DisableEnvVar entry on this exec stanza), config already carries
+// credentials that client-go prefers over an exec plugin (a bearer token or
+// token file, basic auth, or a client certificate and key), or in-process
+// minting cannot be used (credentials are unavailable, or the endpoint is
+// not one the process's credentials may be sent to) but the plugin binary
+// is on PATH. When in-process minting cannot be used and the binary is not
+// on PATH either, Apply returns ErrInProcessCloudAuthUnavailable or
 // ErrUntrustedClusterEndpoint.
 func (a *Authenticator) Apply(config *rest.Config) error {
+	return a.apply(config, clusterHint{})
+}
+
+// ApplyWithClusterHint is Apply with the kubeconfig current context name
+// and that context's cluster name. utils/kubernetes passes both from the
+// kubeconfig loader. They are only a hint for the GKE Container API get
+// call; an empty hint lists clusters in the ADC and environment projects.
+func (a *Authenticator) ApplyWithClusterHint(config *rest.Config, contextName, clusterName string) error {
+	return a.apply(config, clusterHint{contextName: contextName, clusterName: clusterName})
+}
+
+func (a *Authenticator) apply(config *rest.Config, hint clusterHint) error {
 	if config == nil || config.ExecProvider == nil || a.isDisabled() || hasPrecedingCredentials(config) {
 		return nil
 	}
@@ -152,13 +181,17 @@ func (a *Authenticator) Apply(config *rest.Config) error {
 		return nil
 	}
 
-	spec, err := bindEndpoint(config, spec)
+	spec, err := bindEndpoint(config, spec, hint)
 	if err != nil {
 		return a.refuseEndpoint(spec, config.Host, err)
 	}
 
 	source, err := a.tokenSource(spec)
 	if err != nil {
+		var rejected *gkeEndpointRejected
+		if stderrors.As(err, &rejected) {
+			return a.refuseEndpoint(spec, config.Host, rejected.cause)
+		}
 		return err
 	}
 	if source == nil {
@@ -264,6 +297,12 @@ func (a *Authenticator) tokenSource(spec Spec) (oauth2.TokenSource, error) {
 		if err == nil {
 			return entry, nil
 		}
+		// A failed GKE API check is an untrusted endpoint, not a credential
+		// failure, and it is not cached: the next Apply tries the API again.
+		var rejected *gkeEndpointRejected
+		if stderrors.As(err, &rejected) {
+			return nil, rejected
+		}
 		setupErr, attempt = err, result.attempt
 	}
 	if !onPath {
@@ -353,9 +392,23 @@ func (e *authEntry) acquire() (setupResult, error) {
 	return result, err
 }
 
+// gkeEndpointRejected is a setup failure that means the GKE IP endpoint
+// must not receive a token. Apply turns it into the refused-endpoint path.
+// It is not a missing-credentials failure.
+type gkeEndpointRejected struct {
+	cause error
+}
+
+func (e *gkeEndpointRejected) Error() string { return e.cause.Error() }
+
+func (e *gkeEndpointRejected) Unwrap() error { return e.cause }
+
 // runSetup calls the factory under the setup deadline. A factory that
 // overruns the deadline is abandoned and reported as
-// ErrCloudAuthTimeout; its late result is discarded.
+// ErrCloudAuthTimeout; its late result is discarded. For a GKE IP endpoint
+// the same deadline then covers the Container API lookup, which uses the
+// token the factory just built and does not contact the kubeconfig server.
+// The entry lock is not held here.
 func (e *authEntry) runSetup() (oauth2.TokenSource, error) {
 	ctx, cancel := e.auth.clock.WithTimeout(context.Background(), e.auth.setupTimeout)
 	defer cancel()
@@ -365,7 +418,34 @@ func (e *authEntry) runSetup() (oauth2.TokenSource, error) {
 	if err != nil && err == context.Cause(ctx) {
 		return nil, ErrCloudAuthTimeout(err, e.spec.Provider, "setting up credentials", e.auth.setupTimeout)
 	}
-	return source, err
+	if err != nil {
+		return nil, err
+	}
+	if e.spec.gkeIP == nil {
+		return source, nil
+	}
+
+	verified, err := runBounded(ctx, func(ctx context.Context) (gkeClusterIdentity, error) {
+		id, verifyErr := verifyGKEIPEndpoint(ctx, e.auth, source, e.spec.gkeIP)
+		if verifyErr != nil {
+			return gkeClusterIdentity{}, &gkeEndpointRejected{cause: verifyErr}
+		}
+		return id, nil
+	})
+	if err != nil {
+		var rejected *gkeEndpointRejected
+		if stderrors.As(err, &rejected) {
+			return nil, rejected
+		}
+		if ctx.Err() != nil {
+			return nil, &gkeEndpointRejected{cause: fmt.Errorf("GKE API lookup failed: timed out")}
+		}
+		return nil, &gkeEndpointRejected{cause: fmt.Errorf("GKE API lookup failed: %w", err)}
+	}
+	if e.auth.log != nil {
+		e.auth.log.Warn(ErrInProcessGKEIPMinting(e.spec.gkeIP.Host, verified.Project, verified.Location, verified.Name))
+	}
+	return source, nil
 }
 
 // recordFallback caches the decision to fall back after setup attempt
@@ -411,6 +491,13 @@ func (e *authEntry) Token() (*oauth2.Token, error) {
 func (e *authEntry) token() (*oauth2.Token, error) {
 	current, err := e.acquire()
 	if err != nil {
+		var rejected *gkeEndpointRejected
+		if stderrors.As(err, &rejected) && e.spec.gkeIP != nil {
+			// The transport is already installed, so the exec plugin cannot
+			// be put back. The request fails closed instead of sending the
+			// token to an endpoint the API no longer confirms.
+			return nil, ErrUntrustedClusterEndpoint(rejected.cause, e.spec.Provider, e.spec.gkeIP.Host, e.spec.Command)
+		}
 		return nil, err
 	}
 	token, err := e.boundedToken(current.source)

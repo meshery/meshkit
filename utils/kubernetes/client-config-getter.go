@@ -47,8 +47,14 @@ var _ clientcmd.ClientConfig = (*restConfigClientConfig)(nil)
 // --use_application_default_credentials) with in-process token minting when
 // the cluster endpoint belongs to that cloud, and leaving every other exec
 // plugin to client-go's exec loader.
+//
+// ApplyWithClusterHint is Apply plus the kubeconfig context name and that
+// context's cluster name. A GKE IP endpoint uses them only as a hint for
+// the Container API. Callers that have no kubeconfig pass empty names,
+// which is what Apply does.
 type restConfigAuthenticator interface {
 	Apply(config *rest.Config) error
+	ApplyWithClusterHint(config *rest.Config, contextName, clusterName string) error
 }
 
 var _ restConfigAuthenticator = (*cloudauth.Authenticator)(nil)
@@ -79,16 +85,48 @@ var _ clientcmd.ClientConfig = (*authenticatingClientConfig)(nil)
 
 // ClientConfig resolves the wrapped loader and applies auth. Resolving an
 // exec stanza only records it in rest.Config.ExecProvider; the plugin runs
-// on the first request, so replacing it here is always early enough.
+// on the first request, so replacing it here is always early enough. The
+// current context name and its cluster name are passed through so a GKE IP
+// endpoint can be looked up by the conventional gke_ hint.
 func (c *authenticatingClientConfig) ClientConfig() (*rest.Config, error) {
 	config, err := c.base.ClientConfig()
 	if err != nil {
 		return nil, err
 	}
-	if err := c.auth.Apply(config); err != nil {
+	if err := applyCloudAuth(c.auth, c.base, config); err != nil {
 		return nil, err
 	}
 	return config, nil
+}
+
+// applyCloudAuth runs auth against config. When loader is non-nil, the
+// kubeconfig current context and its cluster name are passed as the GKE
+// name hint. A nil loader, or a loader whose raw config cannot be read,
+// leaves the hint empty and the lookup lists the ADC and environment projects.
+func applyCloudAuth(auth restConfigAuthenticator, loader clientcmd.ClientConfig, config *rest.Config) error {
+	if loader == nil {
+		return auth.Apply(config)
+	}
+	contextName, clusterName := kubeconfigClusterHint(loader)
+	return auth.ApplyWithClusterHint(config, contextName, clusterName)
+}
+
+// kubeconfigClusterHint returns the loader's current context name and that
+// context's cluster name. Both are empty when the raw kubeconfig cannot be
+// read. The names are not authenticated.
+func kubeconfigClusterHint(loader clientcmd.ClientConfig) (contextName, clusterName string) {
+	if loader == nil {
+		return "", ""
+	}
+	raw, err := loader.RawConfig()
+	if err != nil {
+		return "", ""
+	}
+	contextName = raw.CurrentContext
+	if ctx := raw.Contexts[contextName]; ctx != nil {
+		clusterName = ctx.Cluster
+	}
+	return contextName, clusterName
 }
 
 // RawConfig delegates to the wrapped loader.
