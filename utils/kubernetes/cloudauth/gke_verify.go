@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 
 	"golang.org/x/oauth2"
@@ -30,13 +31,9 @@ const (
 	gkeListPageCap = 20
 )
 
-// gkePermissionDenied is the cause used when the Container API refuses the
-// process credentials. Either get or list permission is enough.
-const gkePermissionDenied = "GKE API lookup failed: permission denied; requires container.clusters.get or container.clusters.list"
-
-// errGKENoMatch is returned when the API answered but no cluster had both
-// the kubeconfig IP and the kubeconfig CA.
-var errGKENoMatch = fmt.Errorf("GKE API lookup failed: no cluster matched the kubeconfig IP and CA certificate")
+// gkeNoMatchCause is the cause used when the API answered but no cluster had
+// both the kubeconfig IP and the kubeconfig CA.
+const gkeNoMatchCause = "no cluster matched the kubeconfig IP and CA certificate"
 
 // gkeProjectIDPattern matches a Google Cloud project id: it starts with a
 // letter, then lowercase letters, digits and hyphens, and is 6 to 30
@@ -48,9 +45,9 @@ var gkeProjectIDPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
 // report. The gke_ name uses the project id, not the number.
 var gkeProjectNumberPattern = regexp.MustCompile(`^[0-9]{6,20}$`)
 
-// gkeLocationPattern matches a GKE region (us-central1,
-// northamerica-northeast1) or zone (us-central1-a).
-var gkeLocationPattern = regexp.MustCompile(`^[a-z]+(?:-[a-z]+)*[0-9](?:-[a-z])?$`)
+// gkeLocationPattern matches a GKE region (us-central1, europe-west10,
+// northamerica-northeast1) or zone (us-central1-a, europe-west12-b).
+var gkeLocationPattern = regexp.MustCompile(`^[a-z]+(?:-[a-z]+)*[0-9]+(?:-[a-z])?$`)
 
 // gkeClusterNamePattern matches a GKE cluster name. It may contain hyphens.
 // Underscores are not part of a cluster name; they separate the gke_ hint.
@@ -239,7 +236,7 @@ func verifyGKEIPEndpoint(ctx context.Context, a *Authenticator, source oauth2.To
 		if status == http.StatusOK && clusterMatches(cluster, wantIP, wantCA) {
 			return identityFrom(get.Project, get.Location, get.Cluster, cluster), nil
 		}
-		outcome.note(status)
+		outcome.note(get.Project, status)
 	}
 
 	projects := a.gkeProjectIDs(ctx, parsed)
@@ -277,41 +274,59 @@ func shortClusterName(name string) string {
 	return name
 }
 
-// gkeLookup records which kinds of Container API answer a lookup saw, so a
-// later definitive 200 is not reported as a 403 from an earlier call.
+// gkeLookup records the Container API answers a lookup saw, per project. A
+// 200 answers only for its own project: it hides an earlier 403 from the
+// same project, but not a denial or error from another project.
 type gkeLookup struct {
-	ok     bool
-	denied error
-	failed error
+	answered map[string]bool
+	refused  []gkeRefusal
 }
 
-func (l *gkeLookup) note(status int) {
-	switch {
-	case status == http.StatusOK:
-		l.ok = true
-	case status == http.StatusNotFound:
-	case status == http.StatusUnauthorized || status == http.StatusForbidden:
-		if l.denied == nil {
-			l.denied = errors.New(gkePermissionDenied)
+type gkeRefusal struct {
+	project string
+	status  int
+}
+
+func (l *gkeLookup) note(project string, status int) {
+	switch status {
+	case http.StatusOK:
+		if l.answered == nil {
+			l.answered = map[string]bool{}
 		}
+		l.answered[project] = true
+	case http.StatusNotFound:
 	default:
-		if l.failed == nil {
-			l.failed = fmt.Errorf("GKE API lookup failed: the GKE API returned HTTP %d", status)
-		}
+		l.refused = append(l.refused, gkeRefusal{project: project, status: status})
 	}
 }
 
 func (l *gkeLookup) err() error {
-	if l.ok {
-		return errGKENoMatch
+	var denied, failed []string
+	for _, refusal := range l.refused {
+		if l.answered[refusal.project] {
+			continue
+		}
+		if refusal.status == http.StatusUnauthorized || refusal.status == http.StatusForbidden {
+			if !slices.Contains(denied, refusal.project) {
+				denied = append(denied, refusal.project)
+			}
+			continue
+		}
+		cause := fmt.Sprintf("the GKE API returned HTTP %d for project %s", refusal.status, refusal.project)
+		if !slices.Contains(failed, cause) {
+			failed = append(failed, cause)
+		}
 	}
-	if l.denied != nil {
-		return l.denied
+	var causes []string
+	if len(l.answered) > 0 || (len(denied) == 0 && len(failed) == 0) {
+		causes = append(causes, gkeNoMatchCause)
 	}
-	if l.failed != nil {
-		return l.failed
+	if len(denied) > 0 {
+		causes = append(causes, "permission denied for project "+strings.Join(denied, ", ")+
+			" (requires container.clusters.get or container.clusters.list)")
 	}
-	return errGKENoMatch
+	causes = append(causes, failed...)
+	return errors.New("GKE API lookup failed: " + strings.Join(causes, "; "))
 }
 
 func clusterGetPath(named gkeNamedCluster) string {
@@ -393,7 +408,7 @@ func (a *Authenticator) listGKEClusters(ctx context.Context, client *http.Client
 		if err != nil {
 			return nil, err
 		}
-		outcome.note(status)
+		outcome.note(project, status)
 		if status != http.StatusOK {
 			return all, nil
 		}
