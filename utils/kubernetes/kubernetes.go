@@ -22,7 +22,8 @@
 // match a cluster in the ADC project or GOOGLE_CLOUD_PROJECT or
 // GOOGLE_PROJECT through the GKE API (container.clusters.get or
 // container.clusters.list). The kubeconfig cannot add a project to search.
-// No static IP list is used, and a refusal is reused for five minutes. If cloud credentials are unavailable, or the endpoint is not one the
+// No static IP list is used, and a refusal is reused for five minutes. If
+// cloud credentials are unavailable, or the endpoint is not one the
 // process's credentials may be sent to (including a GKE IP the API does not
 // confirm), the exec plugin is used (and the fallback is logged) when it is
 // on PATH, and a descriptive error is returned otherwise.
@@ -31,8 +32,9 @@
 // Set MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true to turn in-process minting
 // off for the whole process. SetInProcessCloudAuthForContext does the same
 // for a kubeconfig context's user, which is the switch mesheryctl and Meshery
-// Server use; every context that shares that user switches with it. See package utils/kubernetes/cloudauth for supported plugins
-// and the credential chains.
+// Server use; every context that shares that user switches with it. See
+// package utils/kubernetes/cloudauth for supported plugins and the
+// credential chains.
 package kubernetes
 
 import (
