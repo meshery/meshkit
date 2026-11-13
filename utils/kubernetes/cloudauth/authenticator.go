@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -262,15 +263,22 @@ func (a *Authenticator) isDisabled() bool {
 	return err == nil && disabled
 }
 
-// entry returns the shared entry for spec's cluster identity.
+// entry returns the shared entry for spec's cluster identity. For a GKE IP
+// endpoint it also records spec's gke_ names, because the cache key leaves
+// the hint out: a later kubeconfig's name is used from the next setup.
 func (a *Authenticator) entry(spec Spec) *authEntry {
 	key := spec.cacheKey()
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	entry, ok := a.entries[key]
 	if !ok {
 		entry = &authEntry{auth: a, spec: spec}
 		a.entries[key] = entry
+	}
+	a.mu.Unlock()
+	if spec.gkeIP != nil {
+		entry.mu.Lock()
+		entry.gkeHints = gkeEndpointHints(entry.gkeHints, spec.gkeIP)
+		entry.mu.Unlock()
 	}
 	return entry
 }
@@ -357,6 +365,9 @@ type authEntry struct {
 	// new setup for gkeRejectionRetryInterval.
 	rejected   *gkeEndpointRejected
 	rejectedAt time.Time
+	// gkeHints are the distinct gke_ names every caller passed for this GKE
+	// IP endpoint, in the order first seen. Each setup verifies with a copy.
+	gkeHints []gkeNamedCluster
 }
 
 // setupResult is the outcome of one setup flight.
@@ -395,9 +406,10 @@ func (e *authEntry) acquire() (setupResult, error) {
 	e.setupFlight = f
 	e.attempts++
 	result := setupResult{attempt: e.attempts}
+	hints := slices.Clone(e.gkeHints)
 	e.mu.Unlock()
 
-	source, err := e.runSetup()
+	source, err := e.runSetup(hints)
 
 	e.mu.Lock()
 	e.setupFlight = nil
@@ -436,7 +448,7 @@ func (e *gkeEndpointRejected) Unwrap() error { return e.cause }
 // the same deadline then covers the Container API lookup, which uses the
 // token the factory just built and does not contact the kubeconfig server.
 // The entry lock is not held here.
-func (e *authEntry) runSetup() (oauth2.TokenSource, error) {
+func (e *authEntry) runSetup(hints []gkeNamedCluster) (oauth2.TokenSource, error) {
 	ctx, cancel := e.auth.clock.WithTimeout(context.Background(), e.auth.setupTimeout)
 	defer cancel()
 	source, err := runBounded(ctx, func(ctx context.Context) (oauth2.TokenSource, error) {
@@ -453,7 +465,7 @@ func (e *authEntry) runSetup() (oauth2.TokenSource, error) {
 	}
 
 	verified, err := runBounded(ctx, func(ctx context.Context) (gkeClusterIdentity, error) {
-		id, verifyErr := verifyGKEIPEndpoint(ctx, e.auth, source, e.spec.gkeIP)
+		id, verifyErr := verifyGKEIPEndpoint(ctx, e.auth, source, e.spec.gkeIP, hints)
 		if verifyErr != nil {
 			return gkeClusterIdentity{}, &gkeEndpointRejected{cause: verifyErr}
 		}

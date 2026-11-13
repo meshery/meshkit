@@ -88,9 +88,11 @@ type containerAPI struct {
 	status   int
 	clusters []servedCluster
 	// projectStatus answers every call for a project with that status.
-	// getStatus answers every clusters.get call with that status.
+	// getStatus and listStatus answer every clusters.get or clusters.list
+	// call with that status.
 	projectStatus map[string]int
 	getStatus     int
+	listStatus    int
 	// missingZones is reported on every clusters.list response.
 	missingZones []string
 	// entered and cancelled are used by the blocking handler.
@@ -132,6 +134,9 @@ func (a *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if !isList && a.getStatus != 0 {
 		status = a.getStatus
+	}
+	if isList && a.listStatus != 0 {
+		status = a.listStatus
 	}
 	if status != 0 {
 		a.mu.Lock()
@@ -904,6 +909,58 @@ func TestGKEUntrustedHintProjectIsNeverQueried(t *testing.T) {
 				t.Fatalf("attacker received %d requests", attacker.hits.Load())
 			}
 		})
+	}
+}
+
+func TestGKELaterTrustedHintIsUsedForTheSameEndpoint(t *testing.T) {
+	server := newAuthorizationRecorder(t, "adc-token")
+	ca := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	ip := urlHostIP(t, server.URL)
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "my-project")
+	// The identity may get the cluster but not list the project, so only a
+	// gke_ name can verify this endpoint.
+	api := &containerAPI{
+		clusters:   []servedCluster{{Project: "my-project", Location: "us-central1", Name: "demo", Cluster: clusterFor(ip, ca)}},
+		listStatus: http.StatusForbidden,
+	}
+	api.Server = httptest.NewServer(api)
+	t.Cleanup(api.Close)
+	clock := newFakeClock()
+	auth := NewAuthenticator(
+		WithTokenSourceFactory(staticFactory("adc-token", new(atomic.Int32))),
+		withLookPath(notOnPath),
+		withContainerAPIBase(api.URL),
+		withLogger(discardLogger(t)),
+	)
+	auth.clock = clock
+
+	hintless := gkeIPConfig(server.URL, ca, gkeExecConfig())
+	err := auth.ApplyWithClusterHint(hintless, "prod", "prod")
+	if errors.GetCode(err) != ErrUntrustedClusterEndpointCode || !strings.Contains(err.Error(), "permission denied for project my-project") {
+		t.Fatalf("hintless Apply() error = %v, want %s with the list denial", err, ErrUntrustedClusterEndpointCode)
+	}
+	if got := api.getPaths(); len(got) != 0 {
+		t.Fatalf("get paths = %v, want none for a kubeconfig without a gke_ name", got)
+	}
+
+	hinted := gkeIPConfig(server.URL, ca, gkeExecConfig())
+	if err := auth.ApplyWithClusterHint(hinted, "gke_my-project_us-central1_demo", ""); errors.GetCode(err) != ErrUntrustedClusterEndpointCode {
+		t.Fatalf("hinted Apply() within the refusal window error = %v, want the cached refusal", err)
+	}
+
+	clock.Advance(gkeRejectionRetryInterval)
+	again := gkeIPConfig(server.URL, ca, gkeExecConfig())
+	if err := auth.ApplyWithClusterHint(again, "prod", "prod"); err != nil {
+		t.Fatalf("Apply() after the window error = %v, want the earlier gke_ name to verify the endpoint", err)
+	}
+	if again.ExecProvider != nil || again.WrapTransport == nil {
+		t.Fatal("Apply() after the window did not install the token source")
+	}
+	if got := api.getPaths(); len(got) != 1 || !strings.Contains(got[0], "/projects/my-project/locations/us-central1/clusters/demo") {
+		t.Fatalf("get paths = %v, want one get for the hinted cluster", got)
+	}
+	if server.hits.Load() != 0 {
+		t.Fatal("the kubeconfig server was contacted during Apply")
 	}
 }
 

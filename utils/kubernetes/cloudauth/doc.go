@@ -98,7 +98,11 @@
 // that reason. The kubeconfig context or cluster name
 // gke_<project>_<location>_<cluster> is only a hint: when its project is
 // trusted it selects container.clusters.get, and when it is not, that
-// project is never queried. The lookup then calls container.clusters.list
+// project is never queried. Every such name seen for the same IP and CA is
+// kept, and the first one in a trusted project is used, so a name from a
+// later kubeconfig takes effect from the next lookup even when an earlier
+// kubeconfig for that endpoint had none. The lookup then calls
+// container.clusters.list
 // (locations/-, not paginated) for each trusted project. There is no
 // organization walk, and with no trusted project the endpoint is refused
 // without calling the API. The IP (compared with net.IP.Equal, port and
@@ -110,12 +114,18 @@
 // it), compared as parsed DER. An IP match without a CA match, or a CA match
 // without an IP match, is a refusal.
 //
-// The endpoint is refused when the API cannot be reached or times out, which
-// stops the lookup, or when no get or list call returns a cluster matching
-// both the IP and the CA. A 401, 403 or 5xx from one call does not refuse
-// the endpoint by itself, and a match in a list that has missingZones is
-// accepted. A list with missingZones and no match is reported as a failed
-// lookup naming those zones, not as a definitive no-match. When the plugin
+// The endpoint is refused without calling the Container API when the
+// kubeconfig CA cannot be read or parsed as PEM, or when no project is
+// trusted. The lookup stops, and the endpoint is refused, when a request
+// cannot be made, the API cannot be reached, the deadline passes, a
+// response body cannot be read, or a 200 response is not valid JSON;
+// projects not yet searched are skipped.
+// Otherwise the endpoint is refused when no get or list call returns a
+// cluster matching both the IP and the CA. A 401, 403 or 5xx from one call
+// does not refuse the endpoint by itself, and a match in a list that has
+// missingZones is accepted. A list with missingZones and no match is
+// reported as a failed lookup naming those zones, not as a definitive
+// no-match. When the plugin
 // binary is on PATH the plugin authenticates as before and the decision is
 // logged once as a warning carrying ErrUntrustedClusterEndpointFallback;
 // otherwise Apply returns ErrUntrustedClusterEndpoint. The wrapped cause
@@ -123,9 +133,17 @@
 // project, which needs container.clusters.get or container.clusters.list).
 // An answer from one trusted project does not hide a denial or error from
 // another, so a 403 on GOOGLE_CLOUD_PROJECT is reported even when the ADC
-// project answered without a match. A refusal is reused for five minutes for the
-// same IP and CA, so repeated Apply calls and client builds take the
+// project answered without a match.
+//
+// A refused GKE IP endpoint is not looked up again for about five minutes
+// for the same IP and CA, whether or not the plugin is on PATH: repeated
+// Apply calls, client builds and requests in that window take the
 // refused-endpoint path without rebuilding credentials or calling the API.
+// An IAM, project or hint fix (for example granting
+// container.clusters.list, setting GOOGLE_CLOUD_PROJECT, or importing a
+// kubeconfig with a gke_ name) therefore takes effect after that window or
+// a process restart. A kubeconfig with a different IP or CA is looked up at
+// once.
 // A match is logged once per setup as a warning carrying
 // ErrInProcessGKEIPMinting. The lookup runs inside the bounded
 // single-flight setup. No lock is held across the HTTP call, and the request

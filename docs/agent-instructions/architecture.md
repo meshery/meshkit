@@ -66,15 +66,22 @@ Intentionally reusable across Meshery services and tools:
   and the process's `GOOGLE_CLOUD_PROJECT` / `GOOGLE_PROJECT`; the kubeconfig
   cannot add one. The `gke_<project>_<location>_<cluster>` context or cluster
   name is only a hint for the get call, used when its project is trusted and
-  never queried otherwise. A list with `missingZones` and no match is a
-  failed lookup, and a refusal is reused for five minutes per IP and CA.
-  There is no static GKE IP list:
+  never queried otherwise; every such name seen for the same IP and CA is
+  kept, so a later kubeconfig's name is used from the next lookup. A list
+  with `missingZones` and no match is a failed lookup. A refused endpoint is
+  not looked up again for about five minutes per IP and CA, with or without
+  the plugin on PATH, so an IAM, project or hint fix takes effect after that
+  window or a process restart. There is no static GKE IP list:
   Google's published cloud ranges cover every customer prefix, they change
-  often, and private control planes use customer addresses. If the API is
-  unreachable or times out, or no get or list call (whatever 401, 403 or
-  5xx answers the others gave) returns a cluster matching the IP and CA,
-  the exec plugin is used when it is on PATH and
-  `ErrUntrustedClusterEndpoint` is returned otherwise. A confirmed IP endpoint logs `ErrInProcessGKEIPMinting` once
+  often, and private control planes use customer addresses. The endpoint is
+  refused without calling the Container API when the kubeconfig CA cannot be
+  read or parsed as PEM or no project is trusted; the lookup stops and
+  refuses when a request cannot be made, the API is unreachable or times
+  out, a response body cannot be read, or a 200 response is not valid JSON;
+  otherwise it refuses when no get or list call
+  (whatever 401, 403 or 5xx answers the others gave) returns a cluster
+  matching the IP and CA. A refused endpoint uses the exec plugin when it is
+  on PATH and returns `ErrUntrustedClusterEndpoint` otherwise. A confirmed IP endpoint logs `ErrInProcessGKEIPMinting` once
   per setup. The first token is minted when the kubeconfig is loaded or the
   client is built, then reused until near expiry or a 401; it is cached per
   cluster identity, and per verified endpoint for GKE IP.
