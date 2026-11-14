@@ -1,6 +1,7 @@
 package artifacthub
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -166,5 +167,121 @@ func TestComputeBackoff_RetryAfterHttpDate(t *testing.T) {
 	got = computeBackoff(0, past)
 	if got < 1*time.Second || got > 1500*time.Millisecond {
 		t.Errorf("computeBackoff(0, %q) = %v, want exponential fallback in [1s, 1.5s]", past, got)
+	}
+}
+
+func TestGetAhPackagesWithName_RetriesOn5xx(t *testing.T) {
+	var attempts atomic.Int32
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if attempts.Add(1) <= 2 {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"packages": [
+				{
+					"name": "cert-manager",
+					"version": "1.15.0",
+					"repository": {
+						"name": "jetstack",
+						"url": "https://charts.jetstack.io",
+						"verified_publisher": true,
+						"official": false,
+						"cncf": true
+					}
+				}
+			]
+		}`))
+	}))
+	defer server.Close()
+
+	pkgs, err := getAhPackagesWithNameFromEndpoint(server.URL, "cert-manager")
+	if err != nil {
+		t.Fatalf("expected request to recover after 503 retries, got error: %v", err)
+	}
+	if attempts.Load() != 3 {
+		t.Fatalf("expected 3 total HTTP attempts, got %d", attempts.Load())
+	}
+	if len(pkgs) != 1 || pkgs[0].Name != "cert-manager" {
+		t.Fatalf("unexpected packages returned: %+v", pkgs)
+	}
+}
+
+func TestGetAhPackagesWithName_ExhaustsRetriesOnPersistent503(t *testing.T) {
+	var attempts atomic.Int32
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.Header().Set("Retry-After", "1")
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	_, err := getAhPackagesWithNameFromEndpoint(server.URL, "failing-pkg")
+	if err == nil {
+		t.Fatal("expected error after exhausting retries on persistent 503, got nil")
+	}
+	wantAttempts := int32(maxRetries + 1)
+	if attempts.Load() != wantAttempts {
+		t.Fatalf("expected %d total attempts before giving up, got %d", wantAttempts, attempts.Load())
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func TestGetAhPackagesWithName_RecoversFromTransportError(t *testing.T) {
+	var attempts atomic.Int32
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"packages": [
+				{
+					"name": "argo-cd",
+					"version": "2.11.0",
+					"repository": {
+						"name": "argo",
+						"url": "https://argoproj.github.io/argo-helm",
+						"verified_publisher": true,
+						"official": false,
+						"cncf": true
+					}
+				}
+			]
+		}`))
+	}))
+	defer server.Close()
+
+	origTransport := artifactHubHTTPClient.Transport
+	t.Cleanup(func() {
+		artifactHubHTTPClient.Transport = origTransport
+	})
+
+	artifactHubHTTPClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if attempts.Add(1) <= 2 {
+			return nil, errors.New("simulated connection reset")
+		}
+		return http.DefaultTransport.RoundTrip(req)
+	})
+
+	pkgs, err := getAhPackagesWithNameFromEndpoint(server.URL, "argo-cd")
+	if err != nil {
+		t.Fatalf("expected recovery after transient transport errors, got error: %v", err)
+	}
+	if attempts.Load() != 3 {
+		t.Fatalf("expected 3 total attempts, got %d", attempts.Load())
+	}
+	if len(pkgs) != 1 || pkgs[0].Name != "argo-cd" {
+		t.Fatalf("unexpected packages returned: %+v", pkgs)
 	}
 }
