@@ -1357,11 +1357,11 @@ func TestSortingAndVersionCoverage(t *testing.T) {
 	if compareVersions("1.0", "1.0.1") >= 0 {
 		t.Fatal("expected compareVersions to treat longer numeric versions as greater")
 	}
-	if compareVersions("1.alpha", "1.1") <= 0 {
-		t.Fatal("expected compareVersions to order string segments above numeric ones")
+	if compareVersionSegments("1.alpha", "1.1") <= 0 {
+		t.Fatal("expected compareVersionSegments to order string segments above numeric ones")
 	}
-	if compareVersions("1.1", "1.alpha") >= 0 {
-		t.Fatal("expected compareVersions to order numeric segments below string ones")
+	if compareVersionSegments("1.1", "1.alpha") >= 0 {
+		t.Fatal("expected compareVersionSegments to order numeric segments below string ones")
 	}
 	if compareVersions("1.beta", "1.gamma") >= 0 {
 		t.Fatal("expected compareVersions to compare string segments lexicographically")
