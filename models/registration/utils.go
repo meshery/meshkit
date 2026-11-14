@@ -13,6 +13,7 @@ import (
 	"github.com/meshery/schemas/models/v1beta3"
 	"github.com/meshery/schemas/models/v1beta3/component"
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
+	relationshipv1beta3 "github.com/meshery/schemas/models/v1beta3/relationship"
 )
 
 // TODO: refactor this and use CUE
@@ -55,6 +56,20 @@ func getEntity(byt []byte) (et entity.Entity, _ error) {
 			return nil, ErrGetEntity(fmt.Errorf("Invalid relationship definition: %s", err.Error()))
 		}
 		et = &rel
+	// The standalone v1beta3 relationship construct has its own struct. The
+	// registry stores v1alpha3 relationships, so decode into the v1beta3 type
+	// first and convert losslessly (an error is returned if any populated
+	// field cannot be carried over, instead of silently dropping it).
+	case schema.RelationshipSchemaVersionV1Beta3:
+		var relV3 relationshipv1beta3.RelationshipDefinition
+		if err := encoding.Unmarshal(byt, &relV3); err != nil {
+			return nil, ErrGetEntity(fmt.Errorf("Invalid relationship definition: %s", err.Error()))
+		}
+		rel, err := convertRelationshipV1Beta3(&relV3)
+		if err != nil {
+			return nil, ErrGetEntity(fmt.Errorf("Invalid relationship definition: %s", err.Error()))
+		}
+		et = rel
 	case v1beta3.ConnectionSchemaVersion:
 		var connDef connectionv1beta3.ConnectionDefinition
 		err := encoding.Unmarshal(byt, &connDef)
