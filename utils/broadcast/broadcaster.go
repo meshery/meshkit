@@ -52,7 +52,10 @@ type Broadcaster interface {
 
 func (b *broadcaster) broadcast(m BroadcastMessage) {
 	for ch := range b.outputs {
-		ch <- m
+		select {
+		case ch <- m:
+		default:
+		}
 	}
 }
 
