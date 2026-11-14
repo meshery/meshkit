@@ -646,11 +646,31 @@ func splitVersion(version string) []string {
 	return strings.Split(version, ".")
 }
 
-// Compare two version strings
+// Compare two version strings. The part after the first '-' is a
+// pre-release, so a release ranks above its pre-releases: 1.0.0 is greater
+// than both 1.0.0-rc.1 and 1.0.0-1.
 func compareVersions(v1, v2 string) int {
-	v1Components := splitVersion(v1)
-	v2Components := splitVersion(v2)
+	core1, pre1, hasPre1 := strings.Cut(v1, "-")
+	core2, pre2, hasPre2 := strings.Cut(v2, "-")
 
+	if c := compareVersionComponents(strings.Split(core1, "."), strings.Split(core2, ".")); c != 0 {
+		return c
+	}
+
+	switch {
+	case !hasPre1 && !hasPre2:
+		return 0
+	case !hasPre1:
+		return 1
+	case !hasPre2:
+		return -1
+	}
+	return compareVersionComponents(splitVersion(pre1), splitVersion(pre2))
+}
+
+// Compare two lists of version components. Numeric components compare by
+// value and rank below non-numeric ones, which compare as strings.
+func compareVersionComponents(v1Components, v2Components []string) int {
 	maxLen := len(v1Components)
 	if len(v2Components) > maxLen {
 		maxLen = len(v2Components)
