@@ -646,8 +646,174 @@ func splitVersion(version string) []string {
 	return strings.Split(version, ".")
 }
 
-// Compare two version strings
+// versionInName matches a version embedded in a version directory, release tag
+// or release asset name: an optional "v", two or more dot-separated numbers and
+// an optional pre-release suffix such as "-rc1" or "-alpha.2".
+var versionInName = regexp.MustCompile(`v?(\d+(?:\.\d+)+)(?:-([0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*))?`)
+
+// versionAssetExtensions are file extensions a release asset name carries
+// after its version. They are not part of the version.
+var versionAssetExtensions = []string{".tar.gz", ".tgz", ".yaml", ".yml", ".json", ".zip"}
+
+// versionChannelPrefixes are release-channel prefixes that are part of an
+// upstream version name (linkerd publishes "edge-26.11.1"), so NormalizeVersion
+// keeps them.
+var versionChannelPrefixes = []string{"edge-", "stable-"}
+
+// embeddedVersion is the version a name carries.
+type embeddedVersion struct {
+	prefix     string // text before the version, e.g. "release-"
+	text       string // the version as written, e.g. "v1.7.6-rc1"
+	release    []int  // numeric release segments, e.g. [1 7 6]
+	prerelease string // pre-release suffix without its "-", e.g. "rc1"; empty for a release
+}
+
+// findEmbeddedVersion returns the last version embedded in name, ignoring a
+// trailing release asset extension.
+func findEmbeddedVersion(name string) (embeddedVersion, bool) {
+	for _, ext := range versionAssetExtensions {
+		if strings.HasSuffix(name, ext) {
+			name = strings.TrimSuffix(name, ext)
+			break
+		}
+	}
+	matches := versionInName.FindAllStringSubmatchIndex(name, -1)
+	if len(matches) == 0 {
+		return embeddedVersion{}, false
+	}
+	m := matches[len(matches)-1]
+	v := embeddedVersion{prefix: name[:m[0]], text: name[m[0]:m[1]]}
+	for _, segment := range strings.Split(name[m[2]:m[3]], ".") {
+		n, err := strconv.Atoi(segment)
+		if err != nil {
+			return embeddedVersion{}, false
+		}
+		v.release = append(v.release, n)
+	}
+	if m[4] >= 0 {
+		v.prerelease = name[m[4]:m[5]]
+	}
+	return v, true
+}
+
+// NormalizeVersion returns the version a release tag, chart name or release
+// asset name carries, for use as a model version and its directory name:
+// "release-v1.7.6-rc1" becomes "v1.7.6-rc1",
+// "azureserviceoperator_customresourcedefinitions_v2.14.0.yaml" becomes
+// "v2.14.0" and "ondat-operator-0.7.4.tgz" becomes "0.7.4". A release-channel
+// prefix that is part of the upstream version name, such as linkerd's
+// "edge-26.11.1", is kept, and a name that carries no version is returned
+// unchanged.
+func NormalizeVersion(name string) string {
+	v, ok := findEmbeddedVersion(name)
+	if !ok {
+		return name
+	}
+	for _, channel := range versionChannelPrefixes {
+		if strings.HasSuffix(v.prefix, channel) {
+			return channel + v.text
+		}
+	}
+	return v.text
+}
+
+// compareEmbeddedVersions orders two embedded versions: numerically by release
+// segments, then a release above its own pre-releases, then pre-releases in
+// natural order, so "rc2" sorts below "rc10".
+func compareEmbeddedVersions(a, b embeddedVersion) int {
+	for i := 0; i < len(a.release) || i < len(b.release); i++ {
+		var x, y int
+		if i < len(a.release) {
+			x = a.release[i]
+		}
+		if i < len(b.release) {
+			y = b.release[i]
+		}
+		if x != y {
+			if x > y {
+				return 1
+			}
+			return -1
+		}
+	}
+	switch {
+	case a.prerelease == b.prerelease:
+		return 0
+	case a.prerelease == "":
+		return 1
+	case b.prerelease == "":
+		return -1
+	}
+	return compareNatural(a.prerelease, b.prerelease)
+}
+
+// naturalChunk matches a run of digits or a run of non-digits.
+var naturalChunk = regexp.MustCompile(`\d+|\D+`)
+
+// compareNatural compares two strings chunk by chunk: numeric chunks by value,
+// others lexically, with numeric chunks below non-numeric ones.
+func compareNatural(a, b string) int {
+	aChunks := naturalChunk.FindAllString(a, -1)
+	bChunks := naturalChunk.FindAllString(b, -1)
+	for i := 0; i < len(aChunks) && i < len(bChunks); i++ {
+		aNum, aErr := strconv.Atoi(aChunks[i])
+		bNum, bErr := strconv.Atoi(bChunks[i])
+		switch {
+		case aErr == nil && bErr == nil:
+			if aNum != bNum {
+				if aNum > bNum {
+					return 1
+				}
+				return -1
+			}
+		case aErr == nil:
+			return -1
+		case bErr == nil:
+			return 1
+		default:
+			if c := strings.Compare(aChunks[i], bChunks[i]); c != 0 {
+				return c
+			}
+		}
+	}
+	switch {
+	case len(aChunks) > len(bChunks):
+		return 1
+	case len(aChunks) < len(bChunks):
+		return -1
+	}
+	return 0
+}
+
+// compareVersions orders two version directory names. When both carry an
+// embedded version they are ordered by it, so a tag or file name prefix
+// ("release-v1.7.6-rc1", "..._v2.14.0.yaml") no longer outranks a higher
+// version. On a tie, the name that is exactly its version ranks above a
+// decorated one. Names that carry no embedded version keep the segment-wise
+// ordering of compareVersionSegments.
 func compareVersions(v1, v2 string) int {
+	e1, ok1 := findEmbeddedVersion(v1)
+	e2, ok2 := findEmbeddedVersion(v2)
+	if !ok1 || !ok2 {
+		return compareVersionSegments(v1, v2)
+	}
+	if c := compareEmbeddedVersions(e1, e2); c != 0 {
+		return c
+	}
+	plain1 := strings.TrimPrefix(v1, "v") == strings.TrimPrefix(e1.text, "v")
+	plain2 := strings.TrimPrefix(v2, "v") == strings.TrimPrefix(e2.text, "v")
+	switch {
+	case plain1 && !plain2:
+		return 1
+	case plain2 && !plain1:
+		return -1
+	}
+	return compareVersionSegments(v1, v2)
+}
+
+// compareVersionSegments compares two version strings segment by segment,
+// splitting on '.' and '-'.
+func compareVersionSegments(v1, v2 string) int {
 	v1Components := splitVersion(v1)
 	v2Components := splitVersion(v2)
 
