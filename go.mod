@@ -4,8 +4,8 @@ go 1.26.4
 
 replace (
 	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.9.3
-	// github.com/docker/docker => github.com/moby/moby v23.0.3+incompatible
 	// github.com/docker/libcompose => github.com/docker/libcompose v0.4.1-0.20190808084053-143e0f3f1ab9
+	github.com/docker/docker/api => github.com/moby/moby/api v1.55.0
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
 //github.com/meshery/schemas => ../schemas
