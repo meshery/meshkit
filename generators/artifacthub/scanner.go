@@ -25,6 +25,7 @@ const (
 	maxRetries                 = 5
 	initialBackoff             = 1 * time.Second
 	maxBackoff                 = 16 * time.Second
+	maxRetryAfter              = 30 * time.Second
 )
 
 // httpClient with an explicit timeout prevents hanging requests in CI
@@ -117,12 +118,24 @@ func getWithRetry(targetURL string) (*http.Response, error) {
 	return nil, lastErr
 }
 
-// computeBackoff honors the Retry-After header if present; otherwise it calculates
-// exponential backoff (1s, 2s, 4s, 8s, 16s) plus random jitter up to 500ms.
+// computeBackoff honors the Retry-After header (seconds or HTTP-date) capped at maxRetryAfter;
+// otherwise it calculates exponential backoff (1s, 2s, 4s, 8s, 16s) plus random jitter up to 500ms.
 func computeBackoff(attempt int, retryAfter string) time.Duration {
 	if retryAfter != "" {
 		if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 {
-			return time.Duration(seconds) * time.Second
+			wait := time.Duration(seconds) * time.Second
+			if wait > maxRetryAfter {
+				return maxRetryAfter
+			}
+			return wait
+		}
+		if retryTime, err := http.ParseTime(retryAfter); err == nil {
+			if wait := time.Until(retryTime); wait > 0 {
+				if wait > maxRetryAfter {
+					return maxRetryAfter
+				}
+				return wait
+			}
 		}
 	}
 
