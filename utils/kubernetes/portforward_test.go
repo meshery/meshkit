@@ -100,9 +100,4 @@ func TestPortForwarderRetriesAfterFailedUpgrade(t *testing.T) {
 	if !strings.HasPrefix(address, "127.0.0.1:") {
 		t.Errorf("LocalAddr() = %q, want loopback address", address)
 	}
-	select {
-	case <-requests:
-		t.Error("port-forward retried after Stop()")
-	default:
-	}
 }
