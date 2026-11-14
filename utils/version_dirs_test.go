@@ -59,6 +59,16 @@ func TestGetAllVersionDirsSortedDescRanksTheVersionANameCarries(t *testing.T) {
 			newest: "v2",
 		},
 		{
+			name:   "a dotted suffix does not hide a single-number version",
+			dirs:   []string{"v2-rc1.2", "v1.9.0"},
+			newest: "v2-rc1.2",
+		},
+		{
+			name:   "dotted build metadata does not hide a single-number version",
+			dirs:   []string{"v2+build.4.5", "v3.0.0"},
+			newest: "v3.0.0",
+		},
+		{
 			name:   "a name that carries a version outranks one that carries none",
 			dirs:   []string{"master", "release-v1.0.0", "v2.0.0"},
 			newest: "v2.0.0",
@@ -95,6 +105,7 @@ func TestCompareVersionsIsAStrictWeakOrder(t *testing.T) {
 		"1.7.6-rc1", "release-v1.7.6-rc1", "1.7.7-rc1", "1.8.0", "1.8", "1.8.0-rc2",
 		"2.0.0-rc2", "2.0.0-rc10", "azureserviceoperator_customresourcedefinitions_v2.14.0.yaml",
 		"0.3.4", "0.3.4+f2ca803", "release-v1.2.3+build.4.5", "2", "2-rc1", "edge-26.11.1",
+		"2-rc1.2", "2+build.4.5", "1.9.0",
 	}
 	sign := func(c int) int {
 		switch {
@@ -147,6 +158,9 @@ func TestNormalizeVersion(t *testing.T) {
 		{"v1.2.3-alpha.1", "v1.2.3-alpha.1"},
 		// build metadata (newrelic-operator): kept
 		{"0.3.4+f2ca803", "0.3.4+f2ca803"},
+		// single-number versions with a dotted suffix: the leading number is kept
+		{"v2-rc1.2", "v2-rc1.2"},
+		{"v2+build.4.5", "v2+build.4.5"},
 		// release channels that are part of the upstream version name: kept
 		{"edge-26.11.1", "edge-26.11.1"},
 		{"stable-2.14.10", "stable-2.14.10"},

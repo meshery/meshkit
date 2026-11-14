@@ -685,9 +685,13 @@ func findEmbeddedVersion(name string) (embeddedVersion, bool) {
 			break
 		}
 	}
-	matches := versionInName.FindAllStringSubmatchIndex(name, -1)
+	// A whole-name single-number version ("v2-rc1.2", "v2+build.4.5") must win
+	// over a dotted number inside its suffix, which versionInName would match
+	// instead. The anchored match only fires on a whole name, so prefixed and
+	// multi-segment versions still fall through to versionInName.
+	matches := singleNumberVersion.FindAllStringSubmatchIndex(name, -1)
 	if len(matches) == 0 {
-		matches = singleNumberVersion.FindAllStringSubmatchIndex(name, -1)
+		matches = versionInName.FindAllStringSubmatchIndex(name, -1)
 	}
 	if len(matches) == 0 {
 		return embeddedVersion{}, false
