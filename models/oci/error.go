@@ -25,6 +25,7 @@ var (
 	ErrSeekFailedCode               = "meshkit-11263"
 	ErrCreateLayerCode              = "meshkit-11264"
 	ErrSavingImageCode              = "meshkit-11265"
+	ErrAppendImageToLayoutCode      = "meshkit-11266"
 )
 
 func ErrAppendingLayer(err error) error {
@@ -40,6 +41,11 @@ func ErrSavingImage(err error) error {
 		[]string{"Check the file system permissions and available disk space.", "Ensure the file path is correct and accessible.", "Check for any underlying IO errors."},
 	)
 }
+
+func ErrAppendImageToLayout(err error) error {
+	return errors.New(ErrAppendImageToLayoutCode, errors.Alert, []string{"appending image to layout failed"}, []string{err.Error()}, []string{"failed to write image layers, config or manifest to disk"}, []string{"check disk permissions", "verify the image was built correctly"})
+}
+
 func ErrReadingFile(err error) error {
 	return errors.New(ErrReadingFileCode, errors.Alert, []string{"reading file failed"}, []string{err.Error()}, []string{"failed to read the file", "Insufficient permissions"}, []string{"Try using a different file", "check if appropriate read permissions are given to the file"})
 }
