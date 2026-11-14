@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/meshery/meshkit/logger"
@@ -48,7 +49,7 @@ func TestTraverserVisitPod(t *testing.T) {
 }
 
 func TestExposeCreatesServiceForPod(t *testing.T) {
-	serviceCreated := false
+	var serviceCreated atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
@@ -61,7 +62,7 @@ func TestExposeCreatesServiceForPod(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/namespaces/default/pods/target":
 			_, _ = w.Write([]byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"target","namespace":"default","labels":{"app":"meshery"}},"spec":{"containers":[{"name":"app","ports":[{"containerPort":8080}]}]}}`))
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/namespaces/default/services":
-			serviceCreated = true
+			serviceCreated.Store(true)
 			var service map[string]interface{}
 			if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
 				t.Errorf("decode service request: %v", err)
@@ -83,8 +84,8 @@ func TestExposeCreatesServiceForPod(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expose() error = %v", err)
 	}
-	if !serviceCreated || len(services) != 1 || services[0].Name != "target-service" {
-		t.Fatalf("Expose() created=%v services=%#v", serviceCreated, services)
+	if !serviceCreated.Load() || len(services) != 1 || services[0].Name != "target-service" {
+		t.Fatalf("Expose() created=%v services=%#v", serviceCreated.Load(), services)
 	}
 }
 

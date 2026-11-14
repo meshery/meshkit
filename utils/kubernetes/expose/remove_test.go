@@ -3,6 +3,7 @@ package expose
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"k8s.io/client-go/kubernetes"
@@ -10,11 +11,11 @@ import (
 )
 
 func TestRemove(t *testing.T) {
-	deleted := false
+	var deleted atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodDelete && r.URL.Path == "/api/v1/namespaces/default/services/target" {
-			deleted = true
+			deleted.Store(true)
 			_, _ = w.Write([]byte(`{"apiVersion":"v1","kind":"Status","status":"Success","code":200}`))
 			return
 		}
@@ -29,7 +30,7 @@ func TestRemove(t *testing.T) {
 	if err := Remove("target", "default", client); err != nil {
 		t.Fatalf("Remove() error = %v", err)
 	}
-	if !deleted {
+	if !deleted.Load() {
 		t.Error("Remove() did not send service delete request")
 	}
 }
