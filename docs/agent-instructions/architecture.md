@@ -47,6 +47,54 @@ Intentionally reusable across Meshery services and tools:
   transport helpers (see `tracing/README.md`).
 - `logger/`, `utils/`, `encoding/`, and `converter/` provide shared support code used by
   Meshery services and tools.
+- `utils/kubernetes/` builds Kubernetes and Helm clients from a kubeconfig through a
+  `RESTClientGetter` that keeps exec credential plugins working (client-go runs them).
+  Known cloud plugins (`aws eks get-token`, `aws-iam-authenticator`,
+  `gke-gcloud-auth-plugin --use_application_default_credentials`) are instead replaced
+  by in-process token minting in `utils/kubernetes/cloudauth`, the only package that
+  imports the AWS and Google SDKs. Interception is fenced on purpose, because a token
+  carries the Meshery process's own cloud identity and kubeconfigs often come from
+  someone else: it is skipped when the config already has a token, basic auth, or a
+  client certificate (client-go precedence), when the stanza selects its own identity
+  (static AWS keys in exec env, the gcloud CLI account, impersonation), and when the
+  server is not an endpoint of that cloud (EKS `*.eks.amazonaws.com[.cn]` or
+  the IPv6 form `*.api.aws` with a matching region; GKE `*.gke.goog` or
+  Connect Gateway; always https, TLS verified, no `proxy-url`). A GKE IP
+  endpoint is accepted only when `container.clusters.get` or
+  `container.clusters.list` shows that same IP and the kubeconfig CA (PEM) on
+  a cluster in a trusted project. Trusted projects are only the ADC project
+  and the process's `GOOGLE_CLOUD_PROJECT` / `GOOGLE_PROJECT`; the kubeconfig
+  cannot add one. The `gke_<project>_<location>_<cluster>` context or cluster
+  name is only a hint for the get call, used when its project is trusted and
+  never queried otherwise; the four most recent distinct names seen for the
+  same IP and CA are kept and each trusted one is tried with a get call,
+  newest first, so a later kubeconfig's name is used from the next lookup
+  even after an earlier wrong one. A list
+  with `missingZones` and no match is a failed lookup. A refused endpoint is
+  not looked up again for about five minutes per IP and CA, with or without
+  the plugin on PATH, so an IAM, project or hint fix takes effect after that
+  window or a process restart. There is no static GKE IP list:
+  Google's published cloud ranges cover every customer prefix, they change
+  often, and private control planes use customer addresses. The endpoint is
+  refused without calling the Container API when the kubeconfig CA cannot be
+  read or parsed as PEM or no project is trusted; the lookup stops and
+  refuses when a request cannot be made, the API is unreachable or times
+  out, a response body cannot be read, or a 200 response is not valid JSON;
+  otherwise it refuses when no get or list call (whatever 401, 403 or 5xx
+  answers the others gave) returns a cluster matching the IP and CA. A
+  refused endpoint uses the exec plugin when it is on PATH and returns
+  `ErrUntrustedClusterEndpoint` otherwise. A confirmed IP endpoint logs
+  `ErrInProcessGKEIPMinting` once per setup. The first token is minted when
+  the kubeconfig is loaded or the client is built, then reused until near
+  expiry or a 401; it is cached per cluster identity, and per verified
+  endpoint for GKE IP. `MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true` disables
+  minting for the process. The same name on a kubeconfig user's exec env
+  disables it for every context that uses that user
+  (`SetInProcessCloudAuthForContext` writes it on the context's AuthInfo, so
+  contexts sharing a user switch together). No lock is held across
+  network I/O; setups and mints are single-flight and deadline-bounded. The
+  package doc covers the credential chains, the endpoint rules, the API
+  lookup, the fallback to the plugin binary, and both disable switches.
 - `broker/` provides messaging abstractions with NATS and in-process channel backends;
   the event-streaming primitives shared with Meshery Server are documented in
   [../event-streaming.md](../event-streaming.md).
