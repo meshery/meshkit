@@ -647,9 +647,16 @@ func splitVersion(version string) []string {
 }
 
 // versionInName matches a version embedded in a version directory, release tag
-// or release asset name: an optional "v", two or more dot-separated numbers and
-// an optional pre-release suffix such as "-rc1" or "-alpha.2".
-var versionInName = regexp.MustCompile(`v?(\d+(?:\.\d+)+)(?:-([0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*))?`)
+// or release asset name: an optional "v", two or more dot-separated numbers, an
+// optional pre-release suffix such as "-rc1" or "-alpha.2" and optional build
+// metadata such as "+f2ca803". Requiring a dot keeps digits in names such as
+// "k6", "ec2" or "route53" from being read as versions.
+var versionInName = regexp.MustCompile(`v?(\d+(?:\.\d+)+)(?:-([0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?`)
+
+// singleNumberVersion matches a name that is a version with a single number,
+// such as "v2" or "3-rc1". A single number is only a version when it is the
+// whole name.
+var singleNumberVersion = regexp.MustCompile(`^v?(\d+)(?:-([0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$`)
 
 // versionAssetExtensions are file extensions a release asset name carries
 // after its version. They are not part of the version.
@@ -663,13 +670,14 @@ var versionChannelPrefixes = []string{"edge-", "stable-"}
 // embeddedVersion is the version a name carries.
 type embeddedVersion struct {
 	prefix     string // text before the version, e.g. "release-"
-	text       string // the version as written, e.g. "v1.7.6-rc1"
+	text       string // the version as written, e.g. "v1.7.6-rc1", including any build metadata
 	release    []int  // numeric release segments, e.g. [1 7 6]
 	prerelease string // pre-release suffix without its "-", e.g. "rc1"; empty for a release
 }
 
 // findEmbeddedVersion returns the last version embedded in name, ignoring a
-// trailing release asset extension.
+// trailing release asset extension. A name that is a single-number version,
+// such as "v2", carries that version.
 func findEmbeddedVersion(name string) (embeddedVersion, bool) {
 	for _, ext := range versionAssetExtensions {
 		if strings.HasSuffix(name, ext) {
@@ -678,6 +686,9 @@ func findEmbeddedVersion(name string) (embeddedVersion, bool) {
 		}
 	}
 	matches := versionInName.FindAllStringSubmatchIndex(name, -1)
+	if len(matches) == 0 {
+		matches = singleNumberVersion.FindAllStringSubmatchIndex(name, -1)
+	}
 	if len(matches) == 0 {
 		return embeddedVersion{}, false
 	}
@@ -702,8 +713,8 @@ func findEmbeddedVersion(name string) (embeddedVersion, bool) {
 // "azureserviceoperator_customresourcedefinitions_v2.14.0.yaml" becomes
 // "v2.14.0" and "ondat-operator-0.7.4.tgz" becomes "0.7.4". A release-channel
 // prefix that is part of the upstream version name, such as linkerd's
-// "edge-26.11.1", is kept, and a name that carries no version is returned
-// unchanged.
+// "edge-26.11.1", is kept, as is build metadata such as "0.3.4+f2ca803", and a
+// name that carries no version is returned unchanged.
 func NormalizeVersion(name string) string {
 	v, ok := findEmbeddedVersion(name)
 	if !ok {
@@ -719,7 +730,8 @@ func NormalizeVersion(name string) string {
 
 // compareEmbeddedVersions orders two embedded versions: numerically by release
 // segments, then a release above its own pre-releases, then pre-releases in
-// natural order, so "rc2" sorts below "rc10".
+// natural order, so "rc2" sorts below "rc10". As in semver, build metadata does
+// not affect the order.
 func compareEmbeddedVersions(a, b embeddedVersion) int {
 	for i := 0; i < len(a.release) || i < len(b.release); i++ {
 		var x, y int
@@ -785,16 +797,22 @@ func compareNatural(a, b string) int {
 	return 0
 }
 
-// compareVersions orders two version directory names. When both carry an
-// embedded version they are ordered by it, so a tag or file name prefix
-// ("release-v1.7.6-rc1", "..._v2.14.0.yaml") no longer outranks a higher
-// version. On a tie, the name that is exactly its version ranks above a
-// decorated one. Names that carry no embedded version keep the segment-wise
-// ordering of compareVersionSegments.
+// compareVersions orders two version directory names. A name that carries an
+// embedded version ranks above one that carries none, so the order stays
+// consistent when both are mixed. Names that both carry a version are ordered
+// by it, so a tag or file name prefix ("release-v1.7.6-rc1", "..._v2.14.0.yaml")
+// no longer outranks a higher version; on a tie, the name that is exactly its
+// version ranks above a decorated one. Names that carry no version keep the
+// segment-wise ordering of compareVersionSegments.
 func compareVersions(v1, v2 string) int {
 	e1, ok1 := findEmbeddedVersion(v1)
 	e2, ok2 := findEmbeddedVersion(v2)
-	if !ok1 || !ok2 {
+	switch {
+	case ok1 && !ok2:
+		return 1
+	case ok2 && !ok1:
+		return -1
+	case !ok1:
 		return compareVersionSegments(v1, v2)
 	}
 	if c := compareEmbeddedVersions(e1, e2); c != 0 {

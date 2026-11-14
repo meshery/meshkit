@@ -48,6 +48,21 @@ func TestGetAllVersionDirsSortedDescRanksTheVersionANameCarries(t *testing.T) {
 			dirs:   []string{"release-v1.7.6-rc1", "v1.7.6-rc1"},
 			newest: "v1.7.6-rc1",
 		},
+		{
+			name:   "build metadata is part of the version, not a second version",
+			dirs:   []string{"release-v1.2.3+build.4.5", "v1.3.0"},
+			newest: "v1.3.0",
+		},
+		{
+			name:   "a single-number version is a version",
+			dirs:   []string{"v2-rc1", "v2", "v1.5.0"},
+			newest: "v2",
+		},
+		{
+			name:   "a name that carries a version outranks one that carries none",
+			dirs:   []string{"master", "release-v1.0.0", "v2.0.0"},
+			newest: "v2.0.0",
+		},
 	}
 
 	for _, tt := range tests {
@@ -69,7 +84,45 @@ func TestGetAllVersionDirsSortedDescRanksTheVersionANameCarries(t *testing.T) {
 	}
 }
 
-// Inputs are version directory names found in meshery/meshery's models/.
+// compareVersions must be a strict weak ordering, or sort.Slice can rank
+// version directories inconsistently. That includes names with and without a
+// version mixed together. Names are passed as GetAllVersionDirsSortedDesc
+// passes them, without a leading "v".
+func TestCompareVersionsIsAStrictWeakOrder(t *testing.T) {
+	names := []string{
+		"2.0.0", "release-v1.0.0", "master", "latest",
+		"f5-bigip-ctlr-customresourcedefinitions.yml",
+		"1.7.6-rc1", "release-v1.7.6-rc1", "1.7.7-rc1", "1.8.0", "1.8", "1.8.0-rc2",
+		"2.0.0-rc2", "2.0.0-rc10", "azureserviceoperator_customresourcedefinitions_v2.14.0.yaml",
+		"0.3.4", "0.3.4+f2ca803", "release-v1.2.3+build.4.5", "2", "2-rc1", "edge-26.11.1",
+	}
+	sign := func(c int) int {
+		switch {
+		case c > 0:
+			return 1
+		case c < 0:
+			return -1
+		}
+		return 0
+	}
+	for _, a := range names {
+		for _, b := range names {
+			ab := sign(compareVersions(a, b))
+			if ab != -sign(compareVersions(b, a)) {
+				t.Fatalf("compareVersions(%q, %q) and compareVersions(%q, %q) disagree", a, b, b, a)
+			}
+			for _, c := range names {
+				bc, ac := sign(compareVersions(b, c)), sign(compareVersions(a, c))
+				if ab >= 0 && bc >= 0 && (ac < 0 || (ab > 0 || bc > 0) && ac == 0) {
+					t.Fatalf("compareVersions is not transitive: %q vs %q = %d, %q vs %q = %d, but %q vs %q = %d", a, b, ab, b, c, bc, a, c, ac)
+				}
+			}
+		}
+	}
+}
+
+// Inputs are version directory names found in meshery/meshery's models/, and
+// names that carry no version.
 func TestNormalizeVersion(t *testing.T) {
 	tests := []struct {
 		in, want string
@@ -92,6 +145,8 @@ func TestNormalizeVersion(t *testing.T) {
 		{"v0.9.8.4", "v0.9.8.4"},
 		{"2025.6.30", "2025.6.30"},
 		{"v1.2.3-alpha.1", "v1.2.3-alpha.1"},
+		// build metadata (newrelic-operator): kept
+		{"0.3.4+f2ca803", "0.3.4+f2ca803"},
 		// release channels that are part of the upstream version name: kept
 		{"edge-26.11.1", "edge-26.11.1"},
 		{"stable-2.14.10", "stable-2.14.10"},
