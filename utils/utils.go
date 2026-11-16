@@ -512,7 +512,8 @@ func RecursiveCastMapStringInterfaceToMapStringInterface(in map[string]interface
 
 // ConvertMapInterfaceMapString converts map[interface{}]interface{} => map[string]interface{}
 //
-// It will also convert []interface{} => []string
+// It recurses into []interface{} and map[string]interface{} values, so nested
+// maps are converted at any depth. Non-string keys are converted with fmt.Sprint.
 func ConvertMapInterfaceMapString(v interface{}) interface{} {
 	switch x := v.(type) {
 	case map[interface{}]interface{}:
@@ -540,9 +541,13 @@ func ConvertMapInterfaceMapString(v interface{}) interface{} {
 
 	return v
 }
+
 // ConvertToJSONCompatible turns the maps yaml.Unmarshal produces into
 // map[string]interface{}, at any depth, so the result can be passed to
 // json.Marshal. Non-string keys such as 1 or true become "1" and "true".
+// Keys that stringify to the same value, such as 1 and 1.0, collide: only one
+// of them is kept, and which one is not defined, because Go map iteration order
+// is random.
 func ConvertToJSONCompatible(data interface{}) interface{} {
 	return ConvertMapInterfaceMapString(data)
 }
