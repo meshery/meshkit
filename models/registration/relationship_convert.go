@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/meshery/schemas/models/v1alpha3"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	relationshipv1beta3 "github.com/meshery/schemas/models/v1beta3/relationship"
 )
@@ -51,6 +52,13 @@ const (
 // equal value in the result, otherwise an error naming the lost fields is
 // returned. The top-level "model" is only checked for its name, because
 // registration replaces it with the registered model's reference.
+//
+// Unknown JSON keys in the source document are dropped while decoding into the
+// v1beta3 struct, before this check runs, as for the other schema versions.
+//
+// The returned entity is stamped with the v1alpha3 schemaVersion because it is
+// structurally v1alpha3. Keeping the v1beta3 label would make a re-import of an
+// exported relationship (which is written with v1alpha3 keys) drop those keys.
 func convertRelationshipV1Beta3(in *relationshipv1beta3.RelationshipDefinition) (*relationship.RelationshipDefinition, error) {
 	if in == nil {
 		return nil, fmt.Errorf("nil v1beta3 relationship definition")
@@ -94,6 +102,10 @@ func convertRelationshipV1Beta3(in *relationshipv1beta3.RelationshipDefinition) 
 	if lost := findLostFields(mapped, dstMap); len(lost) > 0 {
 		return nil, fmt.Errorf("v1beta3 relationship fields cannot be represented losslessly: %s", strings.Join(lost, ", "))
 	}
+
+	// Set after the lost-field check so the schemaVersion change itself is not
+	// reported as a lost field.
+	out.SchemaVersion = v1alpha3.RelationshipSchemaVersion
 
 	return &out, nil
 }
