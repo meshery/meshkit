@@ -2,6 +2,8 @@ package registration
 
 import (
 	"encoding/json"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/meshery/meshkit/models/meshmodel/entity"
@@ -9,6 +11,7 @@ import (
 	"github.com/meshery/schemas/models/v1alpha3"
 	"github.com/meshery/schemas/models/v1alpha3/relationship"
 	"github.com/meshery/schemas/models/v1beta3/component"
+	relationshipv1beta3 "github.com/meshery/schemas/models/v1beta3/relationship"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -125,6 +128,64 @@ func TestGetEntityV1Beta3RelationshipKeepsFields(t *testing.T) {
 	assert.Equal(t, []any{[]any{"kind"}}, from[0].(map[string]any)["match_strategy_matrix"])
 }
 
+// TestGetEntityV1Beta3RelationshipSurvivesExportReimport mirrors Meshery's
+// ExportModel: the stored entity is written out and read back. The converted
+// entity carries the v1alpha3 schemaVersion, so the second import takes the
+// v1alpha3 path and nothing is dropped.
+func TestGetEntityV1Beta3RelationshipSurvivesExportReimport(t *testing.T) {
+	t.Parallel()
+
+	doc := []byte(`{
+		"schemaVersion": "relationships.meshery.io/v1beta3",
+		"version": "v1.0.0",
+		"kind": "edge",
+		"type": "non-binding",
+		"subType": "network",
+		"status": "enabled",
+		"metadata": {
+			"styles": {"curveStyle": "bezier", "lineColor": "#fff"}
+		},
+		"selectors": [{
+			"allow": {
+				"from": [{"kind": "Deployment", "matchStrategyMatrix": [["kind"]]}],
+				"to": [{"kind": "Service"}]
+			}
+		}],
+		"model": {"name": "kubernetes", "model": {"version": "v1.0.0"}}
+	}`)
+
+	first, err := getEntity(doc)
+	require.NoError(t, err)
+	converted, ok := first.(*relationship.RelationshipDefinition)
+	require.True(t, ok, "expected *relationship.RelationshipDefinition, got %T", first)
+	assert.EqualValues(t, v1alpha3.RelationshipSchemaVersion, converted.SchemaVersion)
+
+	exported, err := json.Marshal(converted)
+	require.NoError(t, err)
+
+	second, err := getEntity(exported)
+	require.NoError(t, err)
+	reimported, ok := second.(*relationship.RelationshipDefinition)
+	require.True(t, ok, "expected *relationship.RelationshipDefinition, got %T", second)
+
+	raw, err := json.Marshal(reimported)
+	require.NoError(t, err)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(raw, &got))
+
+	meta, _ := got["metadata"].(map[string]any)
+	styles, _ := meta["styles"].(map[string]any)
+	assert.Equal(t, "bezier", styles["curve-style"])
+	assert.Equal(t, "#fff", styles["line-color"])
+
+	selectors, _ := got["selectors"].([]any)
+	require.Len(t, selectors, 1)
+	allow, _ := selectors[0].(map[string]any)["allow"].(map[string]any)
+	from, _ := allow["from"].([]any)
+	require.Len(t, from, 1)
+	assert.Equal(t, []any{[]any{"kind"}}, from[0].(map[string]any)["match_strategy_matrix"])
+}
+
 func TestFindLostFieldsReportsDroppedFields(t *testing.T) {
 	t.Parallel()
 
@@ -208,15 +269,62 @@ func TestRenameKeysLeavesFreeFormMapsUntouched(t *testing.T) {
 	}, renameKeys(src))
 }
 
-func TestV1Beta3KeyRenamesCoverEveryDifferingKey(t *testing.T) {
+// jsonTagNames collects every json tag name reachable from t, walking nested
+// structs, slices, arrays, maps and pointers.
+func jsonTagNames(t reflect.Type, seen map[reflect.Type]bool, out map[string]bool) {
+	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice || t.Kind() == reflect.Array || t.Kind() == reflect.Map {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct || seen[t] {
+		return
+	}
+	seen[t] = true
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		name := strings.Split(f.Tag.Get("json"), ",")[0]
+		if name != "" && name != "-" {
+			out[name] = true
+		}
+		jsonTagNames(f.Type, seen, out)
+	}
+}
+
+// TestV1Beta3KeyRenamesMatchSchemaTagDifferences walks the json tags of the
+// v1alpha3 and v1beta3 relationship structs and asserts that the tags present
+// on one side only are exactly the keys in the rename map. A schemas bump that
+// adds, removes or renames a key on one side fails here in CI instead of in a
+// user's import.
+func TestV1Beta3KeyRenamesMatchSchemaTagDifferences(t *testing.T) {
 	t.Parallel()
 
-	// 22 style keys under metadata.styles plus matchStrategyMatrix.
-	assert.Len(t, v1beta3StyleKeyRenames, 22)
+	alpha := map[string]bool{}
+	beta := map[string]bool{}
+	jsonTagNames(reflect.TypeOf(relationship.RelationshipDefinition{}), map[reflect.Type]bool{}, alpha)
+	jsonTagNames(reflect.TypeOf(relationshipv1beta3.RelationshipDefinition{}), map[reflect.Type]bool{}, beta)
+
+	wantBetaOnly := map[string]bool{v1beta3MatrixKey: true}
+	wantAlphaOnly := map[string]bool{v1alpha3MatrixKey: true}
 	for from, to := range v1beta3StyleKeyRenames {
 		assert.NotEqual(t, from, to)
+		wantBetaOnly[from] = true
+		wantAlphaOnly[to] = true
 	}
-	assert.NotEqual(t, v1beta3MatrixKey, v1alpha3MatrixKey)
+
+	gotBetaOnly := map[string]bool{}
+	for k := range beta {
+		if !alpha[k] {
+			gotBetaOnly[k] = true
+		}
+	}
+	gotAlphaOnly := map[string]bool{}
+	for k := range alpha {
+		if !beta[k] {
+			gotAlphaOnly[k] = true
+		}
+	}
+
+	assert.Equal(t, wantBetaOnly, gotBetaOnly)
+	assert.Equal(t, wantAlphaOnly, gotAlphaOnly)
 }
 
 // TestGetEntityAcceptsEveryComponentSchemaVersion pins the component schema
