@@ -28,7 +28,9 @@ type ApplyOptions struct {
 // ApplyManifest applies, updates or deletes resources as specified in ApplyOptions.
 // The namespace specified in ApplyOptions is used, if no namespace is specified then
 // the namespace from manifest is used.
-// If the the namespace does not exists, it will be created.
+// If the namespace does not exist, it is created when the credentials allow it.
+// Credentials that cannot create namespaces are still allowed through, and the
+// resource operation reports whether they can act inside the namespace.
 func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) error {
 	manifests := strings.Split(string(contents), "\n---\n")
 	if len(manifests) > 0 && manifests[len(manifests)-1] == "\n" {
@@ -199,8 +201,15 @@ func createNamespaceIfNotExist(ctx context.Context, kubeClientset kubernetes.Int
 
 	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	_, err := kubeClientset.CoreV1().Namespaces().Create(ctx, nsSpec, metav1.CreateOptions{})
-	if !kubeerror.IsAlreadyExists(err) {
-		return err
+	if err == nil || kubeerror.IsAlreadyExists(err) {
+		return nil
 	}
-	return nil
+	// Namespace-scoped credentials cannot create namespaces at cluster scope,
+	// even when the namespace exists and they can create resources inside it.
+	// Let the resource operation that follows report the real permission error
+	// instead of blocking every manifest on this pre-step.
+	if kubeerror.IsForbidden(err) {
+		return nil
+	}
+	return err
 }
