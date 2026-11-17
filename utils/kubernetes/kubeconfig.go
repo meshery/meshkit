@@ -17,17 +17,20 @@ func (c *Client) GetKubeConfig() (*models.Kubeconfig, error) {
 		kubeconfig = filepath.Join(utils.GetHome(), ".kube", "config")
 	}
 
-	var config *models.Kubeconfig
 	file, err := os.ReadFile(kubeconfig)
 	if err != nil {
 		err = errors.Wrap(err, "could not read kubeconfig:")
 		return nil, err
 	}
+	// Decode into a value, not a pointer: an empty file, or one holding only a comment
+	// or null, decodes without error, which would leave a pointer nil and return
+	// (nil, nil) for callers to dereference.
+	var config models.Kubeconfig
 	if err := yaml.Unmarshal(file, &config); err != nil {
 		return nil, err
 	}
 
-	return config, nil
+	return &config, nil
 }
 
 func (c *Client) GetCurrentContext() (string, error) {
