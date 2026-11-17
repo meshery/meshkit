@@ -134,3 +134,51 @@ func TestBroadcaster_ConcurrentSubmitAndRegister(t *testing.T) {
 		}
 	}
 }
+
+func TestBroadcaster_CloseIsIdempotent(t *testing.T) {
+	b := NewBroadcaster(4)
+
+	if err := b.Close(); err != nil {
+		t.Fatalf("first Close() returned unexpected error: %v", err)
+	}
+	if err := b.Close(); err != nil {
+		t.Fatalf("second Close() returned unexpected error: %v", err)
+	}
+
+	// Concurrent Close() calls must also neither panic nor race.
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := b.Close(); err != nil {
+				t.Errorf("concurrent Close() returned error: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestBroadcaster_OperationsAfterCloseDoNotBlock(t *testing.T) {
+	b := NewBroadcaster(1)
+	if err := b.Close(); err != nil {
+		t.Fatalf("Close() failed: %v", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		sub := make(chan BroadcastMessage, 1)
+		b.Register(sub)
+		b.Unregister(sub)
+		// Send more messages than buffer size (1) to prove Submit does not block.
+		b.Submit(newTestMessage(t, "after-close-1", 1))
+		b.Submit(newTestMessage(t, "after-close-2", 2))
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Register/Unregister/Submit blocked after Close()")
+	}
+}

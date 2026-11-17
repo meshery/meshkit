@@ -9,6 +9,7 @@ which subscribers Register to pick up those messages.
 package broadcast
 
 import (
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -30,9 +31,11 @@ type BroadcastMessage struct {
 }
 
 type broadcaster struct {
-	input chan BroadcastMessage
-	reg   chan chan<- BroadcastMessage
-	unreg chan chan<- BroadcastMessage
+	input     chan BroadcastMessage
+	reg       chan chan<- BroadcastMessage
+	unreg     chan chan<- BroadcastMessage
+	done      chan struct{}
+	closeOnce sync.Once
 
 	outputs map[chan<- BroadcastMessage]bool
 }
@@ -52,7 +55,11 @@ type Broadcaster interface {
 
 func (b *broadcaster) broadcast(m BroadcastMessage) {
 	for ch := range b.outputs {
-		ch <- m
+		select {
+		case ch <- m:
+		case <-b.done:
+			return
+		}
 	}
 }
 
@@ -69,6 +76,8 @@ func (b *broadcaster) run() {
 			}
 		case ch := <-b.unreg:
 			delete(b.outputs, ch)
+		case <-b.done:
+			return
 		}
 	}
 }
@@ -80,6 +89,7 @@ func NewBroadcaster(buflen int) Broadcaster {
 		input:   make(chan BroadcastMessage, buflen),
 		reg:     make(chan chan<- BroadcastMessage),
 		unreg:   make(chan chan<- BroadcastMessage),
+		done:    make(chan struct{}),
 		outputs: make(map[chan<- BroadcastMessage]bool),
 	}
 
@@ -89,20 +99,32 @@ func NewBroadcaster(buflen int) Broadcaster {
 }
 
 func (b *broadcaster) Register(newch chan<- BroadcastMessage) {
-	b.reg <- newch
+	select {
+	case b.reg <- newch:
+	case <-b.done:
+	}
 }
 
 func (b *broadcaster) Unregister(newch chan<- BroadcastMessage) {
-	b.unreg <- newch
+	select {
+	case b.unreg <- newch:
+	case <-b.done:
+	}
 }
 
 func (b *broadcaster) Close() error {
-	close(b.reg)
+	b.closeOnce.Do(func() {
+		close(b.done)
+		close(b.reg)
+	})
 	return nil
 }
 
 func (b *broadcaster) Submit(m BroadcastMessage) {
 	if b != nil {
-		b.input <- m
+		select {
+		case b.input <- m:
+		case <-b.done:
+		}
 	}
 }
