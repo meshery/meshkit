@@ -206,7 +206,7 @@ func createNamespaceIfNotExist(ctx context.Context, kubeClientset kubernetes.Int
 	}
 	// Namespace-scoped credentials cannot create namespaces at cluster scope,
 	// even when the namespace exists and they can create resources inside it.
-	// Let the resource operation that follows report the real permission error
+	// Let the resource operation that follows report the real error
 	// instead of blocking every manifest on this pre-step.
 	if kubeerror.IsForbidden(err) {
 		return nil
