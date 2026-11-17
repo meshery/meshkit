@@ -115,7 +115,6 @@ func (b *broadcaster) Unregister(newch chan<- BroadcastMessage) {
 func (b *broadcaster) Close() error {
 	b.closeOnce.Do(func() {
 		close(b.done)
-		close(b.reg)
 	})
 	return nil
 }
