@@ -33,6 +33,13 @@ const (
 // the string to keep all packages in sync.
 const RelationshipSchemaVersionV1Beta2 = "relationships.meshery.io/v1beta2"
 
+// RelationshipSchemaVersionV1Beta3 is the schema version string the standalone
+// v1beta3 relationship construct (meshery/schemas
+// schemas/constructs/v1beta3/relationship) declares as its default, and that
+// its templates - including the scaffold `mesheryctl model init` writes -
+// carry.
+const RelationshipSchemaVersionV1Beta3 = "relationships.meshery.io/v1beta3"
+
 // ComponentSchemaVersionV1Beta3 is the schema version string the standalone
 // v1beta3 component construct (meshery/schemas
 // schemas/constructs/v1beta3/component) declares as its default, and that its

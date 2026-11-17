@@ -323,3 +323,12 @@ func TestComponentSchemaVersionV1Beta3MatchesConstruct(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, Ref{SchemaVersion: ComponentSchemaVersionV1Beta3, Type: TypeComponent}, ref)
 }
+
+// TestRelationshipSchemaVersionV1Beta3MatchesConstruct pins the constant to
+// the schemaVersion the embedded v1beta3 relationship construct declares so
+// DetectRef resolves it to TypeRelationship.
+func TestRelationshipSchemaVersionV1Beta3MatchesConstruct(t *testing.T) {
+	ref, err := DetectRef([]byte("schemaVersion: " + RelationshipSchemaVersionV1Beta3))
+	require.NoError(t, err)
+	assert.Equal(t, Ref{SchemaVersion: RelationshipSchemaVersionV1Beta3, Type: TypeRelationship}, ref)
+}
