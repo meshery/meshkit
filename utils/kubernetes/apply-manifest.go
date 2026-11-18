@@ -1,11 +1,8 @@
 package kubernetes
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"errors"
-	"io"
+	"fmt"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -16,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -37,27 +33,29 @@ type ApplyOptions struct {
 // Credentials that cannot create namespaces are still allowed through, and the
 // resource operation reports whether they can act inside the namespace.
 func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) error {
-	manifests, err := splitManifests(contents)
-	if err != nil {
-		if recvOptions.IgnoreErrors {
-			return nil
-		}
+	manifests := splitManifests(contents)
 
-		return ErrApplyManifest(err)
-	}
+	// Number the documents that hold something to apply, so an error names the
+	// manifest a reader can find in the file rather than a chunk index.
+	document := 0
 
 	for _, manifest := range manifests {
+		if isEmptyDocument(manifest) {
+			continue
+		}
+		document++
+
 		// create a fresh options var at each run
 		options := recvOptions
 
 		// get the runtime.Object
 		object, _, err := GetObjectFromManifest(manifest)
 		if err != nil {
-			if recvOptions.IgnoreErrors || isEmptyDocument(manifest) {
+			if recvOptions.IgnoreErrors {
 				continue
 			}
 
-			return err
+			return fmt.Errorf("document %d: %w", document, err)
 		}
 
 		helper, err := constructObject(client.KubeClient, client.RestConfig, object)
@@ -122,39 +120,59 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 // separators. Splitting on the literal "\n---\n" missed a separator followed by
 // a comment or trailing whitespace, and missed CRLF line endings entirely, so
 // every document after the first was dropped without an error.
-func splitManifests(contents []byte) ([]string, error) {
-	reader := yamlutil.NewYAMLReader(bufio.NewReader(bytes.NewReader(contents)))
-
-	var manifests []string
-	for {
-		doc, err := reader.Read()
-		if errors.Is(err, io.EOF) {
-			return manifests, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		manifests = append(manifests, string(doc))
+//
+// A separator is a line whose "---" is followed by whitespace or nothing. Text
+// after the marker is kept on the line, because "--- {apiVersion: v1, ...}" is
+// a document that starts and ends on the marker line. Every line is returned
+// exactly once, so a document that cannot be decoded is reported by the caller
+// rather than taking the rest of the stream down with it.
+func splitManifests(contents []byte) []string {
+	var (
+		manifests []string
+		current   strings.Builder
+	)
+	flush := func() {
+		manifests = append(manifests, current.String())
+		current.Reset()
 	}
+
+	for _, line := range strings.Split(string(contents), "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if rest, ok := strings.CutPrefix(line, "---"); ok && isSeparatorRest(rest) {
+			flush()
+			// The separator itself is not content, but anything after it is.
+			if content := strings.TrimSpace(rest); content != "" && !strings.HasPrefix(content, "#") {
+				current.WriteString(line)
+				current.WriteString("\n")
+			}
+			continue
+		}
+
+		current.WriteString(line)
+		current.WriteString("\n")
+	}
+	flush()
+
+	return manifests
+}
+
+// isSeparatorRest reports whether what follows "---" turns the line into a
+// document separator: nothing, whitespace, or whitespace and a comment.
+// "----" and "---foo" are content, not separators.
+func isSeparatorRest(rest string) bool {
+	return rest == "" || rest[0] == ' ' || rest[0] == '\t'
 }
 
 // isEmptyDocument reports whether a document has nothing to apply: only
-// whitespace, comments and document separators. Decoding one fails, and
-// continuing past it is correct. Any other document that fails to decode is an
-// error, because skipping it reports a deploy that never happened as a success.
+// whitespace and comments. Decoding one fails, and continuing past it is
+// correct. Any other document that fails to decode is an error, because
+// skipping it reports a deploy that never happened as a success.
 func isEmptyDocument(manifest string) bool {
 	for _, line := range strings.Split(manifest, "\n") {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+		if line != "" && !strings.HasPrefix(line, "#") {
+			return false
 		}
-		if rest, ok := strings.CutPrefix(line, "---"); ok {
-			rest = strings.TrimSpace(rest)
-			if rest == "" || strings.HasPrefix(rest, "#") {
-				continue
-			}
-		}
-		return false
 	}
 	return true
 }
