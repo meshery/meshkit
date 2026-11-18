@@ -69,9 +69,11 @@ Meshery Cloud, adapters, operators, CLIs) depends on it, so changes fan out down
   the worktree, then run `no-mistakes axi run --intent "<goal>"` (a clone without a
   `no-mistakes` remote needs `no-mistakes init` once). `no-mistakes axi status` shows the step
   and its findings, and `no-mistakes axi respond` answers a review gate. The pipeline reviews,
-  tests, pushes and opens the pull request. After the third run, merge the pull request as it
-  stands and open an issue for anything still flagged. A run that stopped on a usage limit
-  counts; one cancelled before it did anything does not.
+  tests, pushes and opens the pull request. Drive it with the vendored skill at
+  `.agents/skills/no-mistakes/SKILL.md`. After the third run, open an issue for anything
+  still flagged and hand the pull request to a human. A run that stopped on a usage limit
+  counts; one cancelled before it did anything does not. Three runs do not waive the merge gate.
+- **A pull request that changes any path outside documentation and CI merges only with a green no-mistakes run on its current head.** Documentation is `docs/**`. MeshKit publishes no website from this repository. CI is `.github/workflows/**`. The check is `PR must be raised via no-mistakes`: `review`, `test`, and `document` must each be `completed` in a head-bound attestation.
 
 ## Claude Code Settings
 
