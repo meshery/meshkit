@@ -1,7 +1,11 @@
 package kubernetes
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"errors"
+	"io"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -12,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -32,9 +37,13 @@ type ApplyOptions struct {
 // Credentials that cannot create namespaces are still allowed through, and the
 // resource operation reports whether they can act inside the namespace.
 func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) error {
-	manifests := strings.Split(string(contents), "\n---\n")
-	if len(manifests) > 0 && manifests[len(manifests)-1] == "\n" {
-		manifests = manifests[:len(manifests)-1]
+	manifests, err := splitManifests(contents)
+	if err != nil {
+		if recvOptions.IgnoreErrors {
+			return nil
+		}
+
+		return ErrApplyManifest(err)
 	}
 
 	for _, manifest := range manifests {
@@ -42,9 +51,9 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 		options := recvOptions
 
 		// get the runtime.Object
-		object, obj, err := GetObjectFromManifest(manifest)
+		object, _, err := GetObjectFromManifest(manifest)
 		if err != nil {
-			if recvOptions.IgnoreErrors || len(obj.GetObjectKind().GroupVersionKind().Kind) < 1 {
+			if recvOptions.IgnoreErrors || isEmptyDocument(manifest) {
 				continue
 			}
 
@@ -107,6 +116,47 @@ func (client *Client) ApplyManifest(contents []byte, recvOptions ApplyOptions) e
 	}
 
 	return nil
+}
+
+// splitManifests splits a multi-document YAML stream on Kubernetes document
+// separators. Splitting on the literal "\n---\n" missed a separator followed by
+// a comment or trailing whitespace, and missed CRLF line endings entirely, so
+// every document after the first was dropped without an error.
+func splitManifests(contents []byte) ([]string, error) {
+	reader := yamlutil.NewYAMLReader(bufio.NewReader(bytes.NewReader(contents)))
+
+	var manifests []string
+	for {
+		doc, err := reader.Read()
+		if errors.Is(err, io.EOF) {
+			return manifests, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		manifests = append(manifests, string(doc))
+	}
+}
+
+// isEmptyDocument reports whether a document has nothing to apply: only
+// whitespace, comments and document separators. Decoding one fails, and
+// continuing past it is correct. Any other document that fails to decode is an
+// error, because skipping it reports a deploy that never happened as a success.
+func isEmptyDocument(manifest string) bool {
+	for _, line := range strings.Split(manifest, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if rest, ok := strings.CutPrefix(line, "---"); ok {
+			rest = strings.TrimSpace(rest)
+			if rest == "" || strings.HasPrefix(rest, "#") {
+				continue
+			}
+		}
+		return false
+	}
+	return true
 }
 
 func GetObjectFromManifest(manifest string) (runtime.Object, *unstructured.Unstructured, error) {
