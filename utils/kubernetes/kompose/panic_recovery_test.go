@@ -19,6 +19,8 @@ func TestValidatePanicRecovery(t *testing.T) {
 
 // TestConvertPanicRecovery tests that Convert function recovers from panics
 func TestConvertPanicRecovery(t *testing.T) {
+	setIsolatedHome(t)
+
 	// Create an invalid docker compose file that might cause panic
 	dc := DockerComposeFile([]byte(""))
 

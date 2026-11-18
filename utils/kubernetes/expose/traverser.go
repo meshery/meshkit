@@ -66,6 +66,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			// Placing Kind and APIVersion manually
 			// because client-go omits them
@@ -79,6 +80,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			if genSvc != nil {
 				accumulatedSvcs = append(accumulatedSvcs, genSvc)
@@ -91,6 +93,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			// Placing Kind and APIVersion manually
 			// because client-go omits them
@@ -104,6 +107,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			if genSvc != nil {
 				accumulatedSvcs = append(accumulatedSvcs, genSvc)
@@ -116,6 +120,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			// Placing Kind and APIVersion manually
 			// because client-go omits them
@@ -129,6 +134,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			if genSvc != nil {
 				accumulatedSvcs = append(accumulatedSvcs, genSvc)
@@ -141,6 +147,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			// Placing Kind and APIVersion manually
 			// because client-go omits them
@@ -154,6 +161,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			if genSvc != nil {
 				accumulatedSvcs = append(accumulatedSvcs, genSvc)
@@ -166,6 +174,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			// Placing Kind and APIVersion manually
 			// because client-go omits them
@@ -179,6 +188,7 @@ func (traverser *Traverser) Visit(f VisitCB, continueOnError bool) ([]*v1.Servic
 				if !continueOnError {
 					return accumulatedSvcs, ErrGettingResource(err)
 				}
+				continue
 			}
 			if genSvc != nil {
 				accumulatedSvcs = append(accumulatedSvcs, genSvc)
