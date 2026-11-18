@@ -116,11 +116,23 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	if pkgEntry == nil || !ok {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
-	urls, ok := pkgEntry.([]interface{})[0].(map[interface{}]interface{})["urls"]
+	versions, ok := pkgEntry.([]interface{})
+	if !ok || len(versions) == 0 {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	versionEntry, ok := versions[0].(map[interface{}]interface{})
+	if !ok {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	urls, ok := versionEntry["urls"]
 	if urls == nil || !ok {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
-	chartUrl, ok := urls.([]interface{})[0].(string)
+	urlList, ok := urls.([]interface{})
+	if !ok || len(urlList) == 0 {
+		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
+	}
+	chartUrl, ok := urlList[0].(string)
 	if !ok || chartUrl == "" {
 		return ErrGetChartUrl(fmt.Errorf("Cannot extract chartUrl from repository helm index"))
 	}
