@@ -32,6 +32,8 @@ type Git struct {
 	fileInterceptor    FileInterceptor
 	dirInterceptor     DirInterceptor
 	referenceName      plumbing.ReferenceName
+	maxDepth           int
+	allowedExtensions  []string
 	// branchSet records whether Branch was called explicitly. Only an
 	// explicitly set branch is turned into a ReferenceName, so callers that
 	// set neither Branch nor ReferenceName keep cloning the remote's default
@@ -78,6 +80,41 @@ func (g *Git) BaseURL(baseurl string) *Git {
 func (g *Git) MaxFileSize(size int64) *Git {
 	g.maxFileSizeInBytes = size
 	return g
+}
+
+func (g *Git) MaxDepth(depth int) *Git {
+	g.maxDepth = depth
+	return g
+}
+
+func (g *Git) AllowedExtensions(ext []string) *Git {
+	var normalized []string
+	for _, e := range ext {
+		e = strings.ToLower(strings.TrimSpace(e))
+		if e == "" {
+			continue
+		}
+		if !strings.HasPrefix(e, ".") {
+			e = "." + e
+		}
+		normalized = append(normalized, e)
+	}
+	g.allowedExtensions = normalized
+	return g
+}
+
+func (g *Git) isAllowedFile(name string) bool {
+	if len(g.allowedExtensions) == 0 {
+		return true // no filtering
+	}
+
+	ext := strings.ToLower(filepath.Ext(name))
+	for _, allowed := range g.allowedExtensions {
+		if ext == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 // ShowLogs enable the logs and returns a pointer
@@ -416,17 +453,36 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 		}
 
 		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
-			if d.IsDir() && g.dirInterceptor != nil {
-				return g.dirInterceptor(Directory{
-					Name: d.Name(),
-					Path: path,
-				})
+			if er != nil {
+				return er
 			}
 			if d.IsDir() {
+				if d.Name() == ".git" {
+					return filepath.SkipDir
+				}
+				if g.maxDepth > 0 {
+					rel, err := filepath.Rel(rootPath, path)
+					if err == nil && rel != "." {
+						currentDepth := strings.Count(rel, string(os.PathSeparator)) + 1
+						if currentDepth > g.maxDepth {
+							return filepath.SkipDir
+						}
+					}
+				}
+
+				if g.dirInterceptor != nil {
+					return g.dirInterceptor(Directory{
+						Name: d.Name(),
+						Path: path,
+					})
+				}
+				return nil
+			}
+			if !g.isAllowedFile(d.Name()) {
 				return nil
 			}
 			f, errInfo := d.Info()
-			if err != nil {
+			if errInfo != nil {
 				return errInfo
 			}
 			if g.skipOnClone(clonePath, path, f, standingInForTrees) {
@@ -472,6 +528,9 @@ func clonewalkContext(ctx context.Context, g *Git, standingInForTrees bool) erro
 			continue
 		}
 		if f.IsDir() {
+			continue
+		}
+		if !g.isAllowedFile(f.Name()) {
 			continue
 		}
 		if g.skipOnClone(clonePath, fPath, f, standingInForTrees) {
@@ -567,6 +626,7 @@ func (g *Git) readFile(f fs.FileInfo, clonePath, filePath string) error {
 	if err != nil {
 		return err
 	}
+	defer filename.Close()
 	content, err := io.ReadAll(filename)
 	if err != nil {
 		return err
