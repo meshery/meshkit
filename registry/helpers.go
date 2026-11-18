@@ -32,6 +32,10 @@ const (
 	overridedURLPathAndQueryParams = "/export?format=csv&gid="
 	// DefaultModelTimeout is the default timeout for generating a single model (5 minutes)
 	DefaultModelTimeout = 5 * time.Minute
+	// DefaultArtifactHubRequestLimit is how many Artifact Hub calls before a wait (matches prior hardcoded behavior)
+	DefaultArtifactHubRequestLimit = 100
+	// DefaultArtifactHubWaitDuration is how long to wait when the Artifact Hub batch limit is hit
+	DefaultArtifactHubWaitDuration = 5 * time.Minute
 )
 
 // GenerationOptions contains configuration options for model generation
@@ -44,6 +48,10 @@ type GenerationOptions struct {
 	// ProgressCallback is called to report generation progress
 	// Parameters: currentModel (name), currentIndex (1-based), totalModels
 	ProgressCallback func(modelName string, currentIndex, totalModels int)
+	// ArtifactHubRequestLimit sleeps after this many Artifact Hub API calls (default 100)
+	ArtifactHubRequestLimit int
+	// ArtifactHubWaitDuration is how long to wait when the batch limit is hit (default 5m)
+	ArtifactHubWaitDuration time.Duration
 }
 
 // DefaultGenerationOptions returns GenerationOptions with default values
@@ -52,6 +60,8 @@ func DefaultGenerationOptions() GenerationOptions {
 		ModelTimeout:      DefaultModelTimeout,
 		LatestVersionOnly: false,
 		ProgressCallback:  nil,
+		ArtifactHubRequestLimit:   DefaultArtifactHubRequestLimit,
+		ArtifactHubWaitDuration:   DefaultArtifactHubWaitDuration,
 	}
 }
 
