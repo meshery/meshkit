@@ -25,12 +25,16 @@ type Config struct {
 	Endpoint string `yaml:"endpoint" json:"endpoint"`
 	// Insecure determines whether to use an insecure connection (no TLS)
 	Insecure bool `yaml:"insecure" json:"insecure"`
+	// Enabled explicitly controls whether tracing is active. When nil,
+	// tracing is enabled only if Endpoint is set. When explicitly false,
+	// tracing is always disabled regardless of Endpoint.
+	Enabled *bool `yaml:"enabled" json:"enabled"`
 }
 
 func InitTracerFromYamlConfig(ctx context.Context, config string) (*sdktrace.TracerProvider, error) {
 	cfg := Config{}
 
-	err := yaml.Unmarshal([]byte(config),&cfg)
+	err := yaml.Unmarshal([]byte(config), &cfg)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse tracing config: %w", err)
@@ -42,14 +46,16 @@ func InitTracerFromYamlConfig(ctx context.Context, config string) (*sdktrace.Tra
 // InitTracer initializes and configures the global OpenTelemetry trace provider
 // It sets up OTLP gRPC exporter, resource attributes, and W3C trace context propagation
 func InitTracer(ctx context.Context, cfg Config) (*sdktrace.TracerProvider, error) {
+
+	// Tracing is a no-op if explicitly disabled, or if no endpoint is
+	// configured — this is not an error, just an intentional off state.
+	if (cfg.Enabled != nil && !*cfg.Enabled) || cfg.Endpoint == "" {
+		return nil, nil
+	}
 	// Validate configuration
 	if cfg.ServiceName == "" {
 		return nil, fmt.Errorf("service name is required")
 	}
-	if cfg.Endpoint == "" {
-		return nil, fmt.Errorf("endpoint is required")
-	}
-
 	// Configure OTLP exporter options
 	opts := []otlptracegrpc.Option{
 		otlptracegrpc.WithEndpoint(cfg.Endpoint),
