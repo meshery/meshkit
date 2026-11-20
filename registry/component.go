@@ -264,7 +264,8 @@ func (mch *ComponentCSVHelper) GetColumns() ([]string, error) {
 }
 
 func (mch *ComponentCSVHelper) ParseComponentsSheet(modelName string) error {
-	ch := make(chan ComponentCSV, 1)
+	// Each row must be consumed before the parser can signal completion.
+	ch := make(chan ComponentCSV)
 	errorChan := make(chan error, 1)
 	csvReader, err := csv.NewCSVParser[ComponentCSV](mch.CSVPath, rowIndex, nil, func(_ []string, _ []string) bool {
 		return true
@@ -275,6 +276,7 @@ func (mch *ComponentCSVHelper) ParseComponentsSheet(modelName string) error {
 	}
 
 	go func() {
+		defer close(errorChan)
 		Log.Info("Parsing Components...")
 
 		err := csvReader.Parse(ch, errorChan)
@@ -283,6 +285,7 @@ func (mch *ComponentCSVHelper) ParseComponentsSheet(modelName string) error {
 		}
 	}()
 
+	var parseErr error
 	for {
 		select {
 
@@ -298,11 +301,13 @@ func (mch *ComponentCSVHelper) ParseComponentsSheet(modelName string) error {
 			}
 			mch.Components[data.Registrant][data.Model] = append(mch.Components[data.Registrant][data.Model], data)
 			// Log.Info(fmt.Sprintf("Reading registrant [%s] model [%s] component [%s]", data.Registrant, data.Model, data.Component))
-		case err := <-errorChan:
-			Log.Error(err)
-
-		case <-csvReader.Context.Done():
-			return nil
+		case err, open := <-errorChan:
+			// Parse cancels its context before returning its error. Wait for
+			// the producer to finish forwarding errors before returning.
+			if !open {
+				return parseErr
+			}
+			parseErr = err
 		}
 	}
 }

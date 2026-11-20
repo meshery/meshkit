@@ -11,7 +11,9 @@
 // The initial value of the code is a placeholder string, e.g. "replace_me", set by the developer.
 // The final value of the code is an integer, set by the errorutil tool, as part of a CI workflow.
 //
-// 2) Error details defined using the function New(...) in this package, see below for details.
+// 2) Error details defined using the function New(...), NewV2(...) or NewV3(...) in this package, see below for details.
+// NewV3 nests each probable cause with the remediations that answer it, and each remediation can carry an
+// action and an ActionPolicy; the flat probable cause and remediation lists are derived from it.
 //
 // Additionally, the following conventions apply:
 //
@@ -103,24 +105,24 @@ func (e *Error) Error() string {
 	var parts []string
 
 	// Add long description as the primary message
-	if len(e.LongDescription) > 0 && strings.Join(e.LongDescription, "") != "None" {
+	if len(e.LongDescription) > 0 && strings.Join(e.LongDescription, "") != noneText {
 		parts = append(parts, strings.Join(e.LongDescription, "."))
 	}
 
 	// Add short description if different from long description
 	shortDesc := strings.Join(e.ShortDescription, ".")
 	longDesc := strings.Join(e.LongDescription, ".")
-	if len(e.ShortDescription) > 0 && shortDesc != "None" && shortDesc != longDesc {
+	if len(e.ShortDescription) > 0 && shortDesc != noneText && shortDesc != longDesc {
 		parts = append(parts, "Short Description: "+shortDesc)
 	}
 
 	// Add probable cause
-	if len(e.ProbableCause) > 0 && strings.Join(e.ProbableCause, "") != "None" {
+	if len(e.ProbableCause) > 0 && strings.Join(e.ProbableCause, "") != noneText {
 		parts = append(parts, "Probable Cause: "+strings.Join(e.ProbableCause, "."))
 	}
 
 	// Add suggested remediation
-	if len(e.SuggestedRemediation) > 0 && strings.Join(e.SuggestedRemediation, "") != "None" {
+	if len(e.SuggestedRemediation) > 0 && strings.Join(e.SuggestedRemediation, "") != noneText {
 		parts = append(parts, "Suggested Remediation: "+strings.Join(e.SuggestedRemediation, "."))
 	}
 
@@ -135,24 +137,24 @@ func (e *ErrorV2) Error() string {
 	var parts []string
 
 	// Add long description as the primary message
-	if len(e.LongDescription) > 0 && strings.Join(e.LongDescription, "") != "None" {
+	if len(e.LongDescription) > 0 && strings.Join(e.LongDescription, "") != noneText {
 		parts = append(parts, strings.Join(e.LongDescription, "."))
 	}
 
 	// Add short description if different from long description
 	shortDesc := strings.Join(e.ShortDescription, ".")
 	longDesc := strings.Join(e.LongDescription, ".")
-	if len(e.ShortDescription) > 0 && shortDesc != "None" && shortDesc != longDesc {
+	if len(e.ShortDescription) > 0 && shortDesc != noneText && shortDesc != longDesc {
 		parts = append(parts, "Short Description: "+shortDesc)
 	}
 
 	// Add probable cause
-	if len(e.ProbableCause) > 0 && strings.Join(e.ProbableCause, "") != "None" {
+	if len(e.ProbableCause) > 0 && strings.Join(e.ProbableCause, "") != noneText {
 		parts = append(parts, "Probable Cause: "+strings.Join(e.ProbableCause, "."))
 	}
 
 	// Add suggested remediation
-	if len(e.SuggestedRemediation) > 0 && strings.Join(e.SuggestedRemediation, "") != "None" {
+	if len(e.SuggestedRemediation) > 0 && strings.Join(e.SuggestedRemediation, "") != noneText {
 		parts = append(parts, "Suggested Remediation: "+strings.Join(e.SuggestedRemediation, "."))
 	}
 
