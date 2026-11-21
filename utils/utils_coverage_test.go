@@ -999,6 +999,66 @@ func TestGoogleCoverage(t *testing.T) {
 }
 
 func TestArchiveAndExtractionCoverage(t *testing.T) {
+	t.Run("entries outside the destination are rejected", func(t *testing.T) {
+		for _, name := range []string{"../escaped.txt", "nested/../../escaped.txt"} {
+			dir := t.TempDir()
+			dest := filepath.Join(dir, "dest")
+
+			zipPath := filepath.Join(dir, "archive.zip")
+			zipFile, err := os.Create(zipPath)
+			if err != nil {
+				t.Fatalf("failed to create zip: %v", err)
+			}
+			zw := zip.NewWriter(zipFile)
+			w, err := zw.Create(name)
+			if err != nil {
+				t.Fatalf("failed to add zip entry: %v", err)
+			}
+			if _, err := w.Write([]byte("zip")); err != nil {
+				t.Fatalf("failed to write zip entry: %v", err)
+			}
+			if err := zw.Close(); err != nil {
+				t.Fatalf("failed to close zip writer: %v", err)
+			}
+			if err := zipFile.Close(); err != nil {
+				t.Fatalf("failed to close zip: %v", err)
+			}
+			if err := ExtractZip(dest, zipPath); err == nil {
+				t.Errorf("expected ExtractZip to reject entry %q", name)
+			}
+
+			tarPath := filepath.Join(dir, "archive.tar.gz")
+			tarFile, err := os.Create(tarPath)
+			if err != nil {
+				t.Fatalf("failed to create tar: %v", err)
+			}
+			gw := gzip.NewWriter(tarFile)
+			tw := tar.NewWriter(gw)
+			if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: 3, Typeflag: tar.TypeReg}); err != nil {
+				t.Fatalf("failed to write tar header: %v", err)
+			}
+			if _, err := tw.Write([]byte("tar")); err != nil {
+				t.Fatalf("failed to write tar entry: %v", err)
+			}
+			if err := tw.Close(); err != nil {
+				t.Fatalf("failed to close tar writer: %v", err)
+			}
+			if err := gw.Close(); err != nil {
+				t.Fatalf("failed to close gzip writer: %v", err)
+			}
+			if err := tarFile.Close(); err != nil {
+				t.Fatalf("failed to close tar: %v", err)
+			}
+			if err := ExtractTarGz(dest, tarPath); err == nil {
+				t.Errorf("expected ExtractTarGz to reject entry %q", name)
+			}
+
+			if _, err := os.Stat(filepath.Join(dir, "escaped.txt")); err == nil {
+				t.Errorf("entry %q was written outside the destination", name)
+			}
+		}
+	})
+
 	t.Run("tar writer errors", func(t *testing.T) {
 		tw := NewTarWriter()
 		tw.Close()
