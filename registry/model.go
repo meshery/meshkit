@@ -1088,8 +1088,9 @@ func GenerateDefsForCoreRegistrant(model ModelCSV, ComponentCSVHelper *Component
 	var version string
 	parts := strings.Split(model.SourceURL, "/")
 	// Assuming the URL is always of the format "protocol://github.com/owner/repo/tree/definitions/{model-name}/version/components"
-	// We know the version is the 7th element (0-indexed) in the split URL
-	if len(parts) >= 8 {
+	// Split on "/", the version is element 8 (0-indexed): "https:", "", "github.com", owner, repo, "tree", "definitions", model, version.
+	// A URL with fewer than 9 elements has no version, and indexing it would panic.
+	if len(parts) >= 9 {
 		version = parts[8] // Fetch the version from the expected position
 	} else {
 		return fmt.Errorf("invalid SourceURL format: %s", model.SourceURL)
