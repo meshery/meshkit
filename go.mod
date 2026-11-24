@@ -19,7 +19,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.5
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.5
 	github.com/dlclark/regexp2 v1.11.0
-	github.com/docker/cli v27.5.1+incompatible
+	github.com/docker/cli v29.2.0+incompatible
 	github.com/fluxcd/pkg/oci v0.43.1
 	github.com/fluxcd/pkg/tar v0.10.0
 	github.com/getkin/kin-openapi v0.149.0
