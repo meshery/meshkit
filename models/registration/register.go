@@ -1,6 +1,8 @@
 package registration
 
 import (
+	"fmt"
+
 	"github.com/meshery/meshkit/models/meshmodel/core/v1beta1"
 	"github.com/meshery/meshkit/models/meshmodel/entity"
 	meshmodel "github.com/meshery/meshkit/models/meshmodel/registry"
@@ -111,6 +113,11 @@ func (rh *RegistrationHelper) register(pkg PackagingUnit) {
 	var registeredRelationships []relationship.RelationshipDefinition
 	// 2. Register components
 	for _, comp := range pkg.Components {
+		if comp.Status == nil {
+			err := ErrRegisterEntity(fmt.Errorf("component definition has no status"), string(comp.Type()), comp.DisplayName)
+			rh.regErrStore.InsertEntityRegError(hostname, model.DisplayName, entity.ComponentDefinition, comp.DisplayName, err)
+			continue
+		}
 		status := *comp.Status
 		if status == component.Ignored {
 			continue
