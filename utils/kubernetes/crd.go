@@ -29,6 +29,8 @@ type names struct {
 	ResourceName string `json:"plural"`
 }
 
+// GetAllCustomResourcesInCluster returns a GroupVersionResource for every CRD in the cluster whose
+// group, version and resource name are all set; CRDs that do not yield a complete GVR are skipped.
 func GetAllCustomResourcesInCluster(ctx context.Context, client rest.Interface) ([]*schema.GroupVersionResource, error) {
 	crdresult, err := client.Get().RequestURI("/apis/apiextensions.k8s.io/v1/customresourcedefinitions").Do(context.Background()).Raw()
 	if err != nil {
@@ -41,7 +43,11 @@ func GetAllCustomResourcesInCluster(ctx context.Context, client rest.Interface) 
 		return nil, err
 	}
 	for _, c := range xcrd.Items {
-		gvks = append(gvks, GetGVRForCustomResources(&c))
+		gvr := GetGVRForCustomResources(&c)
+		if gvr.Group == "" || gvr.Version == "" || gvr.Resource == "" {
+			continue
+		}
+		gvks = append(gvks, gvr)
 	}
 	return gvks, nil
 }
