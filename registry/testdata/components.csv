@@ -1,0 +1,5 @@
+,,
+registrant,model,component
+meshery,kubernetes,Pod
+meshery,istio,VirtualService
+meshery,kubernetes,Deployment

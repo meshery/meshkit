@@ -24,8 +24,12 @@ type GitHubPackage struct {
 	SourceURL  string `yaml:"source_url" json:"sourceUrl"`
 }
 
+// GetVersion returns the version the package's release tag or asset name
+// carries ("release-v1.7.6-rc1" -> "v1.7.6-rc1",
+// "..._v2.14.0.yaml" -> "v2.14.0"), which becomes the model version and the
+// name of its version directory.
 func (gp GitHubPackage) GetVersion() string {
-	return gp.version
+	return utils.NormalizeVersion(gp.version)
 }
 
 func (gp GitHubPackage) GetSourceURL() string {
@@ -103,7 +107,7 @@ func (gp GitHubPackage) GenerateComponents(group string) ([]_component.Component
 			}
 
 			comp.Model.Metadata.AdditionalProperties["source_uri"] = gp.SourceURL
-			comp.Model.Version = gp.version
+			comp.Model.Version = gp.GetVersion()
 			comp.Model.Name = gp.Name
 			comp.Model.Category = category.CategoryDefinition{
 				Name: "",

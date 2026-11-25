@@ -51,7 +51,7 @@ func TestDetectNew(t *testing.T) {
 	}
 	var errors []*errutilerr.Error
 	ast.Inspect(file, func(n ast.Node) bool {
-		if error, ok := isNewCallExpr(n); ok {
+		if error, ok := parseNewCallExpr(n, nil); ok {
 			errors = append(errors, error)
 			// No need to look at children
 			return false

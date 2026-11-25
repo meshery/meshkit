@@ -7,10 +7,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// BeforeCreate keeps the ID the producer minted (NewEvent mints one) and
+// assigns one only when the event was constructed without the builder.
 func (e *Event) BeforeCreate(tx *gorm.DB) (err error) {
-	e.ID, err = uuid.NewV4()
-	if err != nil {
-		return
+	if e.ID == uuid.Nil {
+		e.ID, err = uuid.NewV4()
+		if err != nil {
+			return
+		}
 	}
 	err = isEventStatusSupported(e)
 	return

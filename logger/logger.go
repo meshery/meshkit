@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -128,13 +129,7 @@ func (l *Logger) Warn(err error) {
 		return
 	}
 
-	l.defaultHandler.WithFields(logrus.Fields{
-		"code":                  errors.GetCode(err),
-		"severity":              errors.GetSeverity(err),
-		"short-description":     errors.GetSDescription(err),
-		"probable-cause":        errors.GetCause(err),
-		"suggested-remediation": errors.GetRemedy(err),
-	}).Log(logrus.WarnLevel, err.Error())
+	l.defaultHandler.WithFields(errorFields(err)).Log(logrus.WarnLevel, err.Error())
 }
 
 func (l *Logger) Warnf(format string, args ...interface{}) {
@@ -146,13 +141,7 @@ func (l *Logger) Error(err error) {
 		return
 	}
 
-	l.errorHandler.WithFields(logrus.Fields{
-		"code":                  errors.GetCode(err),
-		"severity":              errors.GetSeverity(err),
-		"short-description":     errors.GetSDescription(err),
-		"probable-cause":        errors.GetCause(err),
-		"suggested-remediation": errors.GetRemedy(err),
-	}).Log(logrus.ErrorLevel, err.Error())
+	l.errorHandler.WithFields(errorFields(err)).Log(logrus.ErrorLevel, err.Error())
 }
 
 func (l *Logger) Errorf(format string, args ...interface{}) {
@@ -164,13 +153,7 @@ func (l *Logger) Fatal(err error) {
 		return
 	}
 
-	l.errorHandler.WithFields(logrus.Fields{
-		"code":                  errors.GetCode(err),
-		"severity":              errors.GetSeverity(err),
-		"short-description":     errors.GetSDescription(err),
-		"probable-cause":        errors.GetCause(err),
-		"suggested-remediation": errors.GetRemedy(err),
-	}).Log(logrus.FatalLevel, err.Error())
+	l.errorHandler.WithFields(errorFields(err)).Log(logrus.FatalLevel, err.Error())
 	os.Exit(1)
 }
 
@@ -194,4 +177,34 @@ func (l *Logger) UpdateLogOutput(output io.Writer) {
 
 func (l *Logger) UpdateErrorLogOutput(output io.Writer) {
 	l.errorHandler.Logger.SetOutput(output)
+}
+
+// errorFields is the structured form of a MeshKit error in a log entry: the
+// flat fields every MeshKit error carries and, for an error created with
+// errors.NewV3, "probable-causes" with each cause nested with its remediations
+// in the schemas error construct's JSON shape.
+func errorFields(err error) logrus.Fields {
+	fields := logrus.Fields{
+		"code":                  errors.GetCode(err),
+		"severity":              errors.GetSeverity(err),
+		"short-description":     errors.GetSDescription(err),
+		"probable-cause":        errors.GetCause(err),
+		"suggested-remediation": errors.GetRemedy(err),
+	}
+	if causes := errors.GetCauses(err); len(causes) > 0 {
+		fields["probable-causes"] = causesField(causes)
+	}
+	return fields
+}
+
+// causesField marshals as nested JSON under the JSON formatter and prints as
+// compact JSON under the text formatter, instead of Go's struct syntax.
+type causesField []errors.Cause
+
+func (c causesField) String() string {
+	raw, err := json.Marshal([]errors.Cause(c))
+	if err != nil {
+		return fmt.Sprintf("%v", []errors.Cause(c))
+	}
+	return string(raw)
 }

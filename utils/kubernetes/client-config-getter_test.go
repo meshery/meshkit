@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"k8s.io/client-go/rest"
@@ -130,7 +131,17 @@ func TestClientConfigRESTClientGetterPreservesLoader(t *testing.T) {
 	}
 
 	getter := newClientConfigRESTClientGetter(loader)
-	if getter.ToRawKubeConfigLoader() != loader {
+	// The getter wraps the loader to apply in-process cloud authentication,
+	// so it returns an equivalent loader rather than the same value.
+	wantRaw, err := loader.RawConfig()
+	if err != nil {
+		t.Fatalf("loader RawConfig() error = %v", err)
+	}
+	gotRaw, err := getter.ToRawKubeConfigLoader().RawConfig()
+	if err != nil {
+		t.Fatalf("getter RawConfig() error = %v", err)
+	}
+	if !reflect.DeepEqual(gotRaw, wantRaw) {
 		t.Fatal("RESTClientGetter did not return the retained kubeconfig loader")
 	}
 

@@ -8,6 +8,33 @@
 // every request - most notably exec-based credential plugins such as
 // `aws eks get-token` - keep working for both direct Kubernetes API calls and
 // Helm operations (ApplyHelmChart).
+//
+// When the exec plugin is a known cloud plugin (aws eks get-token,
+// aws-iam-authenticator, or gke-gcloud-auth-plugin
+// --use_application_default_credentials) and the cluster endpoint belongs
+// to that cloud, the getter mints the bearer token in process with the
+// cloud SDK instead of forking the binary, so Meshery works where the plugin
+// is not installed. The first token is minted when the kubeconfig is loaded
+// or the client is built. Later requests reuse the cached token and mint
+// again only near expiry or after the API server answers 401. One source is
+// cached per cluster identity and shared by every client in the process.
+// A GKE IP endpoint is cached per verified endpoint: the IP and the CA must
+// match a cluster in the ADC project or GOOGLE_CLOUD_PROJECT or
+// GOOGLE_PROJECT through the GKE API (container.clusters.get or
+// container.clusters.list). The kubeconfig cannot add a project to search.
+// No static IP list is used, and a refusal is reused for five minutes. If
+// cloud credentials are unavailable, or the endpoint is not one the
+// process's credentials may be sent to (including a GKE IP the API does not
+// confirm), the exec plugin is used (and the fallback is logged) when it is
+// on PATH, and a descriptive error is returned otherwise.
+// Every other exec plugin, and any config that already carries a token,
+// basic auth, or a client certificate, is left to client-go.
+// Set MESHKIT_DISABLE_INPROCESS_CLOUD_AUTH=true to turn in-process minting
+// off for the whole process. SetInProcessCloudAuthForContext does the same
+// for a kubeconfig context's user, which is the switch mesheryctl and Meshery
+// Server use; every context that shares that user switches with it. See
+// package utils/kubernetes/cloudauth for supported plugins and the
+// credential chains.
 package kubernetes
 
 import (
