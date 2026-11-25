@@ -906,6 +906,40 @@ func TestTemplateAndSVGCoverage(t *testing.T) {
 	newXMLTokenEncoder = originalNewXMLTokenEncoder
 }
 
+func TestTcpCheckClosesConnection(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("start TCP listener: %v", err)
+	}
+	defer func() { _ = listener.Close() }()
+
+	readResult := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			readResult <- err
+			return
+		}
+		defer func() { _ = conn.Close() }()
+
+		if err := conn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+			readResult <- err
+			return
+		}
+		var buf [1]byte
+		_, err = conn.Read(buf[:])
+		readResult <- err
+	}()
+
+	addr := listener.Addr().(*net.TCPAddr)
+	if !TcpCheck(&HostPort{Address: addr.IP.String(), Port: int32(addr.Port)}, nil) {
+		t.Fatal("expected TcpCheck to succeed for a live TCP listener")
+	}
+	if err := <-readResult; err != io.EOF {
+		t.Fatalf("expected EOF after TcpCheck, got %v", err)
+	}
+}
+
 func TestNetworkAndGitCoverage(t *testing.T) {
 	hp := &HostPort{Address: "127.0.0.1", Port: 8080}
 	if got := hp.String(); got != "127.0.0.1:8080" {
