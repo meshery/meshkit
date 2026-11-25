@@ -103,6 +103,23 @@ func TestLogger_SeparateOutputs(t *testing.T) {
 	assert.Equal(t, "error message\n", errorOutput.String())
 }
 
+func TestLogger_ErrorOutputDefaultsToOutput(t *testing.T) {
+	var output bytes.Buffer
+	log, err := New("testapp", Options{
+		Format:   TerminalLogFormat,
+		LogLevel: int(logrus.InfoLevel),
+		Output:   &output,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Info("info message")
+	log.Error(errors.New("error message"))
+
+	assert.Equal(t, "info message\nerror message\n", output.String())
+}
+
 func TestLogger_UpdateLogOutput(t *testing.T) {
 	opts := Options{
 		Format:           TerminalLogFormat,
