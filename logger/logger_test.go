@@ -84,6 +84,25 @@ func TestLogger_SetLevel_GetLevel(t *testing.T) {
 	assert.Equal(t, logrus.WarnLevel, l.GetLevel())
 }
 
+func TestLogger_SeparateOutputs(t *testing.T) {
+	var output, errorOutput bytes.Buffer
+	log, err := New("testapp", Options{
+		Format:      TerminalLogFormat,
+		LogLevel:    int(logrus.InfoLevel),
+		Output:      &output,
+		ErrorOutput: &errorOutput,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Info("info message")
+	log.Error(errors.New("error message"))
+
+	assert.Equal(t, "info message\n", output.String())
+	assert.Equal(t, "error message\n", errorOutput.String())
+}
+
 func TestLogger_UpdateLogOutput(t *testing.T) {
 	opts := Options{
 		Format:           TerminalLogFormat,

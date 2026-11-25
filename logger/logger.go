@@ -57,7 +57,7 @@ func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return append([]byte(msg), '\n'), nil
 }
 
-func newLogrusLogger(appname string, opts Options, defaultOutput io.Writer) *logrus.Entry {
+func newLogrusLogger(appname string, opts Options, output io.Writer) *logrus.Entry {
 	log := logrus.New()
 
 	switch opts.Format {
@@ -84,23 +84,29 @@ func newLogrusLogger(appname string, opts Options, defaultOutput io.Writer) *log
 		log.AddHook(&CallerHook{skippedPaths: skippedPaths})
 	}
 
-	log.SetOutput(defaultOutput)
-	if opts.Output != nil {
-		log.SetOutput(opts.Output)
-	}
-
-	if opts.ErrorOutput != nil {
-		log.SetOutput(opts.ErrorOutput)
-	}
-
+	log.SetOutput(output)
 	log.SetLevel(logrus.Level(opts.LogLevel))
 
 	return log.WithFields(logrus.Fields{"app": appname})
 }
 
 func New(appname string, opts Options) (Handler, error) {
-	entry := newLogrusLogger(appname, opts, os.Stdout)
-	errEntry := newLogrusLogger(appname, opts, os.Stderr)
+	output := opts.Output
+	if output == nil {
+		output = os.Stdout
+	}
+
+	errorOutput := opts.ErrorOutput
+	if errorOutput == nil {
+		// Preserve shared output for callers that set only Output.
+		errorOutput = opts.Output
+		if errorOutput == nil {
+			errorOutput = os.Stderr
+		}
+	}
+
+	entry := newLogrusLogger(appname, opts, output)
+	errEntry := newLogrusLogger(appname, opts, errorOutput)
 	return &Logger{defaultHandler: entry, errorHandler: errEntry}, nil
 }
 
