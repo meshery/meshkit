@@ -46,10 +46,18 @@ func GetAllCustomResourcesInCluster(ctx context.Context, client rest.Interface) 
 	return gvks, nil
 }
 
+// GetGVRForCustomResources returns nil for a nil CRD and an empty version when the CRD has no versions.
 func GetGVRForCustomResources(crd *CRDItem) *schema.GroupVersionResource {
+	if crd == nil {
+		return nil
+	}
+	var version string
+	if len(crd.Spec.Versions) > 0 {
+		version = crd.Spec.Versions[0].Name
+	}
 	return &schema.GroupVersionResource{
 		Group:    crd.Spec.Group,
-		Version:  crd.Spec.Versions[0].Name,
+		Version:  version,
 		Resource: crd.Spec.Names.ResourceName,
 	}
 }
