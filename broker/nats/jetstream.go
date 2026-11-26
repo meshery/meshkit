@@ -60,6 +60,9 @@ func (options JetStreamOptions) streamConfig() jetstream.StreamConfig {
 // EnsureStream creates the stream, or updates it if it already exists.
 // safe to call from several services at startup
 func (n *Nats) EnsureStream(ctx context.Context, options JetStreamOptions) error {
+	if n == nil || n.nc == nil {
+		return ErrEnsureStream(fmt.Errorf("nats connection is not initialized"))
+	}
 	jetStreamClient, err := jetstream.New(n.nc)
 	if err != nil {
 		return ErrEnsureStream(err)

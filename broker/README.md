@@ -28,6 +28,7 @@ type Handler interface {
 	IsEmpty() bool
 	CloseConnection()
 	ConnectedEndpoints() []string
+	IsConnected() bool
 }
 ```
 
@@ -62,3 +63,70 @@ defer handler.Unsubscribe(subject) // release the subscription on session teardo
 
 Subscriptions that live for the whole process (a server's long-running consumer)
 do not need explicit unsubscription; `CloseConnection` tears everything down.
+
+## Durable delivery (JetStream)
+
+`Publish` on core NATS is fire-and-forget: a message sent while no subscriber is
+running is lost. The NATS handler can also deliver through a NATS JetStream
+**stream**, which stores messages on disk until consumers read them.
+
+Durable delivery is an **optional capability**, not part of `Handler`. Callers
+discover it with a type assertion and fall back to `Publish` when it is missing
+(the channel handler does not implement it):
+
+```go
+type DurablePublisher interface {
+	PublishDurable(ctx context.Context, subject string, message *Message, idempotencyKey string) error
+}
+```
+
+### Setup: create the stream first
+
+A stream must exist before anything is published to its subjects, messages
+published earlier are not stored. Call `EnsureStream` once at startup. It
+creates the stream or updates its configuration, so several services can call
+it safely.
+
+```go
+natsHandler := handler.(*nats.Nats)
+err := natsHandler.EnsureStream(ctx, nats.JetStreamOptions{
+	StreamName: "MESHSYNC_EVENTS",
+	Subjects:   []string{"meshery.meshsync.core"},
+})
+```
+
+Zero-valued options use these defaults: file storage, limits retention,
+discard-old, `MaxAge` 24h, `MaxBytes` 256 MiB, `Replicas` 1, `Duplicates` 2m.
+
+### Publishing
+
+```go
+// streamReady is true when EnsureStream succeeded at startup.
+publisher, ok := handler.(broker.DurablePublisher)
+if !ok || !streamReady {
+	return handler.Publish(subject, message) // core NATS fallback
+}
+key := uid + "|" + resourceVersion + "|" + string(eventType)
+err := publisher.PublishDurable(ctx, subject, message, key)
+if nats.IsJetStreamUnavailable(err) {
+	return handler.Publish(subject, message) // log the fallback once
+}
+return err
+```
+
+- `PublishDurable` returns once the stream has stored the message.
+- `idempotencyKey` is sent as `Nats-Msg-Id`. A repeated key within the stream's
+  `Duplicates` window is stored once and still returns `nil`. An empty key turns
+  this off. The key covers publisher retries only, not consumer redelivery, so
+  consumers must still be idempotent.
+- Only call it after `EnsureStream` succeeded. Without a stream, a core
+  subscriber on the same subject receives the message but never acknowledges
+  it, and the call times out with `ErrPublishDurable`.
+
+### Errors
+
+| Error | Severity | Meaning | Caller action |
+|---|---|---|---|
+| `ErrJetStreamUnavailable` | None | The server has no JetStream, or no stream captures the subject | Fall back to `Publish`; check with `IsJetStreamUnavailable(err)` |
+| `ErrEnsureStream` | Alert | JetStream is present but the stream could not be created or updated (for example a conflicting config, or more `Replicas` than servers) | Report it, do not fall back silently |
+| `ErrPublishDurable` | Alert | JetStream is present but the publish failed or timed out | Retry with the same key, or report it |

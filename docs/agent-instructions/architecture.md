@@ -97,7 +97,11 @@ Intentionally reusable across Meshery services and tools:
   lookup, the fallback to the plugin binary, and both disable switches.
 - `broker/` provides messaging abstractions with NATS and in-process channel backends;
   the event-streaming primitives shared with Meshery Server are documented in
-  [../event-streaming.md](../event-streaming.md).
+  [../event-streaming.md](../event-streaming.md). Durable JetStream delivery is an
+  optional capability (`broker.DurablePublisher`), implemented only by the NATS
+  handler and found by type assertion; see [../../broker/README.md](../../broker/README.md).
+  `broker/nats` tests start an embedded nats-server (`runServer`), so they need no
+  external broker.
 - `generators/` builds MeshModel models/components from upstream sources (Artifact Hub,
   GitHub); `registry/` holds spreadsheet-driven registry tooling; `files/` handles file
   identification, sanitization, and conversion; `utils/walker/` crawls remote repositories
