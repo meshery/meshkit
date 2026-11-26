@@ -1,5 +1,10 @@
 package broker
 
+import (
+	"context"
+	"time"
+)
+
 var (
 	NotConnected = "not-connected"
 )
@@ -34,4 +39,32 @@ type Handler interface {
 	CloseConnection()
 	ConnectedEndpoints() []string //To get the IP addresses of connected endpoints
 	IsConnected() bool            //Whether the underlying connection is currently live
+}
+
+// DurablePublisher is an optional Handler capability, found by type assertion.
+// PublishDurable returns once the broker has stored the message.
+// idempotencyKey drops repeated publishes, not redeliveries.
+type DurablePublisher interface {
+	PublishDurable(ctx context.Context, subject string, message *Message, idempotencyKey string) error
+}
+
+// DurableSubscriber is an optional Handler capability, found by type assertion.
+// Reusing durableName resumes after the last acked message. ctx covers setup
+// only; stop the subscription through the returned Subscription.
+type DurableSubscriber interface {
+	SubscribeDurable(ctx context.Context, subject, durableName string, handler func(*DurableMessage)) (Subscription, error)
+}
+
+// DurableMessage is a Message plus its outcome calls. Call exactly one.
+type DurableMessage struct {
+	*Message
+	Ack  func() error                    // processed successfully, do not redeliver
+	Nak  func(delay time.Duration) error // transient failure, redeliver after delay
+	Term func(reason string) error       // permanent failure, do not redeliver
+}
+
+// Subscription stops a durable subscription; the consumer itself is kept.
+type Subscription interface {
+	Unsubscribe() error // stop now
+	Drain() error       // stop after in-flight handlers finish
 }
