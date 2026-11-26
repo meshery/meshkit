@@ -50,8 +50,9 @@ func ErrPublishDurable(err error) error {
 		[]string{"Make sure NATS is up and running", "Retry the publish (idempotency key prevents a duplicate)"},
 		nil)
 }
-// errors.None because a broker without JetStream is a normal setup, not a fault. Callers
-// should fall back to Publish and log the fallback once.
+
+// errors.None because a broker without JetStream is a normal setup, not a fault
+// Callers should fall back to Publish and log the fallback once.
 func ErrJetStreamUnavailable(err error) error {
 	return errors.NewV2(ErrJetStreamUnavailableCode, errors.None,
 		[]string{"JetStream is unavailable"},
