@@ -69,11 +69,13 @@ func (v *Viper) SetKey(key string, value string) {
 	v.mutex.Unlock()
 }
 
+// GetKey returns the string value for key. A key that is not set returns "", as the
+// in-memory provider does, and a number or boolean value is returned as its text.
 func (v *Viper) GetKey(key string) string {
 	v.mutex.Lock()
 	_ = v.instance.ReadInConfig()
 	defer v.mutex.Unlock()
-	return v.instance.Get(key).(string)
+	return v.instance.GetString(key)
 }
 
 func (v *Viper) GetObject(key string, result interface{}) error {
