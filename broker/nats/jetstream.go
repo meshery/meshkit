@@ -2,9 +2,12 @@ package nats
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/meshery/meshkit/broker"
 	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -70,9 +73,37 @@ func (n *Nats) EnsureStream(ctx context.Context, options JetStreamOptions) error
 	return nil
 }
 
-// jetStreamMissing reports whether err means the server has no JetStream.
+// PublishDurable publishes message to the stream that captures subject and
+// returns once the stream has stored it. A repeated idempotencyKey within the
+// stream's Duplicates window is stored once; an empty key disables this.
+// Call it only after EnsureStream succeeded: without a stream, a core
+// subscriber on subject receives the message but never acks it, and the call
+// times out with ErrPublishDurable.
+func (n *Nats) PublishDurable(ctx context.Context, subject string, message *broker.Message, idempotencyKey string) error {
+	if n == nil || n.nc == nil {
+		return ErrPublishDurable(fmt.Errorf("nats connection is not initialized"))
+	}
+	data, err := json.Marshal(message)
+	if err != nil {
+		return ErrPublishDurable(err)
+	}
+	jetStreamClient, err := jetstream.New(n.nc)
+	if err != nil {
+		return ErrPublishDurable(err)
+	}
+	_, err = jetStreamClient.Publish(ctx, subject, data, jetstream.WithMsgID(idempotencyKey))
+	if err != nil {
+		if jetStreamMissing(err) {
+			return ErrJetStreamUnavailable(err)
+		}
+		return ErrPublishDurable(err)
+	}
+	return nil
+}
+
 func jetStreamMissing(err error) bool {
 	return errors.Is(err, nats.ErrNoResponders) ||
+		errors.Is(err, jetstream.ErrNoStreamResponse) ||
 		errors.Is(err, jetstream.ErrJetStreamNotEnabled) ||
 		errors.Is(err, jetstream.ErrJetStreamNotEnabledForAccount)
 }
