@@ -52,7 +52,7 @@ func (options JetStreamOptions) streamConfig() jetstream.StreamConfig {
 		config.Replicas = defaultReplicas
 	}
 	if config.Duplicates == 0 {
-		config.Duplicates = defaultDuplicates
+		config.Duplicates = min(defaultDuplicates, config.MaxAge)
 	}
 	return config
 }
