@@ -50,12 +50,14 @@ type DurablePublisher interface {
 
 // DurableSubscriber is an optional Handler capability, found by type assertion.
 // Reusing durableName resumes after the last acked message. ctx covers setup
-// only; stop the subscription through the returned Subscription.
+// only. Stop the subscription through the returned Subscription.
 type DurableSubscriber interface {
 	SubscribeDurable(ctx context.Context, subject, durableName string, handler func(*DurableMessage)) (Subscription, error)
 }
 
-// DurableMessage is a Message plus its outcome calls. Call exactly one.
+// DurableMessage is a Message plus its outcome calls. A DurableSubscriber
+// implementation MUST set Ack, Nak and Term on every message it delivers, so
+// a handler can call them without a nil check. The handler calls exactly one.
 type DurableMessage struct {
 	*Message
 	Ack  func() error                    // processed successfully, do not redeliver
@@ -63,7 +65,7 @@ type DurableMessage struct {
 	Term func(reason string) error       // permanent failure, do not redeliver
 }
 
-// Subscription stops a durable subscription; the consumer itself is kept.
+// Subscription stops a durable subscription. The consumer itself is kept.
 type Subscription interface {
 	Unsubscribe() error // stop now
 	Drain() error       // stop after in-flight handlers finish
