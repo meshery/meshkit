@@ -68,7 +68,8 @@ do not need explicit unsubscription; `CloseConnection` tears everything down.
 
 `Publish` on core NATS is fire-and-forget: a message sent while no subscriber is
 running is lost. The NATS handler can also deliver through a NATS JetStream
-**stream**, which stores messages on disk until consumers read them.
+**stream**, which stores messages on disk until they expire by age or size,
+whether or not a consumer has read them.
 
 Durable delivery is an **optional capability**, not part of `Handler`. Callers
 discover it with a type assertion and fall back to `Publish` when it is missing
@@ -82,17 +83,28 @@ type DurablePublisher interface {
 
 ### Setup: create the stream first
 
-A stream must exist before anything is published to its subjects, messages
+A stream must exist before anything is published to its subjects. Messages
 published earlier are not stored. Call `EnsureStream` once at startup. It
 creates the stream or updates its configuration, so several services can call
-it safely.
+it safely. Use the comma-ok type assertion: the channel handler is not a
+`*nats.Nats` and a broker without JetStream is a supported setup.
 
 ```go
-natsHandler := handler.(*nats.Nats)
-err := natsHandler.EnsureStream(ctx, nats.JetStreamOptions{
-	StreamName: "MESHSYNC_EVENTS",
-	Subjects:   []string{"meshery.meshsync.core"},
-})
+streamReady := false
+if natsHandler, ok := handler.(*nats.Nats); ok {
+	err := natsHandler.EnsureStream(ctx, nats.JetStreamOptions{
+		StreamName: "MESHSYNC_EVENTS",
+		Subjects:   []string{"meshery.meshsync.core"},
+	})
+	switch {
+	case err == nil:
+		streamReady = true
+	case nats.IsJetStreamUnavailable(err):
+		// no JetStream on this broker: keep using Publish
+	default:
+		return err // a real misconfiguration, report it
+	}
+}
 ```
 
 Zero-valued options use these defaults: file storage, limits retention,
@@ -103,7 +115,6 @@ retention).
 ### Publishing
 
 ```go
-// streamReady is true when EnsureStream succeeded at startup.
 publisher, ok := handler.(broker.DurablePublisher)
 if !ok || !streamReady {
 	return handler.Publish(subject, message) // core NATS fallback
@@ -123,12 +134,12 @@ return err
   consumers must still be idempotent.
 - Only call it after `EnsureStream` succeeded. Without a stream, a core
   subscriber on the same subject receives the message but never acknowledges
-  it, and the call times out with `ErrPublishDurable`.
+  it and the call times out with `ErrPublishDurable`.
 
 ### Errors
 
 | Error | Severity | Meaning | Caller action |
 |---|---|---|---|
-| `ErrJetStreamUnavailable` | None | The server has no JetStream, or no stream captures the subject | Fall back to `Publish`; check with `IsJetStreamUnavailable(err)` |
+| `ErrJetStreamUnavailable` | None | The server has no JetStream, or no stream captures the subject | Fall back to `Publish`. Check with `IsJetStreamUnavailable(err)` |
 | `ErrEnsureStream` | Alert | JetStream is present but the stream could not be created or updated (for example a conflicting config, or more `Replicas` than servers) | Report it, do not fall back silently |
 | `ErrPublishDurable` | Alert | JetStream is present but the publish failed or timed out | Retry with the same key, or report it |
