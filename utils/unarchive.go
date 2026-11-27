@@ -92,6 +92,10 @@ func ExtractZip(path, artifactPath string) error {
 			_ = fd.Close()
 		}()
 
+		// Refuse entries such as "../x" that would be written outside path.
+		if !filepath.IsLocal(file.Name) {
+			return ErrExtractZip(fmt.Errorf("archive entry %q is outside the destination", file.Name), path)
+		}
 		filePath := filepath.Join(path, file.Name)
 
 		if file.FileInfo().IsDir() {
@@ -146,6 +150,10 @@ func ExtractTarGz(path, downloadfilePath string) error {
 
 		if err != nil {
 			return ErrExtractTarXZ(err, path)
+		}
+		// Refuse entries such as "../x" that would be written outside path.
+		if !filepath.IsLocal(header.Name) {
+			return ErrExtractTarXZ(fmt.Errorf("archive entry %q is outside the destination", header.Name), path)
 		}
 		switch header.Typeflag {
 		case tar.TypeDir:
