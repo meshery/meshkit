@@ -92,7 +92,7 @@ func (n *Nats) EnsureStream(ctx context.Context, options JetStreamOptions) error
 
 // PublishDurable publishes message to the stream that captures subject and
 // returns once the stream has stored it. A repeated idempotencyKey within the
-// stream's Duplicates window is stored once; an empty key disables this.
+// stream's Duplicates window is stored once. An empty key disables this.
 // Call it only after EnsureStream succeeded: without a stream, a core
 // subscriber on subject receives the message but never acks it, and the call
 // times out with ErrPublishDurable.

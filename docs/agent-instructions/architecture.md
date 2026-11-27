@@ -99,7 +99,7 @@ Intentionally reusable across Meshery services and tools:
   the event-streaming primitives shared with Meshery Server are documented in
   [../event-streaming.md](../event-streaming.md). Durable JetStream delivery is an
   optional capability (`broker.DurablePublisher`), implemented only by the NATS
-  handler and found by type assertion; see [../../broker/README.md](../../broker/README.md).
+  handler and found by type assertion. See [../../broker/README.md](../../broker/README.md).
   `broker/nats` tests start an embedded nats-server (`runServer`), so they need no
   external broker.
 - `generators/` builds MeshModel models/components from upstream sources (Artifact Hub,
