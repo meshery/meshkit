@@ -15,6 +15,7 @@ import (
 	"github.com/meshery/schemas/models/v1beta1/category"
 	connectionv1beta1 "github.com/meshery/schemas/models/v1beta1/connection"
 	"github.com/meshery/schemas/models/v1beta1/model"
+	componentv1beta1 "github.com/meshery/schemas/models/v1beta1/component"
 	"github.com/meshery/schemas/models/v1beta3/component"
 	connectionv1beta3 "github.com/meshery/schemas/models/v1beta3/connection"
 	"golang.org/x/text/cases"
@@ -108,7 +109,52 @@ func NewRegistryManager(db *database.Handler) (*RegistryManager, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := rm.ensureModelUniqueIndex(); err != nil {
+		return nil, err
+	}
 	return &rm, nil
+}
+
+// ensureModelUniqueIndex creates a database-level unique index on model_dbs (name, version)
+// so concurrent registrations across instances cannot insert duplicate canonical models.
+func (rm *RegistryManager) ensureModelUniqueIndex() error {
+	if rm.db == nil {
+		return nil
+	}
+	m := &model.ModelDefinition{}
+	if rm.db.Migrator().HasIndex(m, "idx_model_dbs_name_version") {
+		return nil
+	}
+	stmt := "CREATE UNIQUE INDEX IF NOT EXISTS idx_model_dbs_name_version ON " + m.TableName() + " (name, version)"
+	return rm.db.Exec(stmt).Error
+}
+
+// isDuplicateKeyError checks common SQLite/Postgres unique-constraint violation strings.
+func isDuplicateKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint failed") ||
+		strings.Contains(msg, "duplicate key value violates unique constraint") ||
+		strings.Contains(msg, "unique violation")
+}
+
+// resolveCanonicalModelID looks up an existing canonical ModelDefinition by name and version,
+// preserving distinct definition versions so different definition versions are not merged.
+func (rm *RegistryManager) resolveCanonicalModelID(modelDef *model.ModelDefinition) (uuid.UUID, bool, error) {
+	if modelDef == nil || strings.TrimSpace(modelDef.Name) == "" {
+		return uuid.Nil, false, nil
+	}
+	var existing model.ModelDefinition
+	err := rm.db.Where("name = ? AND version = ?", modelDef.Name, string(modelDef.Version)).First(&existing).Error
+	if err == nil && existing.ID != uuid.Nil {
+		return existing.ID, true, nil
+	}
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return uuid.Nil, false, err
+	}
+	return uuid.Nil, false, nil
 }
 func (rm *RegistryManager) Cleanup() {
 	_ = rm.db.Migrator().DropTable(
@@ -136,31 +182,54 @@ func (rm *RegistryManager) RegisterEntity(h connectionv1beta3.Connection, en ent
 	}
 
 	var entityID uuid.UUID
-	var isModelDuplicate bool
 
-	// Check if this is a ModelDefinition and if a canonical entry already exists
-	if modelDef, ok := en.(*model.ModelDefinition); ok {
-		var existingModel model.ModelDefinition
-		// In SQLite/Postgres JSON fields or matching name + version
-		err := rm.db.Where("name = ? AND version = ?",
-			modelDef.Name, string(modelDef.Version)).
-			First(&existingModel).Error
-
-		if err == nil && existingModel.ID != uuid.Nil {
-			// Found existing canonical model; reuse its ID
-			entityID = existingModel.ID
-			modelDef.ID = existingModel.ID
-			isModelDuplicate = true
-		} else if err != nil && err != gorm.ErrRecordNotFound {
-			return false, true, err
+	// Resolve child component model reference to canonical model ID if present
+	if compDef, ok := en.(*componentv1beta1.ComponentDefinition); ok && compDef != nil {
+		if compDef.Model != nil {
+			if canonicalID, found, resolveErr := rm.resolveCanonicalModelID(compDef.Model); resolveErr == nil && found && canonicalID != uuid.Nil {
+				compDef.Model.ID = canonicalID
+				idCopy := canonicalID
+				compDef.ModelId = &idCopy
+			}
+		} else if compDef.ModelId != nil && *compDef.ModelId != uuid.Nil {
+			var existing model.ModelDefinition
+			if err := rm.db.Where("id = ?", *compDef.ModelId).First(&existing).Error; err == nil && existing.ID != uuid.Nil {
+				canonicalID, found, resolveErr := rm.resolveCanonicalModelID(&existing)
+				if resolveErr == nil && found && canonicalID != uuid.Nil && canonicalID != *compDef.ModelId {
+					idCopy := canonicalID
+					compDef.ModelId = &idCopy
+				}
+			}
 		}
 	}
 
-	// Persist the entity if it doesn't already exist
+	// Check if this is a ModelDefinition and if a canonical entry already exists
+	if modelDef, ok := en.(*model.ModelDefinition); ok {
+		canonicalID, found, resolveErr := rm.resolveCanonicalModelID(modelDef)
+		if resolveErr != nil {
+			return false, true, resolveErr
+		}
+		if found && canonicalID != uuid.Nil {
+			entityID = canonicalID
+			modelDef.ID = canonicalID
+		}
+	}
+
+	// Persist the entity if it doesn't already exist; re-read on unique-key race conflict
 	if entityID == uuid.Nil {
 		entityID, err = en.Create(rm.db, registrantID)
 		if err != nil {
-			return false, true, err
+			if modelDef, ok := en.(*model.ModelDefinition); ok && isDuplicateKeyError(err) {
+				canonicalID, found, resolveErr := rm.resolveCanonicalModelID(modelDef)
+				if resolveErr == nil && found && canonicalID != uuid.Nil {
+					entityID = canonicalID
+					modelDef.ID = canonicalID
+					err = nil
+				}
+			}
+			if err != nil {
+				return false, true, err
+			}
 		}
 	}
 
@@ -191,7 +260,7 @@ func (rm *RegistryManager) RegisterEntity(h connectionv1beta3.Connection, en ent
 		}
 	}
 
-	return false, isModelDuplicate, nil
+	return false, false, nil
 }
 
 // UpdateEntityStatus updates the ignore status of an entity based on the provided parameters.
@@ -215,6 +284,7 @@ func (rm *RegistryManager) UpdateEntityStatus(ID string, status string, entityTy
 	}
 }
 
+// GetRegistrant returns the v1beta3 registrant connection associated with the given entity.
 func (rm *RegistryManager) GetRegistrant(e entity.Entity) connectionv1beta3.Connection {
 	eID := e.GetID()
 	var reg Registry
