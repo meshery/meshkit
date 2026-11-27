@@ -36,23 +36,35 @@ func TestEnsureStreamIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestEnsureStreamCapsDefaultDuplicatesAtShortMaxAge(t *testing.T) {
-	natsHandler := newTestHandler(t, true)
-	options := testStream
-	options.MaxAge = 30 * time.Second
-	if err := natsHandler.EnsureStream(context.Background(), options); err != nil {
-		t.Fatalf("EnsureStream: %v", err)
+func TestEnsureStreamCapsDuplicatesAtMaxAge(t *testing.T) {
+	testCases := []struct {
+		name       string
+		duplicates time.Duration
+	}{
+		{name: "default window", duplicates: 0},
+		{name: "explicit window above MaxAge", duplicates: 2 * time.Minute},
 	}
-	jetStreamClient, err := jetstream.New(natsHandler.nc)
-	if err != nil {
-		t.Fatalf("jetstream.New: %v", err)
-	}
-	stream, err := jetStreamClient.Stream(context.Background(), options.StreamName)
-	if err != nil {
-		t.Fatalf("get stream: %v", err)
-	}
-	if got := stream.CachedInfo().Config.Duplicates; got != 30*time.Second {
-		t.Fatalf("Duplicates = %v, want 30s", got)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			natsHandler := newTestHandler(t, true)
+			options := testStream
+			options.MaxAge = 30 * time.Second
+			options.Duplicates = testCase.duplicates
+			if err := natsHandler.EnsureStream(context.Background(), options); err != nil {
+				t.Fatalf("EnsureStream: %v", err)
+			}
+			jetStreamClient, err := jetstream.New(natsHandler.nc)
+			if err != nil {
+				t.Fatalf("jetstream.New: %v", err)
+			}
+			stream, err := jetStreamClient.Stream(context.Background(), options.StreamName)
+			if err != nil {
+				t.Fatalf("get stream: %v", err)
+			}
+			if got := stream.CachedInfo().Config.Duplicates; got != 30*time.Second {
+				t.Fatalf("Duplicates = %v, want 30s", got)
+			}
+		})
 	}
 }
 

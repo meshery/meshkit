@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/meshery/meshkit/broker"
@@ -52,7 +53,10 @@ func (options JetStreamOptions) streamConfig() jetstream.StreamConfig {
 		config.Replicas = defaultReplicas
 	}
 	if config.Duplicates == 0 {
-		config.Duplicates = min(defaultDuplicates, config.MaxAge)
+		config.Duplicates = defaultDuplicates
+	}
+	if config.Duplicates > config.MaxAge {
+		config.Duplicates = config.MaxAge
 	}
 	return config
 }
@@ -67,7 +71,17 @@ func (n *Nats) EnsureStream(ctx context.Context, options JetStreamOptions) error
 	if err != nil {
 		return ErrEnsureStream(err)
 	}
-	if _, err := jetStreamClient.CreateOrUpdateStream(ctx, options.streamConfig()); err != nil {
+	config := options.streamConfig()
+	if options.Duplicates > config.Duplicates {
+		message := fmt.Sprintf("JetStream stream %s: Duplicates %v is longer than MaxAge %v, using %v",
+			config.Name, options.Duplicates, config.MaxAge, config.Duplicates)
+		if n.log != nil {
+			n.log.Warnf("%s", message)
+		} else {
+			log.Printf("%s", message)
+		}
+	}
+	if _, err := jetStreamClient.CreateOrUpdateStream(ctx, config); err != nil {
 		if jetStreamMissing(err) {
 			return ErrJetStreamUnavailable(err)
 		}
