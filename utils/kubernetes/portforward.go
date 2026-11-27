@@ -48,6 +48,7 @@ type PortForwarder struct {
 	started  bool
 	stopOnce sync.Once
 	stopCh   chan struct{}
+	doneCh   chan struct{}
 }
 
 // reconnectBackoff bounds how fast the forwarder retries after a tunnel drop or a
@@ -77,6 +78,7 @@ func NewPortForwarder(client *Client, target PortForwardTarget, log logger.Handl
 		log:       log,
 		localPort: localPort,
 		stopCh:    make(chan struct{}),
+		doneCh:    make(chan struct{}),
 	}, nil
 }
 
@@ -105,6 +107,7 @@ func (pf *PortForwarder) Stop() {
 }
 
 func (pf *PortForwarder) run() {
+	defer close(pf.doneCh)
 	for {
 		select {
 		case <-pf.stopCh:
