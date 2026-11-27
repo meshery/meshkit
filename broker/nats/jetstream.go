@@ -108,7 +108,11 @@ func (n *Nats) PublishDurable(ctx context.Context, subject string, message *brok
 	if err != nil {
 		return ErrPublishDurable(err)
 	}
-	_, err = jetStreamClient.Publish(ctx, subject, data, jetstream.WithMsgID(idempotencyKey))
+	var publishOptions []jetstream.PublishOpt
+	if idempotencyKey != "" {
+		publishOptions = append(publishOptions, jetstream.WithMsgID(idempotencyKey))
+	}
+	_, err = jetStreamClient.Publish(ctx, subject, data, publishOptions...)
 	if err != nil {
 		if jetStreamMissing(err) {
 			return ErrJetStreamUnavailable(err)

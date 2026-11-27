@@ -139,6 +139,24 @@ func TestPublishDurableKeepsDistinctKeys(t *testing.T) {
 	}
 }
 
+func TestPublishDurableWithEmptyKeyKeepsEveryMessage(t *testing.T) {
+	natsHandler := newTestHandler(t, true)
+	ctx := context.Background()
+	if err := natsHandler.EnsureStream(ctx, testStream); err != nil {
+		t.Fatalf("EnsureStream: %v", err)
+	}
+
+	for attempt := 1; attempt <= 2; attempt++ {
+		if err := natsHandler.PublishDurable(ctx, "test.events", testMessage, ""); err != nil {
+			t.Fatalf("PublishDurable attempt %d: %v", attempt, err)
+		}
+	}
+
+	if count := streamMessageCount(t, natsHandler, testStream.StreamName); count != 2 {
+		t.Fatalf("stream has %d messages, want 2", count)
+	}
+}
+
 func TestPublishDurableWithoutStream(t *testing.T) {
 	natsHandler := newTestHandler(t, true) // JetStream on, but no EnsureStream
 	err := natsHandler.PublishDurable(context.Background(), "test.events", testMessage, "key")
