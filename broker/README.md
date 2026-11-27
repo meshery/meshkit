@@ -110,7 +110,8 @@ if natsHandler, ok := handler.(*nats.Nats); ok {
 Zero-valued options use these defaults: file storage, limits retention,
 discard-old, `MaxAge` 24h, `MaxBytes` 256 MiB, `Replicas` 1, `Duplicates` 2m
 (capped at `MaxAge`, since the server rejects a dedup window longer than the
-retention).
+retention). An explicit `Duplicates` longer than `MaxAge` is capped too and
+`EnsureStream` logs a warning with the requested and applied values.
 
 ### Publishing
 
