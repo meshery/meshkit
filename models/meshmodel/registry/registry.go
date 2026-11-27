@@ -233,19 +233,20 @@ func (rm *RegistryManager) RegisterEntity(h connectionv1beta3.Connection, en ent
 		}
 	}
 
-	// Idempotently link registrant to entity in registries table
-	var count int64
-	err = rm.db.Table("registries").
-		Where("registrant_id = ? AND entity = ? AND type = ?", registrantID, entityID, en.Type()).
-		Count(&count).Error
-	if err != nil {
-		return false, false, err
-	}
-
-	if count == 0 {
+	// Idempotently link registrant to entity in registries table inside a transaction
+	err = rm.db.Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Table("registries").
+			Where("registrant_id = ? AND entity = ? AND type = ?", registrantID, entityID, en.Type()).
+			Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return nil
+		}
 		id, err := uuid.NewV4()
 		if err != nil {
-			return false, false, err
+			return err
 		}
 		entry := Registry{
 			ID:           id,
@@ -255,9 +256,16 @@ func (rm *RegistryManager) RegisterEntity(h connectionv1beta3.Connection, en ent
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		if err := rm.db.Create(&entry).Error; err != nil {
-			return false, false, err
+		if err := tx.Create(&entry).Error; err != nil {
+			if isDuplicateKeyError(err) {
+				return nil
+			}
+			return err
 		}
+		return nil
+	})
+	if err != nil {
+		return false, false, err
 	}
 
 	return false, false, nil
