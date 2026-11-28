@@ -352,7 +352,7 @@ func FormatName(input string) string {
 }
 
 func GetRandomAlphabetsOfDigit(length int) (s string) {
-	charSet := "abcdedfghijklmnopqrstuvwxyz"
+	charSet := "abcdefghijklmnopqrstuvwxyz"
 	for i := 0; i < length; i++ {
 		random := mathrand.Intn(len(charSet))
 		randomChar := charSet[random]
