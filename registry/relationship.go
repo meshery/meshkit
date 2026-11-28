@@ -71,7 +71,8 @@ func NewRelationshipCSVHelper(sheetURL, spreadsheetName string, spreadsheetID in
 	}, nil
 }
 func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) error {
-	ch := make(chan RelationshipCSV, 1)
+	// Each row must be consumed before the parser can signal completion.
+	ch := make(chan RelationshipCSV)
 	errorChan := make(chan error, 1)
 	csvReader, err := csv.NewCSVParser[RelationshipCSV](mrh.CSVPath, rowIndex, nil, func(_ []string, _ []string) bool {
 		return true
@@ -85,6 +86,7 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) erro
 	currentRow := rowIndex
 
 	go func() {
+		defer close(errorChan)
 		Log.Info("Parsing Relationships...")
 
 		err := csvReader.Parse(ch, errorChan)
@@ -93,6 +95,7 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) erro
 		}
 	}()
 
+	var parseErr error
 	for {
 		select {
 		case data := <-ch:
@@ -102,10 +105,13 @@ func (mrh *RelationshipCSVHelper) ParseRelationshipsSheet(modelName string) erro
 			data.RowIndex = currentRow
 			currentRow++
 			mrh.Relationships = append(mrh.Relationships, data)
-		case err := <-errorChan:
-			Log.Error(err)
-		case <-csvReader.Context.Done():
-			return nil
+		case err, open := <-errorChan:
+			// Parse cancels its context before returning its error. Wait for
+			// the producer to finish forwarding errors before returning.
+			if !open {
+				return parseErr
+			}
+			parseErr = err
 		}
 	}
 }

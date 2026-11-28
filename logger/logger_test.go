@@ -2,6 +2,7 @@ package logger
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -81,6 +82,42 @@ func TestLogger_SetLevel_GetLevel(t *testing.T) {
 
 	l.SetLevel(logrus.WarnLevel)
 	assert.Equal(t, logrus.WarnLevel, l.GetLevel())
+}
+
+func TestLogger_SeparateOutputs(t *testing.T) {
+	var output, errorOutput bytes.Buffer
+	log, err := New("testapp", Options{
+		Format:      TerminalLogFormat,
+		LogLevel:    int(logrus.InfoLevel),
+		Output:      &output,
+		ErrorOutput: &errorOutput,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Info("info message")
+	log.Error(errors.New("error message"))
+
+	assert.Equal(t, "info message\n", output.String())
+	assert.Equal(t, "error message\n", errorOutput.String())
+}
+
+func TestLogger_ErrorOutputDefaultsToOutput(t *testing.T) {
+	var output bytes.Buffer
+	log, err := New("testapp", Options{
+		Format:   TerminalLogFormat,
+		LogLevel: int(logrus.InfoLevel),
+		Output:   &output,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Info("info message")
+	log.Error(errors.New("error message"))
+
+	assert.Equal(t, "info message\nerror message\n", output.String())
 }
 
 func TestLogger_UpdateLogOutput(t *testing.T) {
@@ -190,4 +227,60 @@ func TestLoggerIntegration_FileOutput(t *testing.T) {
 	assert.Contains(t, string(data), "long test error occurred in the function X when doing Y")
 	assert.Contains(t, string(data), "the probable cause of the error is Z")
 	assert.Contains(t, string(data), "try doing A, B, or C to remediate the error")
+}
+
+var mErrorV3 = meshkitError.NewV3(
+	"code",
+	meshkitError.Alert,
+	[]string{"short v3 error"},
+	[]string{"long v3 error"},
+	[]meshkitError.Cause{{
+		ID:          "service-not-running",
+		Description: "The service is not running.",
+		Remediations: []meshkitError.Remediation{
+			{ID: "start-service", Description: "Start the service.", Action: "service.start", ActionPolicy: meshkitError.RequiresApproval},
+		},
+	}},
+)
+
+func TestLogger_Error_JSONFormat_NestedCauses(t *testing.T) {
+	log, err := New("testapp", Options{Format: JsonLogFormat, LogLevel: int(logrus.InfoLevel)})
+	assert.NoError(t, err)
+	l := log.(*Logger)
+
+	var buf bytes.Buffer
+	l.UpdateErrorLogOutput(&buf)
+	l.Error(mErrorV3)
+
+	var entry map[string]any
+	assert.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+	assert.Equal(t, "The service is not running.", entry["probable-cause"])
+	assert.Equal(t, "Start the service.", entry["suggested-remediation"])
+	causes, ok := entry["probable-causes"].([]any)
+	if assert.True(t, ok, "probable-causes is not a nested JSON array: %v", entry["probable-causes"]) {
+		cause := causes[0].(map[string]any)
+		assert.Equal(t, "service-not-running", cause["id"])
+		rem := cause["remediations"].([]any)[0].(map[string]any)
+		assert.Equal(t, "requiresApproval", rem["actionPolicy"])
+		assert.Equal(t, "service.start", rem["action"])
+	}
+
+	// A flat errors.New error logs no probable-causes field.
+	buf.Reset()
+	l.Error(mError)
+	entry = nil
+	assert.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+	_, present := entry["probable-causes"]
+	assert.False(t, present)
+}
+
+func TestLogger_Warn_TextFormat_NestedCausesAsJSON(t *testing.T) {
+	log, err := New("testapp", Options{Format: SyslogLogFormat, LogLevel: int(logrus.InfoLevel)})
+	assert.NoError(t, err)
+	l := log.(*Logger)
+
+	var buf bytes.Buffer
+	l.UpdateLogOutput(&buf)
+	l.Warn(mErrorV3)
+	assert.Contains(t, buf.String(), `\"id\":\"service-not-running\"`)
 }

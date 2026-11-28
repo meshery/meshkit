@@ -59,6 +59,21 @@ Meshery Cloud, adapters, operators, CLIs) depends on it, so changes fan out down
 - Use `chrome-devtools-axi` for browser automation (navigate, snapshot, click, fill forms, run JS, inspect console/network) in place of raw Playwright/chrome-devtools MCP for ad hoc tasks.
 - Run `quota-axi` to check local agent-provider quota windows before long-running work.
 - Use the `lavish` skill (`lavish-axi` CLI) to turn a plan, comparison, or report into a reviewable HTML artifact.
+- **Work in a treehouse worktree, never in the main clone.** Other agent sessions and the
+  no-mistakes pipeline share the main clone. Take a worktree with
+  `treehouse get --lease -b <branch>` (it prints the path; `--base <branch>` starts it from
+  another branch), work there, and release it with `treehouse return <path>` once the change
+  has merged. `treehouse status` lists the pool. Never make one with `git worktree add` or a
+  second clone.
+- **Land every change through no-mistakes, at most three runs per pull request.** Commit in
+  the worktree, then run `no-mistakes axi run --intent "<goal>"` (a clone without a
+  `no-mistakes` remote needs `no-mistakes init` once). `no-mistakes axi status` shows the step
+  and its findings, and `no-mistakes axi respond` answers a review gate. The pipeline reviews,
+  tests, pushes and opens the pull request. Drive it with the vendored skill at
+  `.agents/skills/no-mistakes/SKILL.md`. After the third run, open an issue for anything
+  still flagged and hand the pull request to a human. A run that stopped on a usage limit
+  counts; one cancelled before it did anything does not. Three runs do not waive the merge gate.
+- **A pull request that changes any path outside documentation and CI merges only with a green no-mistakes run on its current head.** Documentation is `docs/**`. MeshKit publishes no website from this repository. CI is `.github/workflows/**`. The check is `PR must be raised via no-mistakes`: `review`, `test`, and `document` must each be `completed` in a head-bound attestation.
 
 ## Claude Code Settings
 

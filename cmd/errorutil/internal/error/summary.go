@@ -22,6 +22,7 @@ type analysisSummary struct {
 	CallExprCodes        []string            `yaml:"call_expr_codes" json:"call_expr_codes"`                // codes set by call expressions instead of literals
 	IntCodes             []int               `yaml:"int_codes" json:"int_codes"`                            // all error codes as integers
 	DeprecatedNewDefault []string            `yaml:"deprecated_new_default" json:"deprecated_new_default" ` // list of files with usage of deprecated NewDefault func
+	InvalidDefinitions   map[string][]string `yaml:"invalid_definitions" json:"invalid_definitions"`        // errors.NewV3 definitions errorutil cannot export, by error name, with the problems found
 }
 
 // SummarizeAnalysis summarizes the analysis and writes it to the specified output directory.
@@ -73,6 +74,7 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 		}
 	}
 	sort.Strings(summary.DuplicateNames)
+	summary.InvalidDefinitions = InvalidDefinitions(infoAll)
 	for _, v := range infoAll.CallExprCodes {
 		summary.CallExprCodes = append(summary.CallExprCodes, v.Name)
 	}
@@ -86,6 +88,21 @@ func SummarizeAnalysis(componentInfo *component.Info, infoAll *InfoAll, outputDi
 	fname := filepath.Join(outputDir, config.App+"_analyze_summary.json")
 	log.Infof("writing summary to %s", fname)
 	return os.WriteFile(fname, jsn, 0600)
+}
+
+// InvalidDefinitions returns the errors.NewV3 definitions errorutil rejected, by error name, with the problems
+// found. errorutil leaves them out of both exports, and analyze and update fail while any remain.
+func InvalidDefinitions(infoAll *InfoAll) map[string][]string {
+	invalid := map[string][]string{}
+	for name, definitions := range infoAll.Errors {
+		for _, d := range definitions {
+			invalid[name] = append(invalid[name], d.Problems...)
+		}
+		if len(invalid[name]) == 0 {
+			delete(invalid, name)
+		}
+	}
+	return invalid
 }
 
 func contains(s []int, str int) bool {

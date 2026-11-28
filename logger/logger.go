@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -56,7 +57,7 @@ func (f *TerminalFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return append([]byte(msg), '\n'), nil
 }
 
-func newLogrusLogger(appname string, opts Options, defaultOutput io.Writer) *logrus.Entry {
+func newLogrusLogger(appname string, opts Options, output io.Writer) *logrus.Entry {
 	log := logrus.New()
 
 	switch opts.Format {
@@ -83,23 +84,29 @@ func newLogrusLogger(appname string, opts Options, defaultOutput io.Writer) *log
 		log.AddHook(&CallerHook{skippedPaths: skippedPaths})
 	}
 
-	log.SetOutput(defaultOutput)
-	if opts.Output != nil {
-		log.SetOutput(opts.Output)
-	}
-
-	if opts.ErrorOutput != nil {
-		log.SetOutput(opts.ErrorOutput)
-	}
-
+	log.SetOutput(output)
 	log.SetLevel(logrus.Level(opts.LogLevel))
 
 	return log.WithFields(logrus.Fields{"app": appname})
 }
 
 func New(appname string, opts Options) (Handler, error) {
-	entry := newLogrusLogger(appname, opts, os.Stdout)
-	errEntry := newLogrusLogger(appname, opts, os.Stderr)
+	output := opts.Output
+	if output == nil {
+		output = os.Stdout
+	}
+
+	errorOutput := opts.ErrorOutput
+	if errorOutput == nil {
+		// Preserve shared output for callers that set only Output.
+		errorOutput = opts.Output
+		if errorOutput == nil {
+			errorOutput = os.Stderr
+		}
+	}
+
+	entry := newLogrusLogger(appname, opts, output)
+	errEntry := newLogrusLogger(appname, opts, errorOutput)
 	return &Logger{defaultHandler: entry, errorHandler: errEntry}, nil
 }
 
@@ -128,13 +135,7 @@ func (l *Logger) Warn(err error) {
 		return
 	}
 
-	l.defaultHandler.WithFields(logrus.Fields{
-		"code":                  errors.GetCode(err),
-		"severity":              errors.GetSeverity(err),
-		"short-description":     errors.GetSDescription(err),
-		"probable-cause":        errors.GetCause(err),
-		"suggested-remediation": errors.GetRemedy(err),
-	}).Log(logrus.WarnLevel, err.Error())
+	l.defaultHandler.WithFields(errorFields(err)).Log(logrus.WarnLevel, err.Error())
 }
 
 func (l *Logger) Warnf(format string, args ...interface{}) {
@@ -146,13 +147,7 @@ func (l *Logger) Error(err error) {
 		return
 	}
 
-	l.errorHandler.WithFields(logrus.Fields{
-		"code":                  errors.GetCode(err),
-		"severity":              errors.GetSeverity(err),
-		"short-description":     errors.GetSDescription(err),
-		"probable-cause":        errors.GetCause(err),
-		"suggested-remediation": errors.GetRemedy(err),
-	}).Log(logrus.ErrorLevel, err.Error())
+	l.errorHandler.WithFields(errorFields(err)).Log(logrus.ErrorLevel, err.Error())
 }
 
 func (l *Logger) Errorf(format string, args ...interface{}) {
@@ -164,13 +159,7 @@ func (l *Logger) Fatal(err error) {
 		return
 	}
 
-	l.errorHandler.WithFields(logrus.Fields{
-		"code":                  errors.GetCode(err),
-		"severity":              errors.GetSeverity(err),
-		"short-description":     errors.GetSDescription(err),
-		"probable-cause":        errors.GetCause(err),
-		"suggested-remediation": errors.GetRemedy(err),
-	}).Log(logrus.FatalLevel, err.Error())
+	l.errorHandler.WithFields(errorFields(err)).Log(logrus.FatalLevel, err.Error())
 	os.Exit(1)
 }
 
@@ -194,4 +183,34 @@ func (l *Logger) UpdateLogOutput(output io.Writer) {
 
 func (l *Logger) UpdateErrorLogOutput(output io.Writer) {
 	l.errorHandler.Logger.SetOutput(output)
+}
+
+// errorFields is the structured form of a MeshKit error in a log entry: the
+// flat fields every MeshKit error carries and, for an error created with
+// errors.NewV3, "probable-causes" with each cause nested with its remediations
+// in the schemas error construct's JSON shape.
+func errorFields(err error) logrus.Fields {
+	fields := logrus.Fields{
+		"code":                  errors.GetCode(err),
+		"severity":              errors.GetSeverity(err),
+		"short-description":     errors.GetSDescription(err),
+		"probable-cause":        errors.GetCause(err),
+		"suggested-remediation": errors.GetRemedy(err),
+	}
+	if causes := errors.GetCauses(err); len(causes) > 0 {
+		fields["probable-causes"] = causesField(causes)
+	}
+	return fields
+}
+
+// causesField marshals as nested JSON under the JSON formatter and prints as
+// compact JSON under the text formatter, instead of Go's struct syntax.
+type causesField []errors.Cause
+
+func (c causesField) String() string {
+	raw, err := json.Marshal([]errors.Cause(c))
+	if err != nil {
+		return fmt.Sprintf("%v", []errors.Cause(c))
+	}
+	return string(raw)
 }

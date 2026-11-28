@@ -2,12 +2,14 @@ package coder
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/meshery/meshkit/cmd/errorutil/internal/component"
 
@@ -100,7 +102,29 @@ func walkSummarizeExport(globalFlags globalFlags, update bool, updateAll bool) e
 	if err != nil {
 		return err
 	}
-	return mesherr.Export(componentInfo, errorsInfo, globalFlags.outDir)
+	if err := mesherr.Export(componentInfo, errorsInfo, globalFlags.outDir); err != nil {
+		return err
+	}
+	return invalidDefinitionsError(mesherr.InvalidDefinitions(errorsInfo))
+}
+
+// invalidDefinitionsError fails analyze and update while any errors.NewV3 definition is invalid, naming each
+// definition with its problems. Invalid definitions are already left out of both exports.
+func invalidDefinitionsError(invalid map[string][]string) error {
+	if len(invalid) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(invalid))
+	for name := range invalid {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var b strings.Builder
+	fmt.Fprintf(&b, "%d invalid errors.NewV3 definition(s), left out of the exports:", len(names))
+	for _, name := range names {
+		fmt.Fprintf(&b, "\n  %s: %s", name, strings.Join(invalid[name], "; "))
+	}
+	return errors.New(b.String())
 }
 
 func commandAnalyze() *cobra.Command {
@@ -109,6 +133,9 @@ func commandAnalyze() *cobra.Command {
 		Short: "Analyze a directory tree",
 		Long:  `analyze analyzes a directory tree for error codes`,
 		Args:  cobra.MinimumNArgs(0),
+		// An invalid NewV3 definition fails the run; print only the error that
+		// names it, not the usage block.
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gFlags, err := getGlobalFlags(cmd)
 			if err != nil {
@@ -126,6 +153,9 @@ func commandUpdate() *cobra.Command {
 		Short: "Update error codes and details",
 		Long:  "update replaces error codes where specified, and updates error details",
 		Args:  cobra.MinimumNArgs(0),
+		// An invalid NewV3 definition fails the run; print only the error that
+		// names it, not the usage block.
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gFlags, err := getGlobalFlags(cmd)
 			if err != nil {
@@ -157,6 +187,8 @@ A MeshKit compatible error consist of
   - The initial value of the code is a placeholder string, e.g. "replace_me", set by the developer.
   - The final value of the code is an integer, set by this tool, as part of a CI workflow.
 - Error details defined using the function errors.New(code, severity, sdescription, ldescription, probablecause, remedy) from MeshKit.
+  errors.NewV2 and errors.NewV3 (nested causes with remediations) are read as well; see docs/agent-instructions/errors.md for the NewV3 rules.
+  A NewV3 definition that breaks those rules is left out of both exports, and analyze and update exit non-zero naming it.
  - The first parameter, 'code', has to be passed as the error code constant (or variable), not a string literal.
  - The second parameter, 'severity', has its own type; consult its Go-doc for further details.
  - The remaining parameters are string arrays for short and long description, probable cause, and suggested remediation.
@@ -172,10 +204,11 @@ Additionally, the following conventions apply:
 - There are no predefined error code ranges for components. Every component is free to use its own range.
 - Codes carry no meaning, as e.g. HTTP status codes do.
 
-This tool produces three files:
+This tool produces four files:
 - errorutil_analyze_errors.json: raw data with all errors and some metadata
 - errorutil_analyze_summary.json: summary of raw data, also used for validation and troubleshooting
 - errorutil_errors_export.json: export of errors which can be used to create the error code reference on the Meshery website
+- errorutil_errors_index.json: the same errors as a meshery/schemas ErrorReferenceIndex (machine-readable error reference)
 
 Typically, the 'analyze' command of the tool is used by the developer to verify errors, i.e. that there are no duplicate names or details.
 A CI workflow is used to replace the placeholder code strings with integer code, and export errors. Using this export, the workflow updates

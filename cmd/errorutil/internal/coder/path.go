@@ -31,6 +31,10 @@ func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesh
 	if err != nil {
 		return err
 	}
+	remediations, err := collectAllRemediationVars(globalFlags, subDirsToSkip)
+	if err != nil {
+		return err
+	}
 
 	err = filepath.Walk(globalFlags.rootDir, func(path string, info os.FileInfo, err error) error {
 		logger := logrus.WithFields(logrus.Fields{"path": path})
@@ -48,7 +52,7 @@ func walk(globalFlags globalFlags, update bool, updateAll bool, errorsInfo *mesh
 			if includeFile(path) {
 				isErrorsGoFile := isErrorGoFile(path)
 				logger.WithFields(logrus.Fields{"iserrorsfile": fmt.Sprintf("%v", isErrorsGoFile)}).Debug("handling Go file")
-				err := handleFile(path, update && isErrorsGoFile, updateAll, errorsInfo, comp)
+				err := handleFile(path, update && isErrorsGoFile, updateAll, errorsInfo, comp, remediations.resolverFor(filepath.Dir(path)))
 				if err != nil {
 					return err
 				}

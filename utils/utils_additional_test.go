@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -276,17 +278,27 @@ func TestMarshal(t *testing.T) {
 }
 
 func TestYAMLToJSON(t *testing.T) {
-	yaml := []byte("name: test\ncount: 42\n")
-	result, err := YAMLToJSON(yaml)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	tests := []struct {
+		name string
+		yaml string
+		want string
+	}{
+		{"string keys", "name: test\ncount: 42\n", `{"count":42,"name":"test"}`},
+		{"int key", "1: a\n", `{"1":"a"}`},
+		{"bool key", "true: x\n", `{"true":"x"}`},
+		{"int key inside a list", "- 2: b\n", `[{"2":"b"}]`},
+		{"int key under a string key", "top:\n  3: c\n", `{"top":{"3":"c"}}`},
 	}
-	var check map[string]interface{}
-	if err := json.Unmarshal(result, &check); err != nil {
-		t.Fatalf("result is not valid JSON: %v", err)
-	}
-	if check["name"] != "test" {
-		t.Errorf("expected name=test, got %v", check["name"])
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := YAMLToJSON([]byte(tt.yaml))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if string(got) != tt.want {
+				t.Errorf("got %s, want %s", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -319,16 +331,43 @@ func TestConvertMapInterfaceMapString(t *testing.T) {
 }
 
 func TestConvertToJSONCompatible(t *testing.T) {
-	input := map[interface{}]interface{}{
-		"name": "test",
+	tests := []struct {
+		name  string
+		input interface{}
+		want  interface{}
+	}{
+		{
+			name:  "string key",
+			input: map[interface{}]interface{}{"name": "test"},
+			want:  map[string]interface{}{"name": "test"},
+		},
+		{
+			name:  "non-string keys",
+			input: map[interface{}]interface{}{1: "a", true: "b"},
+			want:  map[string]interface{}{"1": "a", "true": "b"},
+		},
+		{
+			name:  "map inside a list",
+			input: []interface{}{map[interface{}]interface{}{2: "b"}},
+			want:  []interface{}{map[string]interface{}{"2": "b"}},
+		},
+		{
+			name:  "map under a string-keyed map",
+			input: map[string]interface{}{"top": map[interface{}]interface{}{3: "c"}},
+			want:  map[string]interface{}{"top": map[string]interface{}{"3": "c"}},
+		},
+		{
+			name:  "scalar",
+			input: "plain",
+			want:  "plain",
+		},
 	}
-	result := ConvertToJSONCompatible(input)
-	m, ok := result.(map[string]interface{})
-	if !ok {
-		t.Fatal("expected map[string]interface{}")
-	}
-	if m["name"] != "test" {
-		t.Errorf("expected name=test, got %v", m["name"])
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ConvertToJSONCompatible(tt.input); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %#v, want %#v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -683,6 +722,53 @@ func TestGetAllVersionDirsSortedDesc(t *testing.T) {
 	// First should be highest version
 	if filepath.Base(result[0]) != "v3.0.0" {
 		t.Errorf("expected v3.0.0 first, got %s", filepath.Base(result[0]))
+	}
+}
+
+func TestGetAllVersionDirsSortedDesc_ReleaseAbovePreRelease(t *testing.T) {
+	dir := t.TempDir()
+	versions := []string{"v1.32.0-alpha.3", "v1.32.0", "v1.32.0-1", "v1.32.0-rc.1", "v1.31.2"}
+	for _, v := range versions {
+		if err := os.Mkdir(filepath.Join(dir, v), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := GetAllVersionDirsSortedDesc(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{"v1.32.0", "v1.32.0-rc.1", "v1.32.0-alpha.3", "v1.32.0-1", "v1.31.2"}
+	got := make([]string, len(result))
+	for i, r := range result {
+		got[i] = filepath.Base(r)
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("expected order %v, got %v", want, got)
+	}
+}
+
+func TestCompareVersions_PreRelease(t *testing.T) {
+	tests := []struct {
+		greater, lesser string
+	}{
+		{"1.0.0", "1.0.0-rc.1"},
+		{"1.0.0", "1.0.0-1"},
+		{"v1.32.0", "v1.32.0-1"},
+		{"1.0.0-2", "1.0.0-1"},
+		{"1.0.0-rc.1", "1.0.0-1"},
+		{"1.0.0-rc.1", "1.0.0-alpha.3"},
+		{"1.0.0-alpha.10", "1.0.0-alpha.2"},
+		{"1.0.0-alpha.1", "1.0.0-alpha"},
+		{"1.0.1-alpha", "1.0.0"},
+	}
+	for _, tt := range tests {
+		if got := compareVersions(tt.greater, tt.lesser); got <= 0 {
+			t.Errorf("compareVersions(%q, %q) = %d, want > 0", tt.greater, tt.lesser, got)
+		}
+		if got := compareVersions(tt.lesser, tt.greater); got >= 0 {
+			t.Errorf("compareVersions(%q, %q) = %d, want < 0", tt.lesser, tt.greater, got)
+		}
 	}
 }
 
