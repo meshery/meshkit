@@ -122,14 +122,13 @@ func Validate(schema cue.Value, resourceValue interface{}) error {
 }
 
 func convertCueErrorsToStrings(errs []cueerrors.Error) []string {
-	var res []string
+	var combined cueerrors.Error
 	for _, err := range errs {
-
-		_ = cueerrors.Sanitize(err)
+		combined = cueerrors.Append(combined, err)
 	}
-	for _, err2 := range errs {
-
-		res = append(res, err2.Error())
+	var res []string
+	for _, err := range cueerrors.Errors(cueerrors.Sanitize(combined)) {
+		res = append(res, err.Error())
 	}
 	return res
 }
